@@ -58,12 +58,12 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   masowa generacja historii w formacie eksportu (zamknięty, commit
   `5a75ef8`; audyt: CZYSTY);
 - [`POKER-15.json`](taskspecs/POKER-15.json) — zbiór przykładów
-  decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zrealizowany,
-  `cb2298d` na gałęzi kodera; czeka na audyt i integrację);
+  decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zamknięty, commit
+  `cb2298d`; audyt: CZYSTY);
 - [`POKER-16.json`](taskspecs/POKER-16.json) — baseline behavior
-  cloning w stdlib z pomiarem w arenie, plaster b4.2 decyzji 05
-  (zatwierdzony do pracy równoległej od heada POKER-15; kolejność
-  integracji: 15 przed 16).
+  clone, plaster b4.2 decyzji 05 (zamknięty, commit `eea6b81`;
+  audyt: F1 ISTOTNY — odtwarzalność wag z samego repo → kontrakt
+  hardening).
 
 ## Operator
 

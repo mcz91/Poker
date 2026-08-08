@@ -28,12 +28,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-15 u audytora (`cb2298d`, rodzic = head
-  integracyjny, kształt diffu potwierdzony). POKER-16 zatwierdzony
-  do pracy równoległej — koder startuje ze świeżej sesji z `cb2298d`
-  (gałąź POKER-15), nie z heada integracyjnego i nie z main;
-  kolejność scalania 15 przed 16, poprawki audytu 15 → rebase 16;
-  właściciel integracji: architekt.
+- 2026-08-08 arch: POKER-15/16 audyt łączny (15 CZYSTY, 16 F1
+  ISTOTNY), oba zweryfikowane niezależnie (czysty venv 3.13: ruff 0,
+  mypy 0/52, pytest 205; pomiar referencyjny odtworzony co do
+  setnej) i scalone w kolejności 15→16; F1 → kontrakt hardening.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -43,6 +41,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
+- 2026-08-08 arch: pomiar referencyjny b4.2: clone vs rule −316.25
+  BB/100, CI [−534.35, −98.16] (20 par×100 rozdań, seed 7) — podstawa
+  b4.3; test wolny (rekomendacja audytu) rozstrzygnąć przy b4.3.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
@@ -57,9 +58,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
-  (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
-  = OBJECTION, nie cichy zapis.
+- Wygenerowany moduł danych w `src/` nosi pełny przepis regeneracji
+  we własnych metadanych (jak equity POKER-12); przepis tylko w opisie
+  commita = artefakt nieodtwarzalny z repo (wagi POKER-16, F1 audytu).
 - Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
   przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
   miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
