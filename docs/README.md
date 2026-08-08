@@ -46,7 +46,7 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
   w trybie człowieka (zamknięty, commit `80899ce`; audyt w toku);
 - [`POKER-12.json`](taskspecs/POKER-12.json) — equity preflop 169
-  klas rąk jako dane (zatwierdzony, u kodera);
+  klas rąk jako dane (zamknięty, commit `f166f41`; audyt w toku);
 - [`POKER-13.json`](taskspecs/POKER-13.json) — arena porównawcza
   agentów: BB/100 na lustrzanych rozdaniach (zatwierdzony, u kodera
   równolegle; scalanie po POKER-12).

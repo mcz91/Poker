@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-11
-(showdown na żywo w trybie człowieka).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-12
+(equity preflop 169 klas rąk jako dane).
 
 ## Co istnieje
 
@@ -69,6 +69,25 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-11
   z udokumentowanym domyślnym zestawem (podbija od dwóch par, gra
   o wartość od pary, sprawdza tanio 2:1); moduł importuje wyłącznie
   widok, decyzję i ewaluator — bez silnika, historii i stołu;
+- `poker.preflop` — 169 kanonicznych klas preflop (13 par, 78 suited,
+  78 offsuit): mapowanie dowolnych dwóch kart do klasy (`classify`)
+  i kombinacje klasy (`class_combos`: pary 6, suited 4, offsuit 12,
+  suma 1326 — pod testami); importuje wyłącznie karty;
+- `poker.preflop_equity` + `poker.preflop_equity_data` — macierz
+  equity all-in heads-up klasa vs klasa (udział oczekiwany puli:
+  wygrana + połowa splitu) jako wygenerowany moduł danych (bez I/O
+  przy odczycie, INV-P1) z metadanymi metody (metoda, seed, liczba
+  prób); czysta funkcja `equity(a, b)`; spójność pod testami:
+  e(a,b)+e(b,a)=1 i e(a,a)=0.5 dokładnie (jednostki pół-puli
+  o mianowniku będącym potęgą dwójki, przekątna i lustro
+  z konstrukcji), AA najwyższa średnia przeciw polu, AA vs KK
+  i AA vs losowa ręka w przedziałach odniesienia;
+- `poker.preflop_sim` — deterministyczna symulacja Monte Carlo pary
+  klas (RNG wstrzyknięty, seed pary pochodny od seeda macierzy);
+  używana przez generator `tools/generate_preflop_equity.py`
+  (komenda udokumentowana w [`README.md`](../README.md)) i test
+  reprodukcji podzbioru macierzy; granice importów rodziny preflop
+  (wyłącznie karty i ewaluator) strzeże test architektury;
 - `poker.adapters` — adaptery (INV-P7): `cli` rozgrywa mecz
   z terminala (`python -m poker.adapters.cli`, argumenty
   z udokumentowanymi domyślnymi w [`README.md`](../README.md), kod
@@ -105,8 +124,8 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. Równolegle trwają POKER-12 (equity
-preflop 169 klas jako dane) i POKER-13 (arena porównawcza agentów) —
-zadania niezależne modułowo; kolejność scalania: 12 przed 13,
-właściciel integracji: architekt. Dalej: dane self-play (b3) i ML
-(b4) — osobne kwalifikacje.
+silnik GTO/explo na ML docelowo. POKER-12 (equity preflop 169 klas
+jako dane) scalony; trwa POKER-13 — arena porównawcza agentów
+([`docs/taskspecs/POKER-13.json`](taskspecs/POKER-13.json), u kodera
+równolegle, scalanie po POKER-12 dochowane). Dalej: dane self-play
+(b3) i ML (b4) — osobne kwalifikacje.

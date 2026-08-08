@@ -16,28 +16,23 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`.
-  POKER-1…6 zamknięte, każde zweryfikowane niezależnie przez architekta
-  (czysty venv 3.13, verification zielone) i scalone sekwencyjnie;
-  statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami
-  (statusy zadań i commity w `docs/README.md`); fakty tylko tu:
-  F2 audytu POKER-1 to odstępstwo uznane decyzją operatora; audyt
-  POKER-7 potwierdzony 960 meczami weryfikacji niezależnej. Main
-  zsynchronizowany z headem integracyjnym fast-forwardem za jawną
-  autoryzacją operatora 2026-08-08.
-- 2026-08-08 arch: audyty POKER-8 i POKER-9 w toku — main czeka na
-  ich werdykty (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-11 zamknięty (`80899ce`), zweryfikowany
-  niezależnie (ruff 0, mypy 0/33, komplet testów; rozszerzenie stołu
-  minimalne — jeden czysty callback on_hand) i scalony. Audyty
-  POKER-10 zamknięty (finding → POKER-11), POKER-11 czeka na audyt.
-- 2026-08-08 arch: POKER-12 (equity, b1) i POKER-13 (arena, b2)
-  zatwierdzone i realizowane RÓWNOLEGLE w osobnych świeżych sesjach
-  kodera (start obu: head integracyjny `3689d03` lub nowszy) — zadania
-  modułowo niezależne (reguła 14): kolejność scalania 12 przed 13,
-  właściciel integracji architekt, konflikty statusowe (CURRENT_STATE,
-  indeks, pamięć) rozstrzyga architekt przy scalaniu.
+- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
+  każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
+  3.13); statusy i commity w [`docs/README.md`](docs/README.md).
+- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami;
+  fakty tylko tu: F2 audytu POKER-1 to odstępstwo uznane decyzją
+  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
+  Main za headem integracyjnym fast-forwardem za jawną autoryzacją
+  operatora 2026-08-08.
+- 2026-08-08 arch: audyty POKER-8, POKER-9, POKER-11 i POKER-12
+  w toku/zaległe — main czeka na komplet (decyzja o stałej
+  autoryzacji); pozostałe statusy audytów w `docs/README.md`.
+- 2026-08-08 arch: POKER-12 zamknięty (`f166f41`), zweryfikowany
+  niezależnie i scalony; pełna regeneracja macierzy ≈40 min na
+  4 rdzeniach — test reprodukcji bierze 2 pary. POKER-13 (arena, b2)
+  nadal RÓWNOLEGLE u kodera — kolejność scalania 12 przed 13
+  dochowana, właściciel integracji architekt, konflikty statusowe
+  rozstrzyga architekt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
