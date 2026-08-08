@@ -1,0 +1,39 @@
+{
+  "id": "POKER-1",
+  "spec_version": 1,
+  "class_hint": "chore",
+  "goal": "Operator uruchamia w repozytorium produktu pełną bramkę (lint, typy strict, testy) i widzi zieleń na szkielecie pakietu.",
+  "acceptance": [
+    "CLAUDE.md i AGENTS.md zawierają wyłącznie odesłanie do CONSTITUTION.md fabryki (mcz91/foundry) — zgodnie z konwencją tego repozytorium.",
+    "Pakiet `poker` w układzie src-layout importuje się poleceniem `python -c \"import poker\"`.",
+    "`pytest -q` zbiera co najmniej jeden test i kończy się zielenią.",
+    "`ruff check .` oraz `mypy --strict src tests` kończą się bez błędów.",
+    "`docs/CURRENT_STATE.md` opisuje stan produktu po zadaniu; `docs/README.md` indeksuje dokumenty decyzji i TaskSpeki.",
+    "README.md wylicza komendy pełnej bramki, tak by operator uruchomił ją bez wiedzy spoza repozytorium."
+  ],
+  "non_goals": [
+    "Karty, ewaluator rąk, zdarzenia rozdania, maszyna licytacji, kontrakt agenta, stół, CLI — kroki 2–8 sekwencji budowy.",
+    "Gałęzie przyszłe: pokerroom, trener, GTO/ML.",
+    "Zdalne CI — bramka jest lokalna; automatyzacja to domena fabryki, nie tego zadania.",
+    "Jakakolwiek zależność wykonawcza poza narzędziami bramki (ruff, mypy, pytest) — standard library first."
+  ],
+  "operator_inputs": {
+    "jezyk_i_toolchain": "OCZEKUJE NA DECYZJĘ: rekomendacja Python ≥3.12 (uzasadnienie w raporcie architekta z 2026-08-08); komendy verification zakładają tę decyzję."
+  },
+  "allowed_paths": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "README.md",
+    "pyproject.toml",
+    ".gitignore",
+    "src/poker/**",
+    "tests/**",
+    "docs/**"
+  ],
+  "approved": null,
+  "verification": [
+    "ruff check .",
+    "mypy --strict src tests",
+    "pytest -q"
+  ]
+}
