@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TextIO
 
 from poker.adapters.corpus import generate_corpus
+from poker.adapters.dataset import extract_dataset
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.adapters.registry import agent_registry
@@ -59,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--jobs", type=int, default=1,
                         help="procesy robocze generacji korpusu (domyślnie 1; zawartość "
                              "korpusu nie zależy od tej liczby)")
+    parser.add_argument("--dataset", type=Path, default=None, metavar="PLIK",
+                        help="zbiór przykładów decyzyjnych: ekstrakcja z korpusu "
+                             "wskazanego przez --from-corpus do nowego PLIKU (domyślnie "
+                             "brak; wyklucza pozostałe tryby)")
+    parser.add_argument("--from-corpus", type=Path, default=None, metavar="KATALOG",
+                        help="katalog korpusu źródłowego dla --dataset")
     parser.add_argument("--export", type=Path, default=None, metavar="PLIK",
                         help="ścieżka pliku eksportu historii JSON (domyślnie bez eksportu)")
     return parser
@@ -71,6 +78,24 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
         print(f"koniec rozdania {next(numbers)}: {render_hand_summary(history, seat)}")
 
     return report
+
+
+def _run_dataset_command(args: argparse.Namespace) -> int:
+    for flaga, wartosc in (
+        ("--human", args.human), ("--export", args.export),
+        ("--series", args.series), ("--corpus", args.corpus),
+    ):
+        if wartosc is not None:
+            raise ValueError(f"--dataset nie łączy się z {flaga}")
+    if args.from_corpus is None:
+        raise ValueError("--dataset wymaga --from-corpus ze wskazaniem katalogu korpusu")
+    report = extract_dataset(args.from_corpus, args.dataset)
+    print(
+        f"zbiór: przykładów: {report.examples}, rozdań: {report.hands}, "
+        f"meczów: {report.matches}"
+    )
+    print(f"plik: {report.path}")
+    return 0
 
 
 def _run_corpus_command(args: argparse.Namespace) -> int:
@@ -128,6 +153,8 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     try:
         args = parser.parse_args(argv)
         registry = agent_registry()
+        if args.dataset is not None:
+            return _run_dataset_command(args)
         if args.corpus is not None:
             return _run_corpus_command(args)
         if args.series is not None:

@@ -34,7 +34,9 @@ def _imports(path: Path) -> set[str]:
 
 def test_adaptery_istnieja_i_zaleza_od_silnika() -> None:
     adapters = SRC_POKER / "adapters"
-    for module in ("cli.py", "corpus.py", "export.py", "human.py", "registry.py"):
+    for module in (
+        "cli.py", "corpus.py", "dataset.py", "export.py", "human.py", "registry.py",
+    ):
         assert (adapters / module).is_file(), module
         imported = _imports(adapters / module)
         assert any(
@@ -108,6 +110,26 @@ def test_korpus_zalezy_od_silnika_rejestru_i_eksportu() -> None:
         "poker.table",
     }, f"corpus.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
     assert "poker.adapters.corpus" in _imports(SRC_POKER / "adapters" / "cli.py")
+
+
+def test_enkodowanie_zalezy_od_zdarzen_kart_i_widocznosci() -> None:
+    encoding = SRC_POKER / "encoding.py"
+    assert encoding.is_file()
+    poker_imports = {name for name in _imports(encoding) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.cards",
+        "poker.events",
+        "poker.projection",
+        "poker.views",
+    }, f"encoding.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    dataset = SRC_POKER / "adapters" / "dataset.py"
+    poker_imports = {name for name in _imports(dataset) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.adapters.corpus",
+        "poker.encoding",
+        "poker.events",
+    }, f"dataset.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    assert "poker.adapters.dataset" in _imports(SRC_POKER / "adapters" / "cli.py")
 
 
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:

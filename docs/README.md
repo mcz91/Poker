@@ -58,8 +58,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   masowa generacja historii w formacie eksportu (zamknięty, commit
   `5a75ef8`; audyt: CZYSTY);
 - [`POKER-15.json`](taskspecs/POKER-15.json) — zbiór przykładów
-  decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zatwierdzony,
-  u kodera).
+  decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zrealizowany
+  przez kodera, czeka na audyt i integrację).
 
 ## Operator
 

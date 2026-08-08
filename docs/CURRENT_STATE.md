@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-14
-(korpus self-play).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-15
+(zbiór przykładów decyzyjnych z korpusu).
 
 ## Co istnieje
 
@@ -88,6 +88,17 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-14
   (komenda udokumentowana w [`README.md`](../README.md)) i test
   reprodukcji podzbioru macierzy; granice importów rodziny preflop
   (wyłącznie karty i ewaluator) strzeże test architektury;
+- `poker.encoding` — rdzeń enkodowania przykładów decyzyjnych
+  (b4.1, bez I/O, INV-P1): z historii rozdania dla każdej akcji
+  agenta (blindy nie są decyzjami) przykład z prefiksu zdarzeń
+  widocznych z miejsca decydującego bezpośrednio przed akcją
+  (widoczność jak w `poker.views`): 21 cech liczbowych v1
+  (`FEATURE_NAMES` — pozycja, blindy, stacki, pula, faza, karty
+  własne, board) i etykieta (typ akcji, kwota); jawne pole wersji
+  zbioru (`DATASET_VERSION`); granica informacyjna decyzji 05 pod
+  testem przecieku (karty przeciwnika i seed nie wpływają na
+  przykłady żadnym kanałem); importuje wyłącznie zdarzenia, karty,
+  projekcję i widoczność — pod testem architektury;
 - `poker.arena` — arena porównawcza agentów (rdzeń bez I/O, INV-P1):
   seria par meczów przez `play_match` na lustrzanych rozdaniach
   (duplicate — ten sam seed meczu dwukrotnie z zamianą miejsc, obie
@@ -129,6 +140,11 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-14
   manifest z własną wersją i danymi niewyprowadzalnymi z plików;
   round-trip (`read_corpus`), determinizm bajt w bajt, niezależność
   zawartości od `--jobs` i odmowa zapisu do niepustego katalogu —
+  pod testami; `dataset` — plik zbioru przykładów decyzyjnych
+  (b4.1, `cli --dataset PLIK --from-corpus KATALOG`): ekstrakcja
+  korpusu rdzeniem `poker.encoding` do jednego typowanego JSON
+  z jawną wersją zbioru; round-trip, determinizm bajt w bajt,
+  odmowa nadpisania istniejącego pliku i czytelne błędy manifestu —
   pod testami; kierunek importów od
   adapterów do silnika strzeże `tests/test_architecture.py`;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
@@ -153,7 +169,8 @@ korpus self-play) scalone; b4 wchodzi plastrami
 ([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 — zbiór
 przykładów decyzyjnych z korpusu, plaster b4.1
 ([`docs/taskspecs/POKER-15.json`](taskspecs/POKER-15.json)) —
-zatwierdzony, u kodera. Dalej: b4.2 (baseline stdlib z pomiarem
+zrealizowany, czeka na audyt i integrację. Dalej: b4.2 (baseline
+stdlib z pomiarem
 w arenie) i b4.3 (kwalifikacja zależności po pomiarze); ulepszenia
 agentów regułowych odtąd wyłącznie z pomiarem w arenie (decyzja 04,
 pkt 2).

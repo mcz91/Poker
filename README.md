@@ -77,6 +77,23 @@ i konfiguracja dają korpus identyczny bajt w bajt, niezależnie od
 niczego nie nadpisuje. `--corpus` wyklucza `--human`, `--export`
 i `--series`.
 
+### Zbiór przykładów decyzyjnych
+
+```bash
+python -m poker.adapters.cli --dataset zbior.json --from-corpus korpus/
+```
+
+`--dataset PLIK` (domyślnie brak) przekształca korpus self-play
+wskazany przez `--from-corpus` w jeden typowany plik JSON z jawnym
+polem wersji zbioru: dla każdej decyzji agenta (blindy nie są
+decyzjami) cechy liczbowe wyprowadzone wyłącznie z widoku miejsca
+decydującego w chwili decyzji (granica informacyjna decyzji 05 —
+karty przeciwnika, seedy i zdarzenia silnika nie wchodzą żadnym
+kanałem) oraz etykieta: typ akcji i kwota. Zestaw i kolejność cech v1
+dokumentuje moduł `poker.encoding` (`FEATURE_NAMES`). Ten sam korpus
+daje plik identyczny bajt w bajt; istniejący plik wyjściowy to błąd.
+`--dataset` wyklucza pozostałe tryby CLI.
+
 ## Dane equity preflop
 
 Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako

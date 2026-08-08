@@ -32,6 +32,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   (czysty venv 3.13: ruff 0, mypy 0/44, pytest 181) i scalony ff.
   POKER-15 zatwierdzony na polecenie operatora („przygotuj 15") —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 koder: POKER-15 zrealizowany ze startu `f37d9c4` na gałęzi
+  `claude/new-session-aazf0r`; czeka na audyt i integrację.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
