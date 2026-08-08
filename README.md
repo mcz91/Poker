@@ -16,7 +16,7 @@ indeks dokumentacji: [`docs/README.md`](docs/README.md).
 python3.13 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
-ruff check src tests
+ruff check .
 mypy
 pytest
 ```

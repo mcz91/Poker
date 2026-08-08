@@ -28,15 +28,16 @@ Protokół (koszt czytelnika > koszt pisarza):
   załatana od POKER-2; F3 informacyjny (dryf CURRENT_STATE) —
   sprzątnięty. Gałęzie audytora (ccef820) i kodera (4ac36f1) scalone
   do integracyjnej. Diff POKER-2 czeka na audyt.
-- 2026-08-08 arch: POKER-3 zamknięty (`68df34e`), zweryfikowany
-  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
-  strict 0/14 plików, 69 passed) i scalony do integracyjnej. POKER-4
-  u kodera (świeża sesja); do jego zamknięcia zieleń dowodzi się
-  wyłącznie komendami `verification`, nie bramką z README.
+- 2026-08-08 arch: POKER-3 (`68df34e`) i POKER-4 (`bd6dd56`) zamknięte,
+  zweryfikowane niezależnie (czysty venv 3.13, verification zielone;
+  dla POKER-4 także dowód: wstrzyknięty błąd typu w tests/ łapany
+  gołym `mypy`) i scalone sekwencyjnie do integracyjnej. Bramka README
+  znów pełnoprawna — F1 zmechanizowany testem `tests/test_repo_gate.py`.
 - 2026-08-08 koder: audyt POKER-2 (diff 00dcba7..bd3473c) zamknięty
-  werdyktem CZYSTY — m.in. wyczerpująca weryfikacja ewaluatora na
-  pełnej przestrzeni C(52,5) i 7462 klasach siły; pełny raport
-  u operatora; bez nowych PUŁAPEK. Diff POKER-3 czeka na audyt.
+  werdyktem CZYSTY — wyczerpująca weryfikacja ewaluatora na pełnej
+  przestrzeni C(52,5) i 7462 klasach siły; raport u operatora; bez
+  nowych PUŁAPEK. Audyt POKER-3 (diff 02331f9..68df34e) w toku świeżym
+  kontekstem, werdykt trafi do operatora. Audyt POKER-4 zaległy.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -59,16 +60,10 @@ w `docs/taskspecs/`)
   `python3.13`. Pełną bramkę wylicza `README.md`.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- Gołe `mypy` (config `packages=["poker"]`) NIE typuje `tests/` — błąd
-  typu w testach przechodzi na zielono; do czasu POKER-4 dowodem jest
-  wyłącznie `mypy --strict src tests` z `verification` TaskSpeca.
 - `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
   (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
   = OBJECTION, nie cichy zapis.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
-- 2026-08-08 arch: hatchling (build backend, commit `5a74ab9`) bez
-  powodu i planu usunięcia w opisie commita (konstytucja, reguła 9) —
-  uzasadnienie utrwalić przy najbliższej zmianie `pyproject.toml`
-  (naturalnie: raport POKER-4).
+(pusto — uzasadnienie hatchling utrwalone w raporcie commita POKER-4)
