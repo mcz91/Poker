@@ -11,8 +11,11 @@
 2. [`02-jezyk-rdzenia-python.md`](decisions/02-jezyk-rdzenia-python.md)
    — język rdzenia: Python ≥3.12, toolchain wspólny z Foundry;
 3. [`03-kierunek-bot-interfejs-czlowieka.md`](decisions/03-kierunek-bot-interfejs-czlowieka.md)
-   — kierunek bot etapami: interfejs człowieka (a), baseline GTO (b),
-   warstwa eksploatacyjna (c).
+   — kierunek bot etapami: interfejs człowieka (a), baseline (b),
+   warstwa eksploatacyjna (c);
+4. [`04-reguly-dzis-ml-docelowo.md`](decisions/04-reguly-dzis-ml-docelowo.md)
+   — etap (b) drogą operatora: proste reguły dziś, silnik GTO/explo
+   na ML docelowo; podetapy equity → arena → dane self-play → ML.
 
 ## TaskSpeki
 
@@ -41,8 +44,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   bot w terminalu (zamknięty, commit `b1da201`; audyt: 1 finding
   informacyjny → POKER-11);
 - [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
-  w trybie człowieka (zrealizowany przez kodera, czeka na audyt
-  i integrację).
+  w trybie człowieka (zamknięty, commit `80899ce`; audyt w toku);
+- [`POKER-12.json`](taskspecs/POKER-12.json) — equity preflop 169
+  klas rąk jako dane (zatwierdzony, u kodera).
 
 ## Operator
 

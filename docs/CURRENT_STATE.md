@@ -103,9 +103,10 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-POKER-11 — showdown na żywo w trybie człowieka (finding informacyjny
-audytu POKER-10,
-[`docs/taskspecs/POKER-11.json`](taskspecs/POKER-11.json)) —
-zrealizowany, czeka na audyt i integrację. Dalej w kierunku bot
-([decyzja 03](README.md#dokumenty-decyzji)): etapy (b) baseline GTO
-i (c) eksploatacja — osobne kwalifikacje u architekta i operatora.
+Etap (b) kierunku bot drogą operatora
+([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
+silnik GTO/explo na ML docelowo. Trwa POKER-12 — equity preflop 169
+klas rąk jako dane
+([`docs/taskspecs/POKER-12.json`](taskspecs/POKER-12.json), realizacja
+u kodera); potem arena porównawcza agentów (b2), dane self-play (b3)
+i ML (b4) — osobne kwalifikacje.

@@ -1,0 +1,40 @@
+{
+  "id": "POKER-12",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Solver i przyszli agenci znają deterministyczną equity all-in każdej ze 169 preflopowych klas rąk przeciw każdej — policzalny fundament mierzalnego baseline'u GTO.",
+  "acceptance": [
+    "Istnieje moduł kanonicznych klas preflop: dokładnie 169 klas (13 par, 78 suited, 78 offsuit), mapowanie dowolnych dwóch kart do klasy oraz liczność kombinacji każdej klasy — testy: pary 6, suited 4, offsuit 12, suma po wszystkich klasach równa 1326.",
+    "Istnieje macierz equity all-in heads-up klasa vs klasa (udział oczekiwany puli: wygrana + połowa splitu), wyznaczona deterministycznie — dokładną enumeracją albo Monte Carlo z przybitym seedem i udokumentowaną liczbą prób — i utrwalona w repozytorium jako wygenerowany moduł danych Pythona (bez I/O przy odczycie, INV-P1), z metadanymi metody (metoda, seed, liczba prób) w tym module.",
+    "Czysta funkcja odczytu equity(klasa_a, klasa_b) zwraca wartość z macierzy; testy spójności danych: equity(a,b)+equity(b,a)=1 dla wszystkich par klas, equity(a,a)=0.5, AA ma najwyższą średnią equity przeciw polu, AA vs KK w przedziale [0.79, 0.84], AA vs losowa ręka w przedziale [0.83, 0.87].",
+    "Generator macierzy jest w repozytorium jako narzędzie uruchamialne udokumentowaną komendą; jego jedyna losowość to przybity seed (INV-P1); test reprodukcji: regeneracja wybranego podzbioru klas z tym samym seedem daje wartości identyczne z utrwaloną macierzą.",
+    "Moduły klas i equity nie importują niczego z maszyny licytacji, stołu, widoków ani adapterów — wyłącznie karty (i ewaluator, jeśli potrzebny) — pod testem architektury.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej; czas pełnej bramki pozostaje zdatny do pracy (macierz jest danymi, nie obliczeniem w testach).",
+    "docs/CURRENT_STATE.md, indeks dokumentacji i (jeśli komenda generatora tego wymaga) README.md odzwierciedlają stan po zadaniu jednym commitem ze statusami."
+  ],
+  "non_goals": [
+    "Solver push/fold i agent równowagi — podetap (b2), kontrakt POKER-13.",
+    "Equity postflop, zakresy wieloulicowe, bucketing — bez odbiorcy przed (b3).",
+    "Zmiany silnika, licytacji, widoków, agentów i adapterów.",
+    "Optymalizacja wydajności generatora ponad potrzebę jednorazowej generacji danych."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T04:59:51Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
