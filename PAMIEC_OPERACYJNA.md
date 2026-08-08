@@ -35,14 +35,16 @@ Protokół (koszt czytelnika > koszt pisarza):
   zielone: ruff 0, mypy 0/23 plików, 114 passed) i scalony do
   integracyjnej. Audyt POKER-7: F1 informacyjny naprawiony, 960 meczów
   weryfikacji niezależnej bez naruszeń — komplet audytów POKER-1…7.
-- 2026-08-08 arch: POKER-8 zatwierdzony
-  ([`docs/taskspecs/POKER-8.json`](docs/taskspecs/POKER-8.json)) —
-  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-
-- 2026-08-08 koder: POKER-8 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z 096494f); audyt
-  POKER-8 uruchomiony świeżym kontekstem, werdykt trafi do operatora.
-  Czeka na scalenie.
+- 2026-08-08 arch: POKER-8 zamknięty (`95d004a`), zweryfikowany
+  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
+  0/25 plików, 127 passed; granica importów agenta potwierdzona)
+  i scalony do integracyjnej razem z pułapką audytu ogona (`31fcc4f`);
+  dryf F1 audytu ogona naprawiony. Audyt POKER-8 w toku — main czeka
+  na jego werdykt (decyzja o stałej autoryzacji).
+- 2026-08-08 arch: POKER-9 zatwierdzony
+  ([`docs/taskspecs/POKER-9.json`](docs/taskspecs/POKER-9.json)),
+  na polecenie operatora — ostatni krok sekwencji; koder startuje
+  ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

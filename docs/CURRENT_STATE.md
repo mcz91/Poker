@@ -80,7 +80,7 @@ potów multiway, struktur turniejowych. Sekwencję budowy definiuje
 
 ## Następny krok
 
-Krok 8 (ostatni) sekwencji budowy: CLI i eksport historii (POKER-9)
-— TaskSpec specyfikuje architekt po zamknięciu i audycie POKER-8;
-granica zaufania dla niezaufanych agentów staje na adapterze
-(INV-P7, pułapka o izolacji procesowej).
+POKER-9 — CLI i eksport historii (krok 8, ostatni w sekwencji);
+kontrakt zatwierdzony ([`docs/taskspecs/POKER-9.json`](taskspecs/POKER-9.json)),
+realizacja u kodera. Granica zaufania dla niezaufanych agentów staje
+na adapterze (INV-P7); audyt POKER-8 w toku.

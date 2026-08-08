@@ -1,0 +1,43 @@
+{
+  "id": "POKER-9",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator uruchamia mecz heads-up z terminala jedną komendą i dostaje wynik oraz pełną, odtwarzalną historię wszystkich rozdań w stabilnym pliku eksportu.",
+  "acceptance": [
+    "Istnieje CLI jako adapter (INV-P7): komenda udokumentowana w README rozgrywa mecz dwóch agentów przez play_match; blindy, stacki startowe, limit rozdań, seed meczu i wybór agentów (co najmniej: agent regułowy i wariant progów) są argumentami wiersza poleceń z udokumentowanymi wartościami domyślnymi (INV-P6).",
+    "CLI wypisuje wynik meczu na standardowe wyjście: stacki końcowe, liczbę rozdań i powód zakończenia; kod wyjścia 0 przy poprawnym przebiegu, niezerowy z czytelnym komunikatem przy błędnych argumentach — pod testami wywołującymi punkt wejścia w procesie testów (bez podprocesów).",
+    "Eksport historii: pełna sekwencja zdarzeń wszystkich rozdań meczu (łącznie ze zdarzeniami EngineOnly — eksport jest kanałem operatora, nie widokiem gracza) zapisywana do pliku w typowanym, wersjonowanym formacie JSON z jawnym polem wersji formatu.",
+    "Round-trip pod testem: deserializacja eksportu odtwarza sekwencje zdarzeń równe oryginałom (równość obiektów zdarzeń), a projekcja odtworzonych sekwencji daje identyczne stany końcowe rozdań.",
+    "Determinizm eksportu: ten sam seed meczu i konfiguracja dają identyczny bajt w bajt plik eksportu — pod testem.",
+    "Serializacja i deserializacja zdarzeń żyją w module eksportu (adapter), nie w modułach silnika; import płynie wyłącznie od CLI/eksportu do silnika — silnik, widoki i agenci nie importują niczego z adapterów (INV-P7), pod testem architektury.",
+    "I/O (pliki, stdout, argumenty) wolno wykonywać wyłącznie modułom adapterów; moduły silnika pozostają czyste (INV-P1) — zmiany w src/poker poza nowymi modułami adapterów ograniczone do niezbędnego minimum i uzasadnione w raporcie.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md i README.md odzwierciedlają stan po zadaniu (sekcja uruchomienia meczu obok sekcji bramki; test zgodności bramki pozostaje zielony)."
+  ],
+  "non_goals": [
+    "UI graficzne i webowe, sieć, wiele stołów, ludzie przy stole — gałąź pokerroom (decyzja 01).",
+    "Replay, analiza decyzji i podpowiedzi — gałąź trener; eksport jedynie wytwarza dane, które ją kiedyś zasilą.",
+    "Persystencja inna niż plik eksportu (bazy danych, strumienie).",
+    "Formaty binarne, kompresja, import obcych formatów historii.",
+    "Izolacja procesowa niezaufanych agentów — granica zaufania stoi na adapterze, ale sandbox to osobna decyzja, gdy pojawi się agent spoza repozytorium.",
+    "Zmiany reguł silnika, widoków, kontraktu agenta i stołu z POKER-3…8."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T03:34:43Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
