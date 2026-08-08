@@ -34,6 +34,11 @@ Protokół (koszt czytelnika > koszt pisarza):
   ([`docs/taskspecs/POKER-7.json`](docs/taskspecs/POKER-7.json)) —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
+- 2026-08-08 koder: POKER-7 zamknięty na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z f08adf8); audyt
+  POKER-7 uruchomiony świeżym kontekstem, werdykt trafi do operatora.
+  Czeka na scalenie.
+
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,

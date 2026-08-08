@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-6
-(kontrakt agenta i widok gracza z testem przecieku).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-7
+(stół i pętla meczu heads-up).
 
 ## Co istnieje
 
@@ -53,17 +53,26 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-6
   (widok) -> Decision`, silnik przyjmuje dowolny obiekt spełniający
   protokół (`apply_decision`); decyzja nie może zmutować widoku ani
   historii — pod testem; pełne rozdanie rozgrywane przez dwóch
-  deterministycznych agentów testowych wyłącznie na widokach.
+  deterministycznych agentów testowych wyłącznie na widokach;
+- `poker.table` — stół i pętla meczu (`play_match`): konfiguracja
+  (blindy, stacki startowe, button startowy, limit rozdań) to
+  parametry (INV-P6); button rotuje, stacki przechodzą między
+  rozdaniami; seedy rozdań pochodzą deterministycznie z seeda meczu;
+  koniec przez bust (stack dokładnie 0) albo limit rozdań; wynik
+  obserwowalny (stacki, liczba rozdań, powód) wraz z pełną sekwencją
+  niemutowalnych historii rozdań; suma żetonów stała przez cały mecz
+  — pod testami. Uproszczenie jawne (INV-P5): `play_match` wymaga
+  dokładnie 2 miejsc — multiway to gałąź pokerroom.
 
 ## Czego nie ma
 
-Stołu i pętli meczu (wiele rozdań, rotacja buttona, koniec meczu),
-produkcyjnego agenta regułowego, CLI, docelowej serializacji
-i persystencji historii, side potów multiway. Sekwencję budowy
-definiuje [`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md)
+Produkcyjnego agenta regułowego, CLI, eksportu i docelowej
+serializacji historii, persystencji, side potów multiway, struktur
+turniejowych. Sekwencję budowy definiuje
+[`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md)
 (punkt 5).
 
 ## Następny krok
 
-Krok 6 sekwencji budowy: stół i pętla meczu — TaskSpec specyfikuje
-architekt po scaleniu POKER-6.
+Krok 7 sekwencji budowy: pierwszy agent regułowy — TaskSpec
+specyfikuje architekt po scaleniu POKER-7.
