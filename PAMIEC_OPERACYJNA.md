@@ -35,8 +35,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   `verification` TaskSpeca, nie bramką z README.
 - 2026-08-08 koder: POKER-3 zamknięty na gałęzi kodera
   `claude/poker-repo-instrukcja-gez88z` (start z 02331f9); czeka na
-  scalenie. Audyt POKER-2 uruchomiony świeżym kontekstem, werdykt
-  trafi do operatora.
+  scalenie. Audyt POKER-2 (diff 00dcba7..bd3473c) zamknięty werdyktem
+  CZYSTY — m.in. wyczerpująca weryfikacja ewaluatora na pełnej
+  przestrzeni C(52,5) i 7462 klasach siły; pełny raport u operatora;
+  bez nowych PUŁAPEK.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
