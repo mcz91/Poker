@@ -49,7 +49,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   klas rąk jako dane (zamknięty, commit `f166f41`; audyt w toku);
 - [`POKER-13.json`](taskspecs/POKER-13.json) — arena porównawcza
   agentów: BB/100 na lustrzanych rozdaniach (zamknięty, commit
-  `5f5302b`; audyt: CZYSTY).
+  `5f5302b`; audyt: CZYSTY);
+- [`POKER-14.json`](taskspecs/POKER-14.json) — korpus self-play:
+  masowa generacja historii w formacie eksportu (zatwierdzony,
+  u kodera).
 
 ## Operator
 

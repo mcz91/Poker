@@ -1,0 +1,42 @@
+{
+  "id": "POKER-14",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator jedną komendą generuje odtwarzalny korpus historii self-play o zadanej liczbie meczów — surowe dane treningowe pod przyszłe ML (podetap b3 decyzji 04).",
+  "acceptance": [
+    "Istnieje generator korpusu self-play w warstwie adapterów: dla konfiguracji meczu (blindy, stacki, button, limit rozdań), pary nazwanych agentów rejestru CLI (domyślnie agent regułowy po obu stronach) i liczby meczów rozgrywa mecze przez play_match na seedach pochodnych deterministycznie od seeda korpusu (jawny kontrakt pochodności, jak series_pair_seeds w arenie) i zapisuje każdy mecz jako osobny plik w istniejącym formacie eksportu z POKER-9 (format_version bez zmian) — cała konfiguracja korpusu to parametry (INV-P6).",
+    "Obok plików meczów powstaje manifest korpusu: typowany JSON z własnym jawnym polem wersji i wyłącznie danymi niewyprowadzalnymi z plików meczów — konfiguracja meczu, nazwy agentów, seed korpusu, liczba meczów i lista plików; wczytanie korpusu (manifest + pliki) odtwarza sekwencje zdarzeń równe wygenerowanym — round-trip pod testem.",
+    "Determinizm korpusu: ten sam seed korpusu i konfiguracja dają bajt w bajt identyczny zestaw plików łącznie z manifestem — pod testem; różne seedy korpusu różnicuje test.",
+    "Generacja przyjmuje parametr liczby procesów roboczych (precedens --jobs z POKER-12); zawartość plików korpusu jest niezależna od liczby procesów — pod testem porównującym korpus sekwencyjny i równoległy na małej liczbie meczów.",
+    "Korpus jest dostępny z CLI (podkomenda lub flagi w istniejącym adapterze, udokumentowane w README) z raportem generacji na stdout (liczba meczów, rozdań, ścieżka korpusu); błędne wejście — nieznana nazwa agenta, konfiguracja odrzucana przez silnik, niepusty katalog docelowy (żadnego cichego nadpisywania) — kończy się czytelnym komunikatem i kodem różnym od zera; testy wołają punkt wejścia w procesie testów, na małych liczbach meczów — pełna bramka pozostaje szybka.",
+    "Kierunek importów: generator żyje w adapterach i zależy wyłącznie od silnika, agentów rejestru i eksportu z POKER-9; I/O wykonują wyłącznie adaptery (INV-P1); silnik, widoki, agenci, arena i format eksportu nietknięte — pod rozszerzonym testem architektury.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "ML właściwe (b4): trening, inferencja, format modelu, jakiekolwiek zależności poza standard library — osobna kwalifikacja (decyzja 04).",
+    "Ekstrakcja cech, filtrowanie, deduplikacja, formaty kolumnowe/binarne i kompresja — konsument korpusu (b4) zdefiniuje potrzeby; korpus to surowe historie w formacie POKER-9.",
+    "Wznawianie i dosypywanie do istniejącego korpusu — niepusty katalog docelowy to jawny błąd, nie merge.",
+    "Pomiar siły agentów — od tego arena (b2, POKER-13).",
+    "Zmiany silnika, widoków, agentów, areny i formatu eksportu (format_version pozostaje 1).",
+    "Równoległość poza procesami roboczymi generatora — silnik pozostaje jednowątkowo czysty."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T15:23:30Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

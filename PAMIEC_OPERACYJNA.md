@@ -24,14 +24,14 @@ Protokół (koszt czytelnika > koszt pisarza):
   operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
   Main za headem integracyjnym fast-forwardem za jawną autoryzacją
   operatora 2026-08-08.
-- 2026-08-08 arch: audyty POKER-8, POKER-9, POKER-11 i POKER-12
-  w toku/zaległe — main czeka na komplet (decyzja o stałej autoryzacji).
+- 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main dosunięty do
+  e0b0f2b jednorazowym jawnym poleceniem operatora mimo zaległości —
+  stała autoryzacja (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-13 audyt CZYSTY, zweryfikowany niezależnie
-  (czysty venv 3.13: ruff 0, mypy 0/41, pytest 172; liczby raportu
-  CLI odtworzone) i scalony ff do integracyjnej; równoległej
-  realizacji brak — zastrzeżenie kodera bezprzedmiotowe.
+- 2026-08-08 arch: POKER-14 zatwierdzony na polecenie operatora
+  ([`docs/taskspecs/POKER-14.json`](docs/taskspecs/POKER-14.json)) —
+  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
