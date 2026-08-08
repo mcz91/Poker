@@ -58,9 +58,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
-  (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
-  = OBJECTION, nie cichy zapis.
+- Wygenerowany moduł danych w `src/` nosi pełny przepis regeneracji
+  we własnych metadanych (jak equity POKER-12); przepis tylko w opisie
+  commita = artefakt nieodtwarzalny z repo (wagi POKER-16, F1 audytu).
 - Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
   przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
   miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
