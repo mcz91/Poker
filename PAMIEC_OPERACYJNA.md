@@ -21,14 +21,18 @@ Protokół (koszt czytelnika > koszt pisarza):
   niezależnie przez architekta (czysty venv 3.13, pełna bramka zielona,
   stożek zmian w allowed_paths). Do main wchodzi jednym scaleniem po
   audycie.
+- 2026-08-08 arch: audyt POKER-1 zamknięty werdyktem FINDINGI
+  (końcowe brzmienie u operatora): F1 blokujący (rozjazd bramki) →
+  kontrakt POKER-4, wchodzi PO POKER-3 (zależność przez tests/);
+  F2 istotny — wada kontraktu POKER-1 (allowed_paths bez pamięci),
+  załatana od POKER-2; F3 informacyjny (dryf CURRENT_STATE) —
+  sprzątnięty. Gałęzie audytora (ccef820) i kodera (4ac36f1) scalone
+  do integracyjnej. Diff POKER-2 czeka na audyt.
 - 2026-08-08 arch: POKER-3 zatwierdzony
-  ([`docs/taskspecs/POKER-3.json`](docs/taskspecs/POKER-3.json)) —
-  koder startuje z heada integracyjnego `bd3473c`, nie z main.
-- 2026-08-08 arch: audyt POKER-1 zamknięty werdyktem FINDINGI; F1
-  (rozjazd bramki) → kontrakt POKER-4, wchodzi PO POKER-3 (zależność
-  przez tests/); F2 uznany za wadę kontraktu POKER-1, załatany od
-  POKER-2; F3 (dryf CURRENT_STATE) sprzątnięty. Gałąź audytora
-  ccef820 scalona do integracyjnej. Diff POKER-2 czeka na audyt.
+  ([`docs/taskspecs/POKER-3.json`](docs/taskspecs/POKER-3.json)),
+  realizacja nierozpoczęta — koder startuje z heada integracyjnego,
+  nie z main; do czasu POKER-4 zieleń dowodzi się wyłącznie komendami
+  `verification` TaskSpeca, nie bramką z README.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -47,13 +51,16 @@ w `docs/taskspecs/`)
   `python3.13`. Pełną bramkę wylicza `README.md`.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- gołe `mypy` (config `packages=["poker"]`) nie widzi `tests/` — błąd
-  typu w testach przechodzi na zielono; dowodem jest wyłącznie
-  `mypy --strict src tests` z `verification` TaskSpeca.
-- TaskSpec bez `PAMIEC_OPERACYJNA.md` w `allowed_paths` konfliktuje
-  z protokołem ról (zapis pamięci obowiązkowy); POKER-2 już ją ma —
-  pilnuj w każdym następnym.
+- Gołe `mypy` (config `packages=["poker"]`) NIE typuje `tests/` — błąd
+  typu w testach przechodzi na zielono; do czasu POKER-4 dowodem jest
+  wyłącznie `mypy --strict src tests` z `verification` TaskSpeca.
+- `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
+  (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
+  = OBJECTION, nie cichy zapis.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
-(pusto)
+- 2026-08-08 arch: hatchling (build backend, commit `5a74ab9`) bez
+  powodu i planu usunięcia w opisie commita (konstytucja, reguła 9) —
+  uzasadnienie utrwalić przy najbliższej zmianie `pyproject.toml`
+  (naturalnie: raport POKER-4).
