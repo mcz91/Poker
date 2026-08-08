@@ -34,12 +34,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   ([`docs/taskspecs/POKER-7.json`](docs/taskspecs/POKER-7.json)) —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
-- 2026-08-08 koder: POKER-7 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z f08adf8). Audyt
-  POKER-7 (f08adf8..462576d): FINDINGI — wyłącznie F1 informacyjny
-  (uśpiona asercja warunkowa w teście stacka poniżej blindu),
-  naprawiony bezwarunkowymi asercjami na gałęzi kodera; weryfikacja
-  niezależna 960 meczów bez naruszeń. Czeka na scalenie.
+- 2026-08-08 koder: POKER-7 scalony do integracyjnej fast-forwardem
+  na polecenie operatora („scal"), po zamkniętym audycie: FINDINGI —
+  wyłącznie F1 informacyjny (uśpiona asercja warunkowa), naprawiony
+  4a01775; weryfikacja niezależna 960 meczów bez naruszeń. Main
+  nietknięty — jego synchronizacja wymaga osobnej autoryzacji
+  operatora.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
