@@ -23,7 +23,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-3.json`](taskspecs/POKER-3.json) — zdarzenia rozdania
   i projekcja stanu (zamknięty, commit `68df34e`);
 - [`POKER-4.json`](taskspecs/POKER-4.json) — ujednolicenie bramki po
-  audycie POKER-1 (zamknięty, commit `bd6dd56`).
+  audycie POKER-1 (zamknięty, commit `bd6dd56`);
+- [`POKER-5.json`](taskspecs/POKER-5.json) — maszyna licytacji heads-up
+  z rozliczeniem rozdania (zatwierdzony, u kodera).
 
 ## Operator
 

@@ -37,7 +37,15 @@ Protokół (koszt czytelnika > koszt pisarza):
   werdyktem CZYSTY — wyczerpująca weryfikacja ewaluatora na pełnej
   przestrzeni C(52,5) i 7462 klasach siły; raport u operatora; bez
   nowych PUŁAPEK. Audyt POKER-3 (diff 02331f9..68df34e) w toku świeżym
-  kontekstem, werdykt trafi do operatora. Audyt POKER-4 zaległy.
+  kontekstem, werdykt trafi do operatora.
+- 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
+  CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty. Z findingów
+  POKER-1 otwarty tylko F2 — rekomendacja architekta: odstępstwo uznane
+  (wada kontraktu, naprawa systemowa od POKER-2); czeka na słowo
+  operatora.
+- 2026-08-08 arch: POKER-5 zatwierdzony
+  ([`docs/taskspecs/POKER-5.json`](docs/taskspecs/POKER-5.json)) —
+  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

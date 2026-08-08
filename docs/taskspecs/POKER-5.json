@@ -1,0 +1,44 @@
+{
+  "id": "POKER-5",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może rozegrać kompletne, uczciwe rozdanie heads-up od blindów do wyniku: silnik wymusza legalność każdej akcji i poprawnie rozlicza pulę.",
+  "acceptance": [
+    "Dla każdego stanu rozdania silnik wskazuje miejsce na ruchu oraz pełny zbiór legalnych akcji z granicami kwot (fold/check/call/bet/raise, min i max); testy pokrywają granice na każdej ulicy.",
+    "Zastosowanie legalnej akcji dopisuje zdarzenia do historii i daje nowy stan przez projekcję; akcja nielegalna jest błędem i nie zostawia śladu w historii — potwierdzone testami.",
+    "Kolejność heads-up: button płaci small blinda, działa pierwszy przed flopem i ostatni po flopie — testy na pełnym rozdaniu.",
+    "Min-raise egzekwowany; all-in niższy niż min-raise nie otwiera licytacji ponownie — testy obu przypadków.",
+    "All-in krótszego stacka wymusza zwrot nadpłaty; stack krótszy niż blind gra o pomniejszoną pulę — testy.",
+    "Fold kończy rozdanie bez showdownu z pulą dla pozostałego miejsca; wyrównana licytacja na riverze prowadzi do showdownu rozstrzyganego ewaluatorem (poker.evaluation), z kolejnością pokazywania kart — testy.",
+    "Split pot przy równej sile rąk dzieli pulę, a niepodzielna reszta żetonów trafia w miejsce wskazane deterministyczną regułą zapisaną w kodzie i teście.",
+    "Żetony są wyłącznie typu int; test właściwościowy: po każdym zdarzeniu suma żetonów w grze (stacki + pula) jest stała — nic nie ginie i nic nie powstaje.",
+    "Przebieg rozdania istnieje wyłącznie jako zdarzenia z POKER-3 (historia append-only, stan przez projekcję); moduł licytacji nie wykonuje I/O, nie sięga po zegar ani globalną losowość (INV-P1) — wyłącznie standard library.",
+    "Miejsca pozostają kolekcją: API licytacji operuje indeksami miejsc; implementacja i testy obejmują N=2, a uproszczenia zamykające multiway są jawnie odnotowane w docs/CURRENT_STATE.md (INV-P5).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Widok agenta, filtrowanie widoczności i test przecieku (w tym seed z HandStarted) — krok 5 sekwencji, wątek w pamięci operacyjnej.",
+    "Kontrakt agenta, stół i pętla meczu, agent regułowy, CLI, serializacja historii — kroki 5-8.",
+    "Side poty multiway (N>2) — heads-up redukuje je do zwrotu nadpłaty; pełna struktura side potów wejdzie z multiway własną decyzją.",
+    "Struktura meczu (liczba rozdań, rotacja buttona, koniec meczu) — to pętla stołu, krok 6.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T01:51:10Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
