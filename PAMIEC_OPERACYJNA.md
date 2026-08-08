@@ -36,17 +36,20 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 koder: audyty POKER-2 (CZYSTY, pełna przestrzeń C(52,5))
   i POKER-3 (OBJECTION: CONFLICT — seed w publicznym HandStarted;
   wykonanie czyste; wątek przejęty przez architekta niżej) zamknięte,
-  raporty u operatora. POKER-5 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z 14c5b3f); czeka na
-  scalenie i audyt.
+  raporty u operatora.
 - 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
-  CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty. Z findingów
-  POKER-1 otwarty tylko F2 — rekomendacja architekta: odstępstwo uznane
-  (wada kontraktu, naprawa systemowa od POKER-2); czeka na słowo
-  operatora.
-- 2026-08-08 arch: POKER-5 zatwierdzony
-  ([`docs/taskspecs/POKER-5.json`](docs/taskspecs/POKER-5.json)) —
-  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+  CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty mechanizmem.
+  F2 zamknięty decyzją operatora 2026-08-08: odstępstwo uznane (wada
+  kontraktu POKER-1, naprawa systemowa od POKER-2). Wszystkie findingi
+  audytu POKER-1 zamknięte.
+- 2026-08-08 arch: POKER-5 zamknięty (`fa6a25c`), zweryfikowany
+  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
+  0/17 plików, 92 passed; przegląd logiki licytacji bez zastrzeżeń)
+  i scalony do integracyjnej. Audyt POKER-5 w toku świeżym kontekstem.
+- 2026-08-08 arch: POKER-6 zatwierdzony
+  ([`docs/taskspecs/POKER-6.json`](docs/taskspecs/POKER-6.json)) —
+  zamyka OBJECTION audytu POKER-3 (seed) testem przecieku; koder
+  startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

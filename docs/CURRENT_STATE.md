@@ -51,6 +51,7 @@ historii, side potów multiway. Sekwencję budowy definiuje
 
 ## Następny krok
 
-Krok 5 sekwencji budowy: kontrakt agenta i widok gracza z testem
-przecieku informacji — TaskSpec specyfikuje architekt po scaleniu
-POKER-5.
+POKER-6 — kontrakt agenta i widok gracza z testem przecieku (w tym
+zamknięcie OBJECTION audytu POKER-3: seed nieosiągalny z widoku);
+kontrakt zatwierdzony ([`docs/taskspecs/POKER-6.json`](taskspecs/POKER-6.json)),
+realizacja u kodera. Potem krok 6: stół i pętla meczu.

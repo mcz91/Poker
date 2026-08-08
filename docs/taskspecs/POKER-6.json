@@ -1,0 +1,40 @@
+{
+  "id": "POKER-6",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Agent — skrypt dziś, model ML lub człowiek przez adapter jutro — podejmuje decyzje wyłącznie na widoku swojego miejsca, bez możliwości podejrzenia kart przeciwnika, talii ani seeda.",
+  "acceptance": [
+    "Istnieje niemutowalny widok gracza budowany wyłącznie ze zdarzeń widocznych dla danego miejsca (filtr widoczności z POKER-3): własne karty, board, jawne akcje i blindy, stacki, pula, faza, miejsce na ruchu i granice legalnych akcji — potwierdzone testami.",
+    "Istnieje kontrakt agenta (INV-P4): protokół decyzji widok -> akcja (typ i kwota); silnik przyjmuje dowolny obiekt spełniający protokół i nie wie, kto decyduje; decyzja nie może zmutować stanu gry ani historii — test z agentem próbującym mutacji.",
+    "Test przecieku: widok miejsca A w żadnej fazie przed odkryciem kart nie zawiera kart miejsca B ani informacji o talii — sprawdzone w polach, repr i pełnej serializacji widoku; po CardsRevealed jawne karty są publiczne.",
+    "OBJECTION audytu POKER-3 zamknięty: seed z HandStarted nie jest osiągalny z widoku żadnego miejsca żadnym kanałem (pole, repr, serializacja); widoczność zdarzenia startu rozstrzygnięta jawnie w modelu zdarzeń, z testem, że filtr widoczności nie wydaje seeda.",
+    "Pełne rozdanie heads-up daje się rozegrać decyzjami dwóch deterministycznych agentów testowych podejmowanymi wyłącznie na widokach — test integracyjny od blindów do wyniku, bez sięgania do stanu pełnego.",
+    "Moduły widoku i kontraktu nie wykonują I/O, nie sięgają po zegar ani globalną losowość (INV-P1) — wyłącznie standard library; widok operuje indeksami miejsc (INV-P5).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Stół i pętla meczu (wiele rozdań, rotacja buttona, koniec meczu) — krok 6; tu wyłącznie pojedyncze rozdanie w teście integracyjnym.",
+    "Produkcyjny agent regułowy — krok 7; agenci w tym zadaniu to deterministyczne skrypty testowe.",
+    "CLI, eksport i docelowy format serializacji historii — krok 8; serializacja widoku w teście przecieku służy dowodowi szczelności, nie formatowi.",
+    "Zmiany reguł licytacji i rozliczenia z POKER-5.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T02:16:14Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
