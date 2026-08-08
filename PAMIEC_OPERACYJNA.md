@@ -41,16 +41,14 @@ Protokół (koszt czytelnika > koszt pisarza):
   i scalony do integracyjnej razem z pułapką audytu ogona (`31fcc4f`);
   dryf F1 audytu ogona naprawiony. Audyt POKER-8 w toku — main czeka
   na jego werdykt (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-9 zatwierdzony
-  ([`docs/taskspecs/POKER-9.json`](docs/taskspecs/POKER-9.json)),
-  na polecenie operatora — ostatni krok sekwencji; koder startuje
-  ze świeżej sesji z heada integracyjnego, nie z main.
-
-- 2026-08-08 koder: POKER-9 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z da23d9a); audyt
-  POKER-9 uruchomiony świeżym kontekstem, werdykt trafi do operatora.
-  Mój równoległy audyt POKER-8 również w toku (niezależne
-  potwierdzenie audytu ogona). Czeka na scalenie.
+- 2026-08-08 arch: POKER-9 zamknięty (`b6f7035`), zweryfikowany
+  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
+  0/31 plików, 140 passed; smoke end-to-end CLI z eksportem) i scalony
+  do integracyjnej — sekwencja budowy ukończona 8/8. Audyty POKER-8
+  i POKER-9 w toku; main czeka na ich werdykty (stała autoryzacja).
+- 2026-08-08 arch: POKER-10 zatwierdzony (interfejs człowiek vs bot,
+  etap (a) decyzji [`03`](docs/decisions/03-kierunek-bot-interfejs-czlowieka.md))
+  — koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

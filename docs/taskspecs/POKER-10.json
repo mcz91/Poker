@@ -1,0 +1,42 @@
+{
+  "id": "POKER-10",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator gra w terminalu pełny mecz heads-up przeciw agentowi regułowemu, widząc dokładnie to i tylko to, co widziałby przy prawdziwym stole.",
+  "acceptance": [
+    "Udokumentowana w README komenda CLI rozgrywa mecz człowiek vs agent (wybór agenta i konfiguracja meczu jak w POKER-9); człowiek wchodzi portem Agent przez adapter czytający decyzje z wejścia — silnik, stół, widoki i agenci pozostają nietknięte (INV-P4, INV-P7).",
+    "Przed każdą decyzją terminal pokazuje wyłącznie dane z PlayerView miejsca człowieka: własne karty, board, pulę, stacki, jawne akcje i legalne akcje z granicami kwot; renderer przyjmuje wyłącznie PlayerView — pod testem architektury.",
+    "Test przecieku wyjścia: karty bota i seed nie pojawiają się w żadnym wyjściu terminalowym przed showdownem; po CardsRevealed terminal pokazuje odkryte karty zgodnie ze zdarzeniami.",
+    "Wejście człowieka jest walidowane: akcja nielegalna, kwota poza granicami lub tekst nieparsowalny dają czytelny komunikat i ponowne pytanie, bez śladu w historii rozdania; koniec strumienia wejścia kończy mecz czytelnym komunikatem i niezerowym kodem wyjścia — wszystko pod testami.",
+    "Po zakończeniu meczu terminal wypisuje wynik jak w POKER-9, a eksport historii pozostaje dostępny tą samą flagą.",
+    "Testy sterują wejściem i wyjściem programowo (wstrzyknięte źródło wejścia i przechwycone wyjście, bez podprocesów): scenariusz pełnego rozdania decyzjami człowieka, scenariusz błędnych wejść, test przecieku wyjścia.",
+    "Determinizm rdzenia zachowany: seed meczu argumentem; przy wstrzykniętym identycznym wejściu człowieka przebieg meczu jest odtwarzalny.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Bot równowagowy (GTO) i eksploatacyjny — etapy (b) i (c) decyzji 03, osobne kwalifikacje.",
+    "GUI, web, sieć, wiele stołów — gałąź pokerroom.",
+    "Podpowiedzi, analiza decyzji, undo, replay — gałąź trener.",
+    "Timery i zegar — silnik pozostaje bez czasu (INV-P1).",
+    "Zmiany silnika, widoków, kontraktu agenta, stołu i agenta regułowego z POKER-3…8."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T04:01:10Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

@@ -89,7 +89,10 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-Sekwencja budowy z pustego repozytorium (punkt 5 promptu architekta)
-jest ukończona: 8/8 kroków. Kolejne funkcje wchodzą wyłącznie przez
-kwalifikację architekta („czy budować") — naturalni kandydaci to
-gałęzie z decyzji 01.
+Sekwencja budowy z pustego repozytorium jest ukończona (8/8 kroków).
+Operator otworzył kierunek bot
+([decyzja 03](README.md#dokumenty-decyzji)): trwa POKER-10 — interfejs
+człowiek vs bot w terminalu (kontrakt zatwierdzony,
+[`docs/taskspecs/POKER-10.json`](taskspecs/POKER-10.json), realizacja
+u kodera); potem etapy (b) baseline GTO i (c) eksploatacja — osobne
+kwalifikacje.
