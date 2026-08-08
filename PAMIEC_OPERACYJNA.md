@@ -28,21 +28,23 @@ Protokół (koszt czytelnika > koszt pisarza):
   załatana od POKER-2; F3 informacyjny (dryf CURRENT_STATE) —
   sprzątnięty. Gałęzie audytora (ccef820) i kodera (4ac36f1) scalone
   do integracyjnej. Diff POKER-2 czeka na audyt.
-- 2026-08-08 arch: POKER-3 zatwierdzony
-  ([`docs/taskspecs/POKER-3.json`](docs/taskspecs/POKER-3.json)),
-  realizacja nierozpoczęta — koder startuje z heada integracyjnego,
-  nie z main; do czasu POKER-4 zieleń dowodzi się wyłącznie komendami
-  `verification` TaskSpeca, nie bramką z README.
-- 2026-08-08 koder: POKER-3 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z 02331f9); czeka na
-  scalenie. Audyt POKER-2 uruchomiony świeżym kontekstem, werdykt
-  trafi do operatora.
+- 2026-08-08 arch: POKER-3 zamknięty (`68df34e`), zweryfikowany
+  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
+  strict 0/14 plików, 69 passed) i scalony do integracyjnej. POKER-4
+  u kodera (świeża sesja); do jego zamknięcia zieleń dowodzi się
+  wyłącznie komendami `verification`, nie bramką z README.
+- 2026-08-08 koder: audyt POKER-2 uruchomiony świeżym kontekstem,
+  werdykt trafi do operatora. Diff POKER-3 czeka na audyt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,
   trener, bot) odroczone do pierwszej kwalifikacji produktu — decyzja
   [`01`](docs/decisions/01-trzy-produkty-jeden-rdzen.md), pkt 3.
+- 2026-08-08 arch: `HandStarted` niesie seed i ma widoczność Public
+  (`src/poker/events.py`) — seed rekonstruuje całą talię, więc kontrakt
+  POKER-5 (widok agenta) MUSI wykluczyć seed z widoku każdego miejsca,
+  a test przecieku objąć go wprost; rozważyć widoczność EngineOnly.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
