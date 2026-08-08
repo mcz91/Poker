@@ -28,8 +28,11 @@ Protokół (koszt czytelnika > koszt pisarza):
   koder startuje z heada gałęzi integracyjnej, nie z main.
 - 2026-08-08 koder: POKER-2 zamknięty na gałęzi kodera
   `claude/poker-repo-instrukcja-gez88z` (start z 00dcba7); czeka na
-  scalenie do integracyjnej. Audyt POKER-1 uruchomiony świeżym
-  kontekstem, werdykt trafi do operatora.
+  scalenie do integracyjnej. Audyt POKER-1 wydał FINDINGI
+  (3 blokujące: PAMIEC poza allowed_paths, nieprawda w docs/README
+  na gałęzi kodera, hatchling bez powodu w opisie commita; 1 istotny:
+  bramka README słabsza niż verification) — pełny raport u operatora,
+  rozstrzygnięcie poza koderem.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -48,6 +51,12 @@ w `docs/taskspecs/`)
   `python3.13`. Pełną bramkę wylicza `README.md`.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
+- Bramka z README musi być literalnie równa `verification` TaskSpeca:
+  goła `mypy` z `packages=["poker"]` NIE typuje `tests/` — pisz
+  `mypy --strict src tests`.
+- `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
+  (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
+  = OBJECTION, nie cichy zapis.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
