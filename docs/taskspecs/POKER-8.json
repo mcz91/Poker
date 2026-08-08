@@ -1,0 +1,39 @@
+{
+  "id": "POKER-8",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może wystawić do meczu gotowego agenta o prostych, czytelnych regułach, który zawsze gra legalnie i zawsze tak samo w tej samej sytuacji.",
+  "acceptance": [
+    "W pakiecie produktu istnieje agent regułowy implementujący protokół Agent z POKER-6: decyzja jest czystą funkcją widoku (INV-P4), bez pamięci między wywołaniami, bez I/O, zegara i jakiejkolwiek losowości — ten sam widok daje tę samą decyzję, pod testem (INV-P8).",
+    "Reguły agenta są czytelne i wyprowadzone wyłącznie z widoku: siła własnej ręki (przez poker.evaluation na kartach własnych i boardzie), koszt sprawdzenia względem stacka i puli oraz granice legalnych akcji z widoku; każda reguła ma test jednostkowy postaci widok -> oczekiwana decyzja.",
+    "Agent nigdy nie zwraca decyzji nielegalnej: test właściwościowy rozgrywa mecze agent kontra agent oraz agent kontra skrypty testowe przez play_match na wielu seedach — zero błędów legalności, każdy mecz kończy się wynikiem.",
+    "Agent nie sięga poza widok: jego moduł importuje wyłącznie typy widoku, decyzji i ewaluatora — import maszyny licytacji, historii, projekcji, talii lub stołu w module agenta jest czerwienią recenzji (INV-P3).",
+    "Dobór progów agenta (np. granice siły ręki dla poszczególnych akcji) jest parametrem konstrukcji z udokumentowanym domyślnym zestawem — warianty przez konfigurację, nie przez rozgałęzienia kodu (INV-P6).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Siła gry: agent ma być poprawny, deterministyczny i czytelny — nie mocny; strategia GTO, uczenie i modele ML to gałąź bot (decyzja 01), która wejdzie tym samym portem Agent.",
+    "Mieszanie strategii losowością — determinizm jest wymogiem horyzontu bieżącego; losowa strategia wymagałaby wstrzykniętego RNG i osobnej decyzji.",
+    "CLI i eksport historii — krok 8 sekwencji.",
+    "Zmiany silnika, widoku, kontraktu agenta i stołu z POKER-3…7.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T03:19:59Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

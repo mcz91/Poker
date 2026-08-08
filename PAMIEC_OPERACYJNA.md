@@ -30,16 +30,14 @@ Protokół (koszt czytelnika > koszt pisarza):
   PUŁAPKA o granicy gwarancji). Main zsynchronizowany z headem
   integracyjnym fast-forwardem za jawną autoryzacją operatora
   2026-08-08.
-- 2026-08-08 arch: POKER-7 zatwierdzony
-  ([`docs/taskspecs/POKER-7.json`](docs/taskspecs/POKER-7.json)) —
+- 2026-08-08 arch: POKER-7 zamknięty (`462576d` + domknięcie audytu
+  `4a01775`), zweryfikowany niezależnie (czysty venv 3.13, verification
+  zielone: ruff 0, mypy 0/23 plików, 114 passed) i scalony do
+  integracyjnej. Audyt POKER-7: F1 informacyjny naprawiony, 960 meczów
+  weryfikacji niezależnej bez naruszeń — komplet audytów POKER-1…7.
+- 2026-08-08 arch: POKER-8 zatwierdzony
+  ([`docs/taskspecs/POKER-8.json`](docs/taskspecs/POKER-8.json)) —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-
-- 2026-08-08 koder: POKER-7 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z f08adf8). Audyt
-  POKER-7 (f08adf8..462576d): FINDINGI — wyłącznie F1 informacyjny
-  (uśpiona asercja warunkowa w teście stacka poniżej blindu),
-  naprawiony bezwarunkowymi asercjami na gałęzi kodera; weryfikacja
-  niezależna 960 meczów bez naruszeń. Czeka na scalenie.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -52,8 +50,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
-(pusto — decyzje 01 i 02 utrwalone w `docs/decisions/`; TaskSpeki
-w `docs/taskspecs/`)
+- 2026-08-08 operator: autoryzacja stała — main podąża za headem
+  gałęzi integracyjnej fast-forwardem po każdym komplecie audytów
+  scalonych zadań; wykonuje architekt bez pytania.
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
