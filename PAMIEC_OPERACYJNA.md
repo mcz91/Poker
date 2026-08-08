@@ -28,13 +28,15 @@ Protokół (koszt czytelnika > koszt pisarza):
   autoryzacją operatora 2026-08-08.
 - 2026-08-08 arch: audyty POKER-8 i POKER-9 w toku — main czeka na
   ich werdykty (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-10 zatwierdzony (interfejs człowiek vs bot,
-  etap (a) decyzji [`03`](docs/decisions/03-kierunek-bot-interfejs-czlowieka.md))
-  — koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-- 2026-08-08 koder: POKER-10 zrealizowany ze startu `a3ff457` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt i integrację.
-  Wcześniejszy commit tej gałęzi (`f402392`, zdublowany POKER-9)
-  porzucony — zastąpił go zintegrowany `b6f7035`.
+- 2026-08-08 arch: POKER-10 zamknięty (`b1da201`, gałąź
+  `claude/new-session-aazf0r`), audyt FINDINGI (1×informacyjny:
+  showdown widoczny dopiero w podsumowaniu — luka kontraktu, nie
+  wykonania), zweryfikowany niezależnie (ruff 0, mypy 0/33, 149
+  passed) i scalony. Finding przejęty kontraktem POKER-11.
+- 2026-08-08 arch: POKER-11 zatwierdzony (showdown na żywo;
+  dopuszczone minimalne czyste rozszerzenie poker.table o obserwację
+  meczu rozdanie po rozdaniu) — koder startuje ze świeżej sesji
+  z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

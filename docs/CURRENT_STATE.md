@@ -96,10 +96,9 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-Sekwencja budowy z pustego repozytorium jest ukończona (8/8 kroków),
-a etap (a) kierunku bot
-([decyzja 03](README.md#dokumenty-decyzji)) — interfejs człowiek vs
-bot w terminalu — zrealizowany
-([`docs/taskspecs/POKER-10.json`](taskspecs/POKER-10.json), czeka na
-audyt i integrację). Dalej: etapy (b) baseline GTO i (c) eksploatacja
-— osobne kwalifikacje u architekta i operatora.
+Trwa POKER-11 — showdown na żywo w trybie człowieka (finding
+informacyjny audytu POKER-10; kontrakt zatwierdzony,
+[`docs/taskspecs/POKER-11.json`](taskspecs/POKER-11.json), realizacja
+u kodera). Dalej w kierunku bot ([decyzja 03](README.md#dokumenty-decyzji)):
+etapy (b) baseline GTO i (c) eksploatacja — osobne kwalifikacje
+u architekta i operatora.

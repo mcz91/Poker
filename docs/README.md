@@ -38,8 +38,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-9.json`](taskspecs/POKER-9.json) — CLI i eksport historii
   (zamknięty, commit `b6f7035`; audyt w toku);
 - [`POKER-10.json`](taskspecs/POKER-10.json) — interfejs człowiek vs
-  bot w terminalu (zrealizowany przez kodera, czeka na audyt
-  i integrację).
+  bot w terminalu (zamknięty, commit `b1da201`; audyt: 1 finding
+  informacyjny → POKER-11);
+- [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
+  w trybie człowieka (zatwierdzony, u kodera).
 
 ## Operator
 

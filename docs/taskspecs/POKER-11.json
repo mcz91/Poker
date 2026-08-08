@@ -1,0 +1,39 @@
+{
+  "id": "POKER-11",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Człowiek grający w terminalu widzi zakończenie każdego rozdania natychmiast — jak przy prawdziwym stole — zamiast dopiero w podsumowaniu po meczu.",
+  "acceptance": [
+    "W trybie człowieka po zakończeniu każdego rozdania terminal natychmiast pokazuje jego rozstrzygnięcie z perspektywy miejsca człowieka: przy foldzie — kto spasował i kto bierze pulę; przy showdownie — odkryte karty zgodnie ze zdarzeniami CardsRevealed, zwrot nadpłaty i przyznanie puli; render pojawia się przed pierwszym pytaniem o decyzję w następnym rozdaniu — pod testem kolejności wyjścia.",
+    "Render końca rozdania budowany wyłącznie ze zdarzeń widocznych dla miejsca człowieka: rozdanie zakończone foldem bota nie ujawnia jego kart, seed nie pojawia się nigdy — rozszerzony test przecieku wyjścia obejmuje wyjście na żywo.",
+    "Dotychczasowe zachowania pozostają: podsumowanie po meczu, wynik, eksport, walidacja wejścia; determinizm wyjścia zachowany — identyczne wejście daje identyczne stdout i eksport, pod testem.",
+    "Ewentualne rozszerzenie silnika ograniczone jest do poker.table: czysty, pozbawiony I/O sposób obserwacji meczu rozdanie po rozdaniu (INV-P1, INV-P7), bez zmiany zachowania play_match dla istniejących wywołań — pod testami; pozostałe moduły silnika, widoki i agenci nietknięte.",
+    "Testy sterują wejściem i wyjściem programowo, bez podprocesów.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (jeśli opis trybu człowieka tego wymaga), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami."
+  ],
+  "non_goals": [
+    "Zmiany reguł silnika, licytacji, widoków, kontraktu agenta i agentów.",
+    "Analiza rozdania, podpowiedzi, replay — gałąź trener.",
+    "GUI, kolory, animacje — pozostajemy przy czystym tekście.",
+    "Zmiana formatu eksportu historii."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T04:38:39Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
