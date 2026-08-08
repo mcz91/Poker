@@ -105,8 +105,8 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. Trwa POKER-12 — equity preflop 169
-klas rąk jako dane
-([`docs/taskspecs/POKER-12.json`](taskspecs/POKER-12.json), realizacja
-u kodera); potem arena porównawcza agentów (b2), dane self-play (b3)
-i ML (b4) — osobne kwalifikacje.
+silnik GTO/explo na ML docelowo. Równolegle trwają POKER-12 (equity
+preflop 169 klas jako dane) i POKER-13 (arena porównawcza agentów) —
+zadania niezależne modułowo; kolejność scalania: 12 przed 13,
+właściciel integracji: architekt. Dalej: dane self-play (b3) i ML
+(b4) — osobne kwalifikacje.

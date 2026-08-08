@@ -32,11 +32,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   niezależnie (ruff 0, mypy 0/33, komplet testów; rozszerzenie stołu
   minimalne — jeden czysty callback on_hand) i scalony. Audyty
   POKER-10 zamknięty (finding → POKER-11), POKER-11 czeka na audyt.
-- 2026-08-08 arch: POKER-12 zatwierdzony (equity 169 klas, podetap b1
-  decyzji [`04`](docs/decisions/04-reguly-dzis-ml-docelowo.md)) —
-  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-  Kolejny w kolejce (b2): arena porównawcza agentów — kwalifikacja
-  po zieleni POKER-12.
+- 2026-08-08 arch: POKER-12 (equity, b1) i POKER-13 (arena, b2)
+  zatwierdzone i realizowane RÓWNOLEGLE w osobnych świeżych sesjach
+  kodera (start obu: head integracyjny `3689d03` lub nowszy) — zadania
+  modułowo niezależne (reguła 14): kolejność scalania 12 przed 13,
+  właściciel integracji architekt, konflikty statusowe (CURRENT_STATE,
+  indeks, pamięć) rozstrzyga architekt przy scalaniu.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

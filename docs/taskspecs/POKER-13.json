@@ -1,0 +1,41 @@
+{
+  "id": "POKER-13",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może zmierzyć, który agent jest silniejszy: arena rozgrywa serię meczów A vs B na lustrzanych rozdaniach i raportuje wynik w BB/100 z przedziałem ufności.",
+  "acceptance": [
+    "Istnieje moduł areny rozgrywający serię meczów pary agentów przez play_match; konfiguracja serii — blindy, stacki, limit rozdań meczu, liczba par meczów, seed serii — to parametry (INV-P6); moduł rdzenia areny nie wykonuje I/O (INV-P1).",
+    "Rozdania są lustrzane (duplicate): każdy seed meczu rozgrywany jest dwukrotnie z zamianą miejsc agentów, więc obie strony dostają te same karty; test dowodzi identyczności sekwencji kart obu przebiegów przez porównanie historii zdarzeń, a wynik pary jest sumą obu przebiegów.",
+    "Raport serii zawiera: wynik agenta A w BB/100, odchylenie standardowe po parach i 95% przedział ufności; testy na znanych relacjach: agent zawsze-fold przegrywa z agentem regułowym z całym przedziałem poniżej zera, agent przeciw samemu sobie ma przedział obejmujący zero.",
+    "Determinizm: ten sam seed serii daje identyczny raport (pod testem), różne seedy różnicuje test.",
+    "Seria jest dostępna z CLI (podkomenda lub flagi w istniejącym adapterze, udokumentowana w README) z wynikiem na stdout; testy wołają punkt wejścia w procesie testów, na małych liczbach par — pełna bramka pozostaje szybka.",
+    "Kierunek importów: rdzeń areny zależy wyłącznie od silnika (stół, agenci, zdarzenia), CLI od areny — pod rozszerzonym testem architektury; silnik, licytacja, widoki i istniejący agenci nietknięci.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami."
+  ],
+  "non_goals": [
+    "Equity i klasy rąk — to POKER-12, zadanie niezależne realizowane równolegle; kolejność integracji: POKER-12 przed POKER-13, właściciel integracji: architekt.",
+    "ML, trening, self-play na skalę (podetapy b3-b4 decyzji 04).",
+    "Nowe agenty i zmiany istniejących — arena mierzy, nie ulepsza.",
+    "Równoległość obliczeń, wielowątkowość, optymalizacje wydajności.",
+    "Wizualizacje i formaty raportu poza czytelnym tekstem na stdout."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T05:23:07Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
