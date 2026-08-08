@@ -44,6 +44,12 @@ w `docs/taskspecs/`)
   `python3.13`. Pełną bramkę wylicza `README.md`.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
+- gołe `mypy` (config `packages=["poker"]`) nie widzi `tests/` — błąd
+  typu w testach przechodzi na zielono; dowodem jest wyłącznie
+  `mypy --strict src tests` z `verification` TaskSpeca.
+- TaskSpec bez `PAMIEC_OPERACYJNA.md` w `allowed_paths` konfliktuje
+  z protokołem ról (zapis pamięci obowiązkowy); POKER-2 już ją ma —
+  pilnuj w każdym następnym.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
