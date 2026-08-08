@@ -28,15 +28,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   autoryzacją operatora 2026-08-08.
 - 2026-08-08 arch: audyty POKER-8 i POKER-9 w toku — main czeka na
   ich werdykty (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-10 zamknięty (`b1da201`, gałąź
-  `claude/new-session-aazf0r`), audyt FINDINGI (1×informacyjny:
-  showdown widoczny dopiero w podsumowaniu — luka kontraktu, nie
-  wykonania), zweryfikowany niezależnie (ruff 0, mypy 0/33, 149
-  passed) i scalony. Finding przejęty kontraktem POKER-11.
-- 2026-08-08 arch: POKER-11 zatwierdzony (showdown na żywo;
-  dopuszczone minimalne czyste rozszerzenie poker.table o obserwację
-  meczu rozdanie po rozdaniu) — koder startuje ze świeżej sesji
-  z heada integracyjnego, nie z main.
+- 2026-08-08 arch: POKER-11 zatwierdzony (showdown na żywo — finding
+  informacyjny audytu POKER-10 przejęty kontraktem; dopuszczone
+  minimalne czyste rozszerzenie poker.table o obserwację meczu
+  rozdanie po rozdaniu) — koder startuje ze świeżej sesji z heada
+  integracyjnego, nie z main.
+- 2026-08-08 koder: POKER-11 zrealizowany ze startu `2b51758` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt i integrację.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

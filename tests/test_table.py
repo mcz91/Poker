@@ -1,4 +1,4 @@
-"""Testy stołu i pętli meczu (POKER-7): rotacja, determinizm, zakończenia."""
+"""Testy stołu i pętli meczu (POKER-7, POKER-11): rotacja, determinizm, zakończenia, obserwacja."""
 
 from dataclasses import FrozenInstanceError
 
@@ -129,6 +129,14 @@ def test_wynik_i_historie_sa_niemutowalne() -> None:
     assert all(isinstance(history, tuple) for history in result.histories)
     with pytest.raises(FrozenInstanceError):
         result.hands_played = 99  # type: ignore[misc]
+
+
+def test_obserwacja_rozdanie_po_rozdaniu_nie_zmienia_wyniku_meczu() -> None:
+    observed: list[tuple[HandEvent, ...]] = []
+    result = play_match(CONFIG, seed=7, agents=PASYWNI, on_hand=observed.append)
+    assert tuple(observed) == result.histories
+    assert len(observed) == result.hands_played
+    assert result == play_match(CONFIG, seed=7, agents=PASYWNI)
 
 
 def test_walidacja_konfiguracji_meczu() -> None:

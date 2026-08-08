@@ -2,7 +2,8 @@
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from itertools import count
 from pathlib import Path
 from typing import TextIO
 
@@ -10,6 +11,7 @@ from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.agent import Agent
 from poker.evaluation import HandCategory
+from poker.events import HandEvent
 from poker.rule_agent import RuleAgent, RuleAgentThresholds
 from poker.table import MatchConfig, play_match
 
@@ -57,6 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
+    numbers = count(1)
+
+    def report(history: tuple[HandEvent, ...]) -> None:
+        print(f"koniec rozdania {next(numbers)}: {render_hand_summary(history, seat)}")
+
+    return report
+
+
 def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> int:
     parser = build_parser()
     try:
@@ -79,7 +90,12 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
         print(f"błąd: {error}", file=sys.stderr)
         return 2
     try:
-        result = play_match(config, seed=args.seed, agents=(agents[0], agents[1]))
+        result = play_match(
+            config,
+            seed=args.seed,
+            agents=(agents[0], agents[1]),
+            on_hand=_live_reporter(args.human) if args.human is not None else None,
+        )
     except InputEnded as error:
         print(f"koniec wejścia — mecz przerwany: {error}", file=sys.stderr)
         return 1

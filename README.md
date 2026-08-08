@@ -37,9 +37,11 @@ stacki, jawne akcje i granice legalnych akcji; decyzję wpisujesz jako
 `fold`, `check`, `call`, `bet KWOTA` albo `raise KWOTA`. Wejście
 nielegalne albo nieparsowalne dostaje komunikat i ponowne pytanie, bez
 śladu w historii rozdania; koniec strumienia wejścia przerywa mecz
-z niezerowym kodem wyjścia. Karty bota i seed pozostają niewidoczne do
-showdownu; po nim przebieg rozdań pokazuje odkryte karty. Eksport
-historii działa tą samą flagą `--export`.
+z niezerowym kodem wyjścia. Rozstrzygnięcie każdego rozdania (fold albo
+showdown) terminal pokazuje natychmiast po jego zakończeniu, a po meczu
+dodatkowo w zbiorczym przebiegu rozdań. Karty bota i seed pozostają
+niewidoczne do showdownu; po nim widać odkryte karty. Eksport historii
+działa tą samą flagą `--export`.
 
 ## Instalacja i pełna bramka
 

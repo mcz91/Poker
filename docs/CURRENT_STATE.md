@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-10
-(interfejs człowiek vs bot w terminalu).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-11
+(showdown na żywo w trybie człowieka).
 
 ## Co istnieje
 
@@ -55,7 +55,10 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-10
   rozdaniami; seedy rozdań pochodzą deterministycznie z seeda meczu;
   koniec przez bust (stack dokładnie 0) albo limit rozdań; wynik
   obserwowalny (stacki, liczba rozdań, powód) wraz z pełną sekwencją
-  niemutowalnych historii rozdań; suma żetonów stała przez cały mecz
+  niemutowalnych historii rozdań; opcjonalna czysta obserwacja meczu
+  rozdanie po rozdaniu (`on_hand` — callback z historią zakończonego
+  rozdania, bez I/O w silniku i bez zmiany zachowania istniejących
+  wywołań — pod testem); suma żetonów stała przez cały mecz
   — pod testami. Uproszczenie jawne (INV-P5): `play_match` wymaga
   dokładnie 2 miejsc — multiway to gałąź pokerroom;
 - `poker.rule_agent` — agent regułowy (`RuleAgent`): czysta,
@@ -76,8 +79,12 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-10
   przed decyzją wyłącznie z `PlayerView` miejsca człowieka (INV-P3,
   sygnaturę renderera strzeże test architektury), wejście walidowane
   z ponownym pytaniem bez śladu w historii, koniec strumienia wejścia
-  przerywa mecz niezerowym kodem; karty bota i seed nieobecne
-  w wyjściu terminala do showdownu — pod testem przecieku; round-trip
+  przerywa mecz niezerowym kodem; rozstrzygnięcie każdego rozdania
+  (fold/showdown) renderowane na żywo natychmiast po jego końcu —
+  przed pierwszą decyzją następnego rozdania (obserwacja `on_hand`
+  stołu), obok zbiorczego przebiegu po meczu; karty bota i seed
+  nieobecne w wyjściu terminala do showdownu, także w wyjściu na
+  żywo — pod testem przecieku i testem kolejności; round-trip
   i determinizm eksportu bajt w bajt oraz odtwarzalność meczu przy
   identycznym wejściu człowieka pod testami; kierunek importów od
   adapterów do silnika strzeże `tests/test_architecture.py`;
@@ -96,9 +103,9 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-Trwa POKER-11 — showdown na żywo w trybie człowieka (finding
-informacyjny audytu POKER-10; kontrakt zatwierdzony,
-[`docs/taskspecs/POKER-11.json`](taskspecs/POKER-11.json), realizacja
-u kodera). Dalej w kierunku bot ([decyzja 03](README.md#dokumenty-decyzji)):
-etapy (b) baseline GTO i (c) eksploatacja — osobne kwalifikacje
-u architekta i operatora.
+POKER-11 — showdown na żywo w trybie człowieka (finding informacyjny
+audytu POKER-10,
+[`docs/taskspecs/POKER-11.json`](taskspecs/POKER-11.json)) —
+zrealizowany, czeka na audyt i integrację. Dalej w kierunku bot
+([decyzja 03](README.md#dokumenty-decyzji)): etapy (b) baseline GTO
+i (c) eksploatacja — osobne kwalifikacje u architekta i operatora.

@@ -41,7 +41,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   bot w terminalu (zamknięty, commit `b1da201`; audyt: 1 finding
   informacyjny → POKER-11);
 - [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
-  w trybie człowieka (zatwierdzony, u kodera).
+  w trybie człowieka (zrealizowany przez kodera, czeka na audyt
+  i integrację).
 
 ## Operator
 

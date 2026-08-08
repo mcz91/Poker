@@ -111,6 +111,8 @@ def test_fold_przed_showdownem_nie_ujawnia_kart_bota_ani_seeda(
     out = capsys.readouterr().out
     histories = deserialize_match_history(export.read_text(encoding="utf-8"))
     assert len(histories) == 2
+    assert "koniec rozdania 1: " in out  # rozstrzygnięcia na żywo też bez przecieku
+    assert "koniec rozdania 2: " in out
     for token in _bot_hole_tokens(histories, bot_seat=1):
         assert token not in out
     for seed_text in _seed_strings(histories):
@@ -137,11 +139,14 @@ def test_pelne_rozdanie_decyzjami_czlowieka_do_showdownu(
     assert out.count("twoja decyzja") == 4
     assert "stacki końcowe: 92 108" in out
     assert "rozdania: 1" in out
-    # showdown: karty bota pojawiają się wyłącznie po znaczniku przebiegu rozdań
-    marker = out.index("przebieg rozdań")
+    # showdown na żywo: karty bota pojawiają się dopiero w rozstrzygnięciu rozdania
+    marker = out.index("koniec rozdania 1: ")
+    linia_na_zywo = out[marker : out.index("\n", marker)]
+    assert "pokazuje" in linia_na_zywo
+    assert marker < out.index("przebieg rozdań")  # podsumowanie po meczu pozostaje
     for token in _bot_hole_tokens(histories, bot_seat=1):
         assert token not in out[:marker]
-        assert token in out[marker:]
+        assert token in linia_na_zywo
     for seed_text in _seed_strings(histories):
         assert seed_text not in out
 
@@ -163,6 +168,22 @@ def test_bledne_wejscia_nie_zostawiaja_sladu_w_historii(
         if isinstance(event, ActionTaken) and event.seat == 0
     ]
     assert akcje_czlowieka == [ActionTaken(seat=0, action=ActionType.FOLD, amount=0)]
+
+
+def test_rozstrzygniecie_rozdania_na_zywo_przed_kolejna_decyzja(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stdin = io.StringIO("fold\nfold\n")
+    assert main(["--human", "0", "--hands", "2", "--seed", "3"], stdin=stdin) == 0
+    out = capsys.readouterr().out
+    prompts = [index for index in range(len(out)) if out.startswith("twoja decyzja", index)]
+    assert len(prompts) == 2
+    live_first = out.index("koniec rozdania 1: ")
+    assert prompts[0] < live_first < prompts[1]
+    assert "koniec rozdania 2: " in out
+    linia = out[live_first : out.index("\n", live_first)]
+    assert "pasuje" in linia
+    assert "pula" in linia and "dla miejsca" in linia
 
 
 def test_koniec_wejscia_konczy_mecz_niezerowym_kodem(

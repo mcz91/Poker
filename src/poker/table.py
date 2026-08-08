@@ -1,7 +1,7 @@
 """Stół i pętla meczu heads-up: wiele rozdań, rotacja buttona, wynik meczu."""
 
 import random
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum, unique
 
@@ -47,7 +47,13 @@ class MatchResult:
     histories: tuple[tuple[HandEvent, ...], ...]
 
 
-def play_match(config: MatchConfig, seed: int, agents: Sequence[Agent]) -> MatchResult:
+def play_match(
+    config: MatchConfig,
+    seed: int,
+    agents: Sequence[Agent],
+    *,
+    on_hand: Callable[[tuple[HandEvent, ...]], None] | None = None,
+) -> MatchResult:
     if len(config.stacks) != 2:
         raise ValueError(
             "stół obsługuje dokładnie 2 miejsca (heads-up); multiway to gałąź pokerroom"
@@ -74,6 +80,8 @@ def play_match(config: MatchConfig, seed: int, agents: Sequence[Agent]) -> Match
         while (seat := hand.to_act()) is not None:
             apply_decision(hand, agents[seat])
         histories.append(hand.events())
+        if on_hand is not None:
+            on_hand(hand.events())
         stacks = project(hand.events()).stacks
         button = (button + 1) % len(stacks)
         if any(stack == 0 for stack in stacks):
