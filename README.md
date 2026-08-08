@@ -24,6 +24,23 @@ Wynik meczu trafia na standardowe wyjście, a pełna historia rozdań —
 do wersjonowanego pliku JSON, identycznego bajt w bajt dla tych samych
 argumentów.
 
+### Gra człowieka z botem
+
+```bash
+python -m poker.adapters.cli --human 0 --agent1 rule --seed 7
+```
+
+`--human MIEJSCE` (0 albo 1, domyślnie brak) zastępuje agenta
+wskazanego miejsca decyzjami z klawiatury. Przed każdą decyzją terminal
+pokazuje wyłącznie widok twojego miejsca: karty własne, board, pulę,
+stacki, jawne akcje i granice legalnych akcji; decyzję wpisujesz jako
+`fold`, `check`, `call`, `bet KWOTA` albo `raise KWOTA`. Wejście
+nielegalne albo nieparsowalne dostaje komunikat i ponowne pytanie, bez
+śladu w historii rozdania; koniec strumienia wejścia przerywa mecz
+z niezerowym kodem wyjścia. Karty bota i seed pozostają niewidoczne do
+showdownu; po nim przebieg rozdań pokazuje odkryte karty. Eksport
+historii działa tą samą flagą `--export`.
+
 ## Instalacja i pełna bramka
 
 ```bash

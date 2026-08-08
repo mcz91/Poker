@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-9
-(CLI i eksport historii — ostatni krok sekwencji budowy).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-10
+(interfejs człowiek vs bot w terminalu).
 
 ## Co istnieje
 
@@ -69,11 +69,18 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-9
 - `poker.adapters` — adaptery (INV-P7): `cli` rozgrywa mecz
   z terminala (`python -m poker.adapters.cli`, argumenty
   z udokumentowanymi domyślnymi w [`README.md`](../README.md), kod
-  wyjścia 0/2) i `export` — pełna historia meczu (łącznie ze
+  wyjścia 0/2), `export` — pełna historia meczu (łącznie ze
   zdarzeniami EngineOnly — kanał operatora) w typowanym,
-  wersjonowanym JSON; round-trip i determinizm bajt w bajt pod
-  testami; kierunek importów od adapterów do silnika strzeże
-  `tests/test_architecture.py`;
+  wersjonowanym JSON, a `human` — człowiek przy stole portem Agent
+  (INV-P4): `cli --human MIEJSCE` gra mecz człowiek vs agent, render
+  przed decyzją wyłącznie z `PlayerView` miejsca człowieka (INV-P3,
+  sygnaturę renderera strzeże test architektury), wejście walidowane
+  z ponownym pytaniem bez śladu w historii, koniec strumienia wejścia
+  przerywa mecz niezerowym kodem; karty bota i seed nieobecne
+  w wyjściu terminala do showdownu — pod testem przecieku; round-trip
+  i determinizm eksportu bajt w bajt oraz odtwarzalność meczu przy
+  identycznym wejściu człowieka pod testami; kierunek importów od
+  adapterów do silnika strzeże `tests/test_architecture.py`;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
   [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
   (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
@@ -89,10 +96,10 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-Sekwencja budowy z pustego repozytorium jest ukończona (8/8 kroków).
-Operator otworzył kierunek bot
-([decyzja 03](README.md#dokumenty-decyzji)): trwa POKER-10 — interfejs
-człowiek vs bot w terminalu (kontrakt zatwierdzony,
-[`docs/taskspecs/POKER-10.json`](taskspecs/POKER-10.json), realizacja
-u kodera); potem etapy (b) baseline GTO i (c) eksploatacja — osobne
-kwalifikacje.
+Sekwencja budowy z pustego repozytorium jest ukończona (8/8 kroków),
+a etap (a) kierunku bot
+([decyzja 03](README.md#dokumenty-decyzji)) — interfejs człowiek vs
+bot w terminalu — zrealizowany
+([`docs/taskspecs/POKER-10.json`](taskspecs/POKER-10.json), czeka na
+audyt i integrację). Dalej: etapy (b) baseline GTO i (c) eksploatacja
+— osobne kwalifikacje u architekta i operatora.

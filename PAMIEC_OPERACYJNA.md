@@ -20,35 +20,21 @@ Protokół (koszt czytelnika > koszt pisarza):
   POKER-1…6 zamknięte, każde zweryfikowane niezależnie przez architekta
   (czysty venv 3.13, verification zielone) i scalone sekwencyjnie;
   statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…6, wszystkie findingi
-  blokujące i OBJECTION zamknięte z dowodami: POKER-1 FINDINGI (F1
-  mechanizm test_repo_gate, F2 odstępstwo uznane decyzją operatora,
-  F3 sprzątnięty); POKER-2 CZYSTY; POKER-3 OBJECTION seeda zamknięty
-  w POKER-6 (DeckSeeded/EngineOnly); POKER-4 CZYSTY; POKER-5 FINDINGI
-  (F1 domknięty testem strażniczym af758b8, potwierdzony audytem;
-  F2 informacyjny → WĄTKI); POKER-6 CZYSTY (F1 informacyjny →
-  PUŁAPKA o granicy gwarancji). Main zsynchronizowany z headem
-  integracyjnym fast-forwardem za jawną autoryzacją operatora
-  2026-08-08.
-- 2026-08-08 arch: POKER-7 zamknięty (`462576d` + domknięcie audytu
-  `4a01775`), zweryfikowany niezależnie (czysty venv 3.13, verification
-  zielone: ruff 0, mypy 0/23 plików, 114 passed) i scalony do
-  integracyjnej. Audyt POKER-7: F1 informacyjny naprawiony, 960 meczów
-  weryfikacji niezależnej bez naruszeń — komplet audytów POKER-1…7.
-- 2026-08-08 arch: POKER-8 zamknięty (`95d004a`), zweryfikowany
-  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
-  0/25 plików, 127 passed; granica importów agenta potwierdzona)
-  i scalony do integracyjnej razem z pułapką audytu ogona (`31fcc4f`);
-  dryf F1 audytu ogona naprawiony. Audyt POKER-8 w toku — main czeka
-  na jego werdykt (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-9 zamknięty (`b6f7035`), zweryfikowany
-  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
-  0/31 plików, 140 passed; smoke end-to-end CLI z eksportem) i scalony
-  do integracyjnej — sekwencja budowy ukończona 8/8. Audyty POKER-8
-  i POKER-9 w toku; main czeka na ich werdykty (stała autoryzacja).
+- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami
+  (statusy zadań i commity w `docs/README.md`); fakty tylko tu:
+  F2 audytu POKER-1 to odstępstwo uznane decyzją operatora; audyt
+  POKER-7 potwierdzony 960 meczami weryfikacji niezależnej. Main
+  zsynchronizowany z headem integracyjnym fast-forwardem za jawną
+  autoryzacją operatora 2026-08-08.
+- 2026-08-08 arch: audyty POKER-8 i POKER-9 w toku — main czeka na
+  ich werdykty (decyzja o stałej autoryzacji).
 - 2026-08-08 arch: POKER-10 zatwierdzony (interfejs człowiek vs bot,
   etap (a) decyzji [`03`](docs/decisions/03-kierunek-bot-interfejs-czlowieka.md))
   — koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 koder: POKER-10 zrealizowany ze startu `a3ff457` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt i integrację.
+  Wcześniejszy commit tej gałęzi (`f402392`, zdublowany POKER-9)
+  porzucony — zastąpił go zintegrowany `b6f7035`.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

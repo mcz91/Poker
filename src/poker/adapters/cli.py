@@ -4,8 +4,10 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TextIO
 
 from poker.adapters.export import serialize_match_history
+from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.agent import Agent
 from poker.evaluation import HandCategory
 from poker.rule_agent import RuleAgent, RuleAgentThresholds
@@ -47,12 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help="agent miejsca 0 (domyślnie rule)")
     parser.add_argument("--agent1", choices=agents, default="rule",
                         help="agent miejsca 1 (domyślnie rule)")
+    parser.add_argument("--human", type=int, choices=(0, 1), default=None, metavar="MIEJSCE",
+                        help="miejsce człowieka: decyzje z wejścia zamiast agenta tego "
+                             "miejsca (domyślnie brak)")
     parser.add_argument("--export", type=Path, default=None, metavar="PLIK",
                         help="ścieżka pliku eksportu historii JSON (domyślnie bez eksportu)")
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
@@ -64,12 +69,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             button=args.button,
             hand_limit=args.hands,
         )
-        result = play_match(config, seed=args.seed, agents=(
-            registry[args.agent0], registry[args.agent1],
-        ))
+        agents: list[Agent] = [registry[args.agent0], registry[args.agent1]]
+        if args.human is not None:
+            agents[args.human] = HumanAgent(
+                input_stream=stdin if stdin is not None else sys.stdin,
+                output_stream=sys.stdout,
+            )
     except (argparse.ArgumentError, ValueError) as error:
         print(f"błąd: {error}", file=sys.stderr)
         return 2
+    try:
+        result = play_match(config, seed=args.seed, agents=(agents[0], agents[1]))
+    except InputEnded as error:
+        print(f"koniec wejścia — mecz przerwany: {error}", file=sys.stderr)
+        return 1
+    if args.human is not None:
+        print("przebieg rozdań:")
+        for number, history in enumerate(result.histories, start=1):
+            print(f"rozdanie {number}: {render_hand_summary(history, args.human)}")
     print(f"rozdania: {result.hands_played}")
     print(f"powód zakończenia: {result.reason.value}")
     print(f"stacki końcowe: {result.stacks[0]} {result.stacks[1]}")
