@@ -33,12 +33,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   realizacja nierozpoczęta — koder startuje z heada integracyjnego,
   nie z main; do czasu POKER-4 zieleń dowodzi się wyłącznie komendami
   `verification` TaskSpeca, nie bramką z README.
-- 2026-08-08 koder: POKER-3 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z 02331f9); czeka na
-  scalenie. Audyt POKER-2 (diff 00dcba7..bd3473c) zamknięty werdyktem
-  CZYSTY — m.in. wyczerpująca weryfikacja ewaluatora na pełnej
-  przestrzeni C(52,5) i 7462 klasach siły; pełny raport u operatora;
-  bez nowych PUŁAPEK.
+- 2026-08-08 koder: POKER-3 i POKER-4 zamknięte na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z 02331f9, POKER-4
+  sekwencyjnie po POKER-3); czekają na scalenie. Audyt POKER-2
+  zamknięty werdyktem CZYSTY (pełna przestrzeń C(52,5), 7462 klasy
+  siły; raport u operatora). Audyt POKER-3 (diff 02331f9..68df34e)
+  w toku świeżym kontekstem, werdykt trafi do operatora.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -57,16 +57,10 @@ w `docs/taskspecs/`)
   `python3.13`. Pełną bramkę wylicza `README.md`.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- Gołe `mypy` (config `packages=["poker"]`) NIE typuje `tests/` — błąd
-  typu w testach przechodzi na zielono; do czasu POKER-4 dowodem jest
-  wyłącznie `mypy --strict src tests` z `verification` TaskSpeca.
 - `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
   (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
   = OBJECTION, nie cichy zapis.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
-- 2026-08-08 arch: hatchling (build backend, commit `5a74ab9`) bez
-  powodu i planu usunięcia w opisie commita (konstytucja, reguła 9) —
-  uzasadnienie utrwalić przy najbliższej zmianie `pyproject.toml`
-  (naturalnie: raport POKER-4).
+(pusto — uzasadnienie hatchling utrwalone w raporcie commita POKER-4)

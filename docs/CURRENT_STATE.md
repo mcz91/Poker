@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-3 (zdarzenia
-rozdania i projekcja stanu).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-4
+(ujednolicenie bramki po audycie POKER-1).
 
 ## Co istnieje
 
@@ -26,8 +26,9 @@ rozdania i projekcja stanu).
   z wstrzykniętego, seedowanego RNG; miejsca jako kolekcja (testy N=2
   i N=3);
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
-  [`README.md`](../README.md); do czasu POKER-4 pełny zakres typów
-  dowodzi `mypy --strict src tests` z `verification`.
+  [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
+  (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
+  test zgodności `tests/test_repo_gate.py`.
 
 ## Czego nie ma
 
@@ -38,6 +39,5 @@ serializacji i persystencji historii. Sekwencję budowy definiuje
 
 ## Następny krok
 
-POKER-4 — ujednolicenie bramki (werdykt audytu POKER-1); kontrakt
-zatwierdzony, wchodzi po scaleniu POKER-3. Potem krok 4 sekwencji:
-maszyna licytacji heads-up.
+Krok 4 sekwencji budowy: maszyna licytacji heads-up — TaskSpec
+specyfikuje architekt po scaleniu POKER-3 i POKER-4.
