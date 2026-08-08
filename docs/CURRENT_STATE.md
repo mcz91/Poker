@@ -151,9 +151,12 @@ Etap (b) kierunku bot drogą operatora
 silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
 korpus self-play) scalone; b4 wchodzi plastrami
 ([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 — zbiór
-przykładów decyzyjnych z korpusu, plaster b4.1
+przykładów decyzyjnych, plaster b4.1
 ([`docs/taskspecs/POKER-15.json`](taskspecs/POKER-15.json)) —
-zatwierdzony, u kodera. Dalej: b4.2 (baseline stdlib z pomiarem
-w arenie) i b4.3 (kwalifikacja zależności po pomiarze); ulepszenia
-agentów regułowych odtąd wyłącznie z pomiarem w arenie (decyzja 04,
-pkt 2).
+zrealizowany, czeka na audyt i integrację; POKER-16 — baseline
+behavior cloning w stdlib z pomiarem w arenie, plaster b4.2
+([`docs/taskspecs/POKER-16.json`](taskspecs/POKER-16.json)) —
+zatwierdzony do pracy równoległej od heada POKER-15 (kolejność
+integracji: 15 przed 16). Dalej: b4.3 — kwalifikacja zależności po
+pomiarze; ulepszenia agentów regułowych odtąd wyłącznie z pomiarem
+w arenie (decyzja 04, pkt 2).

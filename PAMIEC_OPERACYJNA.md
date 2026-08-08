@@ -28,10 +28,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-14 audyt CZYSTY, zweryfikowany niezależnie
-  (czysty venv 3.13: ruff 0, mypy 0/44, pytest 181) i scalony ff.
-  POKER-15 zatwierdzony na polecenie operatora („przygotuj 15") —
-  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 arch: POKER-15 u audytora (`cb2298d`, rodzic = head
+  integracyjny, kształt diffu potwierdzony). POKER-16 zatwierdzony
+  do pracy równoległej — koder startuje ze świeżej sesji z `cb2298d`
+  (gałąź POKER-15), nie z heada integracyjnego i nie z main;
+  kolejność scalania 15 przed 16, poprawki audytu 15 → rebase 16;
+  właściciel integracji: architekt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

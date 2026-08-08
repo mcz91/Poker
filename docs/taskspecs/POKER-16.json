@@ -1,0 +1,43 @@
+{
+  "id": "POKER-16",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator wystawia do meczu i mierzy w arenie pierwszego agenta ML: baseline behavior cloning trenowany offline w czystym stdlib na zbiorze przykładów decyzyjnych — plaster b4.2 decyzji 05.",
+  "acceptance": [
+    "Istnieje deterministyczne narzędzie treningu offline (w tools/, poza pakietem produktu — precedens generatora equity z POKER-12): czyta plik zbioru z POKER-15 (DATASET_VERSION 1), trenuje wieloklasową regresję logistyczną na typ akcji wyłącznie środkami standard library i zapisuje wagi jako wygenerowany moduł danych w pakiecie (bez I/O przy odczycie, INV-P1) z metadanymi: wersja zbioru, hiperparametry, liczba przykładów; hiperparametry są parametrami narzędzia z udokumentowanym domyślnym zestawem (INV-P6).",
+    "Determinizm treningu pod testem reprodukcji na małym zbiorze: ten sam zbiór i hiperparametry dają bajt w bajt identyczny moduł wag (precedens testu reprodukcji macierzy equity).",
+    "Agent behavior clone w pakiecie produktu: czysta, deterministyczna funkcja widoku w decyzję portem Agent (INV-P4, INV-P8), bez pamięci między wywołaniami i bez I/O; cechy inferencji liczone z PlayerView tą samą definicją co cechy zbioru — zgodność trening↔gra pod testem: dla tego samego punktu decyzyjnego cechy z historii (poker.encoding) i cechy z widoku agenta są identyczne.",
+    "Agent nigdy nie zwraca decyzji nielegalnej: typ akcji z modelu jest mapowany na granice legal_actions widoku deterministyczną, udokumentowaną w module regułą kwot v1 (kwota minimalna legalna dla bet/raise; typ niedostępny w danej sytuacji → udokumentowany deterministyczny fallback); test właściwościowy rozgrywa mecze przez play_match na wielu seedach — zero błędów legalności, każdy mecz kończy się wynikiem (jak w POKER-8).",
+    "Agent jest zarejestrowany w rejestrze CLI pod udokumentowaną nazwą i mierzalny istniejącą flagą --series: test rozgrywa małą serię clone vs agent regułowy przez punkt wejścia w procesie testów — raport BB/100 powstaje i jest deterministyczny dla seeda; kryterium plastra jest pomiar, nie wynik (decyzja 05).",
+    "Kierunek importów: moduł agenta importuje wyłącznie widok, decyzję, karty, wspólną definicję cech i moduł wag — bez maszyny licytacji, historii, projekcji, stołu i adapterów (INV-P3); I/O wyłącznie w tools/ i adapterach; silnik, widoki, arena, korpus, zbiór (DATASET_VERSION bez zmian) i istniejący agenci nietknięci — pod rozszerzonym testem architektury.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (trening i pomiar baseline'u), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Zależność dowodowa i porządek: zadanie buduje na b4.1 — start z heada gałęzi POKER-15 (cb2298d na claude/new-session-aazf0r); kolejność integracji: POKER-15 przed POKER-16, właściciel integracji: architekt; poprawki z audytu POKER-15 → rebase na zintegrowany head przed końcową bramką.",
+    "Siła gry i strojenie: baseline ma być poprawny, deterministyczny i zmierzony — nie mocny; tuning hiperparametrów ponad udokumentowany domyślny zestaw i selekcja modeli to praca po pomiarze (decyzja 05).",
+    "Zależności poza standard library i formaty modelu poza modułem danych — kwalifikacja b4.3 dopiero po zmierzonym suficie stdlib.",
+    "Polityka kwot ucząca się (regresja kwoty, sizing) — kwoty v1 są deterministyczną regułą; nauka kwot to osobna kwalifikacja.",
+    "Warstwa eksploatacyjna i GTO (decyzja 04, pkt 3).",
+    "Zmiany silnika, widoków, kontraktu agenta, stołu, areny, korpusu, formatu zbioru i agentów istniejących."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T16:00:30Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
