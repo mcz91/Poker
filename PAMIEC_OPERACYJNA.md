@@ -46,8 +46,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   z d21b093, po drodze cherry-pick domknięcia F1 POKER-5); OBJECTION
   audytu POKER-3 zamknięty: seed przeniesiony do DeckSeeded
   (EngineOnly), HandStarted niesie samą konfigurację, test przecieku
-  obejmuje pola, repr i serializację widoku. Czeka na scalenie
-  i audyt.
+  obejmuje pola, repr i serializację widoku. Audyt POKER-6
+  (af758b8..8e7d9e6): FINDINGI — wyłącznie F1 informacyjny (granica
+  gwarancji: szczelność API, nie izolacja wewnątrzprocesowa; bez
+  zmiany kodu teraz, izolacja niezaufanych agentów na granicy procesu
+  przy kroku 8/pokerroomie); kontrakt zrealizowany w całości,
+  determinizm i przeciek zweryfikowane niezależnie (1000 rozdań,
+  probe wielokanałowy). Czeka na scalenie.
 - 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
   CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty mechanizmem.
   F2 zamknięty decyzją operatora 2026-08-08: odstępstwo uznane (wada
@@ -88,6 +93,11 @@ w `docs/taskspecs/`)
   przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
   miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
   deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
+- Frozen dataclass ≠ izolacja: object.__setattr__/__delattr__
+  i introspekcja ramek (sys._getframe) omijają każdą czysto-pythonową
+  „szczelność" w procesie; testy przecieku INV-P3/P4 dowodzą
+  szczelności API, nie bezpieczeństwa — izolację niezaufanego agenta
+  stawiać na granicy procesu (adapter, INV-P7).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
