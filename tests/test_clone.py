@@ -12,7 +12,7 @@ from poker.agent import Decision
 from poker.betting import ActionBounds, HeadsUpHand, LegalActions
 from poker.cards import Card, Rank, Suit
 from poker.clone_agent import CloneAgent
-from poker.clone_training import render_weights_module, train_clone
+from poker.clone_training import CorpusProvenance, render_weights_module, train_clone
 from poker.encoding import FEATURE_NAMES, DecisionExample, encode_hand, view_features
 from poker.events import ActionType, HandConfig
 from poker.projection import Phase
@@ -58,10 +58,17 @@ def test_cechy_inferencji_zgodne_z_cechami_zbioru() -> None:
 
 def test_reprodukcja_treningu_bajt_w_bajt(tmp_path: Path) -> None:
     examples = przyklady_z_malego_korpusu(tmp_path)
-    first = render_weights_module(train_clone(examples, learning_rate=0.1, epochs=5))
-    second = render_weights_module(train_clone(examples, learning_rate=0.1, epochs=5))
+    provenance = CorpusProvenance(
+        agents=("rule", "rule-aggressive"), matches=2, seed=5, small_blind=1,
+        big_blind=2, stacks=(100, 100), button=0, hand_limit=5,
+    )
+    first = render_weights_module(train_clone(examples, learning_rate=0.1, epochs=5),
+                                  provenance)
+    second = render_weights_module(train_clone(examples, learning_rate=0.1, epochs=5),
+                                   provenance)
     assert first.encode("utf-8") == second.encode("utf-8")
-    other = render_weights_module(train_clone(examples, learning_rate=0.2, epochs=5))
+    other = render_weights_module(train_clone(examples, learning_rate=0.2, epochs=5),
+                                  provenance)
     assert first != other
 
 

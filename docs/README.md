@@ -65,7 +65,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   audyt: F1 ISTOTNY — odtwarzalność wag z samego repo → POKER-17);
 - [`POKER-17.json`](taskspecs/POKER-17.json) — przepis pochodzenia
   wag w artefakcie i test pochodzenia, domknięcie F1 audytu
-  POKER-15/16 (zatwierdzony, u kodera).
+  POKER-15/16 (zrealizowany przez kodera, czeka na audyt
+  i integrację).
 
 ## Operator
 

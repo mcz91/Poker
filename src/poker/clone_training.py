@@ -18,6 +18,20 @@ ACTION_ORDER: tuple[str, ...] = ("fold", "check", "call", "bet", "raise")
 
 
 @dataclass(frozen=True, slots=True)
+class CorpusProvenance:
+    """Kompletny przepis korpusu źródłowego wag — dane wejściowe regeneracji artefaktu."""
+
+    agents: tuple[str, str]
+    matches: int
+    seed: int
+    small_blind: int
+    big_blind: int
+    stacks: tuple[int, ...]
+    button: int
+    hand_limit: int
+
+
+@dataclass(frozen=True, slots=True)
 class CloneModel:
     feature_means: tuple[float, ...]
     feature_scales: tuple[float, ...]
@@ -84,11 +98,18 @@ def train_clone(
     )
 
 
-def render_weights_module(model: CloneModel) -> str:
+def render_weights_module(model: CloneModel, provenance: CorpusProvenance) -> str:
     lines = [
-        '"""Wygenerowane wagi behavior clone (POKER-16) — nie edytować ręcznie.',
+        '"""Wygenerowane wagi behavior clone (POKER-16/17) — nie edytować ręcznie.',
         "",
-        "Regeneracja: python tools/train_behavior_clone.py --dataset <zbior.json>",
+        "Pełny przepis pochodzenia żyje w stałych CORPUS_* i hiperparametrach",
+        "poniżej; regeneracja od zera wyłącznie z tego repozytorium:",
+        "",
+        "    python -m poker.adapters.cli --corpus <katalog> \\",
+        f"        --matches {provenance.matches} --seed {provenance.seed} \\",
+        f"        --agent0 {provenance.agents[0]} --agent1 {provenance.agents[1]}",
+        "    python tools/train_behavior_clone.py --from-corpus <katalog>",
+        "",
         "Wieloklasowa regresja logistyczna na typ akcji; wiersz wag na klasę",
         "w kolejności ACTIONS, ostatnia waga wiersza to bias; cechy w kolejności",
         "poker.encoding.FEATURE_NAMES standaryzowane przez (x - mean) / scale.",
@@ -99,6 +120,15 @@ def render_weights_module(model: CloneModel) -> str:
         f"EPOCHS = {model.epochs}",
         f"EXAMPLES = {model.examples}",
         f"ACTIONS = {ACTION_ORDER!r}",
+        "",
+        f"CORPUS_AGENTS = {provenance.agents!r}",
+        f"CORPUS_MATCHES = {provenance.matches}",
+        f"CORPUS_SEED = {provenance.seed}",
+        f"CORPUS_SMALL_BLIND = {provenance.small_blind}",
+        f"CORPUS_BIG_BLIND = {provenance.big_blind}",
+        f"CORPUS_STACKS = {provenance.stacks!r}",
+        f"CORPUS_BUTTON = {provenance.button}",
+        f"CORPUS_HAND_LIMIT = {provenance.hand_limit}",
         "",
         "FEATURE_MEANS: tuple[float, ...] = (",
         *(f"    {value!r}," for value in model.feature_means),

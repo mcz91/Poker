@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-16
-(baseline behavior clone).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-17
+(przepis pochodzenia wag w artefakcie).
 
 ## Co istnieje
 
@@ -103,11 +103,18 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-16
   — baseline behavior cloning (b4.2): deterministyczny trening
   offline w czystym stdlib (wieloklasowa regresja logistyczna na typ
   akcji, pełny batch bez losowości, standaryzacja cech w modelu)
-  narzędziem `tools/train_behavior_clone.py` (hiperparametry
-  z udokumentowanymi domyślnymi, INV-P6); wagi jako wygenerowany
-  moduł danych z metadanymi (wersja zbioru, hiperparametry, liczba
-  przykładów; bez I/O przy odczycie, INV-P1); reprodukcja bajt
-  w bajt pod testem; agent `clone` (rejestr CLI) — czysta
+  narzędziem `tools/train_behavior_clone.py --from-corpus` —
+  łańcuch korpus → zbiór → trening w całości z manifestu korpusu
+  (hiperparametry z udokumentowanymi domyślnymi, INV-P6); wagi jako
+  wygenerowany moduł danych z kompletnym przepisem pochodzenia
+  (stałe `CORPUS_*`: agenci, liczba meczów, seed, konfiguracja
+  meczu; wersja zbioru, hiperparametry, liczba przykładów; bez I/O
+  przy odczycie, INV-P1); test pochodzenia odtwarza pełny łańcuch
+  wyłącznie z metadanych artefaktu i porównuje moduł bajt w bajt
+  z utrwalonym, a sekwencję regeneracji dokumentuje
+  [`README.md`](../README.md) (domknięcie F1 audytu POKER-15/16);
+  reprodukcja treningu bajt w bajt pod testem; agent `clone`
+  (rejestr CLI) — czysta
   deterministyczna inferencja portem Agent (INV-P4, INV-P8), cechy
   z widoku tą samą definicją co zbiór (`view_features`, zgodność
   trening↔gra pod testem), kwoty v1 minimum legalnym,
@@ -188,6 +195,7 @@ przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
 scalone po audycie; F1 audytu (odtwarzalność wag z samego repo)
 domyka POKER-17
 ([`docs/taskspecs/POKER-17.json`](taskspecs/POKER-17.json)) —
-zatwierdzony, u kodera. Dalej: b4.3 — kwalifikacja pierwszych
+zrealizowany, czeka na audyt i integrację. Dalej: b4.3 —
+kwalifikacja pierwszych
 zależności ML wyłącznie po zmierzonym suficie stdlib; ulepszenia
 agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

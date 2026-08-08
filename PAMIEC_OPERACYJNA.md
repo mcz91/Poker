@@ -21,8 +21,7 @@ Protokół (koszt czytelnika > koszt pisarza):
   3.13); statusy i commity w [`docs/README.md`](docs/README.md).
 - 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty; fakty tylko
   tu: F2 audytu POKER-1 — odstępstwo uznane decyzją operatora; audyt
-  POKER-7 potwierdzony 960 meczami niezależnymi. Main za headem
-  fast-forwardem za jawną autoryzacją operatora 2026-08-08.
+  POKER-7 potwierdzony 960 meczami niezależnymi.
 - 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main dosunięty do
   e0b0f2b jednorazowym poleceniem operatora — stała autoryzacja
   (komplet audytów) dalej obowiązuje.
@@ -30,8 +29,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
 - 2026-08-08 arch: POKER-17 (hardening F1) zatwierdzony — koder
   startuje ze świeżej sesji z heada integracyjnego (`31ce370`),
-  nie z main; werdykty i weryfikacje 15/16 w indeksie i opisie
-  commita scalającego.
+  nie z main; werdykty 15/16 w indeksie i opisie commita scalającego.
+- 2026-08-08 koder: POKER-17 zrealizowany ze startu `9831691` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

@@ -1,6 +1,13 @@
-"""Wygenerowane wagi behavior clone (POKER-16) — nie edytować ręcznie.
+"""Wygenerowane wagi behavior clone (POKER-16/17) — nie edytować ręcznie.
 
-Regeneracja: python tools/train_behavior_clone.py --dataset <zbior.json>
+Pełny przepis pochodzenia żyje w stałych CORPUS_* i hiperparametrach
+poniżej; regeneracja od zera wyłącznie z tego repozytorium:
+
+    python -m poker.adapters.cli --corpus <katalog> \
+        --matches 30 --seed 7 \
+        --agent0 rule --agent1 rule-aggressive
+    python tools/train_behavior_clone.py --from-corpus <katalog>
+
 Wieloklasowa regresja logistyczna na typ akcji; wiersz wag na klasę
 w kolejności ACTIONS, ostatnia waga wiersza to bias; cechy w kolejności
 poker.encoding.FEATURE_NAMES standaryzowane przez (x - mean) / scale.
@@ -11,6 +18,15 @@ LEARNING_RATE = 0.1
 EPOCHS = 100
 EXAMPLES = 2553
 ACTIONS = ('fold', 'check', 'call', 'bet', 'raise')
+
+CORPUS_AGENTS = ('rule', 'rule-aggressive')
+CORPUS_MATCHES = 30
+CORPUS_SEED = 7
+CORPUS_SMALL_BLIND = 1
+CORPUS_BIG_BLIND = 2
+CORPUS_STACKS = (100, 100)
+CORPUS_BUTTON = 0
+CORPUS_HAND_LIMIT = 100
 
 FEATURE_MEANS: tuple[float, ...] = (
     0.48217783000392067,
