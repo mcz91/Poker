@@ -35,9 +35,11 @@ Protokół (koszt czytelnika > koszt pisarza):
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 - 2026-08-08 koder: POKER-7 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z f08adf8); audyt
-  POKER-7 uruchomiony świeżym kontekstem, werdykt trafi do operatora.
-  Czeka na scalenie.
+  `claude/poker-repo-instrukcja-gez88z` (start z f08adf8). Audyt
+  POKER-7 (f08adf8..462576d): FINDINGI — wyłącznie F1 informacyjny
+  (uśpiona asercja warunkowa w teście stacka poniżej blindu),
+  naprawiony bezwarunkowymi asercjami na gałęzi kodera; weryfikacja
+  niezależna 960 meczów bez naruszeń. Czeka na scalenie.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -71,6 +73,10 @@ w `docs/taskspecs/`)
   „szczelność" w procesie; testy przecieku INV-P3/P4 dowodzą
   szczelności API, nie bezpieczeństwa — izolację niezaufanego agenta
   stawiać na granicy procesu (adapter, INV-P7).
+- Asercja pod `if` w teście deterministycznym (np. `if reason is BUST:
+  assert…`) to uśpiona ochrona: przy przybitym seedzie przebieg jest
+  jeden — przybijaj wynik bezwarunkowo, inaczej regresja zmieniająca
+  przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

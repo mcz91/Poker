@@ -96,8 +96,9 @@ def test_stack_ponizej_blindu_gra_o_pomniejszona_pule() -> None:
     big_blind_event = next(e for e in first_hand_blinds if e.seat == 0)
     assert big_blind_event.amount == 1
     assert all(stack >= 0 for stack in result.stacks)
-    if result.reason is MatchEndReason.BUST:
-        assert 0 in result.stacks
+    assert result.reason is MatchEndReason.BUST
+    assert result.hands_played == 2
+    assert result.stacks == (0, 10)
 
 
 def test_ten_sam_seed_meczu_daje_identyczna_historie() -> None:
