@@ -22,6 +22,7 @@ from poker.events import (
     Public,
     RiverDealt,
     TurnDealt,
+    UncalledBetReturned,
 )
 
 AS, KS = Card(Rank.ACE, Suit.SPADES), Card(Rank.KING, Suit.SPADES)
@@ -40,6 +41,7 @@ KATALOG_CYKLU: list[HandEvent] = [
     RiverDealt(card=Card(Rank.TEN, Suit.HEARTS)),
     ActionTaken(seat=1, action=ActionType.BET, amount=4),
     CardsRevealed(seat=0, cards=(AS, KS)),
+    UncalledBetReturned(seat=0, amount=20),
     PotAwarded(seat=0, amount=12),
     HandEnded(),
 ]
@@ -83,6 +85,8 @@ def test_zdarzenia_waliduja_miejsce_i_kwote() -> None:
         ActionTaken(seat=0, action=ActionType.BET, amount=-4)
     with pytest.raises(ValueError, match="kwot"):
         PotAwarded(seat=0, amount=-1)
+    with pytest.raises(ValueError, match="kwot"):
+        UncalledBetReturned(seat=0, amount=-1)
 
 
 def test_zdarzenia_kart_wymagaja_roznych_kart() -> None:

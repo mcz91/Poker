@@ -17,6 +17,7 @@ from poker.events import (
     PotAwarded,
     RiverDealt,
     TurnDealt,
+    UncalledBetReturned,
 )
 
 
@@ -77,7 +78,7 @@ def _apply(state: TableState, event: HandEvent) -> TableState:
             return replace(state, board=(*state.board, card), phase=Phase.RIVER)
         case CardsRevealed():
             return replace(state, phase=Phase.SHOWDOWN)
-        case PotAwarded(seat=seat, amount=amount):
+        case PotAwarded(seat=seat, amount=amount) | UncalledBetReturned(seat=seat, amount=amount):
             return replace(
                 state, stacks=_move(state.stacks, seat, amount), pot=state.pot - amount
             )

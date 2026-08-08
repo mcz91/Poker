@@ -18,6 +18,7 @@ from poker.events import (
     PotAwarded,
     RiverDealt,
     TurnDealt,
+    UncalledBetReturned,
 )
 from poker.projection import Phase, TableState, project
 
@@ -101,6 +102,20 @@ def test_projekcja_wymaga_startu_rozdania_na_poczatku() -> None:
         project([BlindPosted(seat=0, blind=BlindType.SMALL, amount=1)])
     with pytest.raises(ValueError, match="start"):
         project([HAND[0], HAND[0]])
+
+
+def test_zwrot_nadplaty_wraca_z_puli_do_stacka() -> None:
+    events: list[HandEvent] = [
+        HandStarted(config=CONFIG, seed=7),
+        BlindPosted(seat=0, blind=BlindType.SMALL, amount=1),
+        BlindPosted(seat=1, blind=BlindType.BIG, amount=2),
+        UncalledBetReturned(seat=1, amount=1),
+        PotAwarded(seat=0, amount=2),
+        HandEnded(),
+    ]
+    state = project(events)
+    assert state.stacks == (101, 99)
+    assert state.pot == 0
 
 
 def test_trzy_miejsca_bez_zaszytej_dwojki() -> None:

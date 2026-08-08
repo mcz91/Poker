@@ -156,6 +156,19 @@ class CardsRevealed:
 
 
 @dataclass(frozen=True, slots=True)
+class UncalledBetReturned:
+    seat: int
+    amount: int
+
+    def __post_init__(self) -> None:
+        _validate_seat(self.seat)
+        _validate_amount(self.amount)
+
+    def visibility(self) -> EventVisibility:
+        return Public()
+
+
+@dataclass(frozen=True, slots=True)
 class PotAwarded:
     seat: int
     amount: int
@@ -183,6 +196,7 @@ HandEvent = (
     | RiverDealt
     | ActionTaken
     | CardsRevealed
+    | UncalledBetReturned
     | PotAwarded
     | HandEnded
 )

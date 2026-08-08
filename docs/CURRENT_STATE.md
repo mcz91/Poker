@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-4
-(ujednolicenie bramki po audycie POKER-1).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-5
+(maszyna licytacji heads-up z rozliczeniem rozdania).
 
 ## Co istnieje
 
@@ -25,6 +25,17 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-4
 - `poker.dealing` — talia i rozdanie kart deterministyczne
   z wstrzykniętego, seedowanego RNG; miejsca jako kolekcja (testy N=2
   i N=3);
+- `poker.betting` — maszyna licytacji heads-up (`HeadsUpHand`):
+  wskazuje miejsce na ruchu i granice legalnych akcji na każdej ulicy,
+  odrzuca akcje nielegalne bez śladu w historii, egzekwuje min-raise
+  (krótki all-in nie otwiera licytacji ponownie), zwraca nadpłatę
+  all-ina (`UncalledBetReturned`), rozstrzyga fold bez showdownu
+  i showdown ewaluatorem z kolejnością pokazywania kart; split
+  z deterministyczną regułą niepodzielnej reszty (`split_pot`,
+  kolejno od miejsca po lewej buttona). Uproszczenie jawne (INV-P5):
+  `HeadsUpHand` wymaga dokładnie N=2 — multiway (w tym side poty)
+  wymaga decyzji architekta; zdarzenia i `split_pot` pozostają
+  N-miejscowe;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
   [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
   (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
@@ -32,12 +43,14 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-4
 
 ## Czego nie ma
 
-Maszyny licytacji (legalność akcji, min-raise, side poty), widoku
-agenta z testem przecieku, stołu, pętli meczu, agentów, CLI,
-serializacji i persystencji historii. Sekwencję budowy definiuje
+Widoku agenta z filtrowaniem widoczności i testem przecieku (w tym
+seed z `HandStarted` — wątek w pamięci operacyjnej), kontraktu agenta,
+stołu i pętli meczu, agentów, CLI, serializacji i persystencji
+historii, side potów multiway. Sekwencję budowy definiuje
 [`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md) (punkt 5).
 
 ## Następny krok
 
-Krok 4 sekwencji budowy: maszyna licytacji heads-up — TaskSpec
-specyfikuje architekt po scaleniu POKER-3 i POKER-4.
+Krok 5 sekwencji budowy: kontrakt agenta i widok gracza z testem
+przecieku informacji — TaskSpec specyfikuje architekt po scaleniu
+POKER-5.

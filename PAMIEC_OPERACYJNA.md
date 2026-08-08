@@ -33,11 +33,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   dla POKER-4 także dowód: wstrzyknięty błąd typu w tests/ łapany
   gołym `mypy`) i scalone sekwencyjnie do integracyjnej. Bramka README
   znów pełnoprawna — F1 zmechanizowany testem `tests/test_repo_gate.py`.
-- 2026-08-08 koder: audyt POKER-2 (diff 00dcba7..bd3473c) zamknięty
-  werdyktem CZYSTY — wyczerpująca weryfikacja ewaluatora na pełnej
-  przestrzeni C(52,5) i 7462 klasach siły; raport u operatora; bez
-  nowych PUŁAPEK. Audyt POKER-3 (diff 02331f9..68df34e) w toku świeżym
-  kontekstem, werdykt trafi do operatora.
+- 2026-08-08 koder: audyty POKER-2 (CZYSTY, pełna przestrzeń C(52,5))
+  i POKER-3 (OBJECTION: CONFLICT — seed w publicznym HandStarted;
+  wykonanie czyste; wątek przejęty przez architekta niżej) zamknięte,
+  raporty u operatora. POKER-5 zamknięty na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z 14c5b3f); czeka na
+  scalenie i audyt.
 - 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
   CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty. Z findingów
   POKER-1 otwarty tylko F2 — rekomendacja architekta: odstępstwo uznane
