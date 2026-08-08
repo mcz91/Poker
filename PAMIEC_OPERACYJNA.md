@@ -28,10 +28,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-14 zatwierdzony na polecenie operatora —
+- 2026-08-08 arch: POKER-14 audyt CZYSTY, zweryfikowany niezależnie
+  (czysty venv 3.13: ruff 0, mypy 0/44, pytest 181) i scalony ff.
+  POKER-15 zatwierdzony na polecenie operatora („przygotuj 15") —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-- 2026-08-08 koder: POKER-14 zrealizowany ze startu `879c59f` na gałęzi
-  `claude/new-session-aazf0r`; czeka na audyt; rejestr → adapters/registry.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -41,9 +41,6 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
-- 2026-08-08 arch: audyt POKER-13 pod b4 (decyzja 04): lustro zakłada
-  bezstanowość agentów (dziś frozen dataclass, ten sam obiekt gra obie
-  strony); kontrakt b4 jawnie rozstrzygnie świeże instancje na przebieg.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 

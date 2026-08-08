@@ -148,10 +148,12 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. POKER-12 (equity) i POKER-13 (arena)
-scalone; POKER-14 — korpus self-play, podetap b3
-([`docs/taskspecs/POKER-14.json`](taskspecs/POKER-14.json)) —
-zrealizowany, czeka na audyt i integrację. Dalej: ML (b4) — osobna
-kwalifikacja z pierwszymi zależnościami poza standard library;
-ulepszenia agentów regułowych odtąd wyłącznie z pomiarem w arenie
-(decyzja 04, pkt 2).
+silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
+korpus self-play) scalone; b4 wchodzi plastrami
+([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 — zbiór
+przykładów decyzyjnych z korpusu, plaster b4.1
+([`docs/taskspecs/POKER-15.json`](taskspecs/POKER-15.json)) —
+zatwierdzony, u kodera. Dalej: b4.2 (baseline stdlib z pomiarem
+w arenie) i b4.3 (kwalifikacja zależności po pomiarze); ulepszenia
+agentów regułowych odtąd wyłącznie z pomiarem w arenie (decyzja 04,
+pkt 2).

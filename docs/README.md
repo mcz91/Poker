@@ -15,7 +15,11 @@
    warstwa eksploatacyjna (c);
 4. [`04-reguly-dzis-ml-docelowo.md`](decisions/04-reguly-dzis-ml-docelowo.md)
    — etap (b) drogą operatora: proste reguły dziś, silnik GTO/explo
-   na ML docelowo; podetapy equity → arena → dane self-play → ML.
+   na ML docelowo; podetapy equity → arena → dane self-play → ML;
+5. [`05-b4-plastrami-dane-baseline-zaleznosci.md`](decisions/05-b4-plastrami-dane-baseline-zaleznosci.md)
+   — podetap b4 plastrami (zbiór przykładów → baseline stdlib →
+   zależności po pomiarze), granica informacyjna danych treningowych,
+   bezstanowość agentów w rozgrywce (zamyka wątek audytu POKER-13).
 
 ## TaskSpeki
 
@@ -51,8 +55,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   agentów: BB/100 na lustrzanych rozdaniach (zamknięty, commit
   `5f5302b`; audyt: CZYSTY);
 - [`POKER-14.json`](taskspecs/POKER-14.json) — korpus self-play:
-  masowa generacja historii w formacie eksportu (zrealizowany przez
-  kodera, czeka na audyt i integrację).
+  masowa generacja historii w formacie eksportu (zamknięty, commit
+  `5a75ef8`; audyt: CZYSTY);
+- [`POKER-15.json`](taskspecs/POKER-15.json) — zbiór przykładów
+  decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zatwierdzony,
+  u kodera).
 
 ## Operator
 

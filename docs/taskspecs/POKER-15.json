@@ -1,0 +1,40 @@
+{
+  "id": "POKER-15",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator jedną komendą przekształca korpus self-play w odtwarzalny zbiór przykładów decyzyjnych (cechy z widoku decydującego, etykieta z podjętej akcji) — wejście treningu ML, plaster b4.1 decyzji 05.",
+  "acceptance": [
+    "Istnieje rdzeń enkodowania bez I/O (INV-P1): z historii rozdania wyprowadza dla każdej akcji agenta (fold/check/call/bet/raise — blindy nie są decyzjami) przykład zbudowany wyłącznie z prefiksu zdarzeń widocznych z miejsca decydującego bezpośrednio przed tą akcją (widoczność jak w poker.views): cechy liczbowe oraz etykietę — typ akcji i kwotę; zestaw i kolejność cech v1 są udokumentowane w module i objęte jawnym polem wersji zbioru.",
+    "Test przecieku danych treningowych (granica informacyjna decyzji 05): dwie ręcznie skonstruowane historie różniące się wyłącznie informacjami niewidocznymi z miejsca decydującego (karty przeciwnika przed showdownem, seed talii) dają identyczne przykłady; zdarzenia EngineOnly nie wpływają na cechy ani etykiety.",
+    "Ekstrakcja czyta korpus POKER-14 (manifest + pliki meczów) i zapisuje zbiór do jednego pliku w typowanym JSON z jawnym polem wersji zbioru; determinizm bajtowy: ten sam korpus daje bajt w bajt identyczny plik — pod testem; round-trip odczytu (plik → obiekty przykładów równe wygenerowanym) — pod testem.",
+    "Zbiór jest dostępny z CLI (podkomenda lub flagi w istniejącym adapterze, udokumentowane w README) z raportem na stdout (liczba przykładów, rozdań i meczów, ścieżka pliku); błędne wejście — brak lub uszkodzony manifest, niezgodna wersja manifestu lub formatu eksportu, istniejący plik wyjściowy (żadnego cichego nadpisywania) — kończy się czytelnym komunikatem i kodem różnym od zera; testy wołają punkt wejścia w procesie testów, na małych korpusach — pełna bramka pozostaje szybka.",
+    "Kierunek importów: rdzeń enkodowania zależy wyłącznie od silnika (zdarzenia, karty, widoczność/projekcja); zapis i odczyt pliku zbioru oraz CLI żyją w adapterach; silnik, widoki, agenci, arena, korpus i format eksportu nietknięte (format_version i manifest_version bez zmian) — pod rozszerzonym testem architektury.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Trening i model — plaster b4.2 (decyzja 05); jakiekolwiek zależności poza standard library — kwalifikacja b4.3 dopiero po zmierzonym suficie stdlib.",
+    "Selekcja, balansowanie, augmentacja i podział train/val — definiuje konsument zbioru (b4.2).",
+    "Cechy spoza widoku decydującego — w tym karty zakryte przeciwnika, seedy, zdarzenia EngineOnly i equity liczona z informacji niewidocznych — czerwień recenzji, nie parametr.",
+    "Formaty kolumnowe i binarne, kompresja, strumieniowanie — konsument zdefiniuje potrzeby.",
+    "Zmiany silnika, widoków, agentów, areny, generatora korpusu i formatu eksportu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T15:44:30Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
