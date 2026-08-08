@@ -186,7 +186,8 @@ korpus self-play) scalone; b4 wchodzi plastrami
 ([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 (zbiór
 przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
 scalone po audycie; F1 audytu (odtwarzalność wag z samego repo)
-domyka kontrakt hardening — najbliższy krok. Dalej: b4.3 —
-kwalifikacja pierwszych zależności ML wyłącznie po zmierzonym
-suficie stdlib; ulepszenia agentów wyłącznie z pomiarem w arenie
-(decyzja 04, pkt 2).
+domyka POKER-17
+([`docs/taskspecs/POKER-17.json`](taskspecs/POKER-17.json)) —
+zatwierdzony, u kodera. Dalej: b4.3 — kwalifikacja pierwszych
+zależności ML wyłącznie po zmierzonym suficie stdlib; ulepszenia
+agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

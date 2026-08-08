@@ -1,0 +1,38 @@
+{
+  "id": "POKER-17",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Operator odtwarza zatwierdzone wagi baseline'u jedną udokumentowaną sekwencją komend z samego repozytorium: pełny przepis pochodzenia (korpus → zbiór → trening) żyje w artefakcie wag i jest chroniony testem — domknięcie F1 audytu POKER-15/16.",
+  "acceptance": [
+    "Moduł wag niesie kompletny, typowany przepis pochodzenia bez placeholderów: parametry korpusu źródłowego (nazwy agentów, liczba meczów, seed, konfiguracja meczu), parametry ekstrakcji zbioru i hiperparametry treningu; wartości wag, standaryzacji i zachowanie agenta clone pozostają identyczne — zmiana ogranicza się do metadanych artefaktu, narzędzia treningu i dokumentacji.",
+    "Test pochodzenia odtwarza pełny łańcuch (korpus → zbiór → trening) wyłącznie z metadanych modułu wag i porównuje wynikowy moduł bajt w bajt z zatwierdzonym — czerwienieje, gdy metadane rozjeżdżają się z artefaktem albo łańcuch przestaje być deterministyczny; jeśli pełny łańcuch nadmiernie spowalnia bramkę, koder zgłasza OBJECTION zamiast osłabiać porównanie.",
+    "README dokumentuje regenerację wag od zera jedną sekwencją komend bez wiedzy spoza repozytorium (wzorzec regeneracji equity z POKER-12); sekwencja jest zgodna z metadanymi modułu wag — kryterium recenzji obok testu pochodzenia.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Zmiana wartości wag, hiperparametrów, zestawu cech, formatu zbioru (DATASET_VERSION bez zmian) i zachowania agenta clone — zatwierdzony artefakt pozostaje ten sam co do współczynników.",
+    "Pomiar referencyjny testem wolnym i mechanizm markerów pytest — rozstrzygnięcie przy kwalifikacji b4.3 (WĄTEK w pamięci ról).",
+    "Kwalifikacja zależności ML (b4.3, decyzja 05).",
+    "Zmiany silnika, widoków, agentów poza clone, areny, korpusu i formatu eksportu; CLI wyłącznie w zakresie, w jakim przekazanie pochodzenia do narzędzia treningu tego wymaga."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T16:42:27Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

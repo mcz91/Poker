@@ -62,8 +62,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   `cb2298d`; audyt: CZYSTY);
 - [`POKER-16.json`](taskspecs/POKER-16.json) — baseline behavior
   clone, plaster b4.2 decyzji 05 (zamknięty, commit `eea6b81`;
-  audyt: F1 ISTOTNY — odtwarzalność wag z samego repo → kontrakt
-  hardening).
+  audyt: F1 ISTOTNY — odtwarzalność wag z samego repo → POKER-17);
+- [`POKER-17.json`](taskspecs/POKER-17.json) — przepis pochodzenia
+  wag w artefakcie i test pochodzenia, domknięcie F1 audytu
+  POKER-15/16 (zatwierdzony, u kodera).
 
 ## Operator
 
