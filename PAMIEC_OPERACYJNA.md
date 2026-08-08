@@ -26,6 +26,10 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: POKER-2 zatwierdzony
   ([`docs/taskspecs/POKER-2.json`](docs/taskspecs/POKER-2.json)) —
   koder startuje z heada gałęzi integracyjnej, nie z main.
+- 2026-08-08 koder: POKER-2 zamknięty na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z 00dcba7); czeka na
+  scalenie do integracyjnej. Audyt POKER-1 uruchomiony świeżym
+  kontekstem, werdykt trafi do operatora.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
