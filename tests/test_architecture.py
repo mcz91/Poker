@@ -80,6 +80,24 @@ def _is_stdlib_typing(name: str) -> bool:
     return name in {"collections.abc", "dataclasses", "enum", "typing", "itertools"}
 
 
+def test_arena_zalezy_od_silnika_a_cli_od_areny() -> None:
+    allowed = {
+        "random",
+        "math",
+        "statistics",
+        "dataclasses",
+        "collections.abc",
+        "poker.agent",
+        "poker.events",
+        "poker.table",
+    }
+    arena = SRC_POKER / "arena.py"
+    assert arena.is_file()
+    poza = _imports(arena) - allowed
+    assert not poza, f"arena.py importuje poza dozwolonym zbiorem: {sorted(poza)}"
+    assert "poker.arena" in _imports(SRC_POKER / "adapters" / "cli.py")
+
+
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     from poker.adapters.human import render_view
 

@@ -27,12 +27,14 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: audyty POKER-8, POKER-9, POKER-11 i POKER-12
   w toku/zaległe — main czeka na komplet (decyzja o stałej
   autoryzacji); pozostałe statusy audytów w `docs/README.md`.
-- 2026-08-08 arch: POKER-12 zamknięty (`f166f41`), zweryfikowany
-  niezależnie i scalony; pełna regeneracja macierzy ≈40 min na
-  4 rdzeniach — test reprodukcji bierze 2 pary. POKER-13 (arena, b2)
-  nadal RÓWNOLEGLE u kodera — kolejność scalania 12 przed 13
-  dochowana, właściciel integracji architekt, konflikty statusowe
-  rozstrzyga architekt.
+- 2026-08-08 arch: POKER-12 zamknięty (`f166f41`) i scalony; pełna
+  regeneracja macierzy ≈40 min na 4 rdzeniach — test reprodukcji
+  bierze 2 pary. POKER-13 równolegle u kodera; kolejność scalania
+  12 przed 13, konflikty statusowe rozstrzyga architekt.
+- 2026-08-08 koder: POKER-13 zrealizowany ze startu `26e6be1` (head
+  z już scalonym POKER-12) na gałęzi `claude/new-session-aazf0r`;
+  czeka na audyt i integrację. Jeśli istnieje równoległa realizacja
+  POKER-13 z innej sesji — konflikt rozstrzyga architekt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

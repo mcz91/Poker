@@ -10,6 +10,7 @@ from typing import TextIO
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.agent import Agent
+from poker.arena import SeriesConfig, run_series
 from poker.evaluation import HandCategory
 from poker.events import HandEvent
 from poker.rule_agent import RuleAgent, RuleAgentThresholds
@@ -54,6 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--human", type=int, choices=(0, 1), default=None, metavar="MIEJSCE",
                         help="miejsce człowieka: decyzje z wejścia zamiast agenta tego "
                              "miejsca (domyślnie brak)")
+    parser.add_argument("--series", type=int, default=None, metavar="PARY",
+                        help="arena: seria PAR meczów agent0 vs agent1 na lustrzanych "
+                             "rozdaniach z raportem BB/100 (domyślnie brak; wyklucza "
+                             "--human i --export)")
     parser.add_argument("--export", type=Path, default=None, metavar="PLIK",
                         help="ścieżka pliku eksportu historii JSON (domyślnie bez eksportu)")
     return parser
@@ -68,11 +73,36 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
     return report
 
 
+def _run_series_command(args: argparse.Namespace, registry: dict[str, Agent]) -> int:
+    if args.human is not None:
+        raise ValueError("--series nie łączy się z --human — arena mierzy agentów")
+    if args.export is not None:
+        raise ValueError("--series nie łączy się z --export — eksport dotyczy meczu")
+    config = SeriesConfig(
+        small_blind=args.small_blind,
+        big_blind=args.big_blind,
+        stacks=(args.stack[0], args.stack[1]),
+        button=args.button,
+        hand_limit=args.hands,
+        pairs=args.series,
+    )
+    report = run_series(
+        config, seed=args.seed, agent_a=registry[args.agent0], agent_b=registry[args.agent1]
+    )
+    print(f"seria: {report.pairs} par meczów (lustrzane rozdania), rozdań: {report.hands}")
+    print(f"wynik {args.agent0} vs {args.agent1}: {report.bb_per_100:.2f} BB/100")
+    print(f"odchylenie std po parach: {report.std_bb_per_100:.2f}")
+    print(f"95% przedział ufności: [{report.ci95_low:.2f}, {report.ci95_high:.2f}]")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
         registry = _agent_registry()
+        if args.series is not None:
+            return _run_series_command(args, registry)
         config = MatchConfig(
             small_blind=args.small_blind,
             big_blind=args.big_blind,

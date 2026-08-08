@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-12
-(equity preflop 169 klas rąk jako dane).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-13
+(arena porównawcza agentów).
 
 ## Co istnieje
 
@@ -88,10 +88,25 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-12
   (komenda udokumentowana w [`README.md`](../README.md)) i test
   reprodukcji podzbioru macierzy; granice importów rodziny preflop
   (wyłącznie karty i ewaluator) strzeże test architektury;
+- `poker.arena` — arena porównawcza agentów (rdzeń bez I/O, INV-P1):
+  seria par meczów przez `play_match` na lustrzanych rozdaniach
+  (duplicate — ten sam seed meczu dwukrotnie z zamianą miejsc, obie
+  strony grają te same karty; identyczność kart pod testem), wynik
+  pary sumą obu przebiegów; konfiguracja serii (blindy, stacki,
+  button, limit rozdań, liczba par) to parametry (INV-P6), seedy par
+  pochodne od seeda serii jawnym kontraktem (`series_pair_seeds`);
+  raport: BB/100 agenta A, odchylenie standardowe po parach i 95%
+  przedział ufności — pod testami znanych relacji (zawsze-fold
+  przegrywa z regułowym całym przedziałem; agent przeciw samemu
+  sobie: lustro znosi wynik do dokładnie zera) i determinizmu;
+  importuje wyłącznie stół, kontrakt agenta i zdarzenia — pod testem
+  architektury;
 - `poker.adapters` — adaptery (INV-P7): `cli` rozgrywa mecz
   z terminala (`python -m poker.adapters.cli`, argumenty
   z udokumentowanymi domyślnymi w [`README.md`](../README.md), kod
-  wyjścia 0/2), `export` — pełna historia meczu (łącznie ze
+  wyjścia 0/2) oraz serię areny flagą `--series` (raport BB/100 na
+  stdout, deterministyczny dla seeda; wyklucza `--human`
+  i `--export`), `export` — pełna historia meczu (łącznie ze
   zdarzeniami EngineOnly — kanał operatora) w typowanym,
   wersjonowanym JSON, a `human` — człowiek przy stole portem Agent
   (INV-P4): `cli --human MIEJSCE` gra mecz człowiek vs agent, render
@@ -124,8 +139,9 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. POKER-12 (equity preflop 169 klas
-jako dane) scalony; trwa POKER-13 — arena porównawcza agentów
-([`docs/taskspecs/POKER-13.json`](taskspecs/POKER-13.json), u kodera
-równolegle, scalanie po POKER-12 dochowane). Dalej: dane self-play
-(b3) i ML (b4) — osobne kwalifikacje.
+silnik GTO/explo na ML docelowo. POKER-12 (equity) scalony; POKER-13
+— arena porównawcza agentów
+([`docs/taskspecs/POKER-13.json`](taskspecs/POKER-13.json)) —
+zrealizowany, czeka na audyt i integrację. Dalej: dane self-play (b3)
+i ML (b4) — osobne kwalifikacje; ulepszenia agentów regułowych odtąd
+wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

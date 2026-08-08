@@ -43,6 +43,23 @@ dodatkowo w zbiorczym przebiegu rozdań. Karty bota i seed pozostają
 niewidoczne do showdownu; po nim widać odkryte karty. Eksport historii
 działa tą samą flagą `--export`.
 
+### Arena porównawcza agentów
+
+```bash
+python -m poker.adapters.cli --series 100 --hands 200 --seed 7 \
+  --agent0 rule --agent1 rule-aggressive
+```
+
+`--series PARY` (domyślnie brak) rozgrywa serię PAR meczów agent0 vs
+agent1 na lustrzanych rozdaniach (duplicate): każdy seed meczu grany
+jest dwukrotnie z zamianą miejsc, więc obie strony dostają te same
+karty, a wynik pary jest sumą obu przebiegów. Raport na stdout: wynik
+agenta0 w BB/100, odchylenie standardowe po parach i 95% przedział
+ufności; ten sam seed serii daje identyczny raport. Konfiguracja
+serii to te same flagi co mecz (`--small-blind`, `--big-blind`,
+`--stack`, `--button`, `--hands`, `--seed`); `--series` wyklucza
+`--human` i `--export`.
+
 ## Dane equity preflop
 
 Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako
