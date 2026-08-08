@@ -33,6 +33,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   realizacja nierozpoczęta — koder startuje z heada integracyjnego,
   nie z main; do czasu POKER-4 zieleń dowodzi się wyłącznie komendami
   `verification` TaskSpeca, nie bramką z README.
+- 2026-08-08 koder: POKER-3 zamknięty na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z 02331f9); czeka na
+  scalenie. Audyt POKER-2 uruchomiony świeżym kontekstem, werdykt
+  trafi do operatora.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
