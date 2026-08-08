@@ -1,4 +1,4 @@
-"""Test architektury (POKER-9, POKER-10): importy płyną od adapterów do silnika (INV-P7)."""
+"""Test architektury (POKER-9, 10, 12): importy płyną od adapterów do silnika (INV-P7)."""
 
 import ast
 import inspect
@@ -55,6 +55,29 @@ def test_silnik_nie_wykonuje_io() -> None:
     for module in SRC_POKER.glob("*.py"):
         found = _imports(module) & IO_FORBIDDEN_IN_ENGINE
         assert not found, f"moduł silnika {module.name} importuje I/O: {sorted(found)}"
+
+
+def test_moduly_preflop_importuja_wylacznie_karty_i_ewaluator() -> None:
+    allowed = {
+        "random",
+        "poker.cards",
+        "poker.evaluation",
+        "poker.preflop",
+        "poker.preflop_equity_data",
+    }
+    for name in ("preflop.py", "preflop_sim.py", "preflop_equity.py", "preflop_equity_data.py"):
+        path = SRC_POKER / name
+        assert path.is_file(), name
+        poza = {
+            imported
+            for imported in _imports(path)
+            if imported not in allowed and not _is_stdlib_typing(imported)
+        }
+        assert not poza, f"{name} importuje poza dozwolonym zbiorem: {sorted(poza)}"
+
+
+def _is_stdlib_typing(name: str) -> bool:
+    return name in {"collections.abc", "dataclasses", "enum", "typing", "itertools"}
 
 
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:

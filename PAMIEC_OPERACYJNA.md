@@ -16,27 +16,25 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`.
-  POKER-1…6 zamknięte, każde zweryfikowane niezależnie przez architekta
-  (czysty venv 3.13, verification zielone) i scalone sekwencyjnie;
-  statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami
-  (statusy zadań i commity w `docs/README.md`); fakty tylko tu:
-  F2 audytu POKER-1 to odstępstwo uznane decyzją operatora; audyt
-  POKER-7 potwierdzony 960 meczami weryfikacji niezależnej. Main
-  zsynchronizowany z headem integracyjnym fast-forwardem za jawną
-  autoryzacją operatora 2026-08-08.
-- 2026-08-08 arch: audyty POKER-8 i POKER-9 w toku — main czeka na
-  ich werdykty (decyzja o stałej autoryzacji).
-- 2026-08-08 arch: POKER-11 zamknięty (`80899ce`), zweryfikowany
-  niezależnie (ruff 0, mypy 0/33, komplet testów; rozszerzenie stołu
-  minimalne — jeden czysty callback on_hand) i scalony. Audyty
-  POKER-10 zamknięty (finding → POKER-11), POKER-11 czeka na audyt.
+- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
+  każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
+  3.13); statusy i commity w [`docs/README.md`](docs/README.md).
+- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami;
+  fakty tylko tu: F2 audytu POKER-1 to odstępstwo uznane decyzją
+  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
+  Main za headem integracyjnym fast-forwardem za jawną autoryzacją
+  operatora 2026-08-08.
+- 2026-08-08 arch: audyty POKER-8, POKER-9 i POKER-11 w toku — main
+  czeka na ich werdykty (decyzja o stałej autoryzacji); pozostałe
+  statusy audytów w `docs/README.md`.
 - 2026-08-08 arch: POKER-12 zatwierdzony (equity 169 klas, podetap b1
   decyzji [`04`](docs/decisions/04-reguly-dzis-ml-docelowo.md)) —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
   Kolejny w kolejce (b2): arena porównawcza agentów — kwalifikacja
   po zieleni POKER-12.
+- 2026-08-08 koder: POKER-12 zrealizowany ze startu `3689d03` na gałęzi
+  `claude/new-session-aazf0r`, czeka na audyt; pełna regeneracja
+  macierzy ≈40 min na 4 rdzeniach — test reprodukcji bierze 2 pary.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

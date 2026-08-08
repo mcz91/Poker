@@ -43,6 +43,20 @@ dodatkowo w zbiorczym przebiegu rozdań. Karty bota i seed pozostają
 niewidoczne do showdownu; po nim widać odkryte karty. Eksport historii
 działa tą samą flagą `--export`.
 
+## Dane equity preflop
+
+Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako
+wygenerowany moduł `src/poker/preflop_equity_data.py` (Monte Carlo;
+metoda, seed i liczba prób w metadanych modułu). Regeneracja:
+
+```bash
+python tools/generate_preflop_equity.py
+```
+
+Parametry `--seed 12`, `--trials 2048`, `--jobs 4` i `--output` mają
+wartości domyślne zgodne z utrwaloną macierzą; ten sam seed i liczba
+prób odtwarzają identyczne dane.
+
 ## Instalacja i pełna bramka
 
 ```bash
