@@ -56,8 +56,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-- Systemowy `python3` to 3.11 (< wymaganego 3.12); venv stawiaj na
-  `python3.13`. Pełną bramkę wylicza `README.md`.
+- Zatwierdzenie TaskSpeca N+1 aktualizuje też „Następny krok"
+  w `CURRENT_STATE.md` — dryf indeks↔stan powtórzył się przy POKER-2
+  (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
 - `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
