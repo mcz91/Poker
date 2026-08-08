@@ -27,8 +27,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-5.json`](taskspecs/POKER-5.json) — maszyna licytacji heads-up
   z rozliczeniem rozdania (zamknięty, commit `fa6a25c`);
 - [`POKER-6.json`](taskspecs/POKER-6.json) — kontrakt agenta i widok
-  gracza z testem przecieku (zamknięty na gałęzi kodera, czeka na
-  scalenie).
+  gracza z testem przecieku (zamknięty, commit `8e7d9e6`);
+- [`POKER-7.json`](taskspecs/POKER-7.json) — stół i pętla meczu
+  (zatwierdzony, u kodera).
 
 ## Operator
 

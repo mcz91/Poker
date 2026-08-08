@@ -16,64 +16,32 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
-  zawiera POKER-1 (`5a74ab9`) i POKER-2 (`bd3473c`), oba zweryfikowane
-  niezależnie przez architekta (czysty venv 3.13, pełna bramka zielona,
-  stożek zmian w allowed_paths). Do main wchodzi jednym scaleniem po
-  audycie.
-- 2026-08-08 arch: audyt POKER-1 zamknięty werdyktem FINDINGI
-  (końcowe brzmienie u operatora): F1 blokujący (rozjazd bramki) →
-  kontrakt POKER-4, wchodzi PO POKER-3 (zależność przez tests/);
-  F2 istotny — wada kontraktu POKER-1 (allowed_paths bez pamięci),
-  załatana od POKER-2; F3 informacyjny (dryf CURRENT_STATE) —
-  sprzątnięty. Gałęzie audytora (ccef820) i kodera (4ac36f1) scalone
-  do integracyjnej. Diff POKER-2 czeka na audyt.
-- 2026-08-08 arch: POKER-3 (`68df34e`) i POKER-4 (`bd6dd56`) zamknięte,
-  zweryfikowane niezależnie (czysty venv 3.13, verification zielone;
-  dla POKER-4 także dowód: wstrzyknięty błąd typu w tests/ łapany
-  gołym `mypy`) i scalone sekwencyjnie do integracyjnej. Bramka README
-  znów pełnoprawna — F1 zmechanizowany testem `tests/test_repo_gate.py`.
-- 2026-08-08 koder: audyty POKER-2 (CZYSTY, pełna przestrzeń C(52,5))
-  i POKER-3 (OBJECTION: CONFLICT — seed w publicznym HandStarted;
-  wykonanie czyste; wątek przejęty przez architekta niżej) zamknięte,
-  raporty u operatora. Audyt POKER-5 (diff 14c5b3f..fa6a25c):
-  FINDINGI — F1 blokujący (granice kwot bez asercji na turn/river)
-  naprawiony testem strażniczym na gałęzi kodera, czeka na scalenie;
-  F2 informacyjny (księgowość żetonów w _view równolegle do projekcji
-  — rozważyć przy najbliższym kontrakcie w obszarze); silnik
-  zweryfikowany symulacją 4000 rozdań bez rozbieżności.
-- 2026-08-08 koder: POKER-6 zamknięty na gałęzi kodera (start
-  z d21b093, po drodze cherry-pick domknięcia F1 POKER-5); OBJECTION
-  audytu POKER-3 zamknięty: seed przeniesiony do DeckSeeded
-  (EngineOnly), HandStarted niesie samą konfigurację, test przecieku
-  obejmuje pola, repr i serializację widoku. Audyt POKER-6
-  (af758b8..8e7d9e6): FINDINGI — wyłącznie F1 informacyjny (granica
-  gwarancji: szczelność API, nie izolacja wewnątrzprocesowa; bez
-  zmiany kodu teraz, izolacja niezaufanych agentów na granicy procesu
-  przy kroku 8/pokerroomie); kontrakt zrealizowany w całości,
-  determinizm i przeciek zweryfikowane niezależnie (1000 rozdań,
-  probe wielokanałowy). Czeka na scalenie.
-- 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
-  CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty mechanizmem.
-  F2 zamknięty decyzją operatora 2026-08-08: odstępstwo uznane (wada
-  kontraktu POKER-1, naprawa systemowa od POKER-2). Wszystkie findingi
-  audytu POKER-1 zamknięte.
-- 2026-08-08 arch: POKER-5 zamknięty (`fa6a25c`), zweryfikowany
-  niezależnie (czysty venv 3.13, verification zielone: ruff 0, mypy
-  0/17 plików, 92 passed; przegląd logiki licytacji bez zastrzeżeń)
-  i scalony do integracyjnej. Audyt POKER-5 w toku świeżym kontekstem.
-- 2026-08-08 arch: POKER-6 zatwierdzony
-  ([`docs/taskspecs/POKER-6.json`](docs/taskspecs/POKER-6.json)) —
-  zamyka OBJECTION audytu POKER-3 (seed) testem przecieku; koder
-  startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`.
+  POKER-1…6 zamknięte, każde zweryfikowane niezależnie przez architekta
+  (czysty venv 3.13, verification zielone) i scalone sekwencyjnie;
+  statusy i commity w [`docs/README.md`](docs/README.md).
+- 2026-08-08 arch: komplet audytów POKER-1…6, wszystkie findingi
+  blokujące i OBJECTION zamknięte z dowodami: POKER-1 FINDINGI (F1
+  mechanizm test_repo_gate, F2 odstępstwo uznane decyzją operatora,
+  F3 sprzątnięty); POKER-2 CZYSTY; POKER-3 OBJECTION seeda zamknięty
+  w POKER-6 (DeckSeeded/EngineOnly); POKER-4 CZYSTY; POKER-5 FINDINGI
+  (F1 domknięty testem strażniczym af758b8, potwierdzony audytem;
+  F2 informacyjny → WĄTKI); POKER-6 CZYSTY (F1 informacyjny →
+  PUŁAPKA o granicy gwarancji). Main zsynchronizowany z headem
+  integracyjnym fast-forwardem za jawną autoryzacją operatora
+  2026-08-08.
+- 2026-08-08 arch: POKER-7 zatwierdzony
+  ([`docs/taskspecs/POKER-7.json`](docs/taskspecs/POKER-7.json)) —
+  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,
   trener, bot) odroczone do pierwszej kwalifikacji produktu — decyzja
   [`01`](docs/decisions/01-trzy-produkty-jeden-rdzen.md), pkt 3.
-(wątek seeda zamknięty w POKER-6: DeckSeeded/EngineOnly + test
-przecieku — fakt utrwalony w repo, wpis usunięty protokołem)
+- 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
+  w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
+  najbliższym kontrakcie dotykającym `poker.betting`.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 

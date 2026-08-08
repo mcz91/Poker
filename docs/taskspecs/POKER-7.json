@@ -1,0 +1,43 @@
+{
+  "id": "POKER-7",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może rozegrać cały mecz heads-up dwóch agentów — wiele rozdań z rotacją buttona, przenoszonymi stackami i jednoznacznym wynikiem — odtwarzalny co do żetonu z konfiguracji i seeda.",
+  "acceptance": [
+    "Istnieje stół rozgrywający mecz dwóch agentów przez kontrakt z POKER-6 (apply_decision); konfiguracja meczu — blindy, stacki startowe, pozycja startowa buttona, limit rozdań — to parametry, nie rozgałęzienia kodu (INV-P6).",
+    "Button rotuje między kolejnymi rozdaniami, a stacki końcowe rozdania są stackami startowymi następnego — potwierdzone testem wielorozdaniowym.",
+    "Mecz kończy się, gdy miejsce zostaje bez żetonów (bust) albo po osiągnięciu limitu rozdań; wynik meczu jest obserwowalny: stacki końcowe, liczba rozegranych rozdań, powód zakończenia — potwierdzone testami obu zakończeń.",
+    "Rozdanie, w którym stack miejsca nie pokrywa blindu, rozgrywa się zgodnie z regułami POKER-5 (gra o pomniejszoną pulę), a mecz kończy się bustem dokładnie wtedy, gdy stack spada do zera — test przypadku brzegowego.",
+    "Mecz jest deterministyczny: z konfiguracji i jednego seeda meczu pochodzą deterministycznie seedy rozdań; ten sam seed meczu daje identyczną pełną historię wszystkich rozdań, różne seedy różnicuje test.",
+    "Pełna historia meczu jest dostępna jako sekwencja niemutowalnych historii rozdań (zdarzenia z POKER-3), bez mutacji i usuwania — fundament eksportu w kroku 8.",
+    "Suma żetonów w grze jest stała przez cały mecz — test właściwościowy po każdym rozdaniu.",
+    "Moduł stołu nie wykonuje I/O, nie sięga po zegar ani globalną losowość (INV-P1); jedyna losowość pochodzi z seeda meczu; miejsca pozostają kolekcją indeksów (INV-P5); stół zależy od silnika, nigdy odwrotnie (INV-P7).",
+    "Agenci w testach są deterministycznymi skryptami; żaden test nie sięga do stanu pełnego tam, gdzie decyduje agent — decyzje wyłącznie na widokach (INV-P3/P4).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Produkcyjny agent regułowy — krok 7 sekwencji; tu wyłącznie deterministyczne skrypty testowe.",
+    "CLI, eksport historii i docelowy format serializacji — krok 8.",
+    "Wiele stołów, więcej niż 2 graczy, ludzie przy stole — gałąź pokerroom (decyzja 01).",
+    "Struktury turniejowe (rosnące blindy, rebuy) — bez odbiorcy w horyzoncie bieżącym; konfiguracja INV-P6 zostawia im miejsce bez kodu na zapas.",
+    "Zmiany reguł licytacji i rozliczenia z POKER-5 oraz widoku/kontraktu z POKER-6."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T02:58:04Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
