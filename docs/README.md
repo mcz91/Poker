@@ -17,7 +17,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 `schemas/task-spec.schema.json` z `mcz91/foundry`:
 
 - [`POKER-1.json`](taskspecs/POKER-1.json) — szkielet i pełna bramka
-  (zamknięty, commit `5a74ab9`).
+  (zamknięty, commit `5a74ab9`);
+- [`POKER-2.json`](taskspecs/POKER-2.json) — karty i ewaluator rąk
+  (zatwierdzony, u kodera).
 
 ## Operator
 

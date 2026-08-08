@@ -1,0 +1,39 @@
+{
+  "id": "POKER-2",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może poprawnie rozstrzygnąć showdown: silnik klasyfikuje i porównuje układy pokerowe dla dowolnych kart zgodnie z regułami Texas Hold'em.",
+  "acceptance": [
+    "Istnieje 52 unikatowych, niemutowalnych kart (13 rang x 4 kolory); próba utworzenia karty spoza tego zbioru jest błędem, a pełna talia to dokładnie ten zbiór — potwierdzone testami.",
+    "Ewaluator klasyfikuje każdy 5-kartowy układ do dokładnie jednej z 9 kategorii (od wysokiej karty po pokera/królewskiego); testy pokrywają pełny katalog kategorii, po co najmniej jednym przykładzie pozytywnym i rozróżniającym na kategorię.",
+    "Porównanie dwóch układów daje porządek zupełny z kickerami i wykrywa remis (split); testy pokrywają przypadki brzegowe co najmniej: wheel A-2-3-4-5 jako najniższy strit, strit A-wysoki, kolor vs strit, pełne porównanie po kickerach, identyczna siła przy różnych kolorach kart.",
+    "Ewaluator wskazuje najlepszy 5-kartowy układ z 6 i 7 kart (board + karty własne w Hold'em); test potwierdza wybór maksimum, nie pierwszego znalezionego.",
+    "Wynik klasyfikacji i porównania nie zależy od kolejności kart wejściowych — potwierdzone testem permutacji.",
+    "Moduł kart i ewaluatora nie wykonuje I/O, nie sięga po zegar ani losowość (INV-P1) i nie wprowadza żadnej zależności runtime — import poza standard library w tym module jest czerwienią bramki lub recenzji.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Talia jako obiekt gry, tasowanie i RNG — wchodzą ze zdarzeniami rozdania (krok 3), gdzie losowość jest wstrzykiwana seedem.",
+    "Zdarzenia rozdania, maszyna licytacji, kontrakt agenta, stół, CLI — kroki 3-8 sekwencji.",
+    "Optymalizacja wydajności ewaluatora (lookup tables, bitmaski) — bez zamówionej przepustowości poprawność i czytelność wygrywają.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T01:02:19Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy --strict src tests",
+    "pytest -q"
+  ]
+}

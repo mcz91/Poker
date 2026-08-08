@@ -23,6 +23,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`
   (zawiera scaloną gałąź kodera `claude/poker-repo-instrukcja-gez88z`);
   do main wchodzi jednym scaleniem po audycie.
+- 2026-08-08 arch: POKER-2 zatwierdzony
+  ([`docs/taskspecs/POKER-2.json`](docs/taskspecs/POKER-2.json)) —
+  koder startuje z heada gałęzi integracyjnej, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
