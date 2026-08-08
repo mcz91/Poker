@@ -2,7 +2,7 @@
 
 import pytest
 
-from poker.betting import ActionBounds, HeadsUpHand, split_pot
+from poker.betting import ActionBounds, HeadsUpHand, LegalActions, split_pot
 from poker.cards import Card
 from poker.evaluation import HandValue, evaluate_best
 from poker.events import (
@@ -111,6 +111,48 @@ def test_granice_akcji_na_flopie_i_po_zakladzie() -> None:
     assert odpowiedz.seat == 0
     assert odpowiedz.call_amount == 10
     assert odpowiedz.raise_range == ActionBounds(minimum=20, maximum=98)
+
+
+def test_granice_akcji_na_turnie_i_riverze() -> None:
+    hand = nowa_reka()
+    dojdz_do_flopa(hand)
+    hand.act(1, ActionType.CHECK)
+    hand.act(0, ActionType.CHECK)
+    assert hand.legal_actions() == LegalActions(
+        seat=1,
+        fold_allowed=True,
+        check_allowed=True,
+        call_amount=None,
+        bet_range=ActionBounds(minimum=2, maximum=98),
+        raise_range=None,
+    )
+    hand.act(1, ActionType.BET, 10)
+    assert hand.legal_actions() == LegalActions(
+        seat=0,
+        fold_allowed=True,
+        check_allowed=False,
+        call_amount=10,
+        bet_range=None,
+        raise_range=ActionBounds(minimum=20, maximum=98),
+    )
+    hand.act(0, ActionType.CALL)
+    assert hand.legal_actions() == LegalActions(
+        seat=1,
+        fold_allowed=True,
+        check_allowed=True,
+        call_amount=None,
+        bet_range=ActionBounds(minimum=2, maximum=88),
+        raise_range=None,
+    )
+    hand.act(1, ActionType.BET, 20)
+    assert hand.legal_actions() == LegalActions(
+        seat=0,
+        fold_allowed=True,
+        check_allowed=False,
+        call_amount=20,
+        bet_range=None,
+        raise_range=ActionBounds(minimum=40, maximum=88),
+    )
 
 
 def test_big_blind_ma_opcje_check_albo_podbicie() -> None:

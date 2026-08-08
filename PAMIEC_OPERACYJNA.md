@@ -36,7 +36,12 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 koder: audyty POKER-2 (CZYSTY, pełna przestrzeń C(52,5))
   i POKER-3 (OBJECTION: CONFLICT — seed w publicznym HandStarted;
   wykonanie czyste; wątek przejęty przez architekta niżej) zamknięte,
-  raporty u operatora.
+  raporty u operatora. Audyt POKER-5 (diff 14c5b3f..fa6a25c):
+  FINDINGI — F1 blokujący (granice kwot bez asercji na turn/river)
+  naprawiony testem strażniczym na gałęzi kodera, czeka na scalenie;
+  F2 informacyjny (księgowość żetonów w _view równolegle do projekcji
+  — rozważyć przy najbliższym kontrakcie w obszarze); silnik
+  zweryfikowany symulacją 4000 rozdań bez rozbieżności.
 - 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
   CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty mechanizmem.
   F2 zamknięty decyzją operatora 2026-08-08: odstępstwo uznane (wada
@@ -75,6 +80,10 @@ w `docs/taskspecs/`)
 - `allowed_paths` TaskSpeca musi obejmować `PAMIEC_OPERACYJNA.md`
   (protokoły ról nakazują jej zapis); kolizja kontraktu z protokołem
   = OBJECTION, nie cichy zapis.
+- Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
+  przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
+  miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
+  deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
