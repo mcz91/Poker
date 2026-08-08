@@ -27,11 +27,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-17 (hardening F1) zatwierdzony — koder
-  startuje ze świeżej sesji z heada integracyjnego (`31ce370`),
-  nie z main; werdykty 15/16 w indeksie i opisie commita scalającego.
-- 2026-08-08 koder: POKER-17 zrealizowany ze startu `9831691` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt.
+- 2026-08-08 arch: POKER-17 audyt CZYSTY, zweryfikowany niezależnie
+  (czysty venv 3.13: ruff 0, mypy 0/53, pytest 207; sekcje wartości
+  wag bajt w bajt równe eea6b81) i scalony ff. Następna kwalifikacja:
+  b4.3 — czeka na decyzję operatora po rekomendacji architekta.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

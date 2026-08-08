@@ -192,10 +192,9 @@ silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
 korpus self-play) scalone; b4 wchodzi plastrami
 ([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 (zbiór
 przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
-scalone po audycie; F1 audytu (odtwarzalność wag z samego repo)
-domyka POKER-17
-([`docs/taskspecs/POKER-17.json`](taskspecs/POKER-17.json)) —
-zrealizowany, czeka na audyt i integrację. Dalej: b4.3 —
-kwalifikacja pierwszych
-zależności ML wyłącznie po zmierzonym suficie stdlib; ulepszenia
-agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
+scalone po audycie; POKER-17 (przepis pochodzenia wag) scalony
+z audytem CZYSTYM — droga b4.1–b4.2 jest kompletna i w pełni
+odtwarzalna z samego repozytorium. Następny krok: kwalifikacja b4.3
+(pierwsze zależności ML wyłącznie po zmierzonym suficie stdlib) —
+decyzja operatora na rekomendację architekta; ulepszenia agentów
+wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
