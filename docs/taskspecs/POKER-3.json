@@ -1,0 +1,42 @@
+{
+  "id": "POKER-3",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może odtworzyć każde rozdanie: przebieg istnieje wyłącznie jako append-only sekwencja typowanych zdarzeń, a stan stołu jest deterministyczną projekcją tej sekwencji.",
+  "acceptance": [
+    "Istnieją niemutowalne, typowane zdarzenia pokrywające cykl rozdania horyzontu bieżącego: start rozdania (konfiguracja, seed), blindy, karty własne, flop, turn, river, akcja gracza, showdown, przyznanie puli, koniec rozdania — potwierdzone testami konstrukcji i niemutowalności.",
+    "Każdy typ zdarzenia deklaruje widoczność: publiczna albo prywatna dla konkretnego miejsca; testy potwierdzają, że karty własne są prywatne, a board i akcje publiczne (fundament INV-P3; samo filtrowanie widoku to krok 5).",
+    "Historia rozdania jest append-only: API historii nie udostępnia mutacji ani usuwania zdarzeń, a próba zapisu po zdarzeniu końca rozdania jest błędem — potwierdzone testami.",
+    "Stan stołu (stacki, pula, board, karty per miejsce, faza rozdania) powstaje wyłącznie jako czysta projekcja sekwencji zdarzeń; test replay: ta sama sekwencja daje identyczny stan, a projekcja prefiksu daje stan pośredni.",
+    "Talia i rozdanie kart są deterministyczne z wstrzykniętego, seedowanego RNG: ten sam seed daje identyczną kolejność talii i identyczne zdarzenia kart; różne seedy różnicuje test.",
+    "Zdarzenia nie zawierają czasu zegarowego; moduły zdarzeń, historii i projekcji nie wykonują I/O i nie sięgają po globalną losowość ani zegar (INV-P1) — wyłącznie standard library.",
+    "Miejsca są modelowane jako kolekcja indeksów N miejsc; testy pokrywają N=2 bez zaszycia dwójki w typach zdarzeń (INV-P5).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Legalność akcji i przebieg licytacji (min-raise, all-in, side poty) — maszyna licytacji to krok 4; projekcja stosuje zdarzenia, nie ocenia ich legalności.",
+    "Widok agenta i test przecieku informacji — krok 5; tu powstaje tylko znacznik widoczności zdarzeń.",
+    "Stół, pętla meczu, agent, CLI — kroki 6-8.",
+    "Serializacja zdarzeń i format eksportu historii — wchodzą z CLI i eksportem (krok 8).",
+    "Persystencja i baza danych — historia żyje w pamięci procesu.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T01:14:52Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy --strict src tests",
+    "pytest -q"
+  ]
+}

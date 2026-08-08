@@ -16,20 +16,16 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: POKER-1 zamknięty; bramkę 5a74ab9 zweryfikowałem
-  niezależnie (czysty venv 3.13: ruff 0, mypy strict src+tests 0,
-  1 test passed) — deklaracja kodera potwierdzona. Diff POKER-1 czeka
-  na audyt świeżym kontekstem przed scaleniem do main.
-- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`
-  (zawiera scaloną gałąź kodera `claude/poker-repo-instrukcja-gez88z`);
-  do main wchodzi jednym scaleniem po audycie.
-- 2026-08-08 arch: POKER-2 zatwierdzony
-  ([`docs/taskspecs/POKER-2.json`](docs/taskspecs/POKER-2.json)) —
-  koder startuje z heada gałęzi integracyjnej, nie z main.
-- 2026-08-08 koder: POKER-2 zamknięty na gałęzi kodera
-  `claude/poker-repo-instrukcja-gez88z` (start z 00dcba7); czeka na
-  scalenie do integracyjnej. Audyt POKER-1 uruchomiony świeżym
-  kontekstem, werdykt trafi do operatora.
+- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
+  zawiera POKER-1 (`5a74ab9`) i POKER-2 (`bd3473c`), oba zweryfikowane
+  niezależnie przez architekta (czysty venv 3.13, pełna bramka zielona,
+  stożek zmian w allowed_paths). Do main wchodzi jednym scaleniem po
+  audycie.
+- 2026-08-08 koder: audyt POKER-1 uruchomiony świeżym kontekstem,
+  werdykt trafi do operatora. Diff POKER-2 też czeka na audyt.
+- 2026-08-08 arch: POKER-3 zatwierdzony
+  ([`docs/taskspecs/POKER-3.json`](docs/taskspecs/POKER-3.json)) —
+  koder startuje z heada integracyjnego `bd3473c`, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

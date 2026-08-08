@@ -19,7 +19,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-1.json`](taskspecs/POKER-1.json) — szkielet i pełna bramka
   (zamknięty, commit `5a74ab9`);
 - [`POKER-2.json`](taskspecs/POKER-2.json) — karty i ewaluator rąk
-  (zamknięty na gałęzi kodera, czeka na scalenie).
+  (zamknięty, commit `bd3473c`);
+- [`POKER-3.json`](taskspecs/POKER-3.json) — zdarzenia rozdania
+  i projekcja stanu (zatwierdzony, u kodera).
 
 ## Operator
 
