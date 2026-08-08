@@ -33,8 +33,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   strict 0/14 plików, 69 passed) i scalony do integracyjnej. POKER-4
   u kodera (świeża sesja); do jego zamknięcia zieleń dowodzi się
   wyłącznie komendami `verification`, nie bramką z README.
-- 2026-08-08 koder: audyt POKER-2 uruchomiony świeżym kontekstem,
-  werdykt trafi do operatora. Diff POKER-3 czeka na audyt.
+- 2026-08-08 koder: audyt POKER-2 (diff 00dcba7..bd3473c) zamknięty
+  werdyktem CZYSTY — m.in. wyczerpująca weryfikacja ewaluatora na
+  pełnej przestrzeni C(52,5) i 7462 klasach siły; pełny raport
+  u operatora; bez nowych PUŁAPEK. Diff POKER-3 czeka na audyt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
