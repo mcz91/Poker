@@ -24,5 +24,7 @@ licytacji, kontraktu agenta, stołu ani CLI. Sekwencję budowy definiuje
 
 ## Następny krok
 
-POKER-3 — zdarzenia rozdania i projekcja stanu; specyfikuje architekt
-po zieleni bramki POKER-2.
+POKER-3 — zdarzenia rozdania i projekcja stanu; kontrakt zatwierdzony
+([`docs/taskspecs/POKER-3.json`](taskspecs/POKER-3.json)), realizacja
+u kodera. Po nim POKER-4 — ujednolicenie bramki (werdykt audytu
+POKER-1, finding F1).

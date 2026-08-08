@@ -21,11 +21,14 @@ Protokół (koszt czytelnika > koszt pisarza):
   niezależnie przez architekta (czysty venv 3.13, pełna bramka zielona,
   stożek zmian w allowed_paths). Do main wchodzi jednym scaleniem po
   audycie.
-- 2026-08-08 koder: audyt POKER-1 uruchomiony świeżym kontekstem,
-  werdykt trafi do operatora. Diff POKER-2 też czeka na audyt.
 - 2026-08-08 arch: POKER-3 zatwierdzony
   ([`docs/taskspecs/POKER-3.json`](docs/taskspecs/POKER-3.json)) —
   koder startuje z heada integracyjnego `bd3473c`, nie z main.
+- 2026-08-08 arch: audyt POKER-1 zamknięty werdyktem FINDINGI; F1
+  (rozjazd bramki) → kontrakt POKER-4, wchodzi PO POKER-3 (zależność
+  przez tests/); F2 uznany za wadę kontraktu POKER-1, załatany od
+  POKER-2; F3 (dryf CURRENT_STATE) sprzątnięty. Gałąź audytora
+  ccef820 scalona do integracyjnej. Diff POKER-2 czeka na audyt.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

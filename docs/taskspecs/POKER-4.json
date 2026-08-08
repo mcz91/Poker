@@ -1,0 +1,38 @@
+{
+  "id": "POKER-4",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Operator uruchamiający bramkę komendami z README dostaje dokładnie tę pełną kontrolę, którą wymuszają kontrakty — bramka nie przepuszcza błędu typu w testach.",
+  "acceptance": [
+    "Gołe `mypy` (konfiguracja repozytorium) sprawdza src i tests: celowy błąd typu w tests/ daje czerwień — dowód czerwieni konfiguracji bazowej w raporcie kodera przed poprawką (klasa fix).",
+    "README.md wylicza komendy bramki o zakresie identycznym z verification zatwierdzonych kontraktów: lint całego repozytorium (`ruff check .`), typy src i tests, testy — bez komend o węższym zakresie.",
+    "Istnieje test zgodności repozytorium, który czerwienieje przy rozjeździe bramki: asertuje, że konfiguracja mypy obejmuje tests oraz że README zawiera komendy bramki o pełnym zakresie; test jest czerwony na konfiguracji sprzed poprawki.",
+    "Pełna bramka repozytorium (verification) kończy się zielenią; dodatkowo gołe `mypy` i `mypy --strict src tests` raportują ten sam zbiór sprawdzanych plików.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "Zmiany logiki gry i testów gry (poza testem zgodności bramki).",
+    "Nowe narzędzia bramki i zdalne CI — zestaw ruff/mypy/pytest pozostaje.",
+    "Zmiana verification w zatwierdzonych kontraktach POKER-1…3 — kontrakty są niemutowalne; ujednolicenie osiąga konfiguracja repozytorium.",
+    "Produkty z decyzji 01 i kroki 3-8 sekwencji budowy."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "README.md",
+    "pyproject.toml",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T01:18:25Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "mypy --strict src tests",
+    "pytest -q"
+  ]
+}
