@@ -25,16 +25,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   Main za headem integracyjnym fast-forwardem za jawną autoryzacją
   operatora 2026-08-08.
 - 2026-08-08 arch: audyty POKER-8, POKER-9, POKER-11 i POKER-12
-  w toku/zaległe — main czeka na komplet (decyzja o stałej
-  autoryzacji); pozostałe statusy audytów w `docs/README.md`.
-- 2026-08-08 arch: POKER-12 zamknięty (`f166f41`) i scalony; pełna
-  regeneracja macierzy ≈40 min na 4 rdzeniach — test reprodukcji
-  bierze 2 pary. POKER-13 równolegle u kodera; kolejność scalania
-  12 przed 13, konflikty statusowe rozstrzyga architekt.
-- 2026-08-08 koder: POKER-13 zrealizowany ze startu `26e6be1` (head
-  z już scalonym POKER-12) na gałęzi `claude/new-session-aazf0r`;
-  czeka na audyt i integrację. Jeśli istnieje równoległa realizacja
-  POKER-13 z innej sesji — konflikt rozstrzyga architekt.
+  w toku/zaległe — main czeka na komplet (decyzja o stałej autoryzacji).
+- 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
+  na 4 rdzeniach — test reprodukcji bierze 2 pary.
+- 2026-08-08 arch: POKER-13 audyt CZYSTY, zweryfikowany niezależnie
+  (czysty venv 3.13: ruff 0, mypy 0/41, pytest 172; liczby raportu
+  CLI odtworzone) i scalony ff do integracyjnej; równoległej
+  realizacji brak — zastrzeżenie kodera bezprzedmiotowe.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -44,6 +41,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
+- 2026-08-08 arch: audyt POKER-13 pod b4 (decyzja 04): lustro zakłada
+  bezstanowość agentów (dziś frozen dataclass, ten sam obiekt gra obie
+  strony); kontrakt b4 jawnie rozstrzygnie świeże instancje na przebieg.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
