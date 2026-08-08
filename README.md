@@ -60,6 +60,23 @@ serii to te same flagi co mecz (`--small-blind`, `--big-blind`,
 `--stack`, `--button`, `--hands`, `--seed`); `--series` wyklucza
 `--human` i `--export`.
 
+### Korpus self-play
+
+```bash
+python -m poker.adapters.cli --corpus korpus/ --matches 1000 --seed 7 \
+  --jobs 4 --agent0 rule --agent1 rule
+```
+
+`--corpus KATALOG` (domyślnie brak) generuje `--matches` meczów
+(domyślnie 100) agent0 vs agent1 na seedach pochodnych deterministycznie
+od `--seed`; każdy mecz to osobny plik w formacie eksportu, obok
+powstaje `manifest.json` z własną wersją, konfiguracją meczu, nazwami
+agentów, seedem, liczbą meczów i listą plików. Ten sam seed
+i konfiguracja dają korpus identyczny bajt w bajt, niezależnie od
+`--jobs` (domyślnie 1). Katalog docelowy musi być pusty — korpus
+niczego nie nadpisuje. `--corpus` wyklucza `--human`, `--export`
+i `--series`.
+
 ## Dane equity preflop
 
 Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako

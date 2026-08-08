@@ -34,10 +34,8 @@ def _imports(path: Path) -> set[str]:
 
 def test_adaptery_istnieja_i_zaleza_od_silnika() -> None:
     adapters = SRC_POKER / "adapters"
-    assert (adapters / "cli.py").is_file()
-    assert (adapters / "export.py").is_file()
-    assert (adapters / "human.py").is_file()
-    for module in ("cli.py", "export.py", "human.py"):
+    for module in ("cli.py", "corpus.py", "export.py", "human.py", "registry.py"):
+        assert (adapters / module).is_file(), module
         imported = _imports(adapters / module)
         assert any(
             name.startswith("poker.") and not name.startswith("poker.adapters.")
@@ -96,6 +94,20 @@ def test_arena_zalezy_od_silnika_a_cli_od_areny() -> None:
     poza = _imports(arena) - allowed
     assert not poza, f"arena.py importuje poza dozwolonym zbiorem: {sorted(poza)}"
     assert "poker.arena" in _imports(SRC_POKER / "adapters" / "cli.py")
+
+
+def test_korpus_zalezy_od_silnika_rejestru_i_eksportu() -> None:
+    corpus = SRC_POKER / "adapters" / "corpus.py"
+    assert corpus.is_file()
+    poker_imports = {name for name in _imports(corpus) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.adapters.export",
+        "poker.adapters.registry",
+        "poker.agent",
+        "poker.events",
+        "poker.table",
+    }, f"corpus.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    assert "poker.adapters.corpus" in _imports(SRC_POKER / "adapters" / "cli.py")
 
 
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:

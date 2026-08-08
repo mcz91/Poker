@@ -51,8 +51,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   agentów: BB/100 na lustrzanych rozdaniach (zamknięty, commit
   `5f5302b`; audyt: CZYSTY);
 - [`POKER-14.json`](taskspecs/POKER-14.json) — korpus self-play:
-  masowa generacja historii w formacie eksportu (zatwierdzony,
-  u kodera).
+  masowa generacja historii w formacie eksportu (zrealizowany przez
+  kodera, czeka na audyt i integrację).
 
 ## Operator
 

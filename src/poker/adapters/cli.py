@@ -7,27 +7,18 @@ from itertools import count
 from pathlib import Path
 from typing import TextIO
 
+from poker.adapters.corpus import generate_corpus
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
+from poker.adapters.registry import agent_registry
 from poker.agent import Agent
 from poker.arena import SeriesConfig, run_series
-from poker.evaluation import HandCategory
 from poker.events import HandEvent
-from poker.rule_agent import RuleAgent, RuleAgentThresholds
 from poker.table import MatchConfig, play_match
 
 
-def _agent_registry() -> dict[str, Agent]:
-    return {
-        "rule": RuleAgent(),
-        "rule-aggressive": RuleAgent(
-            thresholds=RuleAgentThresholds(aggress_from=HandCategory.ONE_PAIR)
-        ),
-    }
-
-
 def build_parser() -> argparse.ArgumentParser:
-    agents = sorted(_agent_registry())
+    agents = sorted(agent_registry())
     parser = argparse.ArgumentParser(
         prog="python -m poker.adapters.cli",
         description="Rozgrywa mecz heads-up dwóch agentów i eksportuje pełną historię.",
@@ -59,6 +50,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help="arena: seria PAR meczów agent0 vs agent1 na lustrzanych "
                              "rozdaniach z raportem BB/100 (domyślnie brak; wyklucza "
                              "--human i --export)")
+    parser.add_argument("--corpus", type=Path, default=None, metavar="KATALOG",
+                        help="korpus self-play: generuje --matches meczów agent0 vs "
+                             "agent1 do pustego KATALOGU w formacie eksportu z manifestem "
+                             "(domyślnie brak; wyklucza --human, --export i --series)")
+    parser.add_argument("--matches", type=int, default=100,
+                        help="liczba meczów korpusu (domyślnie 100)")
+    parser.add_argument("--jobs", type=int, default=1,
+                        help="procesy robocze generacji korpusu (domyślnie 1; zawartość "
+                             "korpusu nie zależy od tej liczby)")
     parser.add_argument("--export", type=Path, default=None, metavar="PLIK",
                         help="ścieżka pliku eksportu historii JSON (domyślnie bez eksportu)")
     return parser
@@ -71,6 +71,33 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
         print(f"koniec rozdania {next(numbers)}: {render_hand_summary(history, seat)}")
 
     return report
+
+
+def _run_corpus_command(args: argparse.Namespace) -> int:
+    if args.human is not None:
+        raise ValueError("--corpus nie łączy się z --human — korpus to self-play agentów")
+    if args.export is not None:
+        raise ValueError("--corpus nie łączy się z --export — korpus sam zapisuje mecze")
+    if args.series is not None:
+        raise ValueError("--corpus nie łączy się z --series — arena mierzy, korpus generuje")
+    config = MatchConfig(
+        small_blind=args.small_blind,
+        big_blind=args.big_blind,
+        stacks=(args.stack[0], args.stack[1]),
+        button=args.button,
+        hand_limit=args.hands,
+    )
+    report = generate_corpus(
+        args.corpus,
+        config=config,
+        agent_names=(args.agent0, args.agent1),
+        matches=args.matches,
+        seed=args.seed,
+        jobs=args.jobs,
+    )
+    print(f"korpus: meczów: {report.matches}, rozdań: {report.hands}")
+    print(f"katalog: {report.directory}")
+    return 0
 
 
 def _run_series_command(args: argparse.Namespace, registry: dict[str, Agent]) -> int:
@@ -100,7 +127,9 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
-        registry = _agent_registry()
+        registry = agent_registry()
+        if args.corpus is not None:
+            return _run_corpus_command(args)
         if args.series is not None:
             return _run_series_command(args, registry)
         config = MatchConfig(

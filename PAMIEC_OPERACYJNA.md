@@ -19,19 +19,19 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
   3.13); statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty z dowodami;
-  fakty tylko tu: F2 audytu POKER-1 to odstępstwo uznane decyzją
-  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
-  Main za headem integracyjnym fast-forwardem za jawną autoryzacją
-  operatora 2026-08-08.
+- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty; fakty tylko
+  tu: F2 audytu POKER-1 — odstępstwo uznane decyzją operatora; audyt
+  POKER-7 potwierdzony 960 meczami niezależnymi. Main za headem
+  fast-forwardem za jawną autoryzacją operatora 2026-08-08.
 - 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main dosunięty do
-  e0b0f2b jednorazowym jawnym poleceniem operatora mimo zaległości —
-  stała autoryzacja (komplet audytów) dalej obowiązuje.
+  e0b0f2b jednorazowym poleceniem operatora — stała autoryzacja
+  (komplet audytów) dalej obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-08 arch: POKER-14 zatwierdzony na polecenie operatora
-  ([`docs/taskspecs/POKER-14.json`](docs/taskspecs/POKER-14.json)) —
+- 2026-08-08 arch: POKER-14 zatwierdzony na polecenie operatora —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 koder: POKER-14 zrealizowany ze startu `879c59f` na gałęzi
+  `claude/new-session-aazf0r`; czeka na audyt; rejestr → adapters/registry.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

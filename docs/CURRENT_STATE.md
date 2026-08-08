@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-13
-(arena porównawcza agentów).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-14
+(korpus self-play).
 
 ## Co istnieje
 
@@ -120,7 +120,16 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-13
   nieobecne w wyjściu terminala do showdownu, także w wyjściu na
   żywo — pod testem przecieku i testem kolejności; round-trip
   i determinizm eksportu bajt w bajt oraz odtwarzalność meczu przy
-  identycznym wejściu człowieka pod testami; kierunek importów od
+  identycznym wejściu człowieka pod testami; `registry` — rejestr
+  nazwanych agentów CLI (rule, rule-aggressive), a `corpus` — korpus
+  self-play (podetap b3, `cli --corpus KATALOG --matches N`): mecze
+  na seedach pochodnych od seeda korpusu (`corpus_match_seeds` —
+  jawny kontrakt jak w arenie), każdy mecz osobnym plikiem
+  w formacie eksportu POKER-9 (format_version bez zmian), obok
+  manifest z własną wersją i danymi niewyprowadzalnymi z plików;
+  round-trip (`read_corpus`), determinizm bajt w bajt, niezależność
+  zawartości od `--jobs` i odmowa zapisu do niepustego katalogu —
+  pod testami; kierunek importów od
   adapterów do silnika strzeże `tests/test_architecture.py`;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
   [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
@@ -142,6 +151,7 @@ Etap (b) kierunku bot drogą operatora
 silnik GTO/explo na ML docelowo. POKER-12 (equity) i POKER-13 (arena)
 scalone; POKER-14 — korpus self-play, podetap b3
 ([`docs/taskspecs/POKER-14.json`](taskspecs/POKER-14.json)) —
-zatwierdzony, u kodera. Dalej: ML (b4) — osobna kwalifikacja;
+zrealizowany, czeka na audyt i integrację. Dalej: ML (b4) — osobna
+kwalifikacja z pierwszymi zależnościami poza standard library;
 ulepszenia agentów regułowych odtąd wyłącznie z pomiarem w arenie
 (decyzja 04, pkt 2).
