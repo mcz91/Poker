@@ -46,6 +46,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   na polecenie operatora — ostatni krok sekwencji; koder startuje
   ze świeżej sesji z heada integracyjnego, nie z main.
 
+- 2026-08-08 koder: POKER-9 zamknięty na gałęzi kodera
+  `claude/poker-repo-instrukcja-gez88z` (start z da23d9a); audyt
+  POKER-9 uruchomiony świeżym kontekstem, werdykt trafi do operatora.
+  Mój równoległy audyt POKER-8 również w toku (niezależne
+  potwierdzenie audytu ogona). Czeka na scalenie.
+
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,

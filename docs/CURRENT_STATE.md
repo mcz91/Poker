@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-8
-(pierwszy agent regułowy).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-9
+(CLI i eksport historii — ostatni krok sekwencji budowy).
 
 ## Co istnieje
 
@@ -66,6 +66,14 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-8
   z udokumentowanym domyślnym zestawem (podbija od dwóch par, gra
   o wartość od pary, sprawdza tanio 2:1); moduł importuje wyłącznie
   widok, decyzję i ewaluator — bez silnika, historii i stołu;
+- `poker.adapters` — adaptery (INV-P7): `cli` rozgrywa mecz
+  z terminala (`python -m poker.adapters.cli`, argumenty
+  z udokumentowanymi domyślnymi w [`README.md`](../README.md), kod
+  wyjścia 0/2) i `export` — pełna historia meczu (łącznie ze
+  zdarzeniami EngineOnly — kanał operatora) w typowanym,
+  wersjonowanym JSON; round-trip i determinizm bajt w bajt pod
+  testami; kierunek importów od adapterów do silnika strzeże
+  `tests/test_architecture.py`;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
   [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
   (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
@@ -73,14 +81,15 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-8
 
 ## Czego nie ma
 
-CLI, eksportu i docelowej serializacji historii, persystencji, side
-potów multiway, struktur turniejowych. Sekwencję budowy definiuje
-[`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md)
-(punkt 5).
+Persystencji poza plikiem eksportu, side potów multiway, struktur
+turniejowych, UI/sieci/wielu stołów (pokerroom), replayu i analizy
+(trener), agentów ML (bot) — gałęzie przyszłe z decyzji 01 pozostają
+otwarte i niezamówione. Sandbox niezaufanych agentów to osobna
+decyzja, gdy pojawi się agent spoza repozytorium.
 
 ## Następny krok
 
-POKER-9 — CLI i eksport historii (krok 8, ostatni w sekwencji);
-kontrakt zatwierdzony ([`docs/taskspecs/POKER-9.json`](taskspecs/POKER-9.json)),
-realizacja u kodera. Granica zaufania dla niezaufanych agentów staje
-na adapterze (INV-P7); audyt POKER-8 w toku.
+Sekwencja budowy z pustego repozytorium (punkt 5 promptu architekta)
+jest ukończona: 8/8 kroków. Kolejne funkcje wchodzą wyłącznie przez
+kwalifikację architekta („czy budować") — naturalni kandydaci to
+gałęzie z decyzji 01.

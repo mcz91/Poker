@@ -10,6 +10,20 @@ z tego repozytorium.
 [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md);
 indeks dokumentacji: [`docs/README.md`](docs/README.md).
 
+## Uruchomienie meczu
+
+```bash
+python -m poker.adapters.cli --seed 7 --hands 50 --export mecz.json
+```
+
+Argumenty (wszystkie z wartościami domyślnymi): `--small-blind 1`,
+`--big-blind 2`, `--stack 100 100`, `--button 0`, `--hands 100`,
+`--seed 0`, `--agent0 rule`, `--agent1 rule` (dostępny wariant progów
+`rule-aggressive`), `--export PLIK` (bez eksportu, gdy pominięty).
+Wynik meczu trafia na standardowe wyjście, a pełna historia rozdań —
+do wersjonowanego pliku JSON, identycznego bajt w bajt dla tych samych
+argumentów.
+
 ## Instalacja i pełna bramka
 
 ```bash

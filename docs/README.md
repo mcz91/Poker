@@ -33,7 +33,7 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-8.json`](taskspecs/POKER-8.json) — pierwszy agent regułowy
   (zamknięty, commit `95d004a`; audyt w toku);
 - [`POKER-9.json`](taskspecs/POKER-9.json) — CLI i eksport historii
-  (zatwierdzony, u kodera).
+  (zamknięty na gałęzi kodera, czeka na scalenie).
 
 ## Operator
 
