@@ -13,12 +13,12 @@
   ],
   "non_goals": [
     "Karty, ewaluator rąk, zdarzenia rozdania, maszyna licytacji, kontrakt agenta, stół, CLI — kroki 2–8 sekwencji budowy.",
-    "Gałęzie przyszłe: pokerroom, trener, GTO/ML.",
+    "Gałęzie przyszłe: pokerroom, trener, GTO/ML — w tym ich puste szkielety (katalogi, pakiety, placeholdery); zakaz z decyzji docs/decisions/01-trzy-produkty-jeden-rdzen.md.",
     "Zdalne CI — bramka jest lokalna; automatyzacja to domena fabryki, nie tego zadania.",
     "Jakakolwiek zależność wykonawcza poza narzędziami bramki (ruff, mypy, pytest) — standard library first."
   ],
   "operator_inputs": {
-    "jezyk_i_toolchain": "OCZEKUJE NA DECYZJĘ: rekomendacja Python ≥3.12 (uzasadnienie w raporcie architekta z 2026-08-08); komendy verification zakładają tę decyzję."
+    "jezyk_i_toolchain": "Python ≥3.12 — decyzja operatora 2026-08-08, dokument docs/decisions/02-jezyk-rdzenia-python.md."
   },
   "allowed_paths": [
     "CLAUDE.md",
@@ -30,7 +30,10 @@
     "tests/**",
     "docs/**"
   ],
-  "approved": null,
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-08T00:42:33Z"
+  },
   "verification": [
     "ruff check .",
     "mypy --strict src tests",

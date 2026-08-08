@@ -8,21 +8,20 @@ wpis; linkuj zamiast kopiować.
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: POKER-1 (szkielet + bramka) w
-  [`docs/taskspecs/POKER-1.json`](docs/taskspecs/POKER-1.json), status
-  szkic (`approved: null`) — czeka na dwie decyzje operatora: język
-  (rekomendacja: Python ≥3.12) i zatwierdzenie TaskSpec. Koder nie
-  startuje przed zatwierdzeniem.
+- 2026-08-08 arch: POKER-1 zatwierdzony
+  ([`docs/taskspecs/POKER-1.json`](docs/taskspecs/POKER-1.json)) —
+  następny ruch należy do kodera; kolejny TaskSpec (karty i ewaluator
+  rąk) dopiero po zielonej bramce POKER-1.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
-(pusto)
+- 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,
+  trener, bot) odroczone do pierwszej kwalifikacji produktu — decyzja
+  [`01`](docs/decisions/01-trzy-produkty-jeden-rdzen.md), pkt 3.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
-- 2026-08-08 arch: TaskSpeki produktu żyją w `docs/taskspecs/POKER-N.json`
-  według `schemas/task-spec.schema.json` z `mcz91/foundry`; dokumenty
-  decyzji — numerowane pliki w `docs/`, indeks powstaje w POKER-1.
+(pusto — decyzje 01 i 02 utrwalone w `docs/decisions/`)
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
