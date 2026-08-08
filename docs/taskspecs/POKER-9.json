@@ -1,0 +1,34 @@
+{
+  "id": "POKER-9",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator może zapisać pełną historię meczu do pliku w udokumentowanym, wersjonowanym formacie i odtworzyć z niego identyczne zdarzenia.",
+  "acceptance": [
+    "W pakiecie produktu istnieje adapter eksportu: mecz (konfiguracja, seed, sekwencja historii rozdań z play_match) serializuje się do formatu v1 z decyzji 03 (JSON Lines; nagłówek z danymi niewyprowadzalnymi ze zdarzeń; jedna linia = jedno zdarzenie; karty w notacji As/Td; klucze w stałym porządku), a parser odtwarza konfigurację, seed i zdarzenia równe oryginałom — round-trip pod testem na meczach z wielu seedów, z pokryciem zdarzeń EngineOnly i kart prywatnych obu miejsc.",
+    "Serializacja jest deterministyczna bajtowo: ten sam mecz serializowany dwukrotnie daje identyczne bajty; format nie zawiera znaczników czasu ani danych środowiska — pod testem.",
+    "Parser odrzuca jawnym błędem: nieznaną wersję formatu, plik bez nagłówka, linię niebędącą poprawnym JSON oraz zdarzenie nieznanego typu — pod testem.",
+    "Eksport nie zawiera danych wyprowadzalnych ze zdarzeń (widoczności, projekcji stanów, wyniku meczu) — kryterium recenzji; moduł eksportu jest adapterem i żaden moduł silnika go nie importuje (INV-P7) — pod testem importów.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md odzwierciedla stan po zadaniu."
+  ],
+  "non_goals": [
+    "CLI — to POKER-10.",
+    "Eksport per-miejsce jako osobne API: kompozycja visible_events z tym samym serializatorem wystarcza; osobna funkcja czeka na odbiorcę (gałąź trener, decyzja 01).",
+    "Persystencja, baza danych, kompresja, formaty inne niż v1 z decyzji 03.",
+    "Zmiany silnika, zdarzeń i kontraktów z POKER-3…8.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

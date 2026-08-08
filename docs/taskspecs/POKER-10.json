@@ -1,0 +1,36 @@
+{
+  "id": "POKER-10",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator uruchamia z terminala deterministyczny mecz dwóch agentów i otrzymuje wynik oraz, na życzenie, plik pełnej historii meczu.",
+  "acceptance": [
+    "python -m poker rozgrywa mecz przez play_match: blindy, stacki, button startowy i limit rozdań są parametrami wywołania z udokumentowanymi wartościami domyślnymi (INV-P6); seed jest wymagany jawnie i nie ma wartości domyślnej; agentów wybiera się po nazwie z rejestru CLI, domyślnie agent regułowy z POKER-8 na obu miejscach — pod testem.",
+    "Wyjście na stdout jest deterministyczne (te same parametry dają identyczne bajty) i zawiera stany obserwowalne wyniku meczu: stacki końcowe, liczbę rozdań, powód zakończenia — pod testem.",
+    "--export ŚCIEŻKA zapisuje pełną historię meczu w formacie v1 z POKER-9, a zapisany plik przechodzi round-trip parserem z POKER-9 — pod testem.",
+    "Błędne wejście (nieznana nazwa agenta, konfiguracja odrzucana przez silnik, niezapisywalna ścieżka eksportu) kończy proces kodem różnym od zera z komunikatem na stderr — pod testem.",
+    "CLI jest adapterem: żaden moduł silnika nie importuje poker.cli ani poker.__main__ (INV-P7), a rejestr nazw agentów żyje wyłącznie w CLI — pod testem importów.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (sposób uruchomienia) i docs/CURRENT_STATE.md odzwierciedlają stan po zadaniu."
+  ],
+  "non_goals": [
+    "Tryb interaktywny i człowiek przy stole — przyszły adapter portu Agent (INV-P4), wymaga decyzji operatora.",
+    "Konfiguracja progów agenta regułowego z linii poleceń — progi mają udokumentowane domyślne z POKER-8; ekspozycja czeka na odbiorcę.",
+    "Turnieje, serie i mecze równoległe; TUI, GUI, sieć.",
+    "Zmiany silnika, formatu eksportu z POKER-9 i agenta z POKER-8.",
+    "Produkty z decyzji 01 (pokerroom, trener, bot) i ich szkielety."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

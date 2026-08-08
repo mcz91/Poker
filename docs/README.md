@@ -9,7 +9,10 @@
    — trzy produkty docelowe (pokerroom, trener, bot), jeden wspólny
    rdzeń, zakaz pustych szkieletów produktów;
 2. [`02-jezyk-rdzenia-python.md`](decisions/02-jezyk-rdzenia-python.md)
-   — język rdzenia: Python ≥3.12, toolchain wspólny z Foundry.
+   — język rdzenia: Python ≥3.12, toolchain wspólny z Foundry;
+3. [`03-interfejs-cli-i-eksport-historii.md`](decisions/03-interfejs-cli-i-eksport-historii.md)
+   — krok 8 sekwencji jako dwa kontrakty (eksport historii przed CLI),
+   format eksportu v1, CLI jako adapter z jawnym seedem.
 
 ## TaskSpeki
 
@@ -31,7 +34,12 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-7.json`](taskspecs/POKER-7.json) — stół i pętla meczu
   (zamknięty, commit `462576d`; domknięcie audytu `4a01775`);
 - [`POKER-8.json`](taskspecs/POKER-8.json) — pierwszy agent regułowy
-  (zatwierdzony, u kodera).
+  (zatwierdzony, u kodera);
+- [`POKER-9.json`](taskspecs/POKER-9.json) — eksport historii meczu,
+  format v1 z decyzji 03 (szkic: czeka na zieleń POKER-8
+  i zatwierdzenie operatora);
+- [`POKER-10.json`](taskspecs/POKER-10.json) — CLI `python -m poker`
+  (szkic: czeka na zieleń POKER-9 i zatwierdzenie operatora).
 
 ## Operator
 

@@ -17,27 +17,20 @@ Protokół (koszt czytelnika > koszt pisarza):
 ## STAN — praca w locie
 
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`.
-  POKER-1…6 zamknięte, każde zweryfikowane niezależnie przez architekta
-  (czysty venv 3.13, verification zielone) i scalone sekwencyjnie;
-  statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…6, wszystkie findingi
-  blokujące i OBJECTION zamknięte z dowodami: POKER-1 FINDINGI (F1
-  mechanizm test_repo_gate, F2 odstępstwo uznane decyzją operatora,
-  F3 sprzątnięty); POKER-2 CZYSTY; POKER-3 OBJECTION seeda zamknięty
-  w POKER-6 (DeckSeeded/EngineOnly); POKER-4 CZYSTY; POKER-5 FINDINGI
-  (F1 domknięty testem strażniczym af758b8, potwierdzony audytem;
-  F2 informacyjny → WĄTKI); POKER-6 CZYSTY (F1 informacyjny →
-  PUŁAPKA o granicy gwarancji). Main zsynchronizowany z headem
-  integracyjnym fast-forwardem za jawną autoryzacją operatora
-  2026-08-08.
-- 2026-08-08 arch: POKER-7 zamknięty (`462576d` + domknięcie audytu
-  `4a01775`), zweryfikowany niezależnie (czysty venv 3.13, verification
-  zielone: ruff 0, mypy 0/23 plików, 114 passed) i scalony do
-  integracyjnej. Audyt POKER-7: F1 informacyjny naprawiony, 960 meczów
-  weryfikacji niezależnej bez naruszeń — komplet audytów POKER-1…7.
+  POKER-1…7 zamknięte i scalone sekwencyjnie, każde zweryfikowane
+  niezależnie (czysty venv 3.13, verification zielone); komplet audytów
+  POKER-1…7 domknięty z dowodami (OBJECTION seeda z POKER-3 zamknięty
+  w POKER-6; F1 POKER-5 testem af758b8; F1 POKER-7 naprawiony, 960
+  meczów bez naruszeń); main = head integracyjny (ff za autoryzacją
+  stałą). Statusy i commity: [`docs/README.md`](docs/README.md).
 - 2026-08-08 arch: POKER-8 zatwierdzony
   ([`docs/taskspecs/POKER-8.json`](docs/taskspecs/POKER-8.json)) —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-08 arch: projekt kroku 8 na gałęzi
+  `claude/poker-interface-design-17xgxr`: decyzja 03 + szkice
+  POKER-9/POKER-10 (bez `approved` — nie zatwierdzam własnych
+  TaskSpeców). Przekazanie POKER-9 koderowi dopiero po zieleni
+  POKER-8 i zatwierdzeniu operatora; POKER-10 po zieleni POKER-9.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
