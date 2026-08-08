@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-7
-(stół i pętla meczu heads-up).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-8
+(pierwszy agent regułowy).
 
 ## Co istnieje
 
@@ -37,11 +37,6 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-7
   `HeadsUpHand` wymaga dokładnie N=2 — multiway (w tym side poty)
   wymaga decyzji architekta; zdarzenia i `split_pot` pozostają
   N-miejscowe;
-- bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
-  [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
-  (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
-  test zgodności `tests/test_repo_gate.py`.
-
 - `poker.views` — filtr widoczności zdarzeń i niemutowalny
   `PlayerView`: budowany wyłącznie ze zdarzeń widocznych z danego
   miejsca (własne karty, board, jawne akcje i blindy, stacki, pula,
@@ -62,17 +57,30 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-7
   obserwowalny (stacki, liczba rozdań, powód) wraz z pełną sekwencją
   niemutowalnych historii rozdań; suma żetonów stała przez cały mecz
   — pod testami. Uproszczenie jawne (INV-P5): `play_match` wymaga
-  dokładnie 2 miejsc — multiway to gałąź pokerroom.
+  dokładnie 2 miejsc — multiway to gałąź pokerroom;
+- `poker.rule_agent` — agent regułowy (`RuleAgent`): czysta,
+  deterministyczna funkcja widoku w decyzję, bez pamięci, I/O
+  i losowości; reguły czytelne (siła ręki przez ewaluator, koszt
+  sprawdzenia względem puli, granice legalnych akcji z widoku);
+  progi (`RuleAgentThresholds`) są parametrem konstrukcji
+  z udokumentowanym domyślnym zestawem (podbija od dwóch par, gra
+  o wartość od pary, sprawdza tanio 2:1); moduł importuje wyłącznie
+  widok, decyzję i ewaluator — bez silnika, historii i stołu;
+- bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
+  [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
+  (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
+  test zgodności `tests/test_repo_gate.py`.
 
 ## Czego nie ma
 
-Produkcyjnego agenta regułowego, CLI, eksportu i docelowej
-serializacji historii, persystencji, side potów multiway, struktur
-turniejowych. Sekwencję budowy definiuje
+CLI, eksportu i docelowej serializacji historii, persystencji, side
+potów multiway, struktur turniejowych. Sekwencję budowy definiuje
 [`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md)
 (punkt 5).
 
 ## Następny krok
 
-Krok 7 sekwencji budowy: pierwszy agent regułowy — TaskSpec
-specyfikuje architekt po scaleniu POKER-7.
+Krok 8 (ostatni) sekwencji budowy: CLI i eksport historii (POKER-9)
+— TaskSpec specyfikuje architekt po zamknięciu i audycie POKER-8;
+granica zaufania dla niezaufanych agentów staje na adapterze
+(INV-P7, pułapka o izolacji procesowej).
