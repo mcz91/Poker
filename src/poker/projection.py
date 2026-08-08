@@ -9,6 +9,7 @@ from poker.events import (
     ActionTaken,
     BlindPosted,
     CardsRevealed,
+    DeckSeeded,
     FlopDealt,
     HandEnded,
     HandEvent,
@@ -62,6 +63,8 @@ def project(events: Iterable[HandEvent]) -> TableState:
 
 def _apply(state: TableState, event: HandEvent) -> TableState:
     match event:
+        case DeckSeeded():
+            return state
         case BlindPosted(seat=seat, amount=amount) | ActionTaken(seat=seat, amount=amount):
             return replace(
                 state, stacks=_move(state.stacks, seat, -amount), pot=state.pot + amount

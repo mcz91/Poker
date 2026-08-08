@@ -12,6 +12,7 @@ from poker.events import (
     BlindPosted,
     BlindType,
     CardsRevealed,
+    DeckSeeded,
     FlopDealt,
     HandConfig,
     HandEnded,
@@ -107,7 +108,7 @@ def _view(events: Sequence[HandEvent], config: HandConfig) -> _BettingView:
                 committed_street[seat] += amount
                 committed_total[seat] += amount
                 current_bet = max(current_bet, committed_street[seat])
-            case HoleCardsDealt():
+            case HoleCardsDealt() | DeckSeeded():
                 pass
             case FlopDealt():
                 nowa_ulica(3)
@@ -174,7 +175,8 @@ class HeadsUpHand:
         self._button = config.button
         self._dealt: DealtHand = deal_hand(shuffled_deck(random.Random(seed)), seat_count=2)
         self._history = HandHistory()
-        self._history.append(HandStarted(config=config, seed=seed))
+        self._history.append(HandStarted(config=config))
+        self._history.append(DeckSeeded(seed=seed))
         small_seat, big_seat = self._button, 1 - self._button
         self._history.append(
             BlindPosted(

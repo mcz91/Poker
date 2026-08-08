@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-5
-(maszyna licytacji heads-up z rozliczeniem rozdania).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-6
+(kontrakt agenta i widok gracza z testem przecieku).
 
 ## Co istnieje
 
@@ -13,10 +13,11 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-5
   kategorii, porządek zupełny z kickerami (`HandValue`), wybór
   najlepszego układu z 5–7 kart;
 - `poker.events` — niemutowalne, typowane zdarzenia cyklu rozdania
-  (start z konfiguracją i seedem, blindy, karty własne, flop/turn/river,
-  akcja, showdown, przyznanie puli, koniec); każde zdarzenie deklaruje
-  widoczność (`Public` / `PrivateToSeat`) — filtrowanie widoku to
-  krok 5;
+  (start z konfiguracją, seed talii, blindy, karty własne,
+  flop/turn/river, akcja, showdown, zwrot nadpłaty, przyznanie puli,
+  koniec); każde zdarzenie deklaruje widoczność (`Public` /
+  `PrivateToSeat` / `EngineOnly`); seed żyje wyłącznie w `DeckSeeded`
+  (EngineOnly) — poza zasięgiem widoku każdego miejsca;
 - `poker.history` — append-only historia rozdania, zamykana zdarzeniem
   końca; API bez mutacji i usuwania;
 - `poker.projection` — stan stołu (stacki, pula, board, karty per
@@ -41,17 +42,28 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-5
   (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
   test zgodności `tests/test_repo_gate.py`.
 
+- `poker.views` — filtr widoczności zdarzeń i niemutowalny
+  `PlayerView`: budowany wyłącznie ze zdarzeń widocznych z danego
+  miejsca (własne karty, board, jawne akcje i blindy, stacki, pula,
+  faza, miejsce na ruchu, granice legalnych akcji, karty jawne po
+  showdownie); test przecieku sprawdza pola, repr i pełną
+  serializację — karty przeciwnika i seed nieosiągalne przed
+  odkryciem (zamyka OBJECTION audytu POKER-3);
+- `poker.agent` — kontrakt agenta (INV-P4): protokół `Agent.decide
+  (widok) -> Decision`, silnik przyjmuje dowolny obiekt spełniający
+  protokół (`apply_decision`); decyzja nie może zmutować widoku ani
+  historii — pod testem; pełne rozdanie rozgrywane przez dwóch
+  deterministycznych agentów testowych wyłącznie na widokach.
+
 ## Czego nie ma
 
-Widoku agenta z filtrowaniem widoczności i testem przecieku (w tym
-seed z `HandStarted` — wątek w pamięci operacyjnej), kontraktu agenta,
-stołu i pętli meczu, agentów, CLI, serializacji i persystencji
-historii, side potów multiway. Sekwencję budowy definiuje
-[`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md) (punkt 5).
+Stołu i pętli meczu (wiele rozdań, rotacja buttona, koniec meczu),
+produkcyjnego agenta regułowego, CLI, docelowej serializacji
+i persystencji historii, side potów multiway. Sekwencję budowy
+definiuje [`PROMPT_POKER_ARCHITEKT.md`](../PROMPT_POKER_ARCHITEKT.md)
+(punkt 5).
 
 ## Następny krok
 
-POKER-6 — kontrakt agenta i widok gracza z testem przecieku (w tym
-zamknięcie OBJECTION audytu POKER-3: seed nieosiągalny z widoku);
-kontrakt zatwierdzony ([`docs/taskspecs/POKER-6.json`](taskspecs/POKER-6.json)),
-realizacja u kodera. Potem krok 6: stół i pętla meczu.
+Krok 6 sekwencji budowy: stół i pętla meczu — TaskSpec specyfikuje
+architekt po scaleniu POKER-6.

@@ -9,6 +9,7 @@ from poker.events import (
     BlindPosted,
     BlindType,
     CardsRevealed,
+    DeckSeeded,
     FlopDealt,
     HandConfig,
     HandEnded,
@@ -31,7 +32,7 @@ RIVER = Card(Rank.TEN, Suit.HEARTS)
 CONFIG = HandConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0)
 
 HAND: list[HandEvent] = [
-    HandStarted(config=CONFIG, seed=7),
+    HandStarted(config=CONFIG),
     BlindPosted(seat=0, blind=BlindType.SMALL, amount=1),
     BlindPosted(seat=1, blind=BlindType.BIG, amount=2),
     HoleCardsDealt(seat=0, cards=(AS, KS)),
@@ -104,9 +105,13 @@ def test_projekcja_wymaga_startu_rozdania_na_poczatku() -> None:
         project([HAND[0], HAND[0]])
 
 
+def test_seed_talii_nie_zmienia_stanu_stolu() -> None:
+    assert project([HAND[0], DeckSeeded(seed=7)]) == project([HAND[0]])
+
+
 def test_zwrot_nadplaty_wraca_z_puli_do_stacka() -> None:
     events: list[HandEvent] = [
-        HandStarted(config=CONFIG, seed=7),
+        HandStarted(config=CONFIG),
         BlindPosted(seat=0, blind=BlindType.SMALL, amount=1),
         BlindPosted(seat=1, blind=BlindType.BIG, amount=2),
         UncalledBetReturned(seat=1, amount=1),
@@ -121,7 +126,7 @@ def test_zwrot_nadplaty_wraca_z_puli_do_stacka() -> None:
 def test_trzy_miejsca_bez_zaszytej_dwojki() -> None:
     config = HandConfig(small_blind=1, big_blind=2, stacks=(50, 60, 70), button=2)
     events: list[HandEvent] = [
-        HandStarted(config=config, seed=3),
+        HandStarted(config=config),
         BlindPosted(seat=0, blind=BlindType.SMALL, amount=1),
         BlindPosted(seat=1, blind=BlindType.BIG, amount=2),
         HoleCardsDealt(seat=2, cards=(AS, KS)),

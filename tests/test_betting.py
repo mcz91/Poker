@@ -10,6 +10,7 @@ from poker.events import (
     BlindPosted,
     BlindType,
     CardsRevealed,
+    DeckSeeded,
     FlopDealt,
     HandConfig,
     HandEnded,
@@ -70,8 +71,9 @@ def zetony_stale_w_kazdym_prefiksie(events: tuple[HandEvent, ...], total: int) -
 def test_sekwencja_startowa_blindy_od_buttona_i_karty() -> None:
     events = nowa_reka().events()
     assert isinstance(events[0], HandStarted)
-    assert events[1] == BlindPosted(seat=0, blind=BlindType.SMALL, amount=1)
-    assert events[2] == BlindPosted(seat=1, blind=BlindType.BIG, amount=2)
+    assert events[1] == DeckSeeded(seed=7)
+    assert events[2] == BlindPosted(seat=0, blind=BlindType.SMALL, amount=1)
+    assert events[3] == BlindPosted(seat=1, blind=BlindType.BIG, amount=2)
     assert sorted(karty_wlasne(events)) == [0, 1]
 
 

@@ -31,7 +31,12 @@ class PrivateToSeat:
     seat: int
 
 
-EventVisibility = Public | PrivateToSeat
+@dataclass(frozen=True, slots=True)
+class EngineOnly:
+    """Dane wyłącznie silnika i operatora — niewidoczne dla żadnego miejsca."""
+
+
+EventVisibility = Public | PrivateToSeat | EngineOnly
 
 
 def _validate_seat(seat: int) -> None:
@@ -68,10 +73,17 @@ class HandConfig:
 @dataclass(frozen=True, slots=True)
 class HandStarted:
     config: HandConfig
-    seed: int
 
     def visibility(self) -> EventVisibility:
         return Public()
+
+
+@dataclass(frozen=True, slots=True)
+class DeckSeeded:
+    seed: int
+
+    def visibility(self) -> EventVisibility:
+        return EngineOnly()
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +201,7 @@ class HandEnded:
 
 HandEvent = (
     HandStarted
+    | DeckSeeded
     | BlindPosted
     | HoleCardsDealt
     | FlopDealt

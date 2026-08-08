@@ -42,6 +42,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   F2 informacyjny (księgowość żetonów w _view równolegle do projekcji
   — rozważyć przy najbliższym kontrakcie w obszarze); silnik
   zweryfikowany symulacją 4000 rozdań bez rozbieżności.
+- 2026-08-08 koder: POKER-6 zamknięty na gałęzi kodera (start
+  z d21b093, po drodze cherry-pick domknięcia F1 POKER-5); OBJECTION
+  audytu POKER-3 zamknięty: seed przeniesiony do DeckSeeded
+  (EngineOnly), HandStarted niesie samą konfigurację, test przecieku
+  obejmuje pola, repr i serializację widoku. Czeka na scalenie
+  i audyt.
 - 2026-08-08 arch: audyt POKER-4 (29d65f5..bd6dd56) zamknięty werdyktem
   CZYSTY z reprodukcją dowodów; F1 audytu POKER-1 zamknięty mechanizmem.
   F2 zamknięty decyzją operatora 2026-08-08: odstępstwo uznane (wada
@@ -61,10 +67,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,
   trener, bot) odroczone do pierwszej kwalifikacji produktu — decyzja
   [`01`](docs/decisions/01-trzy-produkty-jeden-rdzen.md), pkt 3.
-- 2026-08-08 arch: `HandStarted` niesie seed i ma widoczność Public
-  (`src/poker/events.py`) — seed rekonstruuje całą talię, więc kontrakt
-  POKER-5 (widok agenta) MUSI wykluczyć seed z widoku każdego miejsca,
-  a test przecieku objąć go wprost; rozważyć widoczność EngineOnly.
+(wątek seeda zamknięty w POKER-6: DeckSeeded/EngineOnly + test
+przecieku — fakt utrwalony w repo, wpis usunięty protokołem)
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 

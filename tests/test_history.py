@@ -10,7 +10,7 @@ CONFIG = HandConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0)
 
 def test_historia_zachowuje_kolejnosc_dopisywania() -> None:
     history = HandHistory()
-    started = HandStarted(config=CONFIG, seed=7)
+    started = HandStarted(config=CONFIG)
     blind = BlindPosted(seat=0, blind=BlindType.SMALL, amount=1)
     history.append(started)
     history.append(blind)
@@ -19,7 +19,7 @@ def test_historia_zachowuje_kolejnosc_dopisywania() -> None:
 
 def test_zwrocone_zdarzenia_sa_niemutowalna_migawka() -> None:
     history = HandHistory()
-    history.append(HandStarted(config=CONFIG, seed=7))
+    history.append(HandStarted(config=CONFIG))
     snapshot = history.events()
     history.append(BlindPosted(seat=0, blind=BlindType.SMALL, amount=1))
     assert isinstance(snapshot, tuple)
@@ -29,7 +29,7 @@ def test_zwrocone_zdarzenia_sa_niemutowalna_migawka() -> None:
 
 def test_zapis_po_koncu_rozdania_jest_bledem() -> None:
     history = HandHistory()
-    history.append(HandStarted(config=CONFIG, seed=7))
+    history.append(HandStarted(config=CONFIG))
     history.append(HandEnded())
     with pytest.raises(ValueError, match="zamkni"):
         history.append(BlindPosted(seat=0, blind=BlindType.SMALL, amount=1))

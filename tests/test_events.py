@@ -11,6 +11,8 @@ from poker.events import (
     BlindPosted,
     BlindType,
     CardsRevealed,
+    DeckSeeded,
+    EngineOnly,
     FlopDealt,
     HandConfig,
     HandEnded,
@@ -32,7 +34,8 @@ FLOP = (Card(Rank.TWO, Suit.CLUBS), Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.N
 CONFIG = HandConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0)
 
 KATALOG_CYKLU: list[HandEvent] = [
-    HandStarted(config=CONFIG, seed=7),
+    HandStarted(config=CONFIG),
+    DeckSeeded(seed=7),
     BlindPosted(seat=0, blind=BlindType.SMALL, amount=1),
     BlindPosted(seat=1, blind=BlindType.BIG, amount=2),
     HoleCardsDealt(seat=0, cards=(AS, KS)),
@@ -60,11 +63,15 @@ def test_karty_wlasne_sa_prywatne_dla_miejsca() -> None:
 
 @pytest.mark.parametrize(
     "event",
-    [e for e in KATALOG_CYKLU if not isinstance(e, HoleCardsDealt)],
-    ids=[type(e).__name__ for e in KATALOG_CYKLU if not isinstance(e, HoleCardsDealt)],
+    [e for e in KATALOG_CYKLU if not isinstance(e, HoleCardsDealt | DeckSeeded)],
+    ids=[type(e).__name__ for e in KATALOG_CYKLU if not isinstance(e, HoleCardsDealt | DeckSeeded)],
 )
 def test_board_akcje_i_przebieg_sa_publiczne(event: HandEvent) -> None:
     assert event.visibility() == Public()
+
+
+def test_seed_talii_jest_wylacznie_silnikowy() -> None:
+    assert DeckSeeded(seed=7).visibility() == EngineOnly()
 
 
 def test_konfiguracja_rozdania_waliduje_wejscie() -> None:
