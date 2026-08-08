@@ -94,6 +94,27 @@ dokumentuje moduł `poker.encoding` (`FEATURE_NAMES`). Ten sam korpus
 daje plik identyczny bajt w bajt; istniejący plik wyjściowy to błąd.
 `--dataset` wyklucza pozostałe tryby CLI.
 
+### Baseline behavior clone
+
+```bash
+python tools/train_behavior_clone.py --dataset zbior.json
+python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
+  --agent0 clone --agent1 rule
+```
+
+Trening offline (czysty stdlib, wieloklasowa regresja logistyczna na
+typ akcji) czyta zbiór przykładów z `--dataset` i zapisuje wagi jako
+wygenerowany moduł `src/poker/clone_weights.py` z metadanymi (wersja
+zbioru, hiperparametry, liczba przykładów). Hiperparametry z
+udokumentowanymi domyślnymi: `--learning-rate 0.1`, `--epochs 100`;
+trening jest w pełni deterministyczny — ten sam zbiór i hiperparametry
+dają bajt w bajt identyczny moduł. Agent `clone` (rejestr CLI) gra
+deterministyczną inferencją portem Agent: model wybiera typ akcji,
+kwoty v1 to minimum legalne, typ niedostępny ma deterministyczny
+fallback (check → call → fold) — nigdy nie zwraca decyzji nielegalnej.
+Kryterium plastra b4.2 jest pomiar w arenie, nie siła gry
+(decyzja 05).
+
 ## Dane equity preflop
 
 Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako

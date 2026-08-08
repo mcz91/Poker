@@ -132,6 +132,28 @@ def test_enkodowanie_zalezy_od_zdarzen_kart_i_widocznosci() -> None:
     assert "poker.adapters.dataset" in _imports(SRC_POKER / "adapters" / "cli.py")
 
 
+def test_clone_agent_i_trening_maja_ograniczone_importy() -> None:
+    agent = SRC_POKER / "clone_agent.py"
+    assert agent.is_file()
+    poker_imports = {name for name in _imports(agent) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.agent",
+        "poker.cards",
+        "poker.clone_weights",
+        "poker.encoding",
+        "poker.events",
+        "poker.views",
+    }, f"clone_agent.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    training = SRC_POKER / "clone_training.py"
+    assert training.is_file()
+    poker_imports = {name for name in _imports(training) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.encoding",
+        "poker.events",
+    }, f"clone_training.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    assert (SRC_POKER.parent.parent / "tools" / "train_behavior_clone.py").is_file()
+
+
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     from poker.adapters.human import render_view
 

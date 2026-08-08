@@ -59,7 +59,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   `5a75ef8`; audyt: CZYSTY);
 - [`POKER-15.json`](taskspecs/POKER-15.json) — zbiór przykładów
   decyzyjnych z korpusu, plaster b4.1 decyzji 05 (zrealizowany
-  przez kodera, czeka na audyt i integrację).
+  przez kodera, czeka na audyt i integrację);
+- [`POKER-16.json`](taskspecs/POKER-16.json) — baseline behavior
+  clone, plaster b4.2 decyzji 05 (zrealizowany przez kodera na
+  gałęzi POKER-15, czeka na audyt i integrację po POKER-15).
 
 ## Operator
 

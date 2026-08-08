@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-15
-(zbiór przykładów decyzyjnych z korpusu).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-16
+(baseline behavior clone).
 
 ## Co istnieje
 
@@ -99,6 +99,23 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-15
   testem przecieku (karty przeciwnika i seed nie wpływają na
   przykłady żadnym kanałem); importuje wyłącznie zdarzenia, karty,
   projekcję i widoczność — pod testem architektury;
+- `poker.clone_training` + `poker.clone_weights` + `poker.clone_agent`
+  — baseline behavior cloning (b4.2): deterministyczny trening
+  offline w czystym stdlib (wieloklasowa regresja logistyczna na typ
+  akcji, pełny batch bez losowości, standaryzacja cech w modelu)
+  narzędziem `tools/train_behavior_clone.py` (hiperparametry
+  z udokumentowanymi domyślnymi, INV-P6); wagi jako wygenerowany
+  moduł danych z metadanymi (wersja zbioru, hiperparametry, liczba
+  przykładów; bez I/O przy odczycie, INV-P1); reprodukcja bajt
+  w bajt pod testem; agent `clone` (rejestr CLI) — czysta
+  deterministyczna inferencja portem Agent (INV-P4, INV-P8), cechy
+  z widoku tą samą definicją co zbiór (`view_features`, zgodność
+  trening↔gra pod testem), kwoty v1 minimum legalnym,
+  deterministyczny fallback check→call→fold — nigdy decyzji
+  nielegalnej (test właściwościowy na wielu seedach); zmierzony
+  w arenie (kryterium plastra to pomiar, decyzja 05); importy agenta
+  ograniczone do widoku, decyzji, cech i wag — pod testem
+  architektury;
 - `poker.arena` — arena porównawcza agentów (rdzeń bez I/O, INV-P1):
   seria par meczów przez `play_match` na lustrzanych rozdaniach
   (duplicate — ten sam seed meczu dwukrotnie z zamianą miejsc, obie
@@ -166,11 +183,11 @@ Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
 silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
 korpus self-play) scalone; b4 wchodzi plastrami
-([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 — zbiór
-przykładów decyzyjnych z korpusu, plaster b4.1
-([`docs/taskspecs/POKER-15.json`](taskspecs/POKER-15.json)) —
-zrealizowany, czeka na audyt i integrację. Dalej: b4.2 (baseline
-stdlib z pomiarem
-w arenie) i b4.3 (kwalifikacja zależności po pomiarze); ulepszenia
-agentów regułowych odtąd wyłącznie z pomiarem w arenie (decyzja 04,
+([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 (zbiór
+przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2,
+[`docs/taskspecs/POKER-16.json`](taskspecs/POKER-16.json)) —
+zrealizowane, czekają na audyt i integrację (kolejność 15 przed 16,
+właściciel integracji: architekt). Dalej: b4.3 — kwalifikacja
+pierwszych zależności ML wyłącznie po zmierzonym suficie stdlib;
+ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
 pkt 2).

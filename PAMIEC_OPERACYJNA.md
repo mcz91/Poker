@@ -29,11 +29,12 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
 - 2026-08-08 arch: POKER-14 audyt CZYSTY, zweryfikowany niezależnie
-  (czysty venv 3.13: ruff 0, mypy 0/44, pytest 181) i scalony ff.
-  POKER-15 zatwierdzony na polecenie operatora („przygotuj 15") —
+  i scalony ff (statusy w docs/README.md); POKER-15 zatwierdzony —
   koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
-- 2026-08-08 koder: POKER-15 zrealizowany ze startu `f37d9c4` na gałęzi
-  `claude/new-session-aazf0r`; czeka na audyt i integrację.
+- 2026-08-08 koder: POKER-15 (start `f37d9c4`) i na jego szczycie
+  POKER-16 (start `cb2298d`, zgodnie z kontraktem) — oba na
+  `claude/new-session-aazf0r`, audyt i integracja 15 przed 16.
+  POKER-16.json dołączony z `c0640a7` bez scalania statusów.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

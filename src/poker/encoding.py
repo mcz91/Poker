@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from poker.cards import Card, Suit
 from poker.events import ActionTaken, ActionType, HandEvent, HandStarted, HoleCardsDealt
 from poker.projection import Phase, project
-from poker.views import visible_events
+from poker.views import PlayerView, visible_events
 
 DATASET_VERSION = 1
 
@@ -76,30 +76,72 @@ def encode_hand(events: Sequence[HandEvent]) -> tuple[DecisionExample, ...]:
         )
         if hole is None:
             raise ValueError("decyzja przed rozdaniem kart własnych decydującego")
-        phase = _PHASE_INDEX.get(state.phase)
-        if phase is None:
-            raise ValueError(f"decyzja w fazie bez licytacji: {state.phase.value}")
-        high, low = sorted(
-            hole, key=lambda card: (card.rank.value, _SUIT_INDEX[card.suit]), reverse=True
-        )
-        features = (
-            1 if config.button == seat else 0,
-            config.small_blind,
-            config.big_blind,
-            state.stacks[seat],
-            state.stacks[1 - seat],
-            state.pot,
-            phase,
-            high.rank.value,
-            _SUIT_INDEX[high.suit],
-            low.rank.value,
-            _SUIT_INDEX[low.suit],
-            *_board_features(state.board),
+        features = _features(
+            seat=seat,
+            button=config.button,
+            small_blind=config.small_blind,
+            big_blind=config.big_blind,
+            stacks=state.stacks,
+            pot=state.pot,
+            phase=state.phase,
+            hole=hole,
+            board=state.board,
         )
         examples.append(
             DecisionExample(seat=seat, features=features, action=event.action, amount=event.amount)
         )
     return tuple(examples)
+
+
+def view_features(view: PlayerView) -> tuple[int, ...]:
+    """Cechy inferencji z widoku decydującego — ta sama definicja co cechy zbioru."""
+    if view.hole_cards is None:
+        raise ValueError("cechy wymagają kart własnych w widoku")
+    return _features(
+        seat=view.seat,
+        button=view.button,
+        small_blind=view.small_blind,
+        big_blind=view.big_blind,
+        stacks=view.stacks,
+        pot=view.pot,
+        phase=view.phase,
+        hole=view.hole_cards,
+        board=view.board,
+    )
+
+
+def _features(
+    *,
+    seat: int,
+    button: int,
+    small_blind: int,
+    big_blind: int,
+    stacks: tuple[int, ...],
+    pot: int,
+    phase: Phase,
+    hole: tuple[Card, Card],
+    board: tuple[Card, ...],
+) -> tuple[int, ...]:
+    phase_index = _PHASE_INDEX.get(phase)
+    if phase_index is None:
+        raise ValueError(f"decyzja w fazie bez licytacji: {phase.value}")
+    high, low = sorted(
+        hole, key=lambda card: (card.rank.value, _SUIT_INDEX[card.suit]), reverse=True
+    )
+    return (
+        1 if button == seat else 0,
+        small_blind,
+        big_blind,
+        stacks[seat],
+        stacks[1 - seat],
+        pot,
+        phase_index,
+        high.rank.value,
+        _SUIT_INDEX[high.suit],
+        low.rank.value,
+        _SUIT_INDEX[low.suit],
+        *_board_features(board),
+    )
 
 
 def _board_features(board: tuple[Card, ...]) -> tuple[int, ...]:
