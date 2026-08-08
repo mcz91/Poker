@@ -1,17 +1,28 @@
-# Pamięć operacyjna ról Poker
+# Pamięć operacyjna ról produktu Poker
 
-Nośnik stanu między sesjami ról (architekt / koder / audytor) produktu
-Poker. Protokół identyczny z `PAMIEC_OPERACYJNA.md` w `mcz91/foundry`:
-czytaj na starcie sesji, nadpisz swoje wpisy przed zamknięciem; limit
-80 linii; format `RRRR-MM-DD rola: fakt`; fakt utrwalony w repo → usuń
-wpis; linkuj zamiast kopiować.
+Nośnik stanu między sesjami czatu ról (architekt / koder / audytor).
+Nie jest źródłem statusu produktu — to wyłącznie `docs/CURRENT_STATE.md`.
+Tu wyłącznie to, czego repo nie wie. Kopia faktu dostępnego w repo jest
+błędem; linkuj.
+
+Protokół (koszt czytelnika > koszt pisarza):
+
+- czytaj na starcie sesji; nadpisz swoje wpisy przed zamknięciem;
+- limit pliku: 80 linii; nowy wpis wchodzi kosztem najsłabszego;
+- format wpisu: `RRRR-MM-DD rola: fakt` — telegraficznie, bez narracji;
+- fakt utrwalony w repo (dokument, test, TaskSpec) → usuń wpis;
+- zero śladów dialogu, zero „w trakcie" bez wskazania gałęzi/pliku;
+- audytor czyta i pisze wyłącznie PUŁAPKI.
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: POKER-1 zatwierdzony
-  ([`docs/taskspecs/POKER-1.json`](docs/taskspecs/POKER-1.json)) —
-  następny ruch należy do kodera; kolejny TaskSpec (karty i ewaluator
-  rąk) dopiero po zielonej bramce POKER-1.
+- 2026-08-08 arch: POKER-1 zamknięty; bramkę 5a74ab9 zweryfikowałem
+  niezależnie (czysty venv 3.13: ruff 0, mypy strict src+tests 0,
+  1 test passed) — deklaracja kodera potwierdzona. Diff POKER-1 czeka
+  na audyt świeżym kontekstem przed scaleniem do main.
+- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`
+  (zawiera scaloną gałąź kodera `claude/poker-repo-instrukcja-gez88z`);
+  do main wchodzi jednym scaleniem po audycie.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -21,11 +32,15 @@ wpis; linkuj zamiast kopiować.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
-(pusto — decyzje 01 i 02 utrwalone w `docs/decisions/`)
+(pusto — decyzje 01 i 02 utrwalone w `docs/decisions/`; TaskSpeki
+w `docs/taskspecs/`)
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-(pusto)
+- Systemowy `python3` to 3.11 (< wymaganego 3.12); venv stawiaj na
+  `python3.13`. Pełną bramkę wylicza `README.md`.
+- mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
+  czerwona mimo poprawnych typów.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
