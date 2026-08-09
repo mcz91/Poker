@@ -26,13 +26,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-09 arch: kwalifikacja b4.3 rozstrzygnięta przez operatora:
-  droga 1 (pomiar sufitu stdlib przed zależnościami) → POKER-18
-  zatwierdzony; koder startuje ze świeżej sesji z heada
-  integracyjnego, nie z main; punkty pomiarowe w CURRENT_STATE.
-- 2026-08-09 koder: POKER-18 zrealizowany ze startu `e166bb5` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Trening na
-  math.sumprod (3×) — korpus 100 meczów mieści bramkę w 17 s.
+- 2026-08-09 arch: POKER-18 audyt (1 informacyjny, bez działania),
+  zweryfikowany niezależnie (czysty venv 3.13: ruff 0, mypy 0/53,
+  pytest 208; oba pomiary odtworzone co do setnych) i scalony ff.
+  Kwalifikacja b4.3 u operatora — rekomendacja architekta w czacie;
+  fakt kodera: math.sumprod dał 3× na treningu (korpus 100 meczów
+  mieści bramkę w ~17 s).
 
 ## WĄTKI — otwarte, bez TaskSpec
 

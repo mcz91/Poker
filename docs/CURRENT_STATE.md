@@ -207,8 +207,8 @@ odtwarzalna z samego repozytorium. Operator wybrał drogę pomiaru
 sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
 siła układu), korpus 100 meczów, pomiar w arenie
 ([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
-zrealizowany z udokumentowanym pomiarem (wyniki przy opisie agenta
-clone wyżej), czeka na audyt i integrację. Po nim: kwalifikacja
-b4.3 (pierwsze zależności ML) decyzją operatora na podstawie obu
-punktów pomiarowych; ulepszenia agentów wyłącznie z pomiarem
-w arenie (decyzja 04, pkt 2).
+scalony po audycie, pomiary udokumentowane przy opisie agenta clone
+wyżej. Materiał pomiarowy pod b4.3 jest kompletny: kwalifikacja
+pierwszych zależności ML u operatora, na rekomendację architekta;
+ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
+pkt 2).
