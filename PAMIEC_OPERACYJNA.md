@@ -26,17 +26,17 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-09 arch: POKER-18 scalony po audycie (statusy w indeksie);
-  fakt kodera: math.sumprod dał 3× na treningu stdlib. b4.3 otwarty
-  decyzją 06; POKER-19 (MLP-klon, c1) zatwierdzony — koder startuje
-  ze świeżej sesji z heada integracyjnego, nie z main; pierwsza
-  zależność (numpy) wyłącznie w tools/ i extras dev.
+- 2026-08-09 arch: b4.3 otwarty decyzją 06; POKER-19 (MLP-klon, c1)
+  zatwierdzony — koder ze świeżej sesji z heada integracyjnego,
+  nie z main; numpy wyłącznie w tools/ i extras dev.
+- 2026-08-09 koder: POKER-19 zrealizowany ze startu `426a06f` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Pytest 21.5 s:
+  wkład POKER-19 ≈1.2 s, dominuje test pochodzenia klona liniowego
+  (13 s) zamrożony bajtami wag — kandydat do mechanizmu testu
+  wolnego przy najbliższej kwalifikacji (WĄTEK architekta).
 
 ## WĄTKI — otwarte, bez TaskSpec
 
-- 2026-08-08 arch: mono- vs multi-repo dla produktów (pokerroom,
-  trener, bot) odroczone do pierwszej kwalifikacji produktu — decyzja
-  [`01`](docs/decisions/01-trzy-produkty-jeden-rdzen.md), pkt 3.
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.

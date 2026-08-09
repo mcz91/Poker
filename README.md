@@ -138,12 +138,33 @@ Parametry `--seed 12`, `--trials 2048`, `--jobs 4` i `--output` mają
 wartości domyślne zgodne z utrwaloną macierzą; ten sam seed i liczba
 prób odtwarzają identyczne dane.
 
+### MLP-klon (trening z numpy, inferencja stdlib)
+
+```bash
+python -m poker.adapters.cli --corpus korpus-wag/ --matches 100 \
+  --seed 7 --agent0 rule --agent1 rule-aggressive
+python tools/train_mlp_clone.py --from-corpus korpus-wag/
+python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
+  --agent0 mlp-clone --agent1 clone
+```
+
+Narzędzie treningu MLP wymaga extras `train` (numpy — wyłącznie
+w `tools/` i testach reprodukcji; pakiet produktu i inferencja agenta
+`mlp-clone` to czysty stdlib, decyzja 06). Architektura
+i hiperparametry z udokumentowanymi domyślnymi: `--hidden 16`,
+`--activation relu`, `--learning-rate 0.05`, `--epochs 300`,
+`--seed 0`. Trening jest deterministyczny (seedowana inicjalizacja,
+pełny batch): ten sam korpus, architektura, hiperparametry i seed
+odtwarzają moduł `src/poker/mlp_weights.py` bajt w bajt — pełna
+regeneracja komendami powyżej (dowód dwustopniowy: w bramce
+deterministyczna reprodukcja małego łańcucha kontrolnego).
+
 ## Instalacja i pełna bramka
 
 ```bash
 python3.13 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,train]"
 ruff check .
 mypy
 pytest

@@ -78,7 +78,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   działania);
 - [`POKER-19.json`](taskspecs/POKER-19.json) — MLP-klon, plaster c1
   decyzji 06: trening numpy w tools/, inferencja stdlib, trzeci
-  punkt pomiarowy (zatwierdzony, u kodera).
+  punkt pomiarowy (zrealizowany przez kodera, czeka na audyt
+  i integrację).
 
 ## Operator
 

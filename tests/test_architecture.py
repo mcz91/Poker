@@ -158,6 +158,30 @@ def test_clone_agent_i_trening_maja_ograniczone_importy() -> None:
     assert (SRC_POKER.parent.parent / "tools" / "train_behavior_clone.py").is_file()
 
 
+def test_zadna_czesc_pakietu_nie_importuje_numpy() -> None:
+    for module in SRC_POKER.rglob("*.py"):
+        imported = _imports(module)
+        assert not any(
+            name == "numpy" or name.startswith("numpy.") for name in imported
+        ), f"moduł pakietu {module.name} importuje numpy"
+
+
+def test_mlp_agent_ma_ograniczone_importy_a_narzedzie_istnieje() -> None:
+    agent = SRC_POKER / "mlp_agent.py"
+    assert agent.is_file()
+    poker_imports = {name for name in _imports(agent) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.agent",
+        "poker.clone_agent",
+        "poker.encoding",
+        "poker.events",
+        "poker.mlp_weights",
+        "poker.views",
+    }, f"mlp_agent.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    assert (SRC_POKER / "mlp_weights.py").is_file()
+    assert (SRC_POKER.parent.parent / "tools" / "train_mlp_clone.py").is_file()
+
+
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     from poker.adapters.human import render_view
 

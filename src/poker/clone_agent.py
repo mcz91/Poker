@@ -16,31 +16,36 @@ from poker.events import ActionType
 from poker.views import PlayerView
 
 
+def decision_for_action(action: ActionType, view: PlayerView) -> Decision:
+    """Reguła kwot v1: kwota bet/raise to minimum legalne; typ niedostępny -> fallback."""
+    legal = view.legal_actions
+    if legal is None:
+        raise ValueError("decyzja wymaga widoku miejsca na ruchu")
+    match action:
+        case ActionType.FOLD:
+            return Decision(action=ActionType.FOLD)
+        case ActionType.CHECK if legal.check_allowed:
+            return Decision(action=ActionType.CHECK)
+        case ActionType.CALL if legal.call_amount is not None:
+            return Decision(action=ActionType.CALL)
+        case ActionType.BET if legal.bet_range is not None:
+            return Decision(action=ActionType.BET, amount=legal.bet_range.minimum)
+        case ActionType.RAISE if legal.raise_range is not None:
+            return Decision(action=ActionType.RAISE, amount=legal.raise_range.minimum)
+        case _:
+            pass
+    if legal.check_allowed:
+        return Decision(action=ActionType.CHECK)
+    if legal.call_amount is not None:
+        return Decision(action=ActionType.CALL)
+    return Decision(action=ActionType.FOLD)
+
+
 @dataclass(frozen=True, slots=True)
 class CloneAgent:
     def decide(self, view: PlayerView) -> Decision:
-        legal = view.legal_actions
-        if legal is None:
-            raise ValueError("decyzja wymaga widoku miejsca na ruchu")
         action = ActionType(ACTIONS[_predicted_class(view_features(view))])
-        match action:
-            case ActionType.FOLD:
-                return Decision(action=ActionType.FOLD)
-            case ActionType.CHECK if legal.check_allowed:
-                return Decision(action=ActionType.CHECK)
-            case ActionType.CALL if legal.call_amount is not None:
-                return Decision(action=ActionType.CALL)
-            case ActionType.BET if legal.bet_range is not None:
-                return Decision(action=ActionType.BET, amount=legal.bet_range.minimum)
-            case ActionType.RAISE if legal.raise_range is not None:
-                return Decision(action=ActionType.RAISE, amount=legal.raise_range.minimum)
-            case _:
-                pass
-        if legal.check_allowed:
-            return Decision(action=ActionType.CHECK)
-        if legal.call_amount is not None:
-            return Decision(action=ActionType.CALL)
-        return Decision(action=ActionType.FOLD)
+        return decision_for_action(action, view)
 
 
 def _predicted_class(features: tuple[int, ...]) -> int:

@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-18
-(sufit baseline'u stdlib: cechy v2, większy korpus, pomiar).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
+(MLP-klon: trening numpy w tools/, inferencja stdlib, pomiar).
 
 ## Co istnieje
 
@@ -132,6 +132,27 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-18
   rule-aggressive −171.43 BB/100, std 535.73, CI95 [−406.22, 63.36];
   poprzedni punkt odniesienia **b4.2 (cechy v1, korpus 30 meczów):**
   clone vs rule −316.25 BB/100, CI95 [−534.35, −98.16];
+- `poker.mlp_agent` + `poker.mlp_weights` +
+  `tools/train_mlp_clone.py` — MLP-klon (c1, decyzja 06): trening
+  sieci (warstwy gęste, architektura i hiperparametry parametrami
+  z udokumentowanymi domyślnymi: 23→16→5, relu, lr 0.05, 300 epok,
+  seed 0) narzędziem z numpy — zależność wyłącznie w `tools/`
+  i extras `train` (pakiet produktu bez numpy — pod testem
+  architektury); trening deterministyczny (seedowana inicjalizacja
+  PCG64, pełny batch) z dwustopniowym dowodem odtwarzalności:
+  reprodukcja małego łańcucha kontrolnego bajt w bajt w bramce,
+  pełna regeneracja artefaktu komendami z [`README.md`](../README.md);
+  wagi jako wygenerowany moduł z kompletnym przepisem pochodzenia
+  (wzorzec POKER-17); agent `mlp-clone` (rejestr CLI) — inferencja
+  czystym stdlib (forward pass na `math.sumprod`), cechy v2 wspólną
+  definicją, kwoty i fallback regułą v1 (współdzielona
+  `decision_for_action`), nigdy decyzji nielegalnej (test
+  właściwościowy); **pomiary c1** (serie 20 par × 100 rozdań,
+  seed 7): mlp-clone vs rule −347.62 BB/100, std 522.16, CI95
+  [−576.47, −118.77]; vs rule-aggressive −354.76, std 690.80, CI95
+  [−657.52, −52.01]; vs clone +33.81, std 727.96, CI95 [−285.23,
+  352.86] — nieliniowość przy tych danych nie przesuwa sufitu
+  klonowania (CI vs clone obejmuje zero);
 - `poker.arena` — arena porównawcza agentów (rdzeń bez I/O, INV-P1):
   seria par meczów przez `play_match` na lustrzanych rozdaniach
   (duplicate — ten sam seed meczu dwukrotnie z zamianą miejsc, obie
@@ -212,6 +233,9 @@ wyżej. b4.3 otwarty [decyzją 06](README.md#dokumenty-decyzji)
 (zależności ML wyłącznie w narzędziach, inferencja w stdlib,
 plastry c1→c2→c3 do GTO+explo): POKER-19 — MLP-klon, trzeci punkt
 pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
-— zatwierdzony, u kodera. Po jego pomiarze: kwalifikacja metody c2
-(self-play); ulepszenia agentów wyłącznie z pomiarem w arenie
+— zrealizowany z udokumentowanym pomiarem (wyniki przy opisie
+agenta mlp-clone wyżej: nieliniowość nie przesuwa sufitu
+klonowania), czeka na audyt i integrację. Dalej: kwalifikacja
+metody c2 (self-play w stronę równowagi) z osobnym dokumentem
+decyzji; ulepszenia agentów wyłącznie z pomiarem w arenie
 (decyzja 04, pkt 2).

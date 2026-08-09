@@ -36,7 +36,7 @@ def test_pelny_lancuch_z_metadanych_odtwarza_modul_bajt_w_bajt(tmp_path: Path) -
         agent_names=clone_weights.CORPUS_AGENTS,
         matches=clone_weights.CORPUS_MATCHES,
         seed=clone_weights.CORPUS_SEED,
-        jobs=2,  # zawartość niezależna od liczby procesów — pod testem korpusu
+        jobs=4,  # zawartość niezależna od liczby procesów — pod testem korpusu
     )
     extract_dataset(tmp_path / "korpus", tmp_path / "zbior.json")
     examples = read_dataset(tmp_path / "zbior.json")
