@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-17
-(przepis pochodzenia wag w artefakcie).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-18
+(sufit baseline'u stdlib: cechy v2, większy korpus, pomiar).
 
 ## Co istnieje
 
@@ -92,13 +92,17 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-17
   (b4.1, bez I/O, INV-P1): z historii rozdania dla każdej akcji
   agenta (blindy nie są decyzjami) przykład z prefiksu zdarzeń
   widocznych z miejsca decydującego bezpośrednio przed akcją
-  (widoczność jak w `poker.views`): 21 cech liczbowych v1
+  (widoczność jak w `poker.views`): 23 cechy liczbowe v2
   (`FEATURE_NAMES` — pozycja, blindy, stacki, pula, faza, karty
-  własne, board) i etykieta (typ akcji, kwota); jawne pole wersji
-  zbioru (`DATASET_VERSION`); granica informacyjna decyzji 05 pod
-  testem przecieku (karty przeciwnika i seed nie wpływają na
-  przykłady żadnym kanałem); importuje wyłącznie zdarzenia, karty,
-  projekcję i widoczność — pod testem architektury;
+  własne, board oraz od POKER-18: `hole_equity_mille` — equity
+  all-in klasy kart własnych przeciw polu z macierzy preflop,
+  w promilach, i `hand_category` — kategoria układu z ewaluatora na
+  kartach własnych i boardzie, 0 przed flopem) i etykieta (typ
+  akcji, kwota); jawne pole wersji zbioru (`DATASET_VERSION` = 2);
+  granica informacyjna decyzji 05 pod testem przecieku (karty
+  przeciwnika i seed nie wpływają na przykłady żadnym kanałem);
+  importuje wyłącznie zdarzenia, karty, projekcję, widoczność,
+  ewaluator i equity preflop — pod testem architektury;
 - `poker.clone_training` + `poker.clone_weights` + `poker.clone_agent`
   — baseline behavior cloning (b4.2): deterministyczny trening
   offline w czystym stdlib (wieloklasowa regresja logistyczna na typ
@@ -119,10 +123,15 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-17
   z widoku tą samą definicją co zbiór (`view_features`, zgodność
   trening↔gra pod testem), kwoty v1 minimum legalnym,
   deterministyczny fallback check→call→fold — nigdy decyzji
-  nielegalnej (test właściwościowy na wielu seedach); zmierzony
-  w arenie (kryterium plastra to pomiar, decyzja 05); importy agenta
+  nielegalnej (test właściwościowy na wielu seedach); importy agenta
   ograniczone do widoku, decyzji, cech i wag — pod testem
-  architektury;
+  architektury; pomiary w arenie (kryterium plastra to pomiar,
+  nie kierunek wyniku — decyzja 05), serie 20 par × 100 rozdań,
+  seed 7: **POKER-18 (cechy v2, korpus 100 meczów):** clone vs rule
+  −281.30 BB/100, std 482.64, CI95 [−492.82, −69.77]; clone vs
+  rule-aggressive −171.43 BB/100, std 535.73, CI95 [−406.22, 63.36];
+  poprzedni punkt odniesienia **b4.2 (cechy v1, korpus 30 meczów):**
+  clone vs rule −316.25 BB/100, CI95 [−534.35, −98.16];
 - `poker.arena` — arena porównawcza agentów (rdzeń bez I/O, INV-P1):
   seria par meczów przez `play_match` na lustrzanych rozdaniach
   (duplicate — ten sam seed meczu dwukrotnie z zamianą miejsc, obie
@@ -196,8 +205,10 @@ scalone po audycie; POKER-17 (przepis pochodzenia wag) scalony
 z audytem CZYSTYM — droga b4.1–b4.2 jest kompletna i w pełni
 odtwarzalna z samego repozytorium. Operator wybrał drogę pomiaru
 sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
-siła układu), większy korpus, pomiar w arenie
+siła układu), korpus 100 meczów, pomiar w arenie
 ([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
-zatwierdzony, u kodera. Po jego pomiarze: kwalifikacja b4.3
-(pierwsze zależności ML) decyzją operatora; ulepszenia agentów
-wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
+zrealizowany z udokumentowanym pomiarem (wyniki przy opisie agenta
+clone wyżej), czeka na audyt i integrację. Po nim: kwalifikacja
+b4.3 (pierwsze zależności ML) decyzją operatora na podstawie obu
+punktów pomiarowych; ulepszenia agentów wyłącznie z pomiarem
+w arenie (decyzja 04, pkt 2).

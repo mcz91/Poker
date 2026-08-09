@@ -118,10 +118,14 @@ def test_enkodowanie_zalezy_od_zdarzen_kart_i_widocznosci() -> None:
     poker_imports = {name for name in _imports(encoding) if name.startswith("poker.")}
     assert poker_imports <= {
         "poker.cards",
+        "poker.evaluation",
         "poker.events",
+        "poker.preflop",
+        "poker.preflop_equity",
         "poker.projection",
         "poker.views",
     }, f"encoding.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    assert {"poker.evaluation", "poker.preflop", "poker.preflop_equity"} <= poker_imports
     dataset = SRC_POKER / "adapters" / "dataset.py"
     poker_imports = {name for name in _imports(dataset) if name.startswith("poker.")}
     assert poker_imports <= {

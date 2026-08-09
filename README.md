@@ -101,7 +101,7 @@ Regeneracja zatwierdzonych wag od zera, wyłącznie z tego repozytorium
 wag — zgodność chroni test pochodzenia):
 
 ```bash
-python -m poker.adapters.cli --corpus korpus-wag/ --matches 30 \
+python -m poker.adapters.cli --corpus korpus-wag/ --matches 100 \
   --seed 7 --agent0 rule --agent1 rule-aggressive
 python tools/train_behavior_clone.py --from-corpus korpus-wag/
 ```

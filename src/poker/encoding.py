@@ -1,23 +1,31 @@
-"""Enkodowanie przykładów decyzyjnych (b4.1): cechy wyłącznie z widoku decydującego.
+"""Enkodowanie przykładów decyzyjnych (b4.1, cechy v2 z POKER-18): wyłącznie widok decydującego.
 
-Wersja zbioru: `DATASET_VERSION`. Zestaw i kolejność cech v1 definiuje
+Wersja zbioru: `DATASET_VERSION`. Zestaw i kolejność cech definiuje
 `FEATURE_NAMES`; wszystkie cechy są liczbami całkowitymi. Kolory kart
 indeksowane alfabetycznie po symbolu (c=0, d=1, h=2, s=3), rangi
 wartościami 2–14, brak karty na slocie boardu to para (0, 0). Karty
-własne w porządku malejącym (ranga, indeks koloru). Blindy nie są
-decyzjami — przykład powstaje wyłącznie dla zdarzeń akcji, z prefiksu
-zdarzeń widocznych z miejsca decydującego bezpośrednio przed akcją.
+własne w porządku malejącym (ranga, indeks koloru). Cechy v2:
+`hole_equity_mille` — equity all-in klasy kart własnych przeciw polu
+(średnia po klasach ważona kombinacjami, z macierzy preflop),
+w promilach; `hand_category` — kategoria najlepszego układu z kart
+własnych i boardu (wartość z ewaluatora), 0 przed flopem. Blindy nie
+są decyzjami — przykład powstaje wyłącznie dla zdarzeń akcji,
+z prefiksu zdarzeń widocznych z miejsca decydującego bezpośrednio
+przed akcją.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from poker.cards import Card, Suit
+from poker.evaluation import evaluate_best
 from poker.events import ActionTaken, ActionType, HandEvent, HandStarted, HoleCardsDealt
+from poker.preflop import ALL_CLASSES, PreflopClass, class_combos, classify
+from poker.preflop_equity import equity
 from poker.projection import Phase, project
 from poker.views import PlayerView, visible_events
 
-DATASET_VERSION = 1
+DATASET_VERSION = 2
 
 FEATURE_NAMES: tuple[str, ...] = (
     "is_button",
@@ -41,11 +49,23 @@ FEATURE_NAMES: tuple[str, ...] = (
     "board_suit_4",
     "board_rank_5",
     "board_suit_5",
+    "hole_equity_mille",
+    "hand_category",
 )
 
 _SUIT_INDEX = {suit: index for index, suit in enumerate(sorted(Suit, key=lambda s: s.value))}
 _PHASE_INDEX = {Phase.PREFLOP: 0, Phase.FLOP: 1, Phase.TURN: 2, Phase.RIVER: 3}
 _BOARD_SLOTS = 5
+_ALL_COMBOS = 1326
+
+_FIELD_EQUITY_MILLE: dict[PreflopClass, int] = {
+    cls: round(
+        1000
+        * sum(len(class_combos(other)) * equity(cls, other) for other in ALL_CLASSES)
+        / _ALL_COMBOS
+    )
+    for cls in ALL_CLASSES
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +161,8 @@ def _features(
         low.rank.value,
         _SUIT_INDEX[low.suit],
         *_board_features(board),
+        _FIELD_EQUITY_MILLE[classify(hole[0], hole[1])],
+        evaluate_best(hole + board).category.value if len(board) >= 3 else 0,
     )
 
 

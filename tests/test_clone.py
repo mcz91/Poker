@@ -75,7 +75,7 @@ def test_reprodukcja_treningu_bajt_w_bajt(tmp_path: Path) -> None:
 def test_modul_wag_ma_metadane_i_spojne_wymiary() -> None:
     from poker import clone_weights
 
-    assert clone_weights.DATASET_VERSION == 1
+    assert clone_weights.DATASET_VERSION == 2
     assert clone_weights.LEARNING_RATE > 0
     assert clone_weights.EPOCHS > 0
     assert clone_weights.EXAMPLES > 0

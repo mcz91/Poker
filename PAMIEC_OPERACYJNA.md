@@ -22,16 +22,17 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty; fakty tylko
   tu: F2 audytu POKER-1 — odstępstwo uznane decyzją operatora; audyt
   POKER-7 potwierdzony 960 meczami niezależnymi.
-- 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main dosunięty do
-  e0b0f2b jednorazowym poleceniem operatora — stała autoryzacja
-  (komplet audytów) dalej obowiązuje.
+- 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main na e0b0f2b
+  jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
 - 2026-08-09 arch: kwalifikacja b4.3 rozstrzygnięta przez operatora:
   droga 1 (pomiar sufitu stdlib przed zależnościami) → POKER-18
   zatwierdzony; koder startuje ze świeżej sesji z heada
-  integracyjnego, nie z main. Pomiar referencyjny do porównania
-  w WĄTKACH.
+  integracyjnego, nie z main; punkty pomiarowe w CURRENT_STATE.
+- 2026-08-09 koder: POKER-18 zrealizowany ze startu `e166bb5` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Trening na
+  math.sumprod (3×) — korpus 100 meczów mieści bramkę w 17 s.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -41,9 +42,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
-- 2026-08-08 arch: pomiar referencyjny b4.2: clone vs rule −316.25
-  BB/100, CI [−534.35, −98.16] (20 par×100 rozdań, seed 7) — podstawa
-  b4.3; test wolny (rekomendacja audytu) rozstrzygnąć przy b4.3.
+- 2026-08-08 arch: test wolny pomiaru referencyjnego (rekomendacja
+  audytu b4.2) rozstrzygnąć przy kwalifikacji b4.3.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 

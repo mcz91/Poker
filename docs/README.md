@@ -68,8 +68,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   audyt: CZYSTY — F1 audytu POKER-15/16 domknięty z dowodem
   mechanicznym);
 - [`POKER-18.json`](taskspecs/POKER-18.json) — sufit baseline'u
-  stdlib: cechy v2 (equity, siła układu), większy korpus, pomiar
-  w arenie (zatwierdzony, u kodera).
+  stdlib: cechy v2 (equity, siła układu), korpus 100 meczów, pomiar
+  w arenie (zrealizowany przez kodera, czeka na audyt i integrację).
 
 ## Operator
 

@@ -6,7 +6,6 @@ from poker.cards import Card, Rank, Suit
 from poker.encoding import (
     DATASET_VERSION,
     FEATURE_NAMES,
-    DecisionExample,
     encode_hand,
 )
 from poker.events import (
@@ -76,21 +75,19 @@ def test_cechy_v1_pierwszej_decyzji_preflop_przybite() -> None:
         HandEnded(),
     )
     example = encode_hand(history)[0]
-    assert len(FEATURE_NAMES) == len(example.features) == 21
-    assert example == DecisionExample(
-        seat=0,
-        features=(
-            1,          # is_button
-            1, 2,       # blindy
-            99, 98, 3,  # stack własny, przeciwnika, pula (po blindach)
-            0,          # faza preflop
-            14, 3,      # As
-            13, 2,      # Kh
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  # pusty board
-        ),
-        action=ActionType.CALL,
-        amount=1,
+    assert len(FEATURE_NAMES) == len(example.features) == 23
+    assert example.features[:21] == (
+        1,          # is_button
+        1, 2,       # blindy
+        99, 98, 3,  # stack własny, przeciwnika, pula (po blindach)
+        0,          # faza preflop
+        14, 3,      # As
+        13, 2,      # Kh
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  # pusty board
     )
+    assert example.seat == 0
+    assert example.action is ActionType.CALL
+    assert example.amount == 1
 
 
 def test_cechy_decyzji_postflop_widza_board_i_pozycje() -> None:
@@ -108,7 +105,7 @@ def test_cechy_decyzji_postflop_widza_board_i_pozycje() -> None:
     assert bet.seat == 1
     assert bet.action is ActionType.BET
     assert bet.amount == 2
-    assert bet.features == (
+    assert bet.features[:21] == (
         0,          # miejsce 1 bez buttona
         1, 2,
         98, 98, 4,
@@ -132,7 +129,50 @@ def test_przeciek_karty_przeciwnika_i_seed_nie_wplywaja_na_przyklady() -> None:
 
 
 def test_wersja_zbioru_jest_jawna() -> None:
-    assert DATASET_VERSION == 1
+    assert DATASET_VERSION == 2
+    assert len(FEATURE_NAMES) == 23
+    assert FEATURE_NAMES[21] == "hole_equity_mille"
+    assert FEATURE_NAMES[22] == "hand_category"
+
+
+def test_cechy_v2_equity_preflop_i_sila_ukladu() -> None:
+    from poker.evaluation import evaluate_best
+    from poker.preflop import ALL_CLASSES, class_combos, classify
+    from poker.preflop_equity import equity
+
+    preflop_only = (
+        *naglowek(7, (TWO_C, SEVEN_D)),
+        ActionTaken(seat=0, action=ActionType.FOLD, amount=0),
+        PotAwarded(seat=1, amount=3),
+        HandEnded(),
+    )
+    example = encode_hand(preflop_only)[0]
+    klasa = classify(AS, KH)
+    oczekiwana_equity = round(
+        1000 * sum(len(class_combos(inna)) * equity(klasa, inna) for inna in ALL_CLASSES) / 1326
+    )
+    assert example.features[21] == oczekiwana_equity
+    assert example.features[22] == 0  # preflop: brak układu z boardu
+
+    postflop = (
+        *naglowek(7, (QC, QD)),
+        ActionTaken(seat=0, action=ActionType.CALL, amount=1),
+        ActionTaken(seat=1, action=ActionType.CHECK, amount=0),
+        FlopDealt(cards=FLOP),
+        ActionTaken(seat=1, action=ActionType.BET, amount=2),
+        ActionTaken(seat=0, action=ActionType.FOLD, amount=0),
+        PotAwarded(seat=1, amount=6),
+        HandEnded(),
+    )
+    bet = encode_hand(postflop)[2]
+    assert bet.features[21] == round(
+        1000
+        * sum(
+            len(class_combos(inna)) * equity(classify(QC, QD), inna) for inna in ALL_CLASSES
+        )
+        / 1326
+    )
+    assert bet.features[22] == evaluate_best((QC, QD, *FLOP)).category.value
 
 
 def test_decyzja_przed_kartami_wlasnymi_jest_bledem() -> None:

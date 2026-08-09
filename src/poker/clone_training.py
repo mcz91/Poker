@@ -10,7 +10,7 @@ bo inferencja musi liczyć dokładnie tę samą transformację.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from math import exp, sqrt
+from math import exp, sqrt, sumprod
 
 from poker.encoding import DATASET_VERSION, FEATURE_NAMES, DecisionExample
 
@@ -71,22 +71,25 @@ def train_clone(
 
     classes = len(ACTION_ORDER)
     weights = [[0.0] * (dimensions + 1) for _ in range(classes)]
+    scale = learning_rate / count
+    columns = list(zip(*inputs, strict=True))
     for _ in range(epochs):
-        gradient = [[0.0] * (dimensions + 1) for _ in range(classes)]
-        for row, target in zip(inputs, targets, strict=True):
-            scores = [sum(w * x for w, x in zip(weights[k], row, strict=True))
-                      for k in range(classes)]
+        # Błędy softmaksu wszystkich przykładów najpierw, potem gradient po cechach
+        # przez math.sumprod — ta sama matematyka pełnego batcha, mniejszy narzut.
+        errors = [[0.0] * count for _ in range(classes)]
+        for position, (row, target) in enumerate(zip(inputs, targets, strict=True)):
+            scores = [sumprod(class_weights, row) for class_weights in weights]
             peak = max(scores)
             exps = [exp(score - peak) for score in scores]
             total = sum(exps)
             for k in range(classes):
-                error = exps[k] / total - (1.0 if k == target else 0.0)
-                row_gradient = gradient[k]
-                for index, x in enumerate(row):
-                    row_gradient[index] += error * x / count
+                errors[k][position] = exps[k] / total
+            errors[target][position] -= 1.0
         for k in range(classes):
-            for index in range(dimensions + 1):
-                weights[k][index] -= learning_rate * gradient[k][index]
+            class_weights = weights[k]
+            class_errors = errors[k]
+            for index, column in enumerate(columns):
+                class_weights[index] -= scale * sumprod(class_errors, column)
 
     return CloneModel(
         feature_means=tuple(means),

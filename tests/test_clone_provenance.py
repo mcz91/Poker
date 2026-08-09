@@ -13,7 +13,7 @@ WEIGHTS_PATH = Path(__file__).resolve().parent.parent / "src" / "poker" / "clone
 
 def test_metadane_pochodzenia_sa_kompletne_i_typowane() -> None:
     assert clone_weights.CORPUS_AGENTS == ("rule", "rule-aggressive")
-    assert clone_weights.CORPUS_MATCHES >= 1
+    assert clone_weights.CORPUS_MATCHES > 30  # istotnie większy korpus niż b4.2
     assert isinstance(clone_weights.CORPUS_SEED, int)
     assert clone_weights.CORPUS_SMALL_BLIND >= 1
     assert clone_weights.CORPUS_BIG_BLIND >= 1
@@ -36,6 +36,7 @@ def test_pelny_lancuch_z_metadanych_odtwarza_modul_bajt_w_bajt(tmp_path: Path) -
         agent_names=clone_weights.CORPUS_AGENTS,
         matches=clone_weights.CORPUS_MATCHES,
         seed=clone_weights.CORPUS_SEED,
+        jobs=2,  # zawartość niezależna od liczby procesów — pod testem korpusu
     )
     extract_dataset(tmp_path / "korpus", tmp_path / "zbior.json")
     examples = read_dataset(tmp_path / "zbior.json")
