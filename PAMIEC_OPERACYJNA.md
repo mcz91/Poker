@@ -26,12 +26,11 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-09 arch: POKER-18 audyt (1 informacyjny, bez działania),
-  zweryfikowany niezależnie (czysty venv 3.13: ruff 0, mypy 0/53,
-  pytest 208; oba pomiary odtworzone co do setnych) i scalony ff.
-  Kwalifikacja b4.3 u operatora — rekomendacja architekta w czacie;
-  fakt kodera: math.sumprod dał 3× na treningu (korpus 100 meczów
-  mieści bramkę w ~17 s).
+- 2026-08-09 arch: POKER-18 scalony po audycie (statusy w indeksie);
+  fakt kodera: math.sumprod dał 3× na treningu stdlib. b4.3 otwarty
+  decyzją 06; POKER-19 (MLP-klon, c1) zatwierdzony — koder startuje
+  ze świeżej sesji z heada integracyjnego, nie z main; pierwsza
+  zależność (numpy) wyłącznie w tools/ i extras dev.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -41,14 +40,16 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
-- 2026-08-08 arch: test wolny pomiaru referencyjnego (rekomendacja
-  audytu b4.2) rozstrzygnąć przy kwalifikacji b4.3.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
 - 2026-08-08 operator: autoryzacja stała — main podąża za headem
   gałęzi integracyjnej fast-forwardem po każdym komplecie audytów
   scalonych zadań; wykonuje architekt bez pytania.
+- 2026-08-09 operator: mandat autonomii — na drodze b4/GTO+explo
+  architekt kwalifikuje i zatwierdza kontrakty bez pytania (skala,
+  prostota architektury); do operatora wracają tylko naruszenia
+  niezmienników, nowe produkty/gałęzie i zmiany jego decyzji.
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 

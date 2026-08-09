@@ -1,0 +1,44 @@
+{
+  "id": "POKER-19",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator poznaje trzeci punkt pomiarowy drogi b4: klon nieliniowy (MLP) trenowany narzędziem z numpy na danych v2, z inferencją w czystym stdlib, zmierzony w arenie obok klona liniowego — plaster c1 decyzji 06.",
+  "acceptance": [
+    "Narzędzie treningu MLP w tools/ używa numpy wyłącznie po stronie treningu: nowa zależność zadeklarowana w extras deweloperskich pyproject (pakiet produktu bez zależności wykonawczych), z powodem i planem usunięcia w opisie commita (reguła 9 konstytucji, decyzja 06); architektura sieci (warstwy, aktywacje) i hiperparametry są parametrami z udokumentowanym domyślnym zestawem (INV-P6).",
+    "Trening jest deterministyczny: seedowana inicjalizacja wag i deterministyczny przebieg — ten sam zbiór, hiperparametry i seed dają bajt w bajt identyczny moduł wag; pod testem reprodukcji na małym łańcuchu kontrolnym w bramce (dwustopniowy dowód decyzji 06: pełna regeneracja artefaktu produkcyjnego jedną udokumentowaną w README komendą, poza bramką).",
+    "Wagi MLP żyją jako wygenerowany moduł danych z kompletnym przepisem pochodzenia (wzorzec POKER-17: parametry korpusu, ekstrakcji, architektury i treningu — bez placeholderów; bez I/O przy odczycie, INV-P1); inferencja agenta jest czystym stdlib: forward pass w pakiecie produktu bez importu numpy — pod rozszerzonym testem architektury.",
+    "Agent MLP-klon w rejestrze CLI pod udokumentowaną nazwą: czysta deterministyczna funkcja widoku w decyzję portem Agent (INV-P4, INV-P8), cechy v2 tą samą definicją co zbiór (zgodność trening↔gra pod testem), kwoty i fallback regułą v1 z POKER-16, nigdy decyzji nielegalnej — test właściwościowy przez play_match na wielu seedach.",
+    "Pomiar w arenie po treningu: MLP-klon vs rule, vs rule-aggressive i vs clone (liniowy), serie o mocy co najmniej referencyjnej (20 par x 100 rozdań, jawne seedy); wyniki (BB/100, odchylenie, CI, konfiguracja) udokumentowane w docs/CURRENT_STATE.md obok obu punktów liniowych — kryterium plastra jest wykonany i udokumentowany pomiar, nie kierunek wyniku (decyzje 05 i 06).",
+    "Granice: numpy nie występuje w żadnym module src/poker (test architektury); silnik, widoki, arena, korpus, enkodowanie v2 (DATASET_VERSION bez zmian), format eksportu i agenci istniejący nietknięci; pełna bramka pozostaje w rzędzie kilkunastu sekund — konflikt skali treningu z kosztem bramki to OBJECTION, nie osłabienie dowodu.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (instalacja extras, trening, regeneracja, pomiar), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Self-play i uczenie ponad nauczyciela — plaster c2, osobna kwalifikacja metodyczna z dokumentem decyzji po pomiarze c1 (decyzja 06).",
+    "Warstwa eksploatacyjna — plaster c3 (decyzje 04 i 06).",
+    "Nauka kwot (sizing) — kwoty pozostają regułą v1; osobna kwalifikacja.",
+    "numpy lub inna zależność w pakiecie produktu i w inferencji — czerwień recenzji (decyzja 06).",
+    "Zmiany cech i wersji zbioru, silnika, widoków, areny, korpusu, eksportu i agentów istniejących.",
+    "Usuwanie klona liniowego — pozostaje punktem odniesienia pomiarów."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "pyproject.toml",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-09T23:06:30Z"
+  }
+}

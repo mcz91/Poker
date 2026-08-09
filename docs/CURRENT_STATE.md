@@ -208,7 +208,10 @@ sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
 siła układu), korpus 100 meczów, pomiar w arenie
 ([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
 scalony po audycie, pomiary udokumentowane przy opisie agenta clone
-wyżej. Materiał pomiarowy pod b4.3 jest kompletny: kwalifikacja
-pierwszych zależności ML u operatora, na rekomendację architekta;
-ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
-pkt 2).
+wyżej. b4.3 otwarty [decyzją 06](README.md#dokumenty-decyzji)
+(zależności ML wyłącznie w narzędziach, inferencja w stdlib,
+plastry c1→c2→c3 do GTO+explo): POKER-19 — MLP-klon, trzeci punkt
+pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
+— zatwierdzony, u kodera. Po jego pomiarze: kwalifikacja metody c2
+(self-play); ulepszenia agentów wyłącznie z pomiarem w arenie
+(decyzja 04, pkt 2).

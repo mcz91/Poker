@@ -19,7 +19,11 @@
 5. [`05-b4-plastrami-dane-baseline-zaleznosci.md`](decisions/05-b4-plastrami-dane-baseline-zaleznosci.md)
    — podetap b4 plastrami (zbiór przykładów → baseline stdlib →
    zależności po pomiarze), granica informacyjna danych treningowych,
-   bezstanowość agentów w rozgrywce (zamyka wątek audytu POKER-13).
+   bezstanowość agentów w rozgrywce (zamyka wątek audytu POKER-13);
+6. [`06-b43-zaleznosci-w-narzedziach-droga-gto-explo.md`](decisions/06-b43-zaleznosci-w-narzedziach-droga-gto-explo.md)
+   — b4.3: zależności ML wyłącznie w narzędziach, inferencja
+   w stdlib, plastry c1 (MLP-klon) → c2 (self-play) → c3 (explo),
+   dwustopniowe dowody odtwarzalności na skalę.
 
 ## TaskSpeki
 
@@ -71,7 +75,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   stdlib: cechy v2 (equity, siła układu), korpus 100 meczów, pomiar
   w arenie (zamknięty, commit `cd645ed`; audyt: 1 finding
   informacyjny — niedoliczony dowód czerwieni, bez obowiązku
-  działania).
+  działania);
+- [`POKER-19.json`](taskspecs/POKER-19.json) — MLP-klon, plaster c1
+  decyzji 06: trening numpy w tools/, inferencja stdlib, trzeci
+  punkt pomiarowy (zatwierdzony, u kodera).
 
 ## Operator
 
