@@ -66,7 +66,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-17.json`](taskspecs/POKER-17.json) — przepis pochodzenia
   wag w artefakcie i test pochodzenia (zamknięty, commit `469f2db`;
   audyt: CZYSTY — F1 audytu POKER-15/16 domknięty z dowodem
-  mechanicznym).
+  mechanicznym);
+- [`POKER-18.json`](taskspecs/POKER-18.json) — sufit baseline'u
+  stdlib: cechy v2 (equity, siła układu), większy korpus, pomiar
+  w arenie (zatwierdzony, u kodera).
 
 ## Operator
 

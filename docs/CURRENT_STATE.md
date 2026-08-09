@@ -194,7 +194,10 @@ korpus self-play) scalone; b4 wchodzi plastrami
 przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
 scalone po audycie; POKER-17 (przepis pochodzenia wag) scalony
 z audytem CZYSTYM — droga b4.1–b4.2 jest kompletna i w pełni
-odtwarzalna z samego repozytorium. Następny krok: kwalifikacja b4.3
-(pierwsze zależności ML wyłącznie po zmierzonym suficie stdlib) —
-decyzja operatora na rekomendację architekta; ulepszenia agentów
+odtwarzalna z samego repozytorium. Operator wybrał drogę pomiaru
+sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
+siła układu), większy korpus, pomiar w arenie
+([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
+zatwierdzony, u kodera. Po jego pomiarze: kwalifikacja b4.3
+(pierwsze zależności ML) decyzją operatora; ulepszenia agentów
 wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

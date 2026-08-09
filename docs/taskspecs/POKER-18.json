@@ -1,0 +1,42 @@
+{
+  "id": "POKER-18",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator poznaje realny sufit baseline'u stdlib: klon przetrenowany na wzbogaconych cechach (equity preflop, siła układu) i większym korpusie, zmierzony w arenie — podstawa kwalifikacji b4.3 (wybór operatora: droga 1 po pomiarze b4.2).",
+  "acceptance": [
+    "Zestaw cech enkodowania rozszerzony z jawnym podniesieniem wersji zbioru (DATASET_VERSION 2): dochodzą cechy wyprowadzone wyłącznie z widoku miejsca decydującego z istniejących aktywów repozytorium — equity preflop własnej ręki przeciw polu z macierzy POKER-12 oraz siła bieżącego układu z ewaluatora na kartach własnych i boardzie (postflop); zestaw i kolejność cech v2 udokumentowane w FEATURE_NAMES; granica informacyjna decyzji 05 pod rozszerzonym testem przecieku — nowe cechy nie zależą od kart przeciwnika, seeda ani zdarzeń EngineOnly.",
+    "Zgodność trening↔gra utrzymana dla cech v2 pod testem: dla tego samego punktu decyzyjnego cechy z historii (poker.encoding) i cechy z widoku agenta (view_features) są identyczne.",
+    "Wagi klona przetrenowane od zera na korpusie self-play istotnie większym niż 30 meczów z b4.2 (rozmiar i seed parametrami; rodzina modelu bez zmian — wieloklasowa regresja logistyczna, żeby pomiar izolował wkład cech i danych); przepis pochodzenia kompletny w metadanych artefaktu, test pochodzenia odtwarza pełny łańcuch z metadanych i pozostaje zielony (POKER-17); pełna bramka pozostaje w rzędzie dotychczasowych kilkunastu sekund — konflikt rozmiaru korpusu z kosztem bramki to OBJECTION, nie osłabienie porównania bajt w bajt.",
+    "Pomiar w arenie po treningu: clone vs rule oraz clone vs rule-aggressive, seria z jawnym seedem o mocy co najmniej pomiaru referencyjnego b4.2 (20 par x 100 rozdań); wyniki (BB/100, odchylenie, CI, konfiguracja serii) udokumentowane w docs/CURRENT_STATE.md przy opisie agenta clone obok poprzedniego punktu odniesienia — kryterium plastra jest wykonany i udokumentowany pomiar, nie kierunek wyniku (decyzja 05).",
+    "Granice: importy poker.encoding poszerzone wyłącznie o ewaluator i equity preflop (rozszerzony test architektury); agent clone nadal importuje wyłącznie widok, decyzję, cechy i wagi; silnik, widoki, arena, generator korpusu, format eksportu i manifest nietknięte; zero zależności poza standard library.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Kwalifikacja b4.3 (pierwsze zależności ML) — następuje po tym pomiarze, decyzją operatora na rekomendację architekta.",
+    "Zmiana rodziny modelu, RL i self-play trening — inna rodzina nawet w stdlib wymagałaby osobnej kwalifikacji; ten plaster mierzy wkład cech i danych.",
+    "Nauka kwot (sizing) — kwoty pozostają deterministyczną regułą v1 z POKER-16.",
+    "Ulepszanie agentów regułowych (droga 3 kwalifikacji) — osobny kontrakt, zawsze z pomiarem w arenie.",
+    "Test wolny pomiaru referencyjnego i mechanizm markerów pytest — rozstrzygnięcie przy kwalifikacji b4.3 (WĄTEK).",
+    "Zmiany silnika, widoków, kontraktu agenta, stołu, areny, korpusu i formatu eksportu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-09T20:21:20Z"
+  },
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
