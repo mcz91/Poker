@@ -274,7 +274,13 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
   i seedy nieobecne przed showdownem); rozłączenie gracza kończy
   wyłącznie jego stół komunikatem dla przeciwnika — pod testem;
   opcjonalny eksport historii zakończonych stołów istniejącym
-  formatem (round-trip pod testem); `poker.adapters.lan_client`
+  formatem (round-trip pod testem); kod stołu od POKER-25 jest losowy
+  (8 znaków z 31-znakowego alfabetu bez znaków mylących, ~39,6 bita)
+  z seedowanego RNG adaptera — `--serve-seed` daje odtwarzalną
+  sekwencję, pominięty nieodtwarzalną; kolizja kodu nie nadpisuje
+  cudzego stołu, a błędny kod nie zdradza liczby ani kodów
+  istniejących stołów — pod testami (domknięcie F1 audytu POKER-21);
+  `poker.adapters.lan_client`
   (CLI `--connect`, `--join`, `--opponent`) — klient terminalowy;
   testy sterują serwerem i klientami w procesie (gniazda lokalne,
   porty efemeryczne, bez podprocesów i zegara ściennego); kierunek

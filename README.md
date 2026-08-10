@@ -49,7 +49,7 @@ działa tą samą flagą `--export`.
 python -m poker.adapters.cli --serve 7777            # serwer stołów
 python -m poker.adapters.cli --connect 192.168.0.10:7777 \
   --opponent human --hands 50 --seed 7               # tworzy stół, drukuje kod
-python -m poker.adapters.cli --connect 192.168.0.10:7777 --join STOL-1
+python -m poker.adapters.cli --connect 192.168.0.10:7777 --join K7M2QRXB
 ```
 
 Jeden serwer (`--serve PORT`, nasłuch na `--serve-host`, domyślnie
@@ -65,7 +65,12 @@ wersja jest odrzucana po obu stronach. Rozłączenie gracza kończy jego
 stół komunikatem dla przeciwnika, bez wpływu na pozostałe stoły.
 `--export-dir KATALOG` na serwerze zapisuje historie zakończonych
 stołów w formacie eksportu. Sieć lokalna jest zaufana (decyzja 08):
-kod stołu to jedyna kontrola dostępu.
+kod stołu to jedyna kontrola dostępu — dlatego jest losowy, nie
+kolejny: osiem znaków z alfabetu bez znaków mylących
+(`ABCDEFGHJKMNPQRSTUVWXYZ23456789`), czyli ~39,6 bita. `--serve-seed`
+przybija sekwencję kodów (odtwarzalna między uruchomieniami, przydatne
+w testach); pominięty daje kody nieodtwarzalne. To utrudnia trafienie
+w cudzy stół, ale nie jest zabezpieczeniem kryptograficznym.
 
 ### Arena porównawcza agentów
 

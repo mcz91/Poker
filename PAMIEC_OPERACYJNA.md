@@ -23,7 +23,7 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 koder: POKER-24 częściowo na `claude/new-session-aazf0r`
   (wznowienia + wydajność zielone; skala ≥50k = OBJECTION: CONFLICT,
   liczby w `docs/CURRENT_STATE.md`) — czeka na rozstrzygnięcie
-  architekta; POKER-25 idzie na szczycie.
+  architekta; POKER-25 zrealizowany na jego szczycie.
 - 2026-08-10 arch: komplet audytów POKER-1…23, main dosunięty.
   POKER-24 (c2c) i POKER-25 (kod stołu LAN) zatwierdzone; scalanie 24→25.
 

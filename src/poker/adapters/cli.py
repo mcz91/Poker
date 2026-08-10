@@ -74,6 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
                              "przerwania; domyślnie brak)")
     parser.add_argument("--serve-host", default="0.0.0.0",
                         help="interfejs nasłuchu serwera (domyślnie 0.0.0.0)")
+    parser.add_argument("--serve-seed", type=int, default=None, metavar="SEED",
+                        help="serwer: seed generatora kodów stołu (domyślnie brak — "
+                             "kody nieodtwarzalne między uruchomieniami)")
     parser.add_argument("--export-dir", type=Path, default=None, metavar="KATALOG",
                         help="serwer: eksport historii zakończonych stołów do KATALOGU "
                              "(domyślnie wyłączony)")
@@ -101,7 +104,10 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
 
 def _run_serve_command(args: argparse.Namespace) -> int:
     server = TableServer(
-        host=args.serve_host, port=args.serve, export_directory=args.export_dir
+        host=args.serve_host,
+        port=args.serve,
+        export_directory=args.export_dir,
+        seed=args.serve_seed,
     )
     host, port = server.start()
     print(f"serwer stołów LAN słucha na {host}:{port} (przerwij Ctrl+C)")

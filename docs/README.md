@@ -115,8 +115,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   `OBJECTION: CONFLICT` z pomiarem — czeka na rozstrzygnięcie
   architekta, patrz `CURRENT_STATE.md`);
 - [`POKER-25.json`](taskspecs/POKER-25.json) — losowy kod stołu
-  w serwerze LAN, domknięcie F1 audytu POKER-21 (zatwierdzony do
-  pracy równoległej z POKER-24; kolejność integracji 24 przed 25).
+  w serwerze LAN, domknięcie F1 audytu POKER-21 (zrealizowany przez
+  kodera na szczycie POKER-24, czeka na audyt i integrację
+  w kolejności 24 przed 25).
 
 ## Operator
 
