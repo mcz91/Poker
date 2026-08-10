@@ -124,8 +124,17 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   kryteria spełnione);
 - [`POKER-26.json`](taskspecs/POKER-26.json) — informacja zwrotna
   przy stole LAN: oczekiwanie na przeciwnika i wynik z perspektywy
-  gracza (szkic z weryfikacji użyteczności architekta; start po
-  scaleniu POKER-25 — ten sam obszar adaptera).
+  gracza (szkic z weryfikacji użyteczności architekta; POKER-25
+  scalony, więc kontrakt gotowy do zatwierdzenia — wchodzi razem
+  z uwagami informacyjnymi audytu POKER-25);
+- [`POKER-27.json`](taskspecs/POKER-27.json) — krzywa
+  jakość-vs-skala MCCFR poza repozytorium i pomiar rozstrzygający
+  przy podniesionej mocy, plaster c2c po decyzji 09 (zatwierdzony,
+  u kodera);
+- [`POKER-28.json`](taskspecs/POKER-28.json) — findingi audytu
+  POKER-24/25: wiązanie checkpointu z parametrami biegu, jednokrotne
+  parsowanie plików w testach architektury (zatwierdzony; kolejność
+  integracji: 28 przed 27).
 
 ## Operator
 

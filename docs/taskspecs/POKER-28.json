@@ -1,0 +1,39 @@
+{
+  "id": "POKER-28",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Wznowiony trening nie może po cichu skleić biegów o różnych parametrach, a bramka nie ma płacić pięciokrotnie za parsowanie tego samego pliku — domknięcie findingów audytu POKER-24/25.",
+  "acceptance": [
+    "Checkpoint treningu MCCFR niesie parametry biegu (co najmniej seed, konfigurację rozdania i parametry abstrakcji użyte do jego wytworzenia), a --resume odmawia wznowienia z czytelnym błędem, gdy którykolwiek z nich różni się od parametrów bieżącego wywołania — pod testem: wznowienie z innym seedem oraz z inną konfiguracją kończy się błędem, wznowienie ze zgodnymi parametrami nadal daje artefakt bajt w bajt równy biegowi ciągłemu (istniejące testy wznowień pozostają zielone).",
+    "Wersja formatu checkpointu podniesiona, jeśli jego zawartość się zmienia; checkpoint w starym formacie jest odrzucany jawnym błędem, nie wznawiany po cichu — pod testem.",
+    "Testy architektury przestają parsować ten sam plik wielokrotnie: wynik analizy importów jest liczony raz na plik w obrębie biegu testów; zbiór sprawdzanych plików i asercje pozostają dokładnie te same (żadnego pliku nie ubywa spod kontroli) — dowód: lista plików objętych testami przed i po zmianie jest identyczna, podana w raporcie kodera.",
+    "Pomiar kosztu bramki przed i po zmianie w raporcie kodera; oczekiwany kierunek to wyraźny spadek czasu pytest przy niezmienionej liczbie testów i zielonym wyniku.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Zmiana artefaktu strategii, wag klonów, abstrakcji i zachowania agentów — to porządek narzędzi i testów, nie zmiana produktu; artefakty pozostają bajt w bajt bez zmian.",
+    "Skala treningu i krzywa jakość-vs-skala — POKER-27 (obszary rozłączne poza tools/train_mccfr.py; kolejność integracji: POKER-28 przed POKER-27, właściciel integracji: architekt).",
+    "Atomowy zapis checkpointu — rozważony i odrzucony jako niepotrzebny przy dzisiejszym użyciu (bieg lokalny, checkpoint odtwarzalny z seeda); wraca, gdy pojawi się bieg wielogodzinny na współdzielonej maszynie.",
+    "Uwagi informacyjne audytu POKER-25 (metryka entropii w teście, brak testu flagi --serve-seed) — wchodzą do najbliższego kontraktu sieciowego razem z POKER-26.",
+    "Zmiany silnika, widoków, areny, korpusu, eksportu i LAN."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T12:14:32Z"
+  }
+}

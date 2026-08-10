@@ -1,0 +1,43 @@
+{
+  "id": "POKER-27",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator dowiaduje się, czy zwiększanie skali treningu MCCFR w ogóle kupuje jakość gry: krzywa jakość-vs-skala zmierzona w arenie o mocy rozdzielającej różnice rzędu 50 BB/100 — plaster c2c po decyzji 09.",
+  "acceptance": [
+    "Narzędzie w tools/ trenuje serię artefaktów o rosnących skalach (domyślnie 1000, 2000, 4000, 8000, 16000 iteracji; lista i seed to parametry, INV-P6) do wskazanego katalogu POZA repozytorium — repozytorium nie zmienia ani artefaktu strategii, ani wersji abstrakcji, ani agentów; artefakt src/poker/strategy_table.py pozostaje bajt w bajt taki jak dziś (weryfikacja w raporcie kodera).",
+    "Agent strategii daje się wskazać artefakt spoza repozytorium bez zmiany zachowania domyślnego: mechanizm ładowania jest częścią narzędzi pomiarowych, a nie ścieżki produkcyjnej agenta — moduł produkcyjny agenta i jego importy pozostają bez zmian, silnik i pakiet bez I/O przy odczycie danych (INV-P1); rozwiązanie i jego granicę opisuje raport kodera, a test architektury pozostaje zielony bez rozluźnienia.",
+    "Pomiar krzywej: dla każdej skali seria w arenie przeciw rule, rule-aggressive, clone i mlp-clone, z liczbą par dobraną tak, by przy obserwowanym odchyleniu (~800-1100 BB/100 na parę) połowa szerokości 95% przedziału ufności nie przekraczała 50 BB/100 — wymaganą liczbę par wylicz z danych, udokumentuj wzór i użytą wartość (rząd setek par; przy 1000 par pojedyncza seria to minuty, nie godziny — zmierz i podaj czas).",
+    "Wyniki (skala, liczba infosetów, BB/100 z CI dla każdego przeciwnika, czas treningu i pomiaru, seedy) trafiają do docs/CURRENT_STATE.md jako tabela krzywej wraz z jednozdaniowym odczytem: czy jakość rośnie ze skalą monotonicznie, płasko, czy niemonotonicznie; kryterium plastra jest rzetelny pomiar, wniosek o metodzie należy do architekta (decyzja 09 pkt 4).",
+    "Pomiar rozstrzygający wobec decyzji 07 pkt 6 przy tej samej podniesionej mocy: artefakt obecny w repozytorium (1000 iteracji) vs rule, rule-aggressive, clone, mlp-clone — raport stwierdza wprost, czy mccfr jest istotnie lepszy od klonów, gorszy, czy nierozstrzygnięty.",
+    "Reprodukowalność: każdy punkt krzywej daje się odtworzyć jedną udokumentowaną w README komendą z podanym seedem; pomiary są deterministyczne (ten sam seed serii daje ten sam raport) — pod testem na jednym małym punkcie w bramce; pełne biegi wykonywane poza bramką (decyzja 06 pkt 3).",
+    "Pełna bramka pozostaje w rzędzie kilkunastu sekund i nie rośnie względem stanu przed zadaniem (pomiar przed/po w raporcie); nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a bramka zielona po.",
+    "README.md (krzywa: trening serii, pomiar, odtworzenie punktu), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Wybór formy artefaktu na skali (przycięcie progiem odwiedzin, zasób pakietowy, grubsza abstrakcja) — odroczony do wyniku krzywej, z warunkami z decyzji 09 pkt 3; ten kontrakt dostarcza dane do wyboru, nie wybór.",
+    "Podmiana artefaktu produkcyjnego w repozytorium i zmiana ABSTRACTION_VERSION — jawnie zakazane w tym zadaniu.",
+    "Zmiana brzmienia INV-P1 — wymaga osobnej, jawnej decyzji (decyzja 09 pkt 3).",
+    "Trening na skalach powyżej zakresu krzywej i artefakt >=50k iteracji — kryterium wycofane decyzją 09.",
+    "Warstwa eksploatacyjna (c3) i nowa kwalifikacja metody — po odczycie krzywej.",
+    "Zmiany silnika, widoków, agentów, areny, korpusu, eksportu i LAN."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T12:14:32Z"
+  }
+}
