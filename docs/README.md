@@ -31,7 +31,11 @@
 8. [`08-pokerroom-krok1-stoly-heads-up-w-lan.md`](decisions/08-pokerroom-krok1-stoly-heads-up-w-lan.md)
    — otwarcie gałęzi pokerroom na zamówienie operatora: serwer wielu
    stołów heads-up w LAN (adapter, mono-repo), separacja informacji
-   na granicy procesu; multiway = osobna kwalifikacja silnika.
+   na granicy procesu; multiway = osobna kwalifikacja silnika;
+9. [`09-skala-mccfr-krzywa-przed-forma.md`](decisions/09-skala-mccfr-krzywa-przed-forma.md)
+   — sprzeciw kodera wobec POKER-24 uznany (kryteria sprzeczne),
+   kryterium ≥50k wycofane; krzywa jakość-vs-skala poza repozytorium
+   przed wyborem formy artefaktu; warunki dla trzech opcji formy.
 
 ## TaskSpeki
 
@@ -110,10 +114,14 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   architekta);
 - [`POKER-24.json`](taskspecs/POKER-24.json) — skala treningu MCCFR:
   wznowienia deterministyczne, artefakt ≥50k iteracji, pomiar
-  rozstrzygający, plaster c2c (zatwierdzony, u kodera);
-- [`POKER-25.json`](taskspecs/POKER-25.json) — losowy kod stołu
-  w serwerze LAN, domknięcie F1 audytu POKER-21 (zatwierdzony do
-  pracy równoległej z POKER-24; kolejność integracji 24 przed 25);
+  rozstrzygający, plaster c2c (zamknięty częściowo, commit
+  `fd253f5`: wznowienia i wydajność dostarczone i zweryfikowane;
+  kryterium skali ≥50k wycofane — `OBJECTION: CONFLICT` uznany za
+  zasadny [decyzją 09](decisions/09-skala-mccfr-krzywa-przed-forma.md),
+  reszta wchodzi kontraktem POKER-27);
+  w serwerze LAN, domknięcie F1 audytu POKER-21 (zamknięty, commit
+  `e901335`; audyt architekta: 4 findingi informacyjne, wszystkie
+  kryteria spełnione);
 - [`POKER-26.json`](taskspecs/POKER-26.json) — informacja zwrotna
   przy stole LAN: oczekiwanie na przeciwnika i wynik z perspektywy
   gracza (szkic z weryfikacji użyteczności architekta; start po

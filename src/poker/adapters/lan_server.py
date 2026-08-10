@@ -6,6 +6,7 @@ procesu) oraz komunikaty protokołu. Każdy stół gra we własnym wątku;
 rozłączenie gracza kończy wyłącznie jego stół.
 """
 
+import random
 import socket
 import threading
 from dataclasses import dataclass, field
@@ -26,6 +27,17 @@ from poker.events import HandEvent
 from poker.table import MatchConfig, MatchResult, play_match
 
 HUMAN_OPPONENT = "human"
+
+# Alfabet bez znaków mylących w mowie i piśmie (0/O, 1/I/L); 31**8 ≈ 8.5e11
+# możliwych kodów, czyli ~39.6 bita — zgadywanie kodu istniejącego stołu jest
+# nieopłacalne, choć to nie jest zabezpieczenie kryptograficzne (decyzja 08 pkt 5).
+CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+CODE_LENGTH = 8
+CODE_ATTEMPTS = 16
+
+
+def generate_code(rng: random.Random) -> str:
+    return "".join(rng.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
 
 
 @dataclass
@@ -99,6 +111,7 @@ class TableServer:
         host: str = "127.0.0.1",
         port: int = 0,
         export_directory: Path | None = None,
+        seed: int | None = None,
     ) -> None:
         self._host = host
         self._port = port
@@ -106,7 +119,10 @@ class TableServer:
         self._listener: socket.socket | None = None
         self._tables: dict[str, _Table] = {}
         self._tables_lock = threading.Lock()
-        self._next_code = 0
+        # Seed podany jawnie daje odtwarzalną sekwencję kodów; pominięty —
+        # kody nieodtwarzalne między uruchomieniami. Losowość żyje wyłącznie
+        # tutaj, w adapterze (INV-P1).
+        self._rng = random.Random(seed)
         self._closing = False
 
     def start(self) -> tuple[str, int]:
@@ -175,8 +191,18 @@ class TableServer:
                 f"{[HUMAN_OPPONENT, *sorted(agent_registry())]}"
             )
         with self._tables_lock:
-            self._next_code += 1
-            code = f"STOL-{self._next_code}"
+            code = next(
+                (
+                    candidate
+                    for candidate in (
+                        generate_code(self._rng) for _ in range(CODE_ATTEMPTS)
+                    )
+                    if candidate not in self._tables
+                ),
+                None,
+            )
+            if code is None:
+                raise ValueError("nie udało się wylosować wolnego kodu stołu")
             table = _Table(
                 code=code,
                 config=config,

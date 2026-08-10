@@ -18,15 +18,13 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
-- 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją
-  operatora; regeneracja equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
+  Tylko tu: F2 POKER-1 — odstępstwo decyzją operatora; regeneracja
+  equity ≈40 min/4 rdzenie (POKER-12).
+- 2026-08-10 koder: trening MCCFR ~2 min 20 s / 1000 iteracji przy
   stackach 100 — bieg kontrolny w bramce bierze stacki 12.
-- 2026-08-10 arch: komplet audytów POKER-1…23; main = head. POKER-24
-  (c2c) i równolegle POKER-25 (kod stołu LAN, obszar rozłączny)
-  zatwierdzone — koderzy ze świeżych sesji z heada; scalanie 24→25.
-- 2026-08-10 arch: LAN sprawdzony na żywo (serwer + 2 klientów, mecz
-  3 rozdań, eksport powstał); braki interfejsu → szkic POKER-26.
+- 2026-08-10 arch: POKER-24 (częściowo, sprzeciw uznany decyzją 09)
+  i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
+  integracyjnym. POKER-27 i POKER-28 u koderów.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -34,15 +32,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
-  zduplikowana; kierunek: publiczne API w preflop_equity. Kontrakt
-  dopiero PO zamknięciu POKER-24: refaktor dotyka abstrakcji, od
-  której zależy artefakt strategii — inaczej rozjazd artefaktu.
+  zduplikowana; publiczne API w preflop_equity dopiero PO POKER-24
+  (refaktor dotyka abstrakcji, od której zależy artefakt).
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
 - 2026-08-08 operator: autoryzacja stała — main podąża za headem
-  gałęzi integracyjnej fast-forwardem po każdym komplecie audytów
-  scalonych zadań; wykonuje architekt bez pytania.
+  integracyjnym po każdym komplecie audytów; wykonuje architekt.
 - 2026-08-09 operator: mandat autonomii — na drodze b4/GTO+explo
   architekt kwalifikuje i zatwierdza kontrakty bez pytania (skala,
   prostota architektury); do operatora wracają tylko naruszenia
@@ -55,13 +51,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- Determinizm bajt w bajt artefaktu trenowanego zależnością zakłada
-  ten sam build tej zależności — nieprzypięty `numpy>=2.0` może
-  czerwienić testy pochodzenia/reprodukcji po aktualizacji (POKER-19);
-  przypnij wersję w extras albo utrwal założenie w decyzji.
-- Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
-  przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
-  miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
+- Kryterium acceptance wyliczające zakres („na każdej ulicy") czytaj
+  jak checklistę asercji: w POKER-5 turn/river zostały bez asercji mimo
   deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
 - Frozen dataclass ≠ izolacja: object.__setattr__/__delattr__
   i introspekcja ramek (sys._getframe) omijają każdą czysto-pythonową
@@ -74,6 +65,15 @@ Protokół (koszt czytelnika > koszt pisarza):
   przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
 - socket.makefile duplikuje deskryptor: zamknięcie samego gniazda bez
   pliku nie wysyła FIN — readline po drugiej stronie wisi (POKER-21).
+- Artefakt jako moduł Pythona ma sufit ~5 MB: przy 43 MB mypy rośnie
+  do 62 s, a import do 9,4 s — kryterium skali artefaktu pisz razem
+  z budżetem bramki, inaczej kontrakt jest wewnętrznie sprzeczny
+  (POKER-24). Koszt bramki zdominowany przez pytest (`ast.parse`
+  artefaktu 5x w testach architektury), nie przez mypy.
+- ARCHITEKT: kryterium ilościowe (skala, próg, limit czasu) wpisuj do
+  kontraktu wyłącznie po oszacowaniu budżetu z danych repo — druga
+  instancja tej klasy (POKER-19 F1, POKER-24 OBJECTION); trzecia to
+  `BLOCKED` wg reguły 7 konstytucji.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

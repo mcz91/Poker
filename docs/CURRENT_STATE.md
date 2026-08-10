@@ -1,7 +1,9 @@
 # Stan bieżący produktu Poker
 
 Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
-(trener MCCFR, strategia i agent tabelowy, plaster c2b).
+(trener MCCFR, strategia i agent tabelowy, plaster c2b); POKER-24
+(skala) dostarczony częściowo — kryterium skali w sprzeciwie, patrz
+„Następny krok".
 
 ## Co istnieje
 
@@ -235,24 +237,35 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
   konfiguracja rozdania); dowód dwustopniowy (decyzja 06 pkt 3):
   reprodukcja małego biegu kontrolnego bajt w bajt w bramce (seed
   różnicujący), pełna regeneracja komendą z [`README.md`](../README.md)
-  poza bramką; agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
+  poza bramką; od POKER-24 trening ma deterministyczne wznowienia
+  (`--checkpoint`, `--checkpoint-every`, `--resume`): losowość iteracji
+  zależy wyłącznie od pary (seed, numer), więc bieg przerwany
+  i wznowiony daje artefakt identyczny z ciągłym o tej samej łącznej
+  liczbie iteracji — pod testami; trawersacja schodzi w dół mutując
+  rozdanie w miejscu tam, gdzie stan rodzica nie jest już potrzebny
+  (100 iteracji: 13.7 s → 9.1 s); agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
   — inferencja stdlib: widok → infoset → rozkład → akcja losowana
   **bez stanu** deterministyczną funkcją seeda konstrukcji i widoku
   (blake2b — wbudowany `hash()` jest solony per proces), więc replay
   i lustro areny działają bez zmian (INV-P4); kwoty i legalność przez
   odwzorowanie c2a, fallback check-call→fold dla infosetu spoza
   artefaktu — nigdy decyzji nielegalnej (test właściwościowy);
-  **pomiary c2b** (artefakt: 1000 iteracji, seed 7, 20 607 infosetów,
-  pokrycie 94,5% decyzji w meczach; serie 20 par × 100 rozdań,
-  seed 7): mccfr vs rule −248.36 BB/100, std 988.88, CI95 [−681.75,
-  185.04]; vs rule-aggressive −434.18, std 982.71, CI95 [−864.87,
-  −3.49]; vs clone +96.08, CI95 [−474.62, 666.78]; vs mlp-clone
-  +62.75, CI95 [−504.95, 630.44]. Oczekiwanie decyzji 07 pkt 6
-  (wynik vs rule istotnie lepszy od klonów) **nieosiągnięte**: punkt
-  jest nominalnie lepszy od klonów (−248 wobec −281 i −348), ale
-  przedziały ufności w pełni się nakrywają, a przy odchyleniu ~1000
-  BB/100 na parę 20 par nie rozdziela różnic tego rzędu — wniosek
-  o metodzie i mocy pomiaru należy do architekta;
+  **pomiary** artefaktu obecnego w repo (1000 iteracji, seed 7,
+  20 971 infosetów; serie 20 par × 100 rozdań, seed 7 — zmierzone
+  przez architekta na commicie scalającym POKER-24/25): mccfr vs
+  rule −328.92 BB/100, std 779.13, CI95 [−670.39, 12.55]; vs
+  rule-aggressive −504.32, std 754.30, CI95 [−834.90, −173.73];
+  vs clone +15.66, std 1081.49, CI95 [−458.33, 489.64]; vs mlp-clone
+  +208.73, std 984.86, CI95 [−222.90, 640.36]. Oczekiwanie decyzji 07
+  pkt 6 (wynik vs rule istotnie lepszy od klonów) **nieosiągnięte**:
+  punkt vs rule jest gorszy od klona liniowego (−328.92 wobec
+  −281.30), a przy odchyleniu ~800–1100 BB/100 na parę 20 par nie
+  rozdziela różnic tego rzędu — rozstrzygnięcie wymaga pomiaru
+  o większej mocy i krzywej jakość-vs-skala
+  ([decyzja 09](decisions/09-skala-mccfr-krzywa-przed-forma.md),
+  POKER-27). Poprzednia wersja tego bloku opisywała artefakt sprzed
+  regeneracji w POKER-24 (20 607 infosetów) — liczby wymieniono po
+  reprodukcji;
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -266,7 +279,13 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
   i seedy nieobecne przed showdownem); rozłączenie gracza kończy
   wyłącznie jego stół komunikatem dla przeciwnika — pod testem;
   opcjonalny eksport historii zakończonych stołów istniejącym
-  formatem (round-trip pod testem); `poker.adapters.lan_client`
+  formatem (round-trip pod testem); kod stołu od POKER-25 jest losowy
+  (8 znaków z 31-znakowego alfabetu bez znaków mylących, ~39,6 bita)
+  z seedowanego RNG adaptera — `--serve-seed` daje odtwarzalną
+  sekwencję, pominięty nieodtwarzalną; kolizja kodu nie nadpisuje
+  cudzego stołu, a błędny kod nie zdradza liczby ani kodów
+  istniejących stołów — pod testami (domknięcie F1 audytu POKER-21);
+  `poker.adapters.lan_client`
   (CLI `--connect`, `--join`, `--opponent`) — klient terminalowy;
   testy sterują serwerem i klientami w procesie (gniazda lokalne,
   porty efemeryczne, bez podprocesów i zegara ściennego); kierunek
@@ -288,51 +307,36 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 ## Następny krok
 
 Etap (b) kierunku bot drogą operatora
-([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
-korpus self-play) scalone; b4 wchodzi plastrami
-([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 (zbiór
-przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
-scalone po audycie; POKER-17 (przepis pochodzenia wag) scalony
-z audytem CZYSTYM — droga b4.1–b4.2 jest kompletna i w pełni
-odtwarzalna z samego repozytorium. Operator wybrał drogę pomiaru
-sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
-siła układu), korpus 100 meczów, pomiar w arenie
-([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
-scalony po audycie, pomiary udokumentowane przy opisie agenta clone
-wyżej. b4.3 otwarty [decyzją 06](README.md#dokumenty-decyzji)
-(zależności ML wyłącznie w narzędziach, inferencja w stdlib,
-plastry c1→c2→c3 do GTO+explo): POKER-19 — MLP-klon, trzeci punkt
-pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
-— scalony po audycie (wyniki przy opisie agenta mlp-clone wyżej:
-nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
-sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
-([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
-scalony z audytem CZYSTYM (bramka wróciła do kilku–kilkunastu
-sekund, numpy przypięty). Zamówieniem operatora otwarta gałąź
-pokerroom ([decyzja 08](README.md#dokumenty-decyzji)): POKER-21 —
-serwer stołów heads-up w LAN z klientem terminalowym
-([`docs/taskspecs/POKER-21.json`](taskspecs/POKER-21.json)) —
-scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
-→ wątek na najbliższy kontrakt sieciowy); multiway przy jednym
-stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
-silnika). Plaster c2a: POKER-22 — abstrakcja kart i akcji
-pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
-[decyzja 07](README.md#dokumenty-decyzji)) — scalony po audycie
-(1 finding informacyjny → wątek), a na jego szczycie c2b: POKER-23
-— trener MCCFR, artefakt strategii i agent tabelowy `mccfr`
-([`docs/taskspecs/POKER-23.json`](taskspecs/POKER-23.json)) —
-scalony z audytem CZYSTYM. Pomiary c2b przy opisie agenta `mccfr`
-wyżej: na 1000 iteracji oczekiwanie decyzji 07 pkt 6 nieosiągnięte
-— rozstrzygnięcie decyzją architekta: moc pomiaru i skala treningu
-to plaster c2c: POKER-24 — wznowienia deterministyczne, artefakt
-≥50k iteracji, pomiar rozstrzygający
-([`docs/taskspecs/POKER-24.json`](taskspecs/POKER-24.json)) —
-zatwierdzony, u kodera; po jego pomiarze wniosek o metodzie i c3
-(warstwa eksploatacyjna). Równolegle, w rozłącznym obszarze
-adaptera sieciowego: POKER-25 — losowy kod stołu w serwerze LAN
-([`docs/taskspecs/POKER-25.json`](taskspecs/POKER-25.json),
-domknięcie F1 audytu POKER-21) — zatwierdzony, kolejność
-integracji 24 przed 25.
-Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
-pkt 2).
+([decyzja 04](README.md#dokumenty-decyzji)); b4 plastrami
+([decyzja 05](README.md#dokumenty-decyzji)), b4.3 i droga do GTO+explo
+([decyzje 06](README.md#dokumenty-decyzji) i 07). Podetapy b1–b3
+i plastry c1, c2a, c2b scalone; pokerroom krok 1 (LAN,
+[decyzja 08](README.md#dokumenty-decyzji)) scalony.
+
+**POKER-24 (c2c, skala) zamknięty częściowo; sprzeciw kodera uznany**
+([decyzja 09](README.md#dokumenty-decyzji)). Dostarczone, zielone
+i zweryfikowane niezależnie: deterministyczne wznowienia z checkpointu
+(bieg przerwany = bieg ciągły bajt w bajt, także na głębokim drzewie)
+oraz przyspieszenie iteracji 1,52×. Kryterium artefaktu ≥50 000
+iteracji **wycofane** jako sprzeczne z kryterium kosztu bramki z tego
+samego kontraktu. Liczby po weryfikacji architekta (korygują
+oszacowanie kodera): wykładnik wzrostu infosetów nie jest stały —
+0,65 do ~2000 iteracji, dalej ~0,45, więc 50 000 iteracji daje
+**110–145 tys. infosetów** (~18–22 MB), a nie 268 tys.; twardy sufit
+przestrzeni infosetów przy abstrakcji c2a to 317 048. Taki artefakt
+podnosi bramkę z 22,7 s do 56,7 s (ciepła), przy czym dominuje
+`pytest` (pięciokrotny `ast.parse` wygenerowanego modułu w testach
+architektury), nie `mypy`; sama memoizacja tego parsowania zbija
+dzisiejszą bramkę do 16,1 s, ale przy artefakcie na skali nie
+wystarcza. Artefakt w repozytorium pozostaje na 1000 iteracjach,
+przetrenowany nowym trenerem (regeneracja bajt w bajt zweryfikowana).
+
+Następne kroki: **POKER-27** — krzywa jakość-vs-skala (artefakty
+z rosnących skal trenowane i mierzone poza repozytorium, arena o mocy
+rozdzielającej różnice rzędu 50 BB/100) rozstrzyga, czy skala w ogóle
+kupuje jakość, i dopiero na tej podstawie wybieramy formę artefaktu;
+**POKER-28** — findingi audytu POKER-24/25 (wiązanie checkpointu
+z seedem i konfiguracją, memoizacja parsowania w testach
+architektury). Potem c3 (warstwa eksploatacyjna) albo — gdy krzywa
+okaże się płaska — nowa kwalifikacja metody (decyzja 09, pkt 4).
+Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
