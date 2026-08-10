@@ -19,14 +19,14 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
 - 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją
-  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
-- 2026-08-08 arch: regeneracja macierzy equity ≈40 min/4 rdzenie (POKER-12).
+  operatora; regeneracja equity ≈40 min/4 rdzenie (POKER-12).
 - 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
   stackach 100 — bieg kontrolny w bramce bierze stacki 12.
-- 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony,
-  main dosunięty ze stałej autoryzacji. POKER-24 (c2c) i równolegle
-  POKER-25 (kod stołu LAN, obszar rozłączny) zatwierdzone — koderzy
-  startują ze świeżych sesji z heada integracyjnego; scalanie 24→25.
+- 2026-08-10 arch: komplet audytów POKER-1…23; main = head. POKER-24
+  (c2c) i równolegle POKER-25 (kod stołu LAN, obszar rozłączny)
+  zatwierdzone — koderzy ze świeżych sesji z heada; scalanie 24→25.
+- 2026-08-10 arch: LAN sprawdzony na żywo (serwer + 2 klientów, mecz
+  3 rozdań, eksport powstał); braki interfejsu → szkic POKER-26.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

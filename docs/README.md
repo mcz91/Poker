@@ -113,7 +113,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   rozstrzygający, plaster c2c (zatwierdzony, u kodera);
 - [`POKER-25.json`](taskspecs/POKER-25.json) — losowy kod stołu
   w serwerze LAN, domknięcie F1 audytu POKER-21 (zatwierdzony do
-  pracy równoległej z POKER-24; kolejność integracji 24 przed 25).
+  pracy równoległej z POKER-24; kolejność integracji 24 przed 25);
+- [`POKER-26.json`](taskspecs/POKER-26.json) — informacja zwrotna
+  przy stole LAN: oczekiwanie na przeciwnika i wynik z perspektywy
+  gracza (szkic z weryfikacji użyteczności architekta; start po
+  scaleniu POKER-25 — ten sam obszar adaptera).
 
 ## Operator
 

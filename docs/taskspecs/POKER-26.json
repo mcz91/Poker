@@ -1,0 +1,36 @@
+{
+  "id": "POKER-26",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Gracz przy stole w sieci lokalnej wie, co się dzieje i jak mu poszło, bez tłumaczenia numerów miejsc na siebie: informacja zwrotna o oczekiwaniu na przeciwnika i wynik meczu z własnej perspektywy.",
+  "acceptance": [
+    "Po utworzeniu stołu klient wypisuje — obok kodu stołu — jawny komunikat oczekiwania na drugiego gracza, tak że milczący terminal nie jest nieodróżnialny od zawieszenia; komunikat pojawia się przed pierwszym oczekiwaniem i znika wraz ze startem meczu (istniejący komunikat startu bez zmian) — pod testem strumienia wyjścia klienta.",
+    "Wynik meczu jest wypisywany z perspektywy odbiorcy: własny stack końcowy i stack przeciwnika nazwane wprost (bez konieczności kojarzenia numeru miejsca z sobą), wraz z bilansem względem stacka startowego oraz dotychczasową liczbą rozdań i powodem zakończenia; ta sama informacja przysługuje obu graczom przy stole — pod testem dla obu miejsc.",
+    "Perspektywa nie może przeciekać: komunikaty pozostają wyprowadzone wyłącznie z widoku miejsca odbiorcy i zdarzeń widocznych z tego miejsca; istniejący test przecieku protokołu (surowy strumień bajtów, POKER-21) pozostaje zielony i obejmuje nowe komunikaty.",
+    "Tryb lokalny człowiek vs agent (POKER-10/11) otrzymuje ten sam sposób prezentacji wyniku co tryb sieciowy albo zachowuje dotychczasowy — wybór jest jawny w raporcie kodera i spójny w README; żadna zmiana nie dotyka silnika, widoków, protokołu ani jego wersji.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (sekcja gry w sieci lokalnej), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Kolejność i zależność: obszar adaptera sieciowego pokrywa się z POKER-25 (losowy kod stołu), więc zadanie startuje dopiero z heada integracyjnego po scaleniu POKER-25 — nie równolegle.",
+    "Lobby, lista stołów, obserwatorzy, czat, ponowne łączenie po rozłączeniu — poza krokiem 1 pokerroomu (decyzja 08).",
+    "Timery i odliczanie czasu decyzji — silnik bez zegara (INV-P1).",
+    "GUI, TUI z pełnoekranowym odświeżaniem, kolory i grafika — klient pozostaje strumieniem tekstu.",
+    "Zmiany protokołu, jego wersji, silnika, widoków, agentów, areny i formatów eksportu.",
+    "Multiway przy jednym stole — osobna kwalifikacja silnika (decyzja 08, pkt 4)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/adapters/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}
