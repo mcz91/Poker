@@ -265,6 +265,8 @@ serwer stołów heads-up w LAN z klientem terminalowym
 scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
 → wątek na najbliższy kontrakt sieciowy); multiway przy jednym
 stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
-silnika). Następny kontrakt: c2a — abstrakcja kart i akcji pod
-MCCFR ([decyzja 07](README.md#dokumenty-decyzji)); ulepszenia
+silnika). Plaster c2a w toku: POKER-22 — abstrakcja kart i akcji
+pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
+[decyzja 07](README.md#dokumenty-decyzji)) — zatwierdzony, u kodera;
+po nim c2b (trener MCCFR + agent tabelowy + pomiar). Ulepszenia
 agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

@@ -98,7 +98,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   serwer stołów heads-up w LAN, klient terminalowy, przeciek
   protokołu pod testem (zamknięty, commit `c9231e3`; audyt:
   1 finding informacyjny — przewidywalny kod stołu → wątek na
-  najbliższy kontrakt sieciowy).
+  najbliższy kontrakt sieciowy);
+- [`POKER-22.json`](taskspecs/POKER-22.json) — abstrakcja kart
+  i akcji pod MCCFR, plaster c2a decyzji 07 (zatwierdzony,
+  u kodera).
 
 ## Operator
 

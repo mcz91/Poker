@@ -1,0 +1,42 @@
+{
+  "id": "POKER-22",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Istnieje wersjonowana abstrakcja gry pod trenera równowagi: deterministyczne mapowanie widoku gracza na infoset (kubełki kart, skończone akcje) i z powrotem na zawsze legalną decyzję — plaster c2a decyzji 07.",
+  "acceptance": [
+    "Moduł abstrakcji w pakiecie produktu (czysty stdlib, bez I/O, INV-P1) z jawnym polem wersji abstrakcji: mapowanie kart na kubełki — preflop na bazie istniejących 169 klas z grupowaniem jako parametrem, postflop kubełki wyprowadzone deterministycznie z ewaluatora i/lub equity preflop (definicja kubełków udokumentowana w module; prekomputacja jako wygenerowany moduł danych z pochodzeniem dozwolona wzorcem equity POKER-12); liczby kubełków per ulica są parametrami z udokumentowanymi domyślnymi (INV-P6).",
+    "Mapowanie akcji w obie strony: legal_actions widoku na skończony zbiór akcji abstrakcyjnych (co najmniej fold / check-call / bet pół puli / bet pula / all-in — zbiór parametrem, INV-P6) oraz akcja abstrakcyjna na legalną Decision z kwotą przyciętą do granic legal_actions; test właściwościowy na widokach z realnych rozdań wielu seedów: odwzorowanie zwraca wyłącznie decyzje przyjmowane przez maszynę licytacji, a zbiór akcji abstrakcyjnych jest niepusty przy każdym ruchu.",
+    "Infoset: deterministyczna, stabilna reprezentacja zbudowana wyłącznie z informacji widocznych z miejsca decydującego (ulica, kubełek kart, pozycja, znormalizowany przebieg licytacji w akcjach abstrakcyjnych); test przecieku: dwa widoki różniące się wyłącznie kartami przeciwnika lub seedem dają identyczny infoset (granica informacyjna decyzji 05, INV-P3).",
+    "Determinizm i stabilność pod testami: ten sam widok daje ten sam infoset i ten sam zbiór akcji; przybite wartości infosetów dla ręcznie skonstruowanych widoków preflop i postflop (test złotych przypadków); zmiana definicji kubełków lub zbioru akcji wymaga podbicia wersji abstrakcji — asercja wersji w teście złotych przypadków.",
+    "Kierunek importów: abstrakcja importuje wyłącznie karty, widok, decyzję, ewaluator, klasy preflop i equity — bez silnika licytacji, historii, stołu i adapterów; żaden moduł silnika ani adapter nie importuje abstrakcji w tym plastrze — pod rozszerzonym testem architektury; zero zależności poza standard library; pełna bramka pozostaje w rzędzie kilkunastu sekund (konflikt = OBJECTION).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Trener MCCFR, artefakt strategii i agent tabelowy — plaster c2b (decyzja 07), osobny kontrakt po zieleni c2a.",
+    "Mieszanie akcji i losowanie — wchodzi z agentem w c2b (mechanizm bez stanu z decyzji 07, pkt 4).",
+    "Strojenie jakości abstrakcji pomiarami — abstrakcja ma być poprawna, deterministyczna i wersjonowana; jej jakość zmierzy arena w c2b.",
+    "Zmiany silnika, licytacji, widoków, agentów, sieci LAN, korpusu i eksportu.",
+    "Kod stołu LAN (WĄTEK audytu POKER-21) — najbliższy kontrakt sieciowy, nie ten.",
+    "Zależności poza stdlib — trening z numpy to c2b w tools/."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T02:20:07Z"
+  }
+}
