@@ -1,0 +1,39 @@
+{
+  "id": "POKER-23",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator trenuje self-play strategię przybliżonej równowagi na abstrakcji z c2a i wystawia ją do meczu oraz pomiaru: trener MCCFR w narzędziach, artefakt strategii z pochodzeniem, agent tabelowy z mieszaniem bez stanu — plaster c2b decyzji 07.",
+  "acceptance": [
+    "Narzędzie treningu MCCFR (external sampling) w tools/: self-play na abstrakcji z POKER-22 (wersja abstrakcji częścią pochodzenia), w pełni seedowane i deterministyczne — ten sam seed, liczba iteracji i parametry abstrakcji dają bajt w bajt ten sam artefakt strategii; liczba iteracji i parametry są jawne z udokumentowanymi domyślnymi (INV-P6); numpy dozwolony wyłącznie w tools/ (decyzja 06).",
+    "Artefakt strategii (infoset -> rozkład akcji abstrakcyjnych, uśredniona strategia MCCFR) jako wygenerowany moduł danych z kompletnym przepisem pochodzenia (wzorzec POKER-17: wersja abstrakcji, seed, iteracje, parametry — bez placeholderów; bez I/O przy odczycie, INV-P1); dowód dwustopniowy (decyzja 06 pkt 3): deterministyczna reprodukcja małego biegu kontrolnego w bramce z seedem różnicującym, pełna regeneracja produkcyjna jedną udokumentowaną w README komendą poza bramką, zweryfikowana bajt w bajt w raporcie kodera.",
+    "Agent strategii w pakiecie produktu i rejestrze CLI pod udokumentowaną nazwą: inferencja w czystym stdlib — widok -> infoset (abstrakcja c2a) -> rozkład z artefaktu -> akcja wylosowana mechanizmem bez stanu z decyzji 07 pkt 4 (deterministyczna funkcja seeda konstrukcji i widoku, stabilne haszowanie — bez RNG trzymanego między wywołaniami); seed jest parametrem konstrukcji z udokumentowanym domyślnym; ten sam widok i seed dają tę samą akcję — pod testem; infoset nieobecny w artefakcie ma udokumentowany deterministyczny fallback.",
+    "Agent nigdy nie zwraca decyzji nielegalnej: akcje abstrakcyjne przechodzą przez odwzorowanie c2a na legalne Decision; test właściwościowy przez play_match na wielu seedach — zero błędów legalności, każdy mecz kończy się wynikiem; agent gra też przez serwer LAN jak każdy agent rejestru (bez zmian serwera).",
+    "Pomiar w arenie po treningu produkcyjnym: agent strategii vs rule, rule-aggressive, clone i mlp-clone, serie o mocy co najmniej referencyjnej (20 par x 100 rozdań, jawne seedy); wyniki (BB/100, odchylenie, CI, konfiguracja i parametry treningu) udokumentowane w docs/CURRENT_STATE.md obok punktów klonowania; oczekiwanie decyzji 07 pkt 6 (wynik vs rule istotnie lepszy od klonów) raportowane wprost — również gdy nieosiągnięte: kryterium plastra jest rzetelny pomiar, wniosek o metodzie należy do architekta.",
+    "Granice: numpy nieobecny w src/poker (test architektury); moduł agenta importuje wyłącznie widok, decyzję, abstrakcję i artefakt strategii; silnik, licytacja, widoki, abstrakcja c2a (wersja bez zmian), agenci istniejący, arena, korpus, eksport i LAN nietknięte; pełna bramka pozostaje w rzędzie kilkunastu sekund — konflikt skali biegu kontrolnego z kosztem bramki to OBJECTION.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (trening, regeneracja, pomiar), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Skala treningu, wznowienia i checkpointy — plaster c2c po pomiarze c2b (decyzja 07).",
+    "Warstwa eksploatacyjna — c3 (decyzje 04 i 06).",
+    "Zmiany abstrakcji c2a — poprawki jej definicji to nowa wersja abstrakcji i osobny kontrakt.",
+    "Strojenie parametrów pod wynik przed pierwszym rzetelnym pomiarem — najpierw pomiar domyślnych, wnioski u architekta.",
+    "Kod stołu LAN (WĄTEK audytu POKER-21) — najbliższy kontrakt sieciowy.",
+    "Zmiany silnika, widoków, kontraktu agenta, areny, korpusu i formatów eksportu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ]
+}

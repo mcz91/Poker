@@ -101,7 +101,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   najbliższy kontrakt sieciowy);
 - [`POKER-22.json`](taskspecs/POKER-22.json) — abstrakcja kart
   i akcji pod MCCFR, plaster c2a decyzji 07 (zatwierdzony,
-  u kodera).
+  u kodera);
+- [`POKER-23.json`](taskspecs/POKER-23.json) — trener MCCFR,
+  artefakt strategii i agent tabelowy z pomiarem, plaster c2b
+  (szkic: czeka na zieleń POKER-22 i zatwierdzenie — szczegóły
+  mogą dostroić się do API abstrakcji).
 
 ## Operator
 
