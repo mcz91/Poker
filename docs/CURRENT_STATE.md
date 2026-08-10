@@ -329,6 +329,10 @@ to plaster c2c: POKER-24 — wznowienia deterministyczne, artefakt
 ≥50k iteracji, pomiar rozstrzygający
 ([`docs/taskspecs/POKER-24.json`](taskspecs/POKER-24.json)) —
 zatwierdzony, u kodera; po jego pomiarze wniosek o metodzie i c3
-(warstwa eksploatacyjna).
+(warstwa eksploatacyjna). Równolegle, w rozłącznym obszarze
+adaptera sieciowego: POKER-25 — losowy kod stołu w serwerze LAN
+([`docs/taskspecs/POKER-25.json`](taskspecs/POKER-25.json),
+domknięcie F1 audytu POKER-21) — zatwierdzony, kolejność
+integracji 24 przed 25.
 Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
 pkt 2).

@@ -1,0 +1,40 @@
+{
+  "id": "POKER-25",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Gracz w sieci lokalnej dołącza do zamierzonego stołu, a nie do cudzego: kod stołu przestaje być przewidywalnym licznikiem — domknięcie F1 audytu POKER-21.",
+  "acceptance": [
+    "Kod stołu jest losowany z seedowanego RNG serwera z przestrzeni na tyle dużej, że zgadnięcie kodu istniejącego stołu jest nieopłacalne (co najmniej kilkadziesiąt bitów albo równoważny alfabet o udokumentowanej mocy); kolejne kody nie tworzą przewidywalnego ciągu — test odrzuca sekwencyjność (kody dwóch kolejnych stołów nie różnią się o stałą i nie wynikają z licznika).",
+    "Seed serwera jest parametrem uruchomienia z udokumentowanym domyślnym zachowaniem: podany jawnie daje odtwarzalną sekwencję kodów (pod testem — dwa serwery z tym samym seedem generują identyczne kody), pominięty daje kody nieodtwarzalne między uruchomieniami; losowość żyje wyłącznie w adapterze serwera (INV-P1: silnik bez globalnej losowości).",
+    "Kolizja kodów jest niemożliwa albo obsłużona jawnie: próba utworzenia stołu o kodzie już istniejącym nie nadpisuje cudzego stołu — pod testem (RNG wymuszony do powtórzenia wartości).",
+    "Dołączenie nieistniejącym lub błędnym kodem kończy się tym samym czytelnym błędem co dotąd, bez ujawniania liczby ani kodów istniejących stołów — pod testem; protokół, jego wersja, klient i pozostałe zachowania serwera pozostają bez zmian (istniejące testy LAN zielone bez modyfikacji, poza asercjami wprost dotyczącymi formatu kodu).",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (sekcja gry w sieci lokalnej: seed serwera i postać kodu stołu), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Uwierzytelnianie, konta, szyfrowanie i model zaufania ponad kod stołu — sieć lokalna pozostaje zaufana (decyzja 08, pkt 5); to zadanie usuwa przewidywalność adresowania, nie wprowadza bezpieczeństwa kryptograficznego.",
+    "Lobby, lista stołów, obserwatorzy, czat — poza krokiem 1 (POKER-21).",
+    "Multiway przy jednym stole — osobna kwalifikacja silnika (decyzja 08, pkt 4).",
+    "Zmiany protokołu i jego wersji, klienta, silnika, widoków, agentów i eksportu.",
+    "Praca równoległa: obszar (adapter serwera LAN i jego testy) jest rozłączny z POKER-24 (trener MCCFR, artefakt strategii); kolejność integracji: POKER-24 przed POKER-25, właściciel integracji: architekt; konflikty statusowe w dokumentach rozstrzyga architekt.",
+    "WĄTEK F1 audytu POKER-22 (publiczne API equity-przeciw-polu) — świadomie nie tutaj: refaktor equity dotyka abstrakcji, od której zależy artefakt strategii POKER-24; wchodzi dopiero po zamknięciu POKER-24."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/adapters/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T06:04:43Z"
+  }
+}

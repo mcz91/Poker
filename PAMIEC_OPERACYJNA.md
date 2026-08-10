@@ -24,19 +24,19 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
   stackach 100 — bieg kontrolny w bramce bierze stacki 12.
 - 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony,
-  main dosunięty ze stałej autoryzacji. POKER-24 (c2c) zatwierdzony —
-  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
+  main dosunięty ze stałej autoryzacji. POKER-24 (c2c) i równolegle
+  POKER-25 (kod stołu LAN, obszar rozłączny) zatwierdzone — koderzy
+  startują ze świeżych sesji z heada integracyjnego; scalanie 24→25.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
-- 2026-08-10 arch: F1 audytu POKER-21 — kod stołu to licznik;
-  najbliższy kontrakt sieciowy: kod losowy z seedowanego RNG serwera.
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
-  zduplikowana; kierunek: publiczne API w preflop_equity przy
-  najbliższym kontrakcie dotykającym preflop_equity lub encoding.
+  zduplikowana; kierunek: publiczne API w preflop_equity. Kontrakt
+  dopiero PO zamknięciu POKER-24: refaktor dotyka abstrakcji, od
+  której zależy artefakt strategii — inaczej rozjazd artefaktu.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
