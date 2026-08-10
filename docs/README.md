@@ -27,7 +27,11 @@
 7. [`07-c2-mccfr-na-abstrakcji-strategia-mieszana.md`](decisions/07-c2-mccfr-na-abstrakcji-strategia-mieszana.md)
    — c2: seedowany MCCFR w self-play na wersjonowanej abstrakcji,
    artefakt strategii z pochodzeniem, mieszanie akcji bez stanu
-   (deterministyczna funkcja seeda i widoku); plastry c2a→c2c.
+   (deterministyczna funkcja seeda i widoku); plastry c2a→c2c;
+8. [`08-pokerroom-krok1-stoly-heads-up-w-lan.md`](decisions/08-pokerroom-krok1-stoly-heads-up-w-lan.md)
+   — otwarcie gałęzi pokerroom na zamówienie operatora: serwer wielu
+   stołów heads-up w LAN (adapter, mono-repo), separacja informacji
+   na granicy procesu; multiway = osobna kwalifikacja silnika.
 
 ## TaskSpeki
 
@@ -88,7 +92,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   → POKER-20);
 - [`POKER-20.json`](taskspecs/POKER-20.json) — porządek dowodów po
   c1: dwustopniowy dowód dla klona liniowego, przypięcie numpy
-  (zatwierdzony, u kodera).
+  (zatwierdzony, u kodera);
+- [`POKER-21.json`](taskspecs/POKER-21.json) — pokerroom krok 1:
+  serwer stołów heads-up w LAN + klient terminalowy, decyzja 08
+  (zatwierdzony; koder startuje po zieleni POKER-20, kolejność
+  integracji 20 → 21).
 
 ## Operator
 

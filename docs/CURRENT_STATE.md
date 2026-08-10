@@ -237,9 +237,12 @@ pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
 nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
 sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
 ([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
-zatwierdzony, u kodera. Metoda c2 zakwalifikowana
-[decyzją 07](README.md#dokumenty-decyzji): seedowany MCCFR na
-wersjonowanej abstrakcji, mieszanie akcji bez stanu; plaster c2a
-(abstrakcja kart i akcji) dostanie kontrakt po zieleni POKER-20;
-ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
-pkt 2).
+zatwierdzony, u kodera. Operator otworzył gałąź pokerroom
+([decyzja 08](README.md#dokumenty-decyzji)): POKER-21 — serwer
+wielu stołów heads-up w LAN z klientem terminalowym
+([`docs/taskspecs/POKER-21.json`](taskspecs/POKER-21.json)) —
+zatwierdzony, start po zieleni POKER-20 (kolejność 20 → 21).
+Metoda c2 zakwalifikowana [decyzją 07](README.md#dokumenty-decyzji)
+(seedowany MCCFR na wersjonowanej abstrakcji, mieszanie bez stanu);
+plaster c2a wchodzi po POKER-21. Ulepszenia agentów wyłącznie
+z pomiarem w arenie (decyzja 04, pkt 2).

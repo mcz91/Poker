@@ -1,0 +1,45 @@
+{
+  "id": "POKER-21",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Kilka osób gra ze sobą w heads-upy na różnych urządzeniach w sieci lokalnej: jeden serwer prowadzi wiele stołów po dwóch graczy, dołączanie kodem stołu, klient w terminalu — krok 1 gałęzi pokerroom (decyzja 08).",
+  "acceptance": [
+    "Jedna udokumentowana w README komenda uruchamia serwer stołów (host i port parametrami); klient terminalowy z innego urządzenia łączy się na adres serwera, tworzy stół (dostaje kod) albo dołącza kodem; mecz przy stole rusza z chwilą skompletowania dwóch graczy; konfiguracja meczu (blindy, stacki, limit rozdań, seed) to parametry tworzenia stołu z udokumentowanymi domyślnymi (INV-P6); dostępny jest też stół człowiek vs agent z rejestru CLI.",
+    "Serwer prowadzi wiele stołów heads-up równolegle i niezależnie: test rozgrywa co najmniej dwa stoły jednocześnie w procesie testów — bez pomieszania widoków, wejść i wyników między stołami.",
+    "Człowiek zdalny wchodzi portem Agent przez adapter sieciowy (INV-P4, INV-P7): silnik, maszyna licytacji, stół, widoki i agenci pozostają nietknięci; protokół klient-serwer jest typowany i wersjonowany (jawne pole wersji; nieznana wersja odrzucana jawnym błędem po obu stronach).",
+    "Test przecieku protokołu (INV-P3 na granicy procesu, decyzja 08): pełny zapis bajtów wysłanych do klienta A w trakcie rozdania nie zawiera kart klienta B przed showdownem ani żadnego seeda; po CardsRevealed karty jawne pojawiają się zgodnie ze zdarzeniami — analogia testu przecieku terminala z POKER-10.",
+    "Walidacja wejścia jak w trybie lokalnym: akcja nielegalna, kwota poza granicami lub tekst nieparsowalny dają czytelny komunikat i ponowne pytanie bez śladu w historii rozdania; rozłączenie gracza kończy mecz przy jego stole czytelnym komunikatem dla przeciwnika, bez wpływu na serwer i pozostałe stoły — pod testami.",
+    "Po zakończeniu meczu obaj gracze otrzymują wynik (stacki końcowe, liczba rozdań, powód); operator serwera może włączyć eksport pełnych historii zakończonych stołów do wskazanego katalogu w istniejącym formacie eksportu (format_version bez zmian) — zapisany plik przechodzi round-trip istniejącym parserem, pod testem.",
+    "Testy sterują serwerem i klientami w procesie testów: gniazda na interfejsie lokalnym, porty efemeryczne, bez podprocesów, bez zależności spoza standard library i bez czekania na zegar ścienny — pełna bramka pozostaje w rzędzie kilkunastu sekund; konflikt z tym kryterium to OBJECTION.",
+    "Kierunek importów: serwer i klient żyją w adapterach i zależą wyłącznie od silnika, widoków, rejestru i eksportu; żaden moduł silnika ich nie importuje; zegar i gniazda wyłącznie w adapterach (INV-P1) — pod rozszerzonym testem architektury.",
+    "Nowe testy są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (sekcja gry w sieci lokalnej: uruchomienie serwera, dołączanie z innego urządzenia), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Więcej niż 2 graczy przy jednym stole (multiway, side poty) — wymaga zniesienia uproszczenia INV-P5 w maszynie licytacji; osobna kwalifikacja silnika na zamówienie operatora (decyzja 08, pkt 4).",
+    "Internet/WAN, szyfrowanie, konta, uwierzytelnianie ponad kod stołu — sieć lokalna zaufana w kroku 1 (decyzja 08, pkt 5).",
+    "Timery i limity czasu decyzji — silnik bez zegara (INV-P1); limity to przyszła funkcja adaptera.",
+    "GUI i web — klient terminalowy; interfejs webowy to osobna kwalifikacja.",
+    "Trwałość serwera (restart, wznawianie stołów), rankingi, obserwatorzy, czat, lobby ponad utworzenie/dołączenie kodem.",
+    "Zależność i porządek: start ze świeżej sesji z heada integracyjnego po scaleniu POKER-20; kolejność integracji: 20 przed 21, c2a (decyzja 07) po 21; właściciel integracji: architekt.",
+    "Zmiany silnika, licytacji, widoków, kontraktu agenta, agentów, areny, korpusu i formatów eksportu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T01:14:29Z"
+  }
+}
