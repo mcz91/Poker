@@ -58,9 +58,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- Wygenerowany moduł danych w `src/` nosi pełny przepis regeneracji
-  we własnych metadanych (jak equity POKER-12); przepis tylko w opisie
-  commita = artefakt nieodtwarzalny z repo (wagi POKER-16, F1 audytu).
+- Determinizm bajt w bajt artefaktu trenowanego zależnością zakłada
+  ten sam build tej zależności — nieprzypięty `numpy>=2.0` może
+  czerwienić testy pochodzenia/reprodukcji po aktualizacji (POKER-19);
+  przypnij wersję w extras albo utrwal założenie w decyzji.
 - Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
   przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
   miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
