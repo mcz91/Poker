@@ -43,6 +43,30 @@ dodatkowo w zbiorczym przebiegu rozdań. Karty bota i seed pozostają
 niewidoczne do showdownu; po nim widać odkryte karty. Eksport historii
 działa tą samą flagą `--export`.
 
+### Gra w sieci lokalnej (pokerroom, krok 1)
+
+```bash
+python -m poker.adapters.cli --serve 7777            # serwer stołów
+python -m poker.adapters.cli --connect 192.168.0.10:7777 \
+  --opponent human --hands 50 --seed 7               # tworzy stół, drukuje kod
+python -m poker.adapters.cli --connect 192.168.0.10:7777 --join STOL-1
+```
+
+Jeden serwer (`--serve PORT`, nasłuch na `--serve-host`, domyślnie
+0.0.0.0) prowadzi wiele niezależnych stołów heads-up. Klient z innego
+urządzenia tworzy stół (dostaje kod; konfiguracja meczu tymi samymi
+flagami co mecz lokalny) albo dołącza kodem (`--join`); `--opponent`
+`human` czeka na drugiego gracza, nazwa agenta z rejestru gra od razu.
+Mecz rusza po skompletowaniu dwóch graczy; do klienta wychodzi
+wyłącznie widok jego miejsca (ta sama dyscyplina co w terminalu
+lokalnym — INV-P3 na granicy procesu, pod testem pełnego strumienia
+bajtów). Protokół to typowane, wersjonowane JSON Lines — nieznana
+wersja jest odrzucana po obu stronach. Rozłączenie gracza kończy jego
+stół komunikatem dla przeciwnika, bez wpływu na pozostałe stoły.
+`--export-dir KATALOG` na serwerze zapisuje historie zakończonych
+stołów w formacie eksportu. Sieć lokalna jest zaufana (decyzja 08):
+kod stołu to jedyna kontrola dostępu.
+
 ### Arena porównawcza agentów
 
 ```bash
@@ -98,7 +122,9 @@ daje plik identyczny bajt w bajt; istniejący plik wyjściowy to błąd.
 
 Regeneracja zatwierdzonych wag od zera, wyłącznie z tego repozytorium
 (sekwencja zgodna ze stałymi `CORPUS_*` i hiperparametrami w module
-wag — zgodność chroni test pochodzenia):
+wag; dowód dwustopniowy decyzji 06: w bramce deterministyczna
+reprodukcja małego łańcucha kontrolnego, pełna regeneracja poniższymi
+komendami poza bramką):
 
 ```bash
 python -m poker.adapters.cli --corpus korpus-wag/ --matches 100 \
@@ -150,7 +176,10 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 
 Narzędzie treningu MLP wymaga extras `train` (numpy — wyłącznie
 w `tools/` i testach reprodukcji; pakiet produktu i inferencja agenta
-`mlp-clone` to czysty stdlib, decyzja 06). Architektura
+`mlp-clone` to czysty stdlib, decyzja 06). Wersja numpy jest
+przypięta w pyproject: bitowa identyczność regeneracji artefaktów
+trenowanych zależnością jest gwarantowana dla przypiętej wersji —
+inny build może dawać inne bity przy tej samej matematyce. Architektura
 i hiperparametry z udokumentowanymi domyślnymi: `--hidden 16`,
 `--activation relu`, `--learning-rate 0.05`, `--epochs 300`,
 `--seed 0`. Trening jest deterministyczny (seedowana inicjalizacja,

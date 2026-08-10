@@ -92,11 +92,13 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   → POKER-20);
 - [`POKER-20.json`](taskspecs/POKER-20.json) — porządek dowodów po
   c1: dwustopniowy dowód dla klona liniowego, przypięcie numpy
-  (zatwierdzony, u kodera);
+  (zamknięty, commit `72305b1`; audyt: CZYSTY — F1 i F2 audytu
+  POKER-19 domknięte z dowodem);
 - [`POKER-21.json`](taskspecs/POKER-21.json) — pokerroom krok 1:
-  serwer stołów heads-up w LAN + klient terminalowy, decyzja 08
-  (zatwierdzony; koder startuje po zieleni POKER-20, kolejność
-  integracji 20 → 21).
+  serwer stołów heads-up w LAN, klient terminalowy, przeciek
+  protokołu pod testem (zamknięty, commit `c9231e3`; audyt:
+  1 finding informacyjny — przewidywalny kod stołu → wątek na
+  najbliższy kontrakt sieciowy).
 
 ## Operator
 

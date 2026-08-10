@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
-(MLP-klon: trening numpy w tools/, inferencja stdlib, pomiar).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-21
+(pokerroom krok 1: stoły heads-up w sieci lokalnej).
 
 ## Co istnieje
 
@@ -113,12 +113,13 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
   wygenerowany moduł danych z kompletnym przepisem pochodzenia
   (stałe `CORPUS_*`: agenci, liczba meczów, seed, konfiguracja
   meczu; wersja zbioru, hiperparametry, liczba przykładów; bez I/O
-  przy odczycie, INV-P1); test pochodzenia odtwarza pełny łańcuch
-  wyłącznie z metadanych artefaktu i porównuje moduł bajt w bajt
-  z utrwalonym, a sekwencję regeneracji dokumentuje
-  [`README.md`](../README.md) (domknięcie F1 audytu POKER-15/16);
-  reprodukcja treningu bajt w bajt pod testem; agent `clone`
-  (rejestr CLI) — czysta
+  przy odczycie, INV-P1); dowód pochodzenia dwustopniowy (decyzja 06,
+  od POKER-20): w bramce deterministyczna reprodukcja małego łańcucha
+  kontrolnego z metadanych artefaktu (seed korpusu różnicuje wagi),
+  pełna regeneracja produkcyjna sekwencją z [`README.md`](../README.md)
+  poza bramką, weryfikowana bajt w bajt w raporcie zadania
+  zmieniającego artefakt (domknięcie F1 audytów POKER-15/16 i 19);
+  agent `clone` (rejestr CLI) — czysta
   deterministyczna inferencja portem Agent (INV-P4, INV-P8), cechy
   z widoku tą samą definicją co zbiór (`view_features`, zgodność
   trening↔gra pod testem), kwoty v1 minimum legalnym,
@@ -201,6 +202,25 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
   odmowa nadpisania istniejącego pliku i czytelne błędy manifestu —
   pod testami; kierunek importów od
   adapterów do silnika strzeże `tests/test_architecture.py`;
+- LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
+  typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
+  odrzucana po obu stronach); `poker.adapters.lan_server`
+  (`TableServer`, CLI `--serve`) — jeden proces prowadzi wiele
+  niezależnych stołów heads-up (kod stołu, człowiek vs człowiek albo
+  vs agent z rejestru; konfiguracja meczu parametrami tworzenia
+  stołu, INV-P6); człowiek zdalny wchodzi portem Agent przez most
+  protokołu do istniejącego `HumanAgent` (walidacja wejścia i render
+  wyłącznie z widoku miejsca — INV-P3 egzekwowane na granicy procesu,
+  pod testem pełnego strumienia bajtów klienta: karty przeciwnika
+  i seedy nieobecne przed showdownem); rozłączenie gracza kończy
+  wyłącznie jego stół komunikatem dla przeciwnika — pod testem;
+  opcjonalny eksport historii zakończonych stołów istniejącym
+  formatem (round-trip pod testem); `poker.adapters.lan_client`
+  (CLI `--connect`, `--join`, `--opponent`) — klient terminalowy;
+  testy sterują serwerem i klientami w procesie (gniazda lokalne,
+  porty efemeryczne, bez podprocesów i zegara ściennego); kierunek
+  importów pod rozszerzonym testem architektury; silnik, licytacja,
+  widoki i agenci nietknięci;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
   [`README.md`](../README.md); goła `mypy` typuje `src` i `tests`
   (konfiguracja `files`), a rozjazd bramki z kontraktami czerwieni
@@ -237,12 +257,14 @@ pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
 nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
 sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
 ([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
-zatwierdzony, u kodera. Operator otworzył gałąź pokerroom
-([decyzja 08](README.md#dokumenty-decyzji)): POKER-21 — serwer
-wielu stołów heads-up w LAN z klientem terminalowym
+scalony z audytem CZYSTYM (bramka wróciła do kilku–kilkunastu
+sekund, numpy przypięty). Zamówieniem operatora otwarta gałąź
+pokerroom ([decyzja 08](README.md#dokumenty-decyzji)): POKER-21 —
+serwer stołów heads-up w LAN z klientem terminalowym
 ([`docs/taskspecs/POKER-21.json`](taskspecs/POKER-21.json)) —
-zatwierdzony, start po zieleni POKER-20 (kolejność 20 → 21).
-Metoda c2 zakwalifikowana [decyzją 07](README.md#dokumenty-decyzji)
-(seedowany MCCFR na wersjonowanej abstrakcji, mieszanie bez stanu);
-plaster c2a wchodzi po POKER-21. Ulepszenia agentów wyłącznie
-z pomiarem w arenie (decyzja 04, pkt 2).
+scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
+→ wątek na najbliższy kontrakt sieciowy); multiway przy jednym
+stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
+silnika). Następny kontrakt: c2a — abstrakcja kart i akcji pod
+MCCFR ([decyzja 07](README.md#dokumenty-decyzji)); ulepszenia
+agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).

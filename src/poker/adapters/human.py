@@ -1,7 +1,7 @@
 """Człowiek przy stole: adapter portu Agent czytający decyzje z terminala (INV-P4, INV-P7)."""
 
 from collections.abc import Sequence
-from typing import TextIO
+from typing import Protocol
 
 from poker.agent import Decision
 from poker.betting import LegalActions
@@ -23,6 +23,18 @@ _INPUT_HINT = "fold, check, call, bet KWOTA, raise KWOTA"
 
 class InputEnded(Exception):
     """Strumień wejścia człowieka się skończył — meczu nie da się kontynuować."""
+
+
+class TextInput(Protocol):
+    """Źródło decyzji: pusta linia oznacza koniec strumienia."""
+
+    def readline(self) -> str: ...
+
+
+class TextOutput(Protocol):
+    def write(self, text: str) -> object: ...
+
+    def flush(self) -> object: ...
 
 
 def card_token(card: Card) -> str:
@@ -130,7 +142,7 @@ def _parse_decision(text: str, legal: LegalActions) -> Decision:
 class HumanAgent:
     """Port Agent dla człowieka: render widoku, odczyt i walidacja decyzji z wejścia."""
 
-    def __init__(self, input_stream: TextIO, output_stream: TextIO) -> None:
+    def __init__(self, input_stream: TextInput, output_stream: TextOutput) -> None:
         self._input = input_stream
         self._output = output_stream
 

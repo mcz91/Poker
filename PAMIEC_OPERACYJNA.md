@@ -19,26 +19,24 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
   3.13); statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty; fakty tylko
-  tu: F2 audytu POKER-1 — odstępstwo uznane decyzją operatora; audyt
-  POKER-7 potwierdzony 960 meczami niezależnymi.
+- 2026-08-08 arch: audyty POKER-1…7 komplet; tylko tu: F2 POKER-1 —
+  odstępstwo uznane decyzją operatora; POKER-7: 960 meczów niezależnie.
 - 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main na e0b0f2b
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-10 arch: POKER-19 scalony po audycie (statusy w indeksie).
-  F1 kontraktowy uznany (kryterium zasobowe obok non_goal
-  zakazującego jedynej drogi = sprzeczność) → POKER-20 u kodera.
-- 2026-08-10 arch: operator otworzył pokerroom (decyzja 08) —
-  POKER-21 zatwierdzony, koder startuje ze świeżej sesji z heada
-  integracyjnego PO scaleniu POKER-20 (kolejność 20→21→c2a);
-  multiway przy jednym stole jawnie poza krokiem 1 (INV-P5).
+- 2026-08-10 arch: POKER-20 (CZYSTY) i POKER-21 (1 informacyjny →
+  WĄTEK) zweryfikowane niezależnie (czysty venv [dev,train]: ruff 0,
+  mypy 0/60, pytest 226 w 12.3 s) i scalone w kolejności 20→21;
+  następny kontrakt: c2a (decyzja 07).
 
 ## WĄTKI — otwarte, bez TaskSpec
 
 - 2026-08-08 arch: F2 informacyjny audytu POKER-5 — księgowość żetonów
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
+- 2026-08-10 arch: F1 audytu POKER-21 — kod stołu to licznik;
+  najbliższy kontrakt sieciowy: kod losowy z seedowanego RNG serwera.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
@@ -74,6 +72,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   assert…`) to uśpiona ochrona: przy przybitym seedzie przebieg jest
   jeden — przybijaj wynik bezwarunkowo, inaczej regresja zmieniająca
   przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
+- socket.makefile duplikuje deskryptor: zamknięcie samego gniazda bez
+  pliku nie wysyła FIN — readline po drugiej stronie wisi (POKER-21).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
