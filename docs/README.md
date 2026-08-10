@@ -23,7 +23,11 @@
 6. [`06-b43-zaleznosci-w-narzedziach-droga-gto-explo.md`](decisions/06-b43-zaleznosci-w-narzedziach-droga-gto-explo.md)
    — b4.3: zależności ML wyłącznie w narzędziach, inferencja
    w stdlib, plastry c1 (MLP-klon) → c2 (self-play) → c3 (explo),
-   dwustopniowe dowody odtwarzalności na skalę.
+   dwustopniowe dowody odtwarzalności na skalę;
+7. [`07-c2-mccfr-na-abstrakcji-strategia-mieszana.md`](decisions/07-c2-mccfr-na-abstrakcji-strategia-mieszana.md)
+   — c2: seedowany MCCFR w self-play na wersjonowanej abstrakcji,
+   artefakt strategii z pochodzeniem, mieszanie akcji bez stanu
+   (deterministyczna funkcja seeda i widoku); plastry c2a→c2c.
 
 ## TaskSpeki
 
@@ -78,8 +82,13 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   działania);
 - [`POKER-19.json`](taskspecs/POKER-19.json) — MLP-klon, plaster c1
   decyzji 06: trening numpy w tools/, inferencja stdlib, trzeci
-  punkt pomiarowy (zrealizowany przez kodera, czeka na audyt
-  i integrację).
+  punkt pomiarowy (zamknięty, commit `0dfa48b`; audyt: F1 ISTOTNY —
+  sprzeczność kryterium czasu bramki w kontrakcie, uznana przez
+  architekta → POKER-20; F2 informacyjny — nieprzypięty numpy
+  → POKER-20);
+- [`POKER-20.json`](taskspecs/POKER-20.json) — porządek dowodów po
+  c1: dwustopniowy dowód dla klona liniowego, przypięcie numpy
+  (zatwierdzony, u kodera).
 
 ## Operator
 

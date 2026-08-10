@@ -26,14 +26,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-09 arch: b4.3 otwarty decyzją 06; POKER-19 (MLP-klon, c1)
-  zatwierdzony — koder ze świeżej sesji z heada integracyjnego,
-  nie z main; numpy wyłącznie w tools/ i extras dev.
-- 2026-08-09 koder: POKER-19 zrealizowany ze startu `426a06f` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Pytest 21.5 s:
-  wkład POKER-19 ≈1.2 s, dominuje test pochodzenia klona liniowego
-  (13 s) zamrożony bajtami wag — kandydat do mechanizmu testu
-  wolnego przy najbliższej kwalifikacji (WĄTEK architekta).
+- 2026-08-10 arch: POKER-19 scalony po audycie (statusy w indeksie;
+  pomiary c1 odtworzone co do setnych, bramka u architekta 16.6 s
+  vs 22.6 s audytora — różnice maszyn). F1 kontraktowy uznany:
+  kryterium zasobowe pisane obok non_goal zakazującego jedynej drogi
+  = sprzeczność; naprawa w POKER-20 (u kodera). c2 zakwalifikowane
+  decyzją 07; kontrakt c2a po zieleni POKER-20.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

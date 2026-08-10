@@ -1,0 +1,39 @@
+{
+  "id": "POKER-20",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Bramka wraca do rzędu kilkunastu sekund bez utraty dowodów odtwarzalności, a determinizm artefaktów przestaje zależeć od nieprzypiętej wersji numpy — domknięcie F1 (wada kontraktu POKER-19, uznana przez architekta) i F2 audytu POKER-19.",
+  "acceptance": [
+    "Test pochodzenia klona liniowego przechodzi na dwustopniowy wzorzec decyzji 06 pkt 3 (dokładnie jak zrobiono dla MLP w POKER-19): w bramce deterministyczna reprodukcja małego łańcucha kontrolnego z seedem różnicującym; pełna regeneracja produkcyjnych wag liniowych jedną udokumentowaną w README komendą poza bramką, zweryfikowana bajt w bajt w raporcie kodera; bajty produkcyjnych modułów wag (liniowych i MLP) pozostają nietknięte.",
+    "Pełna bramka wraca do rzędu kilkunastu sekund z wyraźnym zapasem względem stanu przed POKER-19 (pomiar przed/po w raporcie kodera); żaden dowód nie jest osłabiony — zmienia się wyłącznie miejsce wykonania pełnego łańcucha liniowego (poza bramką).",
+    "extras train w pyproject przypina dokładną wersję numpy (==) użytą do wytworzenia zatwierdzonych artefaktów MLP; README odnotowuje, że bitowa identyczność regeneracji artefaktów trenowanych zależnością jest gwarantowana dla przypiętej wersji (PUŁAPKA audytu POKER-19); przypięcie nie zmienia wytrenowanych bajtów — test pochodzenia MLP pozostaje zielony bez zmian artefaktu.",
+    "Nowe testy (łańcuch kontrolny klona liniowego) są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md, docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Zmiana bajtów jakichkolwiek wytrenowanych artefaktów, hiperparametrów, cech i zachowania agentów — to porządek dowodów, nie zmiana modeli; src/poker jest poza allowed_paths celowo.",
+    "Podbicie wersji numpy — przypięcie utrwala wersję już użytą; aktualizacja to osobna decyzja z regeneracją artefaktów.",
+    "Mechanizm markerów pytest i osobne suity testowe — dwustopniowy wzorzec decyzji 06 wystarcza.",
+    "Plastry c2 (decyzja 07) — startują po tym zadaniu.",
+    "Zmiany silnika, widoków, areny, korpusu, eksportu i enkodowania."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tests/**",
+    "tools/**",
+    "pyproject.toml",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T01:01:03Z"
+  }
+}

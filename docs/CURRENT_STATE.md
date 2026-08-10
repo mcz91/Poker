@@ -233,9 +233,13 @@ wyżej. b4.3 otwarty [decyzją 06](README.md#dokumenty-decyzji)
 (zależności ML wyłącznie w narzędziach, inferencja w stdlib,
 plastry c1→c2→c3 do GTO+explo): POKER-19 — MLP-klon, trzeci punkt
 pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
-— zrealizowany z udokumentowanym pomiarem (wyniki przy opisie
-agenta mlp-clone wyżej: nieliniowość nie przesuwa sufitu
-klonowania), czeka na audyt i integrację. Dalej: kwalifikacja
-metody c2 (self-play w stronę równowagi) z osobnym dokumentem
-decyzji; ulepszenia agentów wyłącznie z pomiarem w arenie
-(decyzja 04, pkt 2).
+— scalony po audycie (wyniki przy opisie agenta mlp-clone wyżej:
+nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
+sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
+([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
+zatwierdzony, u kodera. Metoda c2 zakwalifikowana
+[decyzją 07](README.md#dokumenty-decyzji): seedowany MCCFR na
+wersjonowanej abstrakcji, mieszanie akcji bez stanu; plaster c2a
+(abstrakcja kart i akcji) dostanie kontrakt po zieleni POKER-20;
+ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
+pkt 2).
