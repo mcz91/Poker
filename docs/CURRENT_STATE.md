@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-21
-(pokerroom krok 1: stoły heads-up w sieci lokalnej).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-22
+(abstrakcja kart i akcji pod MCCFR, plaster c2a).
 
 ## Co istnieje
 
@@ -202,6 +202,26 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-21
   odmowa nadpisania istniejącego pliku i czytelne błędy manifestu —
   pod testami; kierunek importów od
   adapterów do silnika strzeże `tests/test_architecture.py`;
+- `poker.abstraction` — wersjonowana abstrakcja gry pod trenera
+  równowagi (c2a, decyzja 07; czysty stdlib, bez I/O, INV-P1; jawne
+  `ABSTRACTION_VERSION` — zmiana definicji wymaga podbicia): kubełki
+  preflop ze 169 klas szeregowanych equity przeciw polu (grupowanie
+  parametrem, kubełek 0 najsłabszy), kubełki postflop z kategorii
+  ewaluatora (liczby kubełków per ulica parametrami, INV-P6); akcje
+  abstrakcyjne (fold, check-call, bet half/pot z rejestru rozmiarów,
+  all-in — zbiór parametrem) mapowane w obie strony: `decision_for`
+  przycina kwoty do granic `legal_actions`, typ niedostępny ma
+  deterministyczny fallback check-call — test właściwościowy na
+  widokach realnych rozdań wielu seedów gra wyłącznie decyzjami
+  przyjmowanymi przez maszynę licytacji; infoset deterministyczny
+  wyłącznie z informacji widocznych (ulica, kubełek, pozycja,
+  znormalizowany przebieg licytacji f/k/c + b/r z sufiksem H/P/A
+  względem puli sprzed akcji) — przeciek pod testem (karty
+  przeciwnika po showdownie i seed nie zmieniają infosetu; para
+  seedów o tej samej klasie kart daje ten sam infoset), złote
+  przypadki przybite z wersją; importy ograniczone (bez licytacji,
+  historii, stołu i adapterów) i nikt nie importuje abstrakcji
+  w tym plastrze — pod testem architektury;
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -265,8 +285,9 @@ serwer stołów heads-up w LAN z klientem terminalowym
 scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
 → wątek na najbliższy kontrakt sieciowy); multiway przy jednym
 stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
-silnika). Plaster c2a w toku: POKER-22 — abstrakcja kart i akcji
+silnika). Plaster c2a: POKER-22 — abstrakcja kart i akcji
 pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
-[decyzja 07](README.md#dokumenty-decyzji)) — zatwierdzony, u kodera;
-po nim c2b (trener MCCFR + agent tabelowy + pomiar). Ulepszenia
-agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
+[decyzja 07](README.md#dokumenty-decyzji)) — zrealizowany, czeka na
+audyt i integrację; po nim c2b (trener MCCFR + agent tabelowy
++ pomiar vs wszyscy agenci). Ulepszenia agentów wyłącznie z pomiarem
+w arenie (decyzja 04, pkt 2).

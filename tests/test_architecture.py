@@ -211,6 +211,27 @@ def test_lan_zyje_w_adapterach_i_zalezy_od_silnika_widokow_rejestru_i_eksportu()
     }, "silnik nie importuje protokołu sieciowego"
 
 
+def test_abstrakcja_ma_ograniczone_importy_i_nikt_jej_nie_importuje() -> None:
+    abstraction = SRC_POKER / "abstraction.py"
+    assert abstraction.is_file()
+    poker_imports = {name for name in _imports(abstraction) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.agent",
+        "poker.cards",
+        "poker.evaluation",
+        "poker.events",  # typy akcji i jawnych akcji — słownik widoku i decyzji
+        "poker.preflop",
+        "poker.preflop_equity",
+        "poker.views",
+    }, f"abstraction.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    for module in SRC_POKER.rglob("*.py"):
+        if module.name == "abstraction.py":
+            continue
+        assert "poker.abstraction" not in _imports(module), (
+            f"{module.name} importuje abstrakcję — w plastrze c2a nikt jej nie używa"
+        )
+
+
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     from poker.adapters.human import render_view
 
