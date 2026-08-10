@@ -104,8 +104,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   kodera, czeka na audyt i integrację);
 - [`POKER-23.json`](taskspecs/POKER-23.json) — trener MCCFR,
   artefakt strategii i agent tabelowy z pomiarem, plaster c2b
-  (szkic: czeka na zieleń POKER-22 i zatwierdzenie — szczegóły
-  mogą dostroić się do API abstrakcji).
+  (zrealizowany przez kodera na szczycie POKER-22 po autoryzacji
+  operatora w czacie; kopia kontraktu w repo bez pola `approved` —
+  do ostemplowania przez architekta; czeka na audyt i integrację
+  po POKER-22).
 
 ## Operator
 

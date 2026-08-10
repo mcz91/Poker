@@ -150,6 +150,30 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
   --agent0 clone --agent1 rule
 ```
 
+### Strategia MCCFR (self-play)
+
+```bash
+python tools/train_mccfr.py --iterations 1000 --seed 7
+python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
+  --agent0 mccfr --agent1 rule
+```
+
+Trener MCCFR (external sampling) gra self-play na abstrakcji c2a
+i zapisuje uśrednioną strategię jako moduł `src/poker/strategy_table.py`
+z pełnym przepisem pochodzenia (wersja abstrakcji, seed, iteracje,
+parametry kubełków i rozmiarów zakładów). Trening jest w całości
+seedowany: ta sama komenda odtwarza artefakt bajt w bajt, a w bramce
+pilnuje tego deterministyczna reprodukcja małego biegu kontrolnego
+(dowód dwustopniowy decyzji 06). Standard library wystarczył — numpy,
+dozwolony w `tools/`, nie był potrzebny.
+
+Agent `mccfr` (rejestr CLI, gra też przez serwer LAN) liczy infoset
+z widoku, bierze rozkład z artefaktu i losuje akcję **bez stanu**:
+deterministyczną funkcją seeda konstrukcji i widoku (blake2b), więc ten
+sam widok i seed zawsze dają tę samą akcję — replay i lustro areny
+działają bez zmian. Infoset spoza artefaktu ma fallback check-call
+(a bez niego fold).
+
 ## Dane equity preflop
 
 Macierz equity all-in 169×169 klas preflop żyje w repozytorium jako

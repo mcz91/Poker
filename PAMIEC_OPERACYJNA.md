@@ -17,18 +17,18 @@ Protokół (koszt czytelnika > koszt pisarza):
 ## STAN — praca w locie
 
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
-  każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
-  3.13); statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: audyty POKER-1…7 komplet; tylko tu: F2 POKER-1 —
-  odstępstwo uznane decyzją operatora; POKER-7: 960 meczów niezależnie.
-- 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main na e0b0f2b
-  jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
-- 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
-  na 4 rdzeniach — test reprodukcji bierze 2 pary.
+  weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
+- 2026-08-08 arch: audyty POKER-1…7 komplet (tylko tu: F2 POKER-1 —
+  odstępstwo decyzją operatora; POKER-7: 960 meczów); POKER-8/9/11/12
+  zaległe, main na e0b0f2b — stała autoryzacja obowiązuje.
+- 2026-08-08 arch: regeneracja macierzy equity ≈40 min/4 rdzenie (POKER-12).
 - 2026-08-10 arch: POKER-20/21 scalone po audycie (statusy w indeksie);
   POKER-22 (c2a) zatwierdzony — koder ze świeżej sesji z heada.
-- 2026-08-10 koder: POKER-22 zrealizowany ze startu `e6aebd3` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt.
+- 2026-08-10 koder: POKER-22 (na `092b761`) i na jego szczycie
+  POKER-23 na `claude/new-session-aazf0r`; integracja 22 przed 23.
+  POKER-23 na autoryzację z czatu — kopia kontraktu w repo bez pola
+  `approved`, do ostemplowania. Trening MCCFR: ~2 min 20 s na 1000
+  iteracji przy stackach 100, więc bieg kontrolny bierze stacki 12.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

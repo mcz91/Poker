@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-22
-(abstrakcja kart i akcji pod MCCFR, plaster c2a).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
+(trener MCCFR, strategia i agent tabelowy, plaster c2b).
 
 ## Co istnieje
 
@@ -222,6 +222,37 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-22
   przypadki przybite z wersją; importy ograniczone (bez licytacji,
   historii, stołu i adapterów) i nikt nie importuje abstrakcji
   w tym plastrze — pod testem architektury;
+- `poker.strategy_agent` + `poker.strategy_table` +
+  `tools/train_mccfr.py` — strategia przybliżonej równowagi (c2b,
+  decyzja 07): trener MCCFR (external sampling) w self-play na
+  abstrakcji c2a, w całości seedowany (seedy rozdań i losowania przy
+  węzłach przeciwnika z jednego seeda głównego; węzeł drzewa to
+  seed rozdania + prefiks akcji odgrywany publicznym API licytacji)
+  — czysty stdlib, numpy niepotrzebny; artefakt `strategy_table` to
+  wygenerowany moduł danych (infoset → wagi akcji sumujące się
+  dokładnie do `DENOMINATOR`) z kompletnym przepisem pochodzenia
+  (wersja abstrakcji, seed, iteracje, kubełki, rozmiary zakładów,
+  konfiguracja rozdania); dowód dwustopniowy (decyzja 06 pkt 3):
+  reprodukcja małego biegu kontrolnego bajt w bajt w bramce (seed
+  różnicujący), pełna regeneracja komendą z [`README.md`](../README.md)
+  poza bramką; agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
+  — inferencja stdlib: widok → infoset → rozkład → akcja losowana
+  **bez stanu** deterministyczną funkcją seeda konstrukcji i widoku
+  (blake2b — wbudowany `hash()` jest solony per proces), więc replay
+  i lustro areny działają bez zmian (INV-P4); kwoty i legalność przez
+  odwzorowanie c2a, fallback check-call→fold dla infosetu spoza
+  artefaktu — nigdy decyzji nielegalnej (test właściwościowy);
+  **pomiary c2b** (artefakt: 1000 iteracji, seed 7, 20 607 infosetów,
+  pokrycie 94,5% decyzji w meczach; serie 20 par × 100 rozdań,
+  seed 7): mccfr vs rule −248.36 BB/100, std 988.88, CI95 [−681.75,
+  185.04]; vs rule-aggressive −434.18, std 982.71, CI95 [−864.87,
+  −3.49]; vs clone +96.08, CI95 [−474.62, 666.78]; vs mlp-clone
+  +62.75, CI95 [−504.95, 630.44]. Oczekiwanie decyzji 07 pkt 6
+  (wynik vs rule istotnie lepszy od klonów) **nieosiągnięte**: punkt
+  jest nominalnie lepszy od klonów (−248 wobec −281 i −348), ale
+  przedziały ufności w pełni się nakrywają, a przy odchyleniu ~1000
+  BB/100 na parę 20 par nie rozdziela różnic tego rzędu — wniosek
+  o metodzie i mocy pomiaru należy do architekta;
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -287,7 +318,13 @@ scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
 stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
 silnika). Plaster c2a: POKER-22 — abstrakcja kart i akcji
 pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
-[decyzja 07](README.md#dokumenty-decyzji)) — zrealizowany, czeka na
-audyt i integrację; po nim c2b (trener MCCFR + agent tabelowy
-+ pomiar vs wszyscy agenci). Ulepszenia agentów wyłącznie z pomiarem
-w arenie (decyzja 04, pkt 2).
+[decyzja 07](README.md#dokumenty-decyzji)) — zrealizowany, oraz na
+jego szczycie c2b: POKER-23 — trener MCCFR, artefakt strategii
+i agent tabelowy z pomiarem
+([`docs/taskspecs/POKER-23.json`](taskspecs/POKER-23.json)) — również
+zrealizowany; oba czekają na audyt i integrację w kolejności 22 przed
+23. Dalej: decyzja architekta po pomiarach c2b (wyniki przy opisie
+agenta `mccfr` wyżej — oczekiwanie decyzji 07 pkt 6 nieosiągnięte,
+moc pomiaru i skala treningu do rozstrzygnięcia), plaster c2c
+(skala, wznowienia) i c3 (warstwa eksploatacyjna). Ulepszenia agentów
+wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
