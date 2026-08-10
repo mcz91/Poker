@@ -20,8 +20,6 @@ Protokół (koszt czytelnika > koszt pisarza):
   weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
   Tylko tu: F2 POKER-1 — odstępstwo decyzją operatora; regeneracja
   equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-10 koder: trening MCCFR ~2 min 20 s / 1000 iteracji przy
-  stackach 100 — bieg kontrolny w bramce bierze stacki 12.
 - 2026-08-10 arch: POKER-24 (częściowo, sprzeciw uznany decyzją 09)
   i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
   integracyjnym. POKER-27 i POKER-28 u koderów.
@@ -32,7 +30,7 @@ Protokół (koszt czytelnika > koszt pisarza):
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
-  zduplikowana; publiczne API w preflop_equity dopiero PO POKER-24
+  zduplikowana; publiczne API w preflop_equity osobnym kontraktem
   (refaktor dotyka abstrakcji, od której zależy artefakt).
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
@@ -46,11 +44,15 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-- Zatwierdzenie TaskSpeca N+1 aktualizuje też „Następny krok"
-  w `CURRENT_STATE.md` — dryf indeks↔stan powtórzył się przy POKER-2
-  (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
+- Zatwierdzenie TaskSpeca N+1 i każde zamknięcie zadania aktualizuje
+  też „Następny krok" w `CURRENT_STATE.md` — dryf powtórzył się przy
+  POKER-2, POKER-8 i POKER-25; oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
+- Regeneracja artefaktu unieważnia pomiary opisane przy nim
+  w `CURRENT_STATE.md`, a bramka tego nie łapie (testy pilnują tylko
+  `INFOSETS == len(STRATEGY)`): POKER-24 podmienił strategię
+  (20 607→20 971 infosetów), zostawiając wyniki areny sprzed podmiany.
 - Kryterium acceptance wyliczające zakres („na każdej ulicy") czytaj
   jak checklistę asercji: w POKER-5 turn/river zostały bez asercji mimo
   deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
@@ -65,14 +67,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
 - socket.makefile duplikuje deskryptor: zamknięcie samego gniazda bez
   pliku nie wysyła FIN — readline po drugiej stronie wisi (POKER-21).
-- Artefakt jako moduł Pythona ma sufit ~5 MB: przy 43 MB mypy rośnie
-  do 62 s, a import do 9,4 s — kryterium skali artefaktu pisz razem
-  z budżetem bramki, inaczej kontrakt jest wewnętrznie sprzeczny
-  (POKER-24). Koszt bramki zdominowany przez pytest (`ast.parse`
-  artefaktu 5x w testach architektury), nie przez mypy.
+- Artefakt jako moduł Pythona ma sufit ~5 MB (przy 20 MB bramka rośnie
+  z 23 s do 57 s); koszt zdominowany przez `pytest` — `ast.parse`
+  artefaktu 5x w testach architektury, nie przez mypy (POKER-24).
 - ARCHITEKT: kryterium ilościowe (skala, próg, limit czasu) wpisuj do
   kontraktu wyłącznie po oszacowaniu budżetu z danych repo — druga
-  instancja tej klasy (POKER-19 F1, POKER-24 OBJECTION); trzecia to
+  instancja klasy (POKER-19 F1, POKER-24 OBJECTION); trzecia to
   `BLOCKED` wg reguły 7 konstytucji.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
