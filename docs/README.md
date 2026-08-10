@@ -110,7 +110,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   architekta);
 - [`POKER-24.json`](taskspecs/POKER-24.json) — skala treningu MCCFR:
   wznowienia deterministyczne, artefakt ≥50k iteracji, pomiar
-  rozstrzygający, plaster c2c (zatwierdzony, u kodera);
+  rozstrzygający, plaster c2c (dostarczony częściowo: wznowienia
+  i wydajność zielone; kryterium skali ≥50k zgłoszone jako
+  `OBJECTION: CONFLICT` z pomiarem — czeka na rozstrzygnięcie
+  architekta, patrz `CURRENT_STATE.md`);
 - [`POKER-25.json`](taskspecs/POKER-25.json) — losowy kod stołu
   w serwerze LAN, domknięcie F1 audytu POKER-21 (zatwierdzony do
   pracy równoległej z POKER-24; kolejność integracji 24 przed 25).

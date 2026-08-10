@@ -1,7 +1,9 @@
 # Stan bieżący produktu Poker
 
 Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
-(trener MCCFR, strategia i agent tabelowy, plaster c2b).
+(trener MCCFR, strategia i agent tabelowy, plaster c2b); POKER-24
+(skala) dostarczony częściowo — kryterium skali w sprzeciwie, patrz
+„Następny krok".
 
 ## Co istnieje
 
@@ -235,7 +237,13 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
   konfiguracja rozdania); dowód dwustopniowy (decyzja 06 pkt 3):
   reprodukcja małego biegu kontrolnego bajt w bajt w bramce (seed
   różnicujący), pełna regeneracja komendą z [`README.md`](../README.md)
-  poza bramką; agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
+  poza bramką; od POKER-24 trening ma deterministyczne wznowienia
+  (`--checkpoint`, `--checkpoint-every`, `--resume`): losowość iteracji
+  zależy wyłącznie od pary (seed, numer), więc bieg przerwany
+  i wznowiony daje artefakt identyczny z ciągłym o tej samej łącznej
+  liczbie iteracji — pod testami; trawersacja schodzi w dół mutując
+  rozdanie w miejscu tam, gdzie stan rodzica nie jest już potrzebny
+  (100 iteracji: 13.7 s → 9.1 s); agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
   — inferencja stdlib: widok → infoset → rozkład → akcja losowana
   **bez stanu** deterministyczną funkcją seeda konstrukcji i widoku
   (blake2b — wbudowany `hash()` jest solony per proces), więc replay
@@ -288,51 +296,33 @@ decyzja, gdy pojawi się agent spoza repozytorium.
 ## Następny krok
 
 Etap (b) kierunku bot drogą operatora
-([decyzja 04](README.md#dokumenty-decyzji)): proste reguły dziś,
-silnik GTO/explo na ML docelowo. Podetapy b1–b3 (equity, arena,
-korpus self-play) scalone; b4 wchodzi plastrami
-([decyzja 05](README.md#dokumenty-decyzji)): POKER-15 (zbiór
-przykładów, b4.1) i POKER-16 (baseline behavior clone, b4.2)
-scalone po audycie; POKER-17 (przepis pochodzenia wag) scalony
-z audytem CZYSTYM — droga b4.1–b4.2 jest kompletna i w pełni
-odtwarzalna z samego repozytorium. Operator wybrał drogę pomiaru
-sufitu stdlib przed b4.3: POKER-18 — cechy v2 (equity preflop,
-siła układu), korpus 100 meczów, pomiar w arenie
-([`docs/taskspecs/POKER-18.json`](taskspecs/POKER-18.json)) —
-scalony po audycie, pomiary udokumentowane przy opisie agenta clone
-wyżej. b4.3 otwarty [decyzją 06](README.md#dokumenty-decyzji)
-(zależności ML wyłącznie w narzędziach, inferencja w stdlib,
-plastry c1→c2→c3 do GTO+explo): POKER-19 — MLP-klon, trzeci punkt
-pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
-— scalony po audycie (wyniki przy opisie agenta mlp-clone wyżej:
-nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
-sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
-([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
-scalony z audytem CZYSTYM (bramka wróciła do kilku–kilkunastu
-sekund, numpy przypięty). Zamówieniem operatora otwarta gałąź
-pokerroom ([decyzja 08](README.md#dokumenty-decyzji)): POKER-21 —
-serwer stołów heads-up w LAN z klientem terminalowym
-([`docs/taskspecs/POKER-21.json`](taskspecs/POKER-21.json)) —
-scalony po audycie (1 finding informacyjny: przewidywalny kod stołu
-→ wątek na najbliższy kontrakt sieciowy); multiway przy jednym
-stole pozostaje poza krokiem 1 (INV-P5, osobna kwalifikacja
-silnika). Plaster c2a: POKER-22 — abstrakcja kart i akcji
-pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
-[decyzja 07](README.md#dokumenty-decyzji)) — scalony po audycie
-(1 finding informacyjny → wątek), a na jego szczycie c2b: POKER-23
-— trener MCCFR, artefakt strategii i agent tabelowy `mccfr`
-([`docs/taskspecs/POKER-23.json`](taskspecs/POKER-23.json)) —
-scalony z audytem CZYSTYM. Pomiary c2b przy opisie agenta `mccfr`
-wyżej: na 1000 iteracji oczekiwanie decyzji 07 pkt 6 nieosiągnięte
-— rozstrzygnięcie decyzją architekta: moc pomiaru i skala treningu
-to plaster c2c: POKER-24 — wznowienia deterministyczne, artefakt
-≥50k iteracji, pomiar rozstrzygający
-([`docs/taskspecs/POKER-24.json`](taskspecs/POKER-24.json)) —
-zatwierdzony, u kodera; po jego pomiarze wniosek o metodzie i c3
-(warstwa eksploatacyjna). Równolegle, w rozłącznym obszarze
-adaptera sieciowego: POKER-25 — losowy kod stołu w serwerze LAN
-([`docs/taskspecs/POKER-25.json`](taskspecs/POKER-25.json),
-domknięcie F1 audytu POKER-21) — zatwierdzony, kolejność
-integracji 24 przed 25.
-Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
-pkt 2).
+([decyzja 04](README.md#dokumenty-decyzji)); b4 plastrami
+([decyzja 05](README.md#dokumenty-decyzji)), b4.3 i droga do GTO+explo
+([decyzje 06](README.md#dokumenty-decyzji) i 07). Podetapy b1–b3
+i plastry c1, c2a, c2b scalone; pokerroom krok 1 (LAN,
+[decyzja 08](README.md#dokumenty-decyzji)) scalony.
+
+**POKER-24 (c2c, skala) dostarczony częściowo — kryterium skali
+w sprzeciwie `OBJECTION: CONFLICT`.** Dostarczone i zielone:
+deterministyczne wznowienia z checkpointu (bieg przerwany = bieg
+ciągły, pod testami) oraz przyspieszenie iteracji o ~50%. Niedostarczone:
+artefakt produkcyjny ≥50 000 iteracji. Powód jest mierzalny: przy
+stałej abstrakcji c2a liczba infosetów rośnie ~n^0,65 (100 iteracji →
+4,6 tys.; 1000 → 21 tys.), więc 50 000 iteracji daje ~268 tys.
+infosetów i moduł ~43 MB. Zmierzony koszt takiego artefaktu w bramce:
+**mypy 62 s, import 9,4 s, ruff 8,9 s** wobec kryterium „bramka
+w rzędzie kilkunastu sekund" z tego samego kontraktu — sufit dla
+artefaktu jako modułu Pythona to ok. 5 MB, czyli ~2 tys. iteracji.
+Kandydaci na rozstrzygnięcie (decyzja architekta, nie kodera):
+przycięcie artefaktu do infosetów o istotnej liczbie odwiedzin (przy
+1000 iteracjach próg 5 zostawia 21,6% infosetów i 70,7% masy
+odwiedzin), inna forma artefaktu niż moduł Pythona (koliduje z INV-P1
+„bez I/O przy odczycie"), albo grubsza abstrakcja (nowa wersja
+abstrakcji = osobny kontrakt). Artefakt w repozytorium pozostaje na
+1000 iteracjach, przetrenowany nowym trenerem (pochodzenie spójne,
+regeneracja bajt w bajt zweryfikowana).
+
+Dalej: rozstrzygnięcie sprzeciwu i pomiar rozstrzygający c2c, potem
+c3 (warstwa eksploatacyjna); POKER-25 (losowy kod stołu LAN) jako
+praca równoległa. Ulepszenia agentów wyłącznie z pomiarem w arenie
+(decyzja 04, pkt 2).

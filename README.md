@@ -153,7 +153,10 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 ### Strategia MCCFR (self-play)
 
 ```bash
-python tools/train_mccfr.py --iterations 1000 --seed 7
+python tools/train_mccfr.py --iterations 1000 --seed 7 \
+  --checkpoint checkpoint.json --checkpoint-every 100
+python tools/train_mccfr.py --iterations 1000 --seed 7 \
+  --checkpoint checkpoint.json --resume        # wznowienie po przerwaniu
 python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
   --agent0 mccfr --agent1 rule
 ```
@@ -162,10 +165,15 @@ Trener MCCFR (external sampling) gra self-play na abstrakcji c2a
 i zapisuje uśrednioną strategię jako moduł `src/poker/strategy_table.py`
 z pełnym przepisem pochodzenia (wersja abstrakcji, seed, iteracje,
 parametry kubełków i rozmiarów zakładów). Trening jest w całości
-seedowany: ta sama komenda odtwarza artefakt bajt w bajt, a w bramce
-pilnuje tego deterministyczna reprodukcja małego biegu kontrolnego
-(dowód dwustopniowy decyzji 06). Standard library wystarczył — numpy,
-dozwolony w `tools/`, nie był potrzebny.
+seedowany — losowość iteracji zależy wyłącznie od pary (seed, numer
+iteracji), więc ta sama komenda odtwarza artefakt bajt w bajt, a bieg
+przerwany i wznowiony z `--checkpoint ... --resume` daje wynik
+identyczny z biegiem ciągłym o tej samej łącznej liczbie iteracji
+(pod testami; dowód dwustopniowy decyzji 06). Bez `--resume` istniejący
+checkpoint jest nadpisywany od zera. Bieg 1000 iteracji przy stackach
+100 trwa ok. 1,5 min; koszt rośnie liniowo z iteracjami, a rozmiar
+artefaktu ~n^0,65. Standard library wystarczył — numpy, dozwolony
+w `tools/`, nie był potrzebny.
 
 Agent `mccfr` (rejestr CLI, gra też przez serwer LAN) liczy infoset
 z widoku, bierze rozkład z artefaktu i losuje akcję **bez stanu**:

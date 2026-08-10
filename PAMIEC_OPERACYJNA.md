@@ -18,15 +18,14 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
-- 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją
-  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
-- 2026-08-08 arch: regeneracja macierzy equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
-  stackach 100 — bieg kontrolny w bramce bierze stacki 12.
-- 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony,
-  main dosunięty ze stałej autoryzacji. POKER-24 (c2c) i równolegle
-  POKER-25 (kod stołu LAN, obszar rozłączny) zatwierdzone — koderzy
-  startują ze świeżych sesji z heada integracyjnego; scalanie 24→25.
+  Tylko tu: F2 POKER-1 — odstępstwo decyzją operatora; audyt POKER-7
+  potwierdzony 960 meczami; regeneracja equity ≈40 min/4 rdzenie.
+- 2026-08-10 koder: POKER-24 częściowo na `claude/new-session-aazf0r`
+  (wznowienia + wydajność zielone; skala ≥50k = OBJECTION: CONFLICT,
+  liczby w `docs/CURRENT_STATE.md`) — czeka na rozstrzygnięcie
+  architekta; POKER-25 idzie na szczycie.
+- 2026-08-10 arch: komplet audytów POKER-1…23, main dosunięty.
+  POKER-24 (c2c) i POKER-25 (kod stołu LAN) zatwierdzone; scalanie 24→25.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -34,15 +33,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   w `_view` (betting) równoległa do projekcji; rozważyć unifikację przy
   najbliższym kontrakcie dotykającym `poker.betting`.
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
-  zduplikowana; kierunek: publiczne API w preflop_equity. Kontrakt
-  dopiero PO zamknięciu POKER-24: refaktor dotyka abstrakcji, od
-  której zależy artefakt strategii — inaczej rozjazd artefaktu.
+  zduplikowana; publiczne API w preflop_equity dopiero PO POKER-24
+  (refaktor dotyka abstrakcji, od której zależy artefakt).
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
 - 2026-08-08 operator: autoryzacja stała — main podąża za headem
-  gałęzi integracyjnej fast-forwardem po każdym komplecie audytów
-  scalonych zadań; wykonuje architekt bez pytania.
+  integracyjnym po każdym komplecie audytów; wykonuje architekt.
 - 2026-08-09 operator: mandat autonomii — na drodze b4/GTO+explo
   architekt kwalifikuje i zatwierdza kontrakty bez pytania (skala,
   prostota architektury); do operatora wracają tylko naruszenia
@@ -59,9 +56,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   ten sam build tej zależności — nieprzypięty `numpy>=2.0` może
   czerwienić testy pochodzenia/reprodukcji po aktualizacji (POKER-19);
   przypnij wersję w extras albo utrwal założenie w decyzji.
-- Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
-  przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
-  miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
+- Kryterium acceptance wyliczające zakres („na każdej ulicy") czytaj
+  jak checklistę asercji: w POKER-5 turn/river zostały bez asercji mimo
   deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
 - Frozen dataclass ≠ izolacja: object.__setattr__/__delattr__
   i introspekcja ramek (sys._getframe) omijają każdą czysto-pythonową
@@ -74,6 +70,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
 - socket.makefile duplikuje deskryptor: zamknięcie samego gniazda bez
   pliku nie wysyła FIN — readline po drugiej stronie wisi (POKER-21).
+- Artefakt jako moduł Pythona ma sufit ~5 MB: przy 43 MB mypy rośnie
+  do 62 s, a import do 9,4 s — kryterium skali artefaktu pisz razem
+  z budżetem bramki, inaczej kontrakt jest wewnętrznie sprzeczny
+  (POKER-24).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
