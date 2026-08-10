@@ -25,9 +25,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-10 arch: POKER-20 i POKER-21 scalone po audycie (statusy
-  w indeksie). POKER-22 (c2a) zatwierdzony — koder startuje ze
-  świeżej sesji z heada integracyjnego, nie z main.
+- 2026-08-10 arch: POKER-22/23 zrealizowane łańcuchem (fb61bf2 →
+  3e7c0c2), czekają na audyt; odstępstwo 23 (start ze szkicu za
+  autoryzacją operatora z czatu) uznane, stempel po starcie — jawnie
+  w indeksie; wstępna bramka łańcucha zielona; werdykty 22→23.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
