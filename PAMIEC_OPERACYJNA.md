@@ -26,12 +26,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
   na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-10 arch: POKER-19 scalony po audycie (statusy w indeksie;
-  pomiary c1 odtworzone co do setnych, bramka u architekta 16.6 s
-  vs 22.6 s audytora — różnice maszyn). F1 kontraktowy uznany:
-  kryterium zasobowe pisane obok non_goal zakazującego jedynej drogi
-  = sprzeczność; naprawa w POKER-20 (u kodera). c2 zakwalifikowane
-  decyzją 07; kontrakt c2a po zieleni POKER-20.
+- 2026-08-10 arch: POKER-19 scalony po audycie (statusy i werdykt F1
+  w indeksie); bramka 16.6 s u architekta vs 22.6 s u audytora —
+  różnice maszyn. c2 decyzją 07; kontrakt c2a po zieleni POKER-20.
+- 2026-08-10 koder: POKER-20 zrealizowany ze startu `fc76962` na
+  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Pytest
+  22→8.5 s; regeneracja produkcyjna obu wag zweryfikowana bajt
+  w bajt poza bramką (numpy 2.5.2 przypięty).
 
 ## WĄTKI — otwarte, bez TaskSpec
 

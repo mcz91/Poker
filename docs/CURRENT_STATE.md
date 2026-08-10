@@ -1,7 +1,7 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
-(MLP-klon: trening numpy w tools/, inferencja stdlib, pomiar).
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-20
+(dowód dwustopniowy dla klona liniowego, przypięcie numpy).
 
 ## Co istnieje
 
@@ -113,12 +113,13 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-19
   wygenerowany moduł danych z kompletnym przepisem pochodzenia
   (stałe `CORPUS_*`: agenci, liczba meczów, seed, konfiguracja
   meczu; wersja zbioru, hiperparametry, liczba przykładów; bez I/O
-  przy odczycie, INV-P1); test pochodzenia odtwarza pełny łańcuch
-  wyłącznie z metadanych artefaktu i porównuje moduł bajt w bajt
-  z utrwalonym, a sekwencję regeneracji dokumentuje
-  [`README.md`](../README.md) (domknięcie F1 audytu POKER-15/16);
-  reprodukcja treningu bajt w bajt pod testem; agent `clone`
-  (rejestr CLI) — czysta
+  przy odczycie, INV-P1); dowód pochodzenia dwustopniowy (decyzja 06,
+  od POKER-20): w bramce deterministyczna reprodukcja małego łańcucha
+  kontrolnego z metadanych artefaktu (seed korpusu różnicuje wagi),
+  pełna regeneracja produkcyjna sekwencją z [`README.md`](../README.md)
+  poza bramką, weryfikowana bajt w bajt w raporcie zadania
+  zmieniającego artefakt (domknięcie F1 audytów POKER-15/16 i 19);
+  agent `clone` (rejestr CLI) — czysta
   deterministyczna inferencja portem Agent (INV-P4, INV-P8), cechy
   z widoku tą samą definicją co zbiór (`view_features`, zgodność
   trening↔gra pod testem), kwoty v1 minimum legalnym,
@@ -237,7 +238,8 @@ pomiarowy ([`docs/taskspecs/POKER-19.json`](taskspecs/POKER-19.json))
 nieliniowość nie przesuwa sufitu klonowania — ograniczeniem jest
 sygnał uczący). Findingi audytu POKER-19 domyka POKER-20
 ([`docs/taskspecs/POKER-20.json`](taskspecs/POKER-20.json)) —
-zatwierdzony, u kodera. Metoda c2 zakwalifikowana
+zrealizowany (bramka wróciła do kilku–kilkunastu sekund, numpy
+przypięty), czeka na audyt i integrację. Metoda c2 zakwalifikowana
 [decyzją 07](README.md#dokumenty-decyzji): seedowany MCCFR na
 wersjonowanej abstrakcji, mieszanie akcji bez stanu; plaster c2a
 (abstrakcja kart i akcji) dostanie kontrakt po zieleni POKER-20;

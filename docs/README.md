@@ -88,7 +88,7 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   → POKER-20);
 - [`POKER-20.json`](taskspecs/POKER-20.json) — porządek dowodów po
   c1: dwustopniowy dowód dla klona liniowego, przypięcie numpy
-  (zatwierdzony, u kodera).
+  (zrealizowany przez kodera, czeka na audyt i integrację).
 
 ## Operator
 

@@ -98,7 +98,9 @@ daje plik identyczny bajt w bajt; istniejący plik wyjściowy to błąd.
 
 Regeneracja zatwierdzonych wag od zera, wyłącznie z tego repozytorium
 (sekwencja zgodna ze stałymi `CORPUS_*` i hiperparametrami w module
-wag — zgodność chroni test pochodzenia):
+wag; dowód dwustopniowy decyzji 06: w bramce deterministyczna
+reprodukcja małego łańcucha kontrolnego, pełna regeneracja poniższymi
+komendami poza bramką):
 
 ```bash
 python -m poker.adapters.cli --corpus korpus-wag/ --matches 100 \
@@ -150,7 +152,10 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 
 Narzędzie treningu MLP wymaga extras `train` (numpy — wyłącznie
 w `tools/` i testach reprodukcji; pakiet produktu i inferencja agenta
-`mlp-clone` to czysty stdlib, decyzja 06). Architektura
+`mlp-clone` to czysty stdlib, decyzja 06). Wersja numpy jest
+przypięta w pyproject: bitowa identyczność regeneracji artefaktów
+trenowanych zależnością jest gwarantowana dla przypiętej wersji —
+inny build może dawać inne bity przy tej samej matematyce. Architektura
 i hiperparametry z udokumentowanymi domyślnymi: `--hidden 16`,
 `--activation relu`, `--learning-rate 0.05`, `--epochs 300`,
 `--seed 0`. Trening jest deterministyczny (seedowana inicjalizacja,

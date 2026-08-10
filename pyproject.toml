@@ -19,9 +19,11 @@ dev = [
   "ruff>=0.6",
 ]
 # Zależności treningu ML: wyłącznie tools/ i testy reprodukcji (decyzja 06);
-# pakiet produktu i inferencja pozostają bezzależnościowe.
+# pakiet produktu i inferencja pozostają bezzależnościowe. Wersja przypięta:
+# bitowa identyczność regeneracji artefaktów zależy od buildu zależności
+# (PUŁAPKA audytu POKER-19); aktualizacja = osobna decyzja z regeneracją.
 train = [
-  "numpy>=2.0",
+  "numpy==2.5.2",
 ]
 
 [tool.hatch.build.targets.wheel]
