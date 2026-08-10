@@ -211,6 +211,43 @@ def test_lan_zyje_w_adapterach_i_zalezy_od_silnika_widokow_rejestru_i_eksportu()
     }, "silnik nie importuje protokołu sieciowego"
 
 
+def test_abstrakcja_ma_ograniczone_importy_i_nikt_jej_nie_importuje() -> None:
+    abstraction = SRC_POKER / "abstraction.py"
+    assert abstraction.is_file()
+    poker_imports = {name for name in _imports(abstraction) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.agent",
+        "poker.cards",
+        "poker.evaluation",
+        "poker.events",  # typy akcji i jawnych akcji — słownik widoku i decyzji
+        "poker.preflop",
+        "poker.preflop_equity",
+        "poker.views",
+    }, f"abstraction.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+    # Od c2b (POKER-23) abstrakcja ma dokładnie jednego konsumenta: agenta strategii.
+    for module in SRC_POKER.rglob("*.py"):
+        if module.name in ("abstraction.py", "strategy_agent.py"):
+            continue
+        assert "poker.abstraction" not in _imports(module), (
+            f"{module.name} importuje abstrakcję — konsumentem jest wyłącznie agent strategii"
+        )
+
+
+def test_agent_strategii_ma_ograniczone_importy_a_trener_zyje_w_tools() -> None:
+    agent = SRC_POKER / "strategy_agent.py"
+    assert agent.is_file()
+    assert (SRC_POKER / "strategy_table.py").is_file()
+    assert (SRC_POKER.parent.parent / "tools" / "train_mccfr.py").is_file()
+    poker_imports = {name for name in _imports(agent) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.abstraction",
+        "poker.agent",
+        "poker.events",
+        "poker.strategy_table",
+        "poker.views",
+    }, f"strategy_agent.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+
+
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     from poker.adapters.human import render_view
 

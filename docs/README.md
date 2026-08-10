@@ -53,16 +53,16 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-7.json`](taskspecs/POKER-7.json) — stół i pętla meczu
   (zamknięty, commit `462576d`; domknięcie audytu `4a01775`);
 - [`POKER-8.json`](taskspecs/POKER-8.json) — pierwszy agent regułowy
-  (zamknięty, commit `95d004a`; audyt w toku);
+  (zamknięty, commit `95d004a`; audyt: CZYSTY);
 - [`POKER-9.json`](taskspecs/POKER-9.json) — CLI i eksport historii
-  (zamknięty, commit `b6f7035`; audyt w toku);
+  (zamknięty, commit `b6f7035`; audyt: CZYSTY);
 - [`POKER-10.json`](taskspecs/POKER-10.json) — interfejs człowiek vs
   bot w terminalu (zamknięty, commit `b1da201`; audyt: 1 finding
   informacyjny → POKER-11);
 - [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
-  w trybie człowieka (zamknięty, commit `80899ce`; audyt w toku);
+  w trybie człowieka (zamknięty, commit `80899ce`; audyt: CZYSTY);
 - [`POKER-12.json`](taskspecs/POKER-12.json) — equity preflop 169
-  klas rąk jako dane (zamknięty, commit `f166f41`; audyt w toku);
+  klas rąk jako dane (zamknięty, commit `f166f41`; audyt: CZYSTY);
 - [`POKER-13.json`](taskspecs/POKER-13.json) — arena porównawcza
   agentów: BB/100 na lustrzanych rozdaniach (zamknięty, commit
   `5f5302b`; audyt: CZYSTY);
@@ -100,15 +100,14 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   1 finding informacyjny — przewidywalny kod stołu → wątek na
   najbliższy kontrakt sieciowy);
 - [`POKER-22.json`](taskspecs/POKER-22.json) — abstrakcja kart
-  i akcji pod MCCFR, plaster c2a decyzji 07 (zrealizowany,
-  `fb61bf2` na gałęzi kodera; czeka na audyt i integrację);
+  i akcji pod MCCFR, plaster c2a decyzji 07 (zamknięty, commit
+  `fb61bf2`; audyt: 1 finding informacyjny — duplikacja formuły
+  equity-przeciw-polu → wątek na publiczne API w preflop_equity);
 - [`POKER-23.json`](taskspecs/POKER-23.json) — trener MCCFR,
   artefakt strategii i agent tabelowy `mccfr`, plaster c2b
-  (zrealizowany, `3e7c0c2` na szczycie POKER-22; start ze szkicu
-  za jawną autoryzacją operatora z czatu przed stemplem architekta
-  — odstępstwo uznane, treść kontraktu niezmieniona co do bajta,
-  zatwierdzenie 2026-08-10; czeka na audyt i integrację po
-  POKER-22).
+  (zamknięty, commit `3e7c0c2`; audyt: CZYSTY — odstępstwo stempla
+  po starcie zbadane, treść identyczna ze szkicem, uznane przez
+  architekta).
 
 ## Operator
 

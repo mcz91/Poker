@@ -17,18 +17,15 @@ Protokół (koszt czytelnika > koszt pisarza):
 ## STAN — praca w locie
 
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
-  każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
-  3.13); statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: audyty POKER-1…7 komplet; tylko tu: F2 POKER-1 —
-  odstępstwo uznane decyzją operatora; POKER-7: 960 meczów niezależnie.
-- 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main na e0b0f2b
-  jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
-- 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
-  na 4 rdzeniach — test reprodukcji bierze 2 pary.
-- 2026-08-10 arch: POKER-22/23 zrealizowane łańcuchem (fb61bf2 →
-  3e7c0c2), czekają na audyt; odstępstwo 23 (start ze szkicu za
-  autoryzacją operatora z czatu) uznane, stempel po starcie — jawnie
-  w indeksie; wstępna bramka łańcucha zielona; werdykty 22→23.
+  weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
+- 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją
+  operatora; audyt POKER-7 potwierdzony 960 meczami niezależnymi.
+- 2026-08-08 arch: regeneracja macierzy equity ≈40 min/4 rdzenie (POKER-12).
+- 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
+  stackach 100 — bieg kontrolny w bramce bierze stacki 12.
+- 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony
+  (statusy i werdykty w indeksie), main dosunięty do heada ze stałej
+  autoryzacji; następny kontrakt: c2c — skala MCCFR (decyzja 07).
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -37,6 +34,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   najbliższym kontrakcie dotykającym `poker.betting`.
 - 2026-08-10 arch: F1 audytu POKER-21 — kod stołu to licznik;
   najbliższy kontrakt sieciowy: kod losowy z seedowanego RNG serwera.
+- 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
+  zduplikowana; kierunek: publiczne API w preflop_equity przy
+  najbliższym kontrakcie dotykającym preflop_equity lub encoding.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
