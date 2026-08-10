@@ -19,9 +19,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
   każde zadanie weryfikowane niezależnie przed scaleniem (czysty venv
   3.13); statusy i commity w [`docs/README.md`](docs/README.md).
-- 2026-08-08 arch: komplet audytów POKER-1…7 zamknięty; fakty tylko
-  tu: F2 audytu POKER-1 — odstępstwo uznane decyzją operatora; audyt
-  POKER-7 potwierdzony 960 meczami niezależnymi.
+- 2026-08-08 arch: audyty POKER-1…7 komplet; tylko tu: F2 POKER-1 —
+  odstępstwo uznane decyzją operatora; POKER-7: 960 meczów niezależnie.
 - 2026-08-08 arch: audyty POKER-8/9/11/12 zaległe; main na e0b0f2b
   jednorazowym poleceniem operatora — stała autoryzacja obowiązuje.
 - 2026-08-08 arch: POKER-12: pełna regeneracja macierzy equity ≈40 min
@@ -29,10 +28,11 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 arch: POKER-19 scalony po audycie (statusy i werdykt F1
   w indeksie); bramka 16.6 s u architekta vs 22.6 s u audytora —
   różnice maszyn. c2 decyzją 07; kontrakt c2a po zieleni POKER-20.
-- 2026-08-10 koder: POKER-20 zrealizowany ze startu `fc76962` na
-  gałęzi `claude/new-session-aazf0r`; czeka na audyt. Pytest
-  22→8.5 s; regeneracja produkcyjna obu wag zweryfikowana bajt
-  w bajt poza bramką (numpy 2.5.2 przypięty).
+- 2026-08-10 koder: POKER-20 (start `fc76962`) i na jego szczycie
+  POKER-21 (start `72305b1` — head 98d92af bez POKER-20; kontrakt
+  i decyzja 08 dołączone plikami) — oba na `claude/new-session-aazf0r`,
+  integracja 20 przed 21. Pułapka: socket.makefile duplikuje fd —
+  zamknięcie gniazda bez pliku nie wysyła FIN, readline wisi.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

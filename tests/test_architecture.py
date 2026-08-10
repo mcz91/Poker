@@ -35,9 +35,12 @@ def _imports(path: Path) -> set[str]:
 def test_adaptery_istnieja_i_zaleza_od_silnika() -> None:
     adapters = SRC_POKER / "adapters"
     for module in (
-        "cli.py", "corpus.py", "dataset.py", "export.py", "human.py", "registry.py",
+        "cli.py", "corpus.py", "dataset.py", "export.py", "human.py",
+        "lan_client.py", "lan_server.py", "protocol.py", "registry.py",
     ):
         assert (adapters / module).is_file(), module
+        if module in ("protocol.py", "lan_client.py"):
+            continue  # liście protokołu: zależą wyłącznie od innych adapterów
         imported = _imports(adapters / module)
         assert any(
             name.startswith("poker.") and not name.startswith("poker.adapters.")
@@ -180,6 +183,32 @@ def test_mlp_agent_ma_ograniczone_importy_a_narzedzie_istnieje() -> None:
     }, f"mlp_agent.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
     assert (SRC_POKER / "mlp_weights.py").is_file()
     assert (SRC_POKER.parent.parent / "tools" / "train_mlp_clone.py").is_file()
+
+
+def test_lan_zyje_w_adapterach_i_zalezy_od_silnika_widokow_rejestru_i_eksportu() -> None:
+    server = SRC_POKER / "adapters" / "lan_server.py"
+    client = SRC_POKER / "adapters" / "lan_client.py"
+    for path in (server, client):
+        assert path.is_file()
+    server_imports = {name for name in _imports(server) if name.startswith("poker.")}
+    assert server_imports <= {
+        "poker.adapters.export",
+        "poker.adapters.human",
+        "poker.adapters.protocol",
+        "poker.adapters.registry",
+        "poker.agent",
+        "poker.events",
+        "poker.table",
+    }, f"lan_server.py importuje poza dozwolonym zbiorem: {sorted(server_imports)}"
+    client_imports = {name for name in _imports(client) if name.startswith("poker.")}
+    assert client_imports <= {
+        "poker.adapters.protocol",
+    }, f"lan_client.py importuje poza dozwolonym zbiorem: {sorted(client_imports)}"
+    assert "poker.adapters.protocol" not in {
+        name
+        for module in SRC_POKER.glob("*.py")
+        for name in _imports(module)
+    }, "silnik nie importuje protokołu sieciowego"
 
 
 def test_renderer_przyjmuje_wylacznie_playerview() -> None:

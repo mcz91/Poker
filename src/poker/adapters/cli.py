@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import threading
 from collections.abc import Callable, Sequence
 from itertools import count
 from pathlib import Path
@@ -11,6 +12,8 @@ from poker.adapters.corpus import generate_corpus
 from poker.adapters.dataset import extract_dataset
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
+from poker.adapters.lan_client import run_client
+from poker.adapters.lan_server import HUMAN_OPPONENT, TableServer
 from poker.adapters.registry import agent_registry
 from poker.agent import Agent
 from poker.arena import SeriesConfig, run_series
@@ -66,6 +69,22 @@ def build_parser() -> argparse.ArgumentParser:
                              "brak; wyklucza pozostałe tryby)")
     parser.add_argument("--from-corpus", type=Path, default=None, metavar="KATALOG",
                         help="katalog korpusu źródłowego dla --dataset")
+    parser.add_argument("--serve", type=int, default=None, metavar="PORT",
+                        help="serwer stołów LAN na PORT (0 = efemeryczny; działa do "
+                             "przerwania; domyślnie brak)")
+    parser.add_argument("--serve-host", default="0.0.0.0",
+                        help="interfejs nasłuchu serwera (domyślnie 0.0.0.0)")
+    parser.add_argument("--export-dir", type=Path, default=None, metavar="KATALOG",
+                        help="serwer: eksport historii zakończonych stołów do KATALOGU "
+                             "(domyślnie wyłączony)")
+    parser.add_argument("--connect", default=None, metavar="HOST:PORT",
+                        help="klient LAN: połącz z serwerem; z --join dołącza kodem, "
+                             "bez niego tworzy stół z konfiguracją meczu (domyślnie brak)")
+    parser.add_argument("--join", default=None, metavar="KOD",
+                        help="klient LAN: kod stołu do dołączenia")
+    parser.add_argument("--opponent", default=HUMAN_OPPONENT,
+                        help="klient LAN przy tworzeniu stołu: 'human' czeka na gracza, "
+                             "nazwa agenta z rejestru gra od razu (domyślnie human)")
     parser.add_argument("--export", type=Path, default=None, metavar="PLIK",
                         help="ścieżka pliku eksportu historii JSON (domyślnie bez eksportu)")
     return parser
@@ -78,6 +97,44 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
         print(f"koniec rozdania {next(numbers)}: {render_hand_summary(history, seat)}")
 
     return report
+
+
+def _run_serve_command(args: argparse.Namespace) -> int:
+    server = TableServer(
+        host=args.serve_host, port=args.serve, export_directory=args.export_dir
+    )
+    host, port = server.start()
+    print(f"serwer stołów LAN słucha na {host}:{port} (przerwij Ctrl+C)")
+    try:
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.close()
+    return 0
+
+
+def _run_connect_command(args: argparse.Namespace, stdin: TextIO | None) -> int:
+    host, _, port_text = args.connect.partition(":")
+    if not host or not port_text.isdigit():
+        raise ValueError(f"--connect wymaga adresu HOST:PORT, otrzymano {args.connect!r}")
+    if args.join is not None:
+        request: dict[str, object] = {"type": "join", "code": args.join}
+    else:
+        request = {
+            "type": "create",
+            "small_blind": args.small_blind,
+            "big_blind": args.big_blind,
+            "stacks": [args.stack[0], args.stack[1]],
+            "button": args.button,
+            "hand_limit": args.hands,
+            "seed": args.seed,
+            "opponent": args.opponent,
+        }
+    effective_stdin: TextIO = stdin if stdin is not None else sys.stdin
+    return run_client(
+        host, int(port_text), request=request, stdin=effective_stdin, stdout=sys.stdout
+    )
 
 
 def _run_dataset_command(args: argparse.Namespace) -> int:
@@ -153,6 +210,10 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     try:
         args = parser.parse_args(argv)
         registry = agent_registry()
+        if args.serve is not None:
+            return _run_serve_command(args)
+        if args.connect is not None:
+            return _run_connect_command(args, stdin)
         if args.dataset is not None:
             return _run_dataset_command(args)
         if args.corpus is not None:
