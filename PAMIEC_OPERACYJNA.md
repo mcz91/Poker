@@ -55,10 +55,10 @@ Protokół (koszt czytelnika > koszt pisarza):
   (`00dcba7`) i POKER-8 (`b18dace`); oba dokumenty jednym commitem.
 - mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
   czerwona mimo poprawnych typów.
-- Determinizm bajt w bajt artefaktu trenowanego zależnością zakłada
-  ten sam build tej zależności — nieprzypięty `numpy>=2.0` może
-  czerwienić testy pochodzenia/reprodukcji po aktualizacji (POKER-19);
-  przypnij wersję w extras albo utrwal założenie w decyzji.
+- Regeneracja artefaktu unieważnia pomiary opisane przy nim
+  w `CURRENT_STATE.md`, a bramka tego nie łapie (testy pilnują tylko
+  `INFOSETS == len(STRATEGY)`): POKER-24 podmienił strategię
+  (20 607→20 971 infosetów), zostawiając wyniki areny sprzed podmiany.
 - Kryterium acceptance wyliczające zakres („na każdej ulicy", „obu
   przypadków") czytaj jak checklistę asercji: w POKER-5 granice kwot
   miały testy tylko preflop+flop, turn/river zostały bez asercji mimo
