@@ -325,7 +325,10 @@ pod MCCFR ([`docs/taskspecs/POKER-22.json`](taskspecs/POKER-22.json),
 scalony z audytem CZYSTYM. Pomiary c2b przy opisie agenta `mccfr`
 wyżej: na 1000 iteracji oczekiwanie decyzji 07 pkt 6 nieosiągnięte
 — rozstrzygnięcie decyzją architekta: moc pomiaru i skala treningu
-to dokładnie plaster c2c, który wchodzi jako następny kontrakt;
-po jego pomiarze wniosek o metodzie i c3 (warstwa eksploatacyjna).
+to plaster c2c: POKER-24 — wznowienia deterministyczne, artefakt
+≥50k iteracji, pomiar rozstrzygający
+([`docs/taskspecs/POKER-24.json`](taskspecs/POKER-24.json)) —
+zatwierdzony, u kodera; po jego pomiarze wniosek o metodzie i c3
+(warstwa eksploatacyjna).
 Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04,
 pkt 2).

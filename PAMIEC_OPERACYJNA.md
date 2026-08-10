@@ -23,9 +23,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-08 arch: regeneracja macierzy equity ≈40 min/4 rdzenie (POKER-12).
 - 2026-08-10 koder: trening MCCFR ~2 min 20 s na 1000 iteracji przy
   stackach 100 — bieg kontrolny w bramce bierze stacki 12.
-- 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony
-  (statusy i werdykty w indeksie), main dosunięty do heada ze stałej
-  autoryzacji; następny kontrakt: c2c — skala MCCFR (decyzja 07).
+- 2026-08-10 arch: komplet audytów POKER-1…23; łańcuch 22→23 scalony,
+  main dosunięty ze stałej autoryzacji. POKER-24 (c2c) zatwierdzony —
+  koder startuje ze świeżej sesji z heada integracyjnego, nie z main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

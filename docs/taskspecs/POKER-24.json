@@ -1,0 +1,40 @@
+{
+  "id": "POKER-24",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator trenuje strategię równowagi na skali z deterministycznymi wznowieniami i otrzymuje pomiar o mocy rozstrzygającej oczekiwanie decyzji 07 pkt 6 — plaster c2c.",
+  "acceptance": [
+    "Narzędzie treningu MCCFR wspiera skalę: liczba iteracji bez kodowego limitu oraz deterministyczne wznowienie z checkpointu — bieg przerwany i wznowiony daje artefakt bajt w bajt identyczny z biegiem jednorazowym o tej samej łącznej liczbie iteracji, pod testem na małym biegu w bramce; wydajność pojedynczej iteracji poprawiona albo co najmniej niezdegradowana względem c2b (pomiar czasu przed/po w raporcie kodera; numpy w tools/ dozwolony, jeśli kupuje wydajność — decyzja 06).",
+    "Artefakt produkcyjny wytrenowany na skali co najmniej 50 000 iteracji (cel 100 000, jeśli udokumentowany budżet czasu na to pozwala); faktyczna liczba iteracji, seed, parametry i ewentualna historia wznowień są jawne w przepisie pochodzenia (wzorzec POKER-17); dowód dwustopniowy bez zmian: bieg kontrolny w bramce z seedem różnicującym, pełna regeneracja poza bramką z udokumentowanym czasem w README i raporcie kodera.",
+    "Pomiar rozstrzygający poza bramką (jawnie uruchamiane serie, decyzja 06 pkt 3): mccfr vs rule, rule-aggressive, clone i mlp-clone, serie co najmniej 100 par x 100 rozdań z jawnymi seedami; wyniki (BB/100, CI, konfiguracja) w docs/CURRENT_STATE.md obok pomiarów c2b; raport wprost rozstrzyga oczekiwanie decyzji 07 pkt 6 (mccfr vs rule istotnie lepszy od klonów): osiągnięte albo nieosiągnięte — kryterium plastra jest rzetelny pomiar, wniosek o metodzie należy do architekta.",
+    "Granice: wersja abstrakcji c2a bez zmian; agent mccfr, mieszanie bez stanu, silnik, protokoły i LAN nietknięte poza artefaktem strategii i narzędziem treningu; numpy nieobecny w src/poker — rozszerzony test architektury; pełna bramka pozostaje w rzędzie kilkunastu sekund (konflikt = OBJECTION).",
+    "Nowe testy (wznowienie z checkpointu, zgodność bieg jednorazowy vs wznowiony) są czerwone przed implementacją (dowód w raporcie kodera), a pełna bramka repozytorium kończy się zielenią po niej.",
+    "README.md (trening na skali, wznowienia, regeneracja, pomiar), docs/CURRENT_STATE.md i indeks dokumentacji odzwierciedlają stan po zadaniu jednym commitem ze statusami (pułapka o dryfie); test zgodności bramki pozostaje zielony."
+  ],
+  "non_goals": [
+    "Warstwa eksploatacyjna — c3 (decyzje 04 i 06), po wniosku architekta z pomiaru c2c.",
+    "Strojenie i zmiana abstrakcji — nowa wersja abstrakcji to osobny kontrakt po wnioskach z pomiaru; ten plaster mierzy wkład skali przy stałej abstrakcji.",
+    "Równoległość wielordzeniowa treningu MCCFR — osobna kwalifikacja, jeśli pomiar czasu wykaże konieczność.",
+    "Zmiany agenta mccfr, mechanizmu mieszania, silnika, sieci LAN i formatów.",
+    "Kod stołu LAN (WĄTEK audytu POKER-21) i API equity-przeciw-polu (WĄTEK audytu POKER-22) — najbliższe kontrakty dotykające tych obszarów, nie ten."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/**",
+    "tests/**",
+    "tools/**",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-10T03:33:30Z"
+  }
+}

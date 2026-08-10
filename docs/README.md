@@ -107,7 +107,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   artefakt strategii i agent tabelowy `mccfr`, plaster c2b
   (zamknięty, commit `3e7c0c2`; audyt: CZYSTY — odstępstwo stempla
   po starcie zbadane, treść identyczna ze szkicem, uznane przez
-  architekta).
+  architekta);
+- [`POKER-24.json`](taskspecs/POKER-24.json) — skala treningu MCCFR:
+  wznowienia deterministyczne, artefakt ≥50k iteracji, pomiar
+  rozstrzygający, plaster c2c (zatwierdzony, u kodera).
 
 ## Operator
 
