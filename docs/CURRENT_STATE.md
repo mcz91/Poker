@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-30
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-31
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -278,6 +278,12 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   (fold / obie fold / jeden caller z zadanym equity). **Nie otwiera
   INV-P5** — `HeadsUpHand` i `play_match` zostają przy N=2. PokerKit
   i obce solvery nie są zależnością (decyzja 10).
+- `poker.jamfold` — Nash jam/fold 3-max na jednym stanie stacków
+  (POKER-31, decyzja 11): fictitious play z wagą liniową t (gra
+  wewnętrzna Ganzfried & Sandholm, AAMAS 2008). Equity HU z macierzy
+  preflop; 3-way z pary znormalizowanej; bez blockerów. Na 25 bb WTA
+  UTG jams ≈16% combo, BTN/BB call 7–8%; 10× 80/20 zaciska call.
+  `strategy_table.py` nietknięty.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -312,9 +318,10 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
 Persystencji poza plikiem eksportu, side potów w maszynie licytacji
 (INV-P5, N=2 — `award_allin` w `poker.spin` liczy je tylko dla
-all-inów jam/fold), zegara blindów, pełnego 3-max NL, Nash jam/fold
-3-max (Ganzfried 2008), UI poza LAN. ICM/WTA i wypłaty Spin są od
-POKER-30. Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
+all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
+po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
+ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31.
+Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
 ## Następny krok
@@ -352,8 +359,11 @@ mierzy już Linear MCCFR.
 **POKER-30 (ICM + Spin 3-max) zamknięty.** Własny Harville i wypłaty
 2×/3×/10×; INV-P5 nietknięte; PokerKit odrzucony (decyzja 10).
 
-Następne kroki: jam/fold 3-max (Ganzfried & Sandholm AAMAS 2008) na
-tej matematyce **albo** powrót do **POKER-28** (findingi audytu
+**POKER-31 (jam/fold 3-max) zamknięty.** Fictitious play na jednym
+stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
+
+Następne kroki: value iteration po stanach turnieju (zewnętrzna pętla
+Ganzfrieda) **albo** powrót do **POKER-28** (findingi audytu
 POKER-24/25) i **POKER-27** (krzywa jakość-vs-skala HU Linear MCCFR)
 — kolejność ustala operator. Potem c3 (RNR) albo nowa kwalifikacja
 metody, gdy krzywa HU jest płaska (decyzja 09, pkt 4).
