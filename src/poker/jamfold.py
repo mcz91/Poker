@@ -9,7 +9,14 @@ from __future__ import annotations
 from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES, CLASS_INDEX
 from poker.preflop_equity import equity as class_equity
-from poker.spin import award_allin, post_blinds, roles, utg_shove_both_fold, utg_shove_called
+from poker.spin import (
+    DEPTHS,
+    award_allin,
+    post_blinds,
+    roles,
+    utg_shove_both_fold,
+    utg_shove_called,
+)
 
 N_HANDS = len(ALL_CLASSES)
 UTG_OPEN, BTN_VS_UTG, BB_VS_UTG, BB_VS_BOTH, BTN_OPEN, BB_VS_BTN = range(6)
@@ -342,3 +349,20 @@ def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[floa
     )
     add(p_jam * p_btn_c * p_bb_both, tw_mix)
     return (acc[0], acc[1], acc[2])
+
+
+def jam_vs_depth(
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    iterations: int = 16,
+) -> tuple[tuple[int, float, float, float], ...]:
+    """UTG jam % i call % na klasycznym zegarze 25/15/10/6 bb."""
+    rows: list[tuple[int, float, float, float]] = []
+    for bb, stacks in DEPTHS:
+        result = solve(stacks, prizes, button, iterations)
+        utg = result["utg_jam_pct"]
+        btn = result["btn_call_pct"]
+        bb_c = result["bb_call_pct"]
+        assert isinstance(utg, float) and isinstance(btn, float) and isinstance(bb_c, float)
+        rows.append((bb, utg, btn, bb_c))
+    return tuple(rows)

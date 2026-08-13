@@ -149,6 +149,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   payoff ICM/WTA (decyzja 11).
 - [`POKER-32.json`](taskspecs/POKER-32.json) — pierwszy backup
   zewnętrzny: E[ICM(s′)] vs cash-out (decyzja 12).
+- [`POKER-33.json`](taskspecs/POKER-33.json) — zegar głębokości
+  25/15/10/6 bb, jam UTG rośnie na krótkim (decyzja 13).
 
 ## Operator
 
