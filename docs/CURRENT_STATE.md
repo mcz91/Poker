@@ -386,6 +386,7 @@ i nie jest cash-MCCFR. `strategy_table` nietknięty.
 Live vs-field UTG ~27% ≠ offline macierz ~17%. Self-ε ≠ jakość
 w pokerze (decyzja 17).
 
-Następne kroki: otwarcie 2.2x na 25 bb (bar $1 na deep) **albo**
-POKER-27 jeśli operator wraca do HU. Nie trenować cash-MCCFR bez
-krzywej.
+Następne kroki (decyzja 18): (1) jedna polityka macierzowa,
+(2) ε transfer, (3) kubły nierównych stacków, (4) VI Ganzfrieda,
+(5) arena ROI vs fish, (6) drzewo 2.2x na 25 bb.
+Flop i POKER-27 tylko po pomiarze. Nie trenować cash-MCCFR.

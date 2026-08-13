@@ -151,8 +151,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   zewnętrzny: E[ICM(s′)] vs cash-out (decyzja 12).
 - [`POKER-33.json`](taskspecs/POKER-33.json) — zegar głębokości
   25/15/10/6 bb, jam UTG rośnie na krótkim (decyzja 13).
-- [`POKER-36.json`](taskspecs/POKER-36.json) — exploitability vs BR
-  na drzewie jam/fold, w BI (decyzja 16).
+- [`18-plan-rozbudowy-spin.md`](decisions/18-plan-rozbudowy-spin.md)
+  — kolejność pod $1 Spin: jedna polityka → ε transfer → kubły →
+  VI → arena ROI → 2.2x. Flop później.
 
 ## Operator
 
