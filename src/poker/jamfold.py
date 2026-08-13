@@ -151,100 +151,6 @@ def solve(
     )
     tw = tuple(money(_three_way(stacks, w)) for w in range(3))
 
-    cum = [[0.0] * N_HANDS for _ in range(N_NODES)]
-    weight_sum = 0.0
-
-    def avg(_done: int) -> list[list[float]]:
-        if weight_sum == 0:
-            return [[0.5] * N_HANDS for _ in range(N_NODES)]
-        return [[cum[n][i] / weight_sum for i in range(N_HANDS)] for n in range(N_NODES)]
-
-    def br(sigma: list[list[float]]) -> list[list[float]]:
-        utg_r, btn_c, bb_utg, bb_both, btn_o, bb_btn = sigma
-        p_btn_c, p_bb_utg, p_bb_both = _mass(btn_c), _mass(bb_utg), _mass(bb_both)
-        p_btn_o, p_bb_btn = _mass(btn_o), _mass(bb_btn)
-        e_utg_bb = _eq_ranges(utg_r, bb_utg)
-        e_utg_btn = _eq_ranges(utg_r, btn_c)
-        e_call_both = _eq_ranges(btn_c, bb_both)
-        e_utg_both = _eq_ranges(utg_r, bb_both)
-        e_btn_bb = _eq_ranges(btn_o, bb_btn)
-        fold_utg = (
-            (1 - p_btn_o) * bb_b[utg]
-            + p_btn_o * (1 - p_bb_btn) * btn_b[utg]
-            + p_btn_o * p_bb_btn * _mix(e_btn_bb, hu_btn_bb[0][utg], hu_btn_bb[1][utg])
-        )
-        out = [[0.0] * N_HANDS for _ in range(N_NODES)]
-        for h in range(N_HANDS):
-            e_h_bb = _eq_vs(h, bb_utg)
-            e_h_btn = _eq_vs(h, btn_c)
-            e_h_both = _eq_vs(h, bb_both)
-            p_h, p_btn, p_bb = _norm3(
-                e_h_btn * e_h_both,
-                (1 - e_h_btn) * e_call_both,
-                (1 - e_h_both) * (1 - e_call_both),
-            )
-            jam_utg = (
-                (1 - p_btn_c) * (1 - p_bb_utg) * utg_b[utg]
-                + (1 - p_btn_c) * p_bb_utg * _mix(e_h_bb, hu_utg_bb[0][utg], hu_utg_bb[1][utg])
-                + p_btn_c * (1 - p_bb_both) * _mix(e_h_btn, hu_utg_btn[0][utg], hu_utg_btn[1][utg])
-                + p_btn_c
-                * p_bb_both
-                * (p_h * tw[utg][utg] + p_btn * tw[btn][utg] + p_bb * tw[bb][utg])
-            )
-            out[UTG_OPEN][h] = 1.0 if jam_utg > fold_utg else 0.0
-
-            e_vs_utg = _eq_vs(h, utg_r)
-            fold_btn = (1 - p_bb_utg) * utg_b[btn] + p_bb_utg * _mix(
-                e_utg_bb, hu_utg_bb[0][btn], hu_utg_bb[1][btn]
-            )
-            q_h, q_utg, q_bb = _norm3(
-                e_vs_utg * e_h_both,
-                (1 - e_vs_utg) * e_utg_both,
-                (1 - e_h_both) * (1 - e_utg_both),
-            )
-            call_btn = (1 - p_bb_both) * _mix(
-                e_vs_utg, hu_utg_btn[1][btn], hu_utg_btn[0][btn]
-            ) + p_bb_both * (q_h * tw[btn][btn] + q_utg * tw[utg][btn] + q_bb * tw[bb][btn])
-            out[BTN_VS_UTG][h] = 1.0 if call_btn > fold_btn else 0.0
-
-            out[BB_VS_UTG][h] = (
-                1.0
-                if _mix(e_vs_utg, hu_utg_bb[1][bb], hu_utg_bb[0][bb]) > utg_b[bb]
-                else 0.0
-            )
-
-            fold_both = _mix(e_utg_btn, hu_utg_btn[0][bb], hu_utg_btn[1][bb])
-            r_h, r_utg, r_btn = _norm3(
-                e_vs_utg * e_h_btn,
-                (1 - e_vs_utg) * e_utg_btn,
-                (1 - e_h_btn) * (1 - e_utg_btn),
-            )
-            call_both = r_h * tw[bb][bb] + r_utg * tw[utg][bb] + r_btn * tw[btn][bb]
-            out[BB_VS_BOTH][h] = 1.0 if call_both > fold_both else 0.0
-
-            e_vs_bb = _eq_vs(h, bb_btn)
-            jam_btn = (1 - p_bb_btn) * btn_b[btn] + p_bb_btn * _mix(
-                e_vs_bb, hu_btn_bb[0][btn], hu_btn_bb[1][btn]
-            )
-            out[BTN_OPEN][h] = 1.0 if jam_btn > bb_b[btn] else 0.0
-
-            e_vs_btn = _eq_vs(h, btn_o)
-            out[BB_VS_BTN][h] = (
-                1.0
-                if _mix(e_vs_btn, hu_btn_bb[1][bb], hu_btn_bb[0][bb]) > btn_b[bb]
-                else 0.0
-            )
-        return out
-
-    for done in range(iterations):
-        reply = br(avg(done))
-        weight = float(done + 1)
-        for node in range(N_NODES):
-            for i in range(N_HANDS):
-                cum[node][i] += weight * reply[node][i]
-        weight_sum += weight
-
-    final = avg(iterations)
     pay = {
         "utg": utg,
         "btn": btn,
@@ -257,8 +163,27 @@ def solve(
         "hu_btn_bb": hu_btn_bb,
         "tw": tw,
     }
+
+    cum = [[0.0] * N_HANDS for _ in range(N_NODES)]
+    weight_sum = 0.0
+
+    def avg(_done: int) -> list[list[float]]:
+        if weight_sum == 0:
+            return [[0.5] * N_HANDS for _ in range(N_NODES)]
+        return [[cum[n][i] / weight_sum for i in range(N_HANDS)] for n in range(N_NODES)]
+
+    for done in range(iterations):
+        reply = _best_response(avg(done), pay)
+        weight = float(done + 1)
+        for node in range(N_NODES):
+            for i in range(N_HANDS):
+                cum[node][i] += weight * reply[node][i]
+        weight_sum += weight
+
+    final = avg(iterations)
     values = _eval_values(final, pay)
     cash = icm_equities(stacks, prizes)
+    expl = _exploitability(final, pay)
 
     def pct(sigma: list[float]) -> float:
         return 100.0 * _mass(sigma)
@@ -283,6 +208,8 @@ def solve(
         "junk_folds": final[UTG_OPEN][junk] < 0.25,
         "values": values,
         "icm": cash,
+        "epsilon": expl["epsilon"],
+        "exploitability": expl["max"],
     }
 
 
@@ -355,6 +282,131 @@ def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[floa
     )
     add(p_jam * p_btn_c * p_bb_both, tw_mix)
     return (acc[0], acc[1], acc[2])
+
+
+def _best_response(sigma: list[list[float]], pay: dict[str, object]) -> list[list[float]]:
+    utg = int(pay["utg"])  # type: ignore[arg-type]
+    btn = int(pay["btn"])  # type: ignore[arg-type]
+    bb = int(pay["bb"])  # type: ignore[arg-type]
+    utg_b = pay["utg_b"]
+    btn_b = pay["btn_b"]
+    bb_b = pay["bb_b"]
+    hu_utg_bb = pay["hu_utg_bb"]
+    hu_utg_btn = pay["hu_utg_btn"]
+    hu_btn_bb = pay["hu_btn_bb"]
+    tw = pay["tw"]
+    assert isinstance(utg_b, tuple) and isinstance(btn_b, tuple) and isinstance(bb_b, tuple)
+    assert isinstance(hu_utg_bb, tuple) and isinstance(hu_utg_btn, tuple)
+    assert isinstance(hu_btn_bb, tuple) and isinstance(tw, tuple)
+    utg_r, btn_c, bb_utg, bb_both, btn_o, bb_btn = sigma
+    p_btn_c, p_bb_utg, p_bb_both = _mass(btn_c), _mass(bb_utg), _mass(bb_both)
+    p_btn_o, p_bb_btn = _mass(btn_o), _mass(bb_btn)
+    e_utg_bb = _eq_ranges(utg_r, bb_utg)
+    e_utg_btn = _eq_ranges(utg_r, btn_c)
+    e_call_both = _eq_ranges(btn_c, bb_both)
+    e_utg_both = _eq_ranges(utg_r, bb_both)
+    e_btn_bb = _eq_ranges(btn_o, bb_btn)
+    fold_utg = (
+        (1 - p_btn_o) * bb_b[utg]
+        + p_btn_o * (1 - p_bb_btn) * btn_b[utg]
+        + p_btn_o * p_bb_btn * _mix(e_btn_bb, hu_btn_bb[0][utg], hu_btn_bb[1][utg])
+    )
+    out = [[0.0] * N_HANDS for _ in range(N_NODES)]
+    for h in range(N_HANDS):
+        e_h_bb = _eq_vs(h, bb_utg)
+        e_h_btn = _eq_vs(h, btn_c)
+        e_h_both = _eq_vs(h, bb_both)
+        p_h, p_btn, p_bb = _norm3(
+            e_h_btn * e_h_both,
+            (1 - e_h_btn) * e_call_both,
+            (1 - e_h_both) * (1 - e_call_both),
+        )
+        jam_utg = (
+            (1 - p_btn_c) * (1 - p_bb_utg) * utg_b[utg]
+            + (1 - p_btn_c) * p_bb_utg * _mix(e_h_bb, hu_utg_bb[0][utg], hu_utg_bb[1][utg])
+            + p_btn_c * (1 - p_bb_both) * _mix(e_h_btn, hu_utg_btn[0][utg], hu_utg_btn[1][utg])
+            + p_btn_c * p_bb_both * (p_h * tw[utg][utg] + p_btn * tw[btn][utg] + p_bb * tw[bb][utg])
+        )
+        out[UTG_OPEN][h] = 1.0 if jam_utg > fold_utg else 0.0
+        e_vs_utg = _eq_vs(h, utg_r)
+        fold_btn = (1 - p_bb_utg) * utg_b[btn] + p_bb_utg * _mix(
+            e_utg_bb, hu_utg_bb[0][btn], hu_utg_bb[1][btn]
+        )
+        q_h, q_utg, q_bb = _norm3(
+            e_vs_utg * e_h_both,
+            (1 - e_vs_utg) * e_utg_both,
+            (1 - e_h_both) * (1 - e_utg_both),
+        )
+        call_btn = (1 - p_bb_both) * _mix(
+            e_vs_utg, hu_utg_btn[1][btn], hu_utg_btn[0][btn]
+        ) + p_bb_both * (q_h * tw[btn][btn] + q_utg * tw[utg][btn] + q_bb * tw[bb][btn])
+        out[BTN_VS_UTG][h] = 1.0 if call_btn > fold_btn else 0.0
+        out[BB_VS_UTG][h] = (
+            1.0 if _mix(e_vs_utg, hu_utg_bb[1][bb], hu_utg_bb[0][bb]) > utg_b[bb] else 0.0
+        )
+        fold_both = _mix(e_utg_btn, hu_utg_btn[0][bb], hu_utg_btn[1][bb])
+        r_h, r_utg, r_btn = _norm3(
+            e_vs_utg * e_h_btn,
+            (1 - e_vs_utg) * e_utg_btn,
+            (1 - e_h_btn) * (1 - e_utg_btn),
+        )
+        call_both = r_h * tw[bb][bb] + r_utg * tw[utg][bb] + r_btn * tw[btn][bb]
+        out[BB_VS_BOTH][h] = 1.0 if call_both > fold_both else 0.0
+        e_vs_bb = _eq_vs(h, bb_btn)
+        jam_btn = (1 - p_bb_btn) * btn_b[btn] + p_bb_btn * _mix(
+            e_vs_bb, hu_btn_bb[0][btn], hu_btn_bb[1][btn]
+        )
+        out[BTN_OPEN][h] = 1.0 if jam_btn > bb_b[btn] else 0.0
+        e_vs_btn = _eq_vs(h, btn_o)
+        out[BB_VS_BTN][h] = (
+            1.0 if _mix(e_vs_btn, hu_btn_bb[1][bb], hu_btn_bb[0][bb]) > btn_b[bb] else 0.0
+        )
+    return out
+
+
+def _exploitability(sigma: list[list[float]], pay: dict[str, object]) -> dict[str, object]:
+    utg = int(pay["utg"])  # type: ignore[arg-type]
+    btn = int(pay["btn"])  # type: ignore[arg-type]
+    bb = int(pay["bb"])  # type: ignore[arg-type]
+    ev = _eval_values(sigma, pay)
+    reply = _best_response(sigma, pay)
+
+    def swap(nodes: tuple[int, ...]) -> list[list[float]]:
+        out = [list(row) for row in sigma]
+        for node in nodes:
+            out[node] = reply[node]
+        return out
+
+    ev_utg = _eval_values(swap((UTG_OPEN,)), pay)
+    ev_btn = _eval_values(swap((BTN_VS_UTG, BTN_OPEN)), pay)
+    ev_bb = _eval_values(swap((BB_VS_UTG, BB_VS_BOTH, BB_VS_BTN)), pay)
+    seats = [0.0, 0.0, 0.0]
+    seats[utg] = ev_utg[utg] - ev[utg]
+    seats[btn] = ev_btn[btn] - ev[btn]
+    seats[bb] = ev_bb[bb] - ev[bb]
+    return {
+        "epsilon": (seats[0], seats[1], seats[2]),
+        "max": max(seats),
+        "sum": sum(seats),
+    }
+
+
+def exploitability(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    iterations: int = 24,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
+) -> dict[str, object]:
+    """Max zysk z odchylenia do BR. Metryka Spina (decyzja 15), w buy-inach."""
+    result = solve(stacks, prizes, button, iterations, sb, bb_amt)
+    return {
+        "epsilon": result["epsilon"],
+        "max": result["exploitability"],
+        "values": result["values"],
+        "iterations": iterations,
+    }
 
 
 def jam_vs_depth(

@@ -1,0 +1,32 @@
+{
+  "id": "POKER-36",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Metryka Spina: exploitability vs BR na drzewie jam/fold (BI). Więcej iteracji zaciska ε.",
+  "acceptance": [
+    "solve zwraca epsilon (3 seaty) i exploitability (max). exploitability() to otoczka.",
+    "2 iteracje > 16 iteracji w max ε. 16 iteracji < 0.01 BI na 3× 25 bb — pod testem.",
+    "ε_i ≥ −1e-6 (BR nie jest gorszy niż σ).",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": [
+    "Otwarcie 2.2x / postflop.",
+    "Exploitability pełnego drzewa NLHE.",
+    "Regeneracja strategy_table."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/jamfold.py",
+    "tests/test_jamfold.py",
+    "docs/taskspecs/POKER-36.json",
+    "docs/decisions/16-exploitability-jamfold.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["pytest -q tests/test_jamfold.py"],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T20:58:00Z"
+  }
+}
