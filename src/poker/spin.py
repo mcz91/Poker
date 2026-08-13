@@ -9,6 +9,16 @@ from poker.icm import icm_equities
 STARTING_CHIPS = 50
 SMALL_BLIND = 1
 BIG_BLIND = 2
+HANDS_PER_LEVEL = 3
+LEVELS: tuple[tuple[int, int], ...] = (
+    (1, 2),
+    (2, 4),
+    (3, 6),
+    (4, 8),
+    (5, 10),
+    (8, 16),
+    (10, 20),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,14 +56,28 @@ def roles(button: int) -> tuple[int, int, int]:
     return utg, btn, bb
 
 
-def post_blinds(stacks: Stacks3, button: int) -> tuple[Stacks3, int]:
-    _, btn, bb = roles(button)
+def blinds_for_hand(hand: int) -> tuple[int, int, int]:
+    """(sb, bb, level). Level 0 = 1/2. Escalates every HANDS_PER_LEVEL hands."""
+    if hand < 0:
+        raise ValueError("numer ręki nie może być ujemny")
+    level = min(hand // HANDS_PER_LEVEL, len(LEVELS) - 1)
+    sb, bb = LEVELS[level]
+    return sb, bb, level
+
+
+def post_blinds(
+    stacks: Stacks3,
+    button: int,
+    sb: int = SMALL_BLIND,
+    bb: int = BIG_BLIND,
+) -> tuple[Stacks3, int]:
+    _, btn, bb_seat = roles(button)
     behind = list(stacks)
-    sb = min(stacks[btn], SMALL_BLIND)
-    bb_amt = min(stacks[bb], BIG_BLIND)
-    behind[btn] -= sb
-    behind[bb] -= bb_amt
-    return (behind[0], behind[1], behind[2]), sb + bb_amt
+    posted_sb = min(stacks[btn], sb)
+    posted_bb = min(stacks[bb_seat], bb)
+    behind[btn] -= posted_sb
+    behind[bb_seat] -= posted_bb
+    return (behind[0], behind[1], behind[2]), posted_sb + posted_bb
 
 
 def award_allin(contributions: tuple[int, ...], ranks: tuple[int, ...]) -> tuple[int, ...]:
