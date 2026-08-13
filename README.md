@@ -159,9 +159,9 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 
 ```bash
 python tools/train_mccfr.py --iterations 1000 --seed 7 \
-  --checkpoint checkpoint.json --checkpoint-every 100
+  --averaging linear --checkpoint checkpoint.json --checkpoint-every 100
 python tools/train_mccfr.py --iterations 1000 --seed 7 \
-  --checkpoint checkpoint.json --resume        # wznowienie po przerwaniu
+  --averaging linear --checkpoint checkpoint.json --resume
 python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
   --agent0 mccfr --agent1 rule
 ```
@@ -169,8 +169,11 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 Trener MCCFR (external sampling) gra self-play na abstrakcji c2a
 i zapisuje uśrednioną strategię jako moduł `src/poker/strategy_table.py`
 z pełnym przepisem pochodzenia (wersja abstrakcji, seed, iteracje,
-parametry kubełków i rozmiarów zakładów). Trening jest w całości
-seedowany — losowość iteracji zależy wyłącznie od pary (seed, numer
+sposób uśredniania, parametry kubełków i rozmiarów zakładów).
+Domyślne uśrednianie jest liniowe (`--averaging linear`: waga iteracji
+t, Linear CFR). `--averaging uniform` przywraca klasyczne sumowanie
+jednostajne — do porównań A/B. Trening jest w całości seedowany —
+losowość iteracji zależy wyłącznie od pary (seed, numer
 iteracji), więc ta sama komenda odtwarza artefakt bajt w bajt, a bieg
 przerwany i wznowiony z `--checkpoint ... --resume` daje wynik
 identyczny z biegiem ciągłym o tej samej łącznej liczbie iteracji
