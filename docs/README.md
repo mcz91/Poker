@@ -135,6 +135,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   POKER-24/25: wiązanie checkpointu z parametrami biegu, jednokrotne
   parsowanie plików w testach architektury (zatwierdzony; kolejność
   integracji: 28 przed 27).
+- [`POKER-29.json`](taskspecs/POKER-29.json) — Linear weighting
+  w MCCFR (Linear CFR, waga t); `--averaging linear` domyślnie,
+  artefakt produkcyjny nietknięty (zamknięty, commit `a9f7444`).
 
 ## Operator
 
