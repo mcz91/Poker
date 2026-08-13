@@ -144,6 +144,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-30.json`](taskspecs/POKER-30.json) — ICM Malmuth–Harville
   i wypłaty Spin 3-max (2×/3× WTA, 10× 80/20), rozliczenie all-in
   jam/fold; PokerKit odrzucony (decyzja 10).
+- [`POKER-31.json`](taskspecs/POKER-31.json) — Nash jam/fold 3-max
+  na jednym stanie (fictitious play, Ganzfried & Sandholm 2008);
+  payoff ICM/WTA (decyzja 11).
 
 ## Operator
 

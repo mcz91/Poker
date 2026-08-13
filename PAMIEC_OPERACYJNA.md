@@ -24,7 +24,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
   integracyjnym. POKER-27 i POKER-28 u koderów.
 - 2026-08-13 product: Spin pierwszy; PokerKit nie wchodzi do pakietu
-  (decyzja 10). Gałąź robocza `poker-30-spin-icm` — nie main.
+  (decyzja 10). Gałąź robocza `poker-31-jamfold` (na `poker-30-spin-icm`)
+  — nie main. POKER-31 = jam/fold FP, nie value iteration turnieju.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

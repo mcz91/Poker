@@ -1,0 +1,42 @@
+{
+  "id": "POKER-31",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Nash jam/fold 3-max na jednym stanie stacków: fictitious play (Ganzfried & Sandholm AAMAS 2008, gra wewnętrzna) z payoffem ICM/WTA. Bez PokerKit, bez otwierania INV-P5.",
+  "acceptance": [
+    "src/poker/jamfold.py: call_beats_fold, solve. Importuje wyłącznie poker.icm, poker.spin, poker.preflop, poker.preflop_equity.",
+    "solve((50,50,50), 3x WTA, 20 iter): AA jams, 72o folds — pod testem.",
+    "UTG jam combo % w [10, 22], BTN/BB call % poniżej UTG — pod testem.",
+    "10x 80/20 zaciska call względem WTA — pod testem. Dwa biegi identyczne.",
+    "Wołający liczy e·win+(1−e)·lose (nie odwrotnie) — call_beats_fold pod testem na liczbach 25 bb WTA.",
+    "HeadsUpHand, play_match, strategy_table.py, train_mccfr.py nietknięte. Brak nowej zależności.",
+    "tests/test_jamfold.py. Bramka ruff / mypy / pytest zielona."
+  ],
+  "non_goals": [
+    "Value iteration po stanach turnieju (zewnętrzna pętla Ganzfrieda).",
+    "Blockery, pełny 3-way runout, drzewo betów multiway (INV-P5).",
+    "PokerKit / HRC / ICMIZER w produkcie.",
+    "Regeneracja strategy_table.py."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/jamfold.py",
+    "tests/test_jamfold.py",
+    "docs/taskspecs/POKER-31.json",
+    "docs/decisions/11-jamfold-fictitious-play.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q tests/test_jamfold.py",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T18:20:00Z"
+  }
+}
