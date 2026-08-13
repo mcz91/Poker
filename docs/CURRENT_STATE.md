@@ -1,9 +1,8 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
-(trener MCCFR, strategia i agent tabelowy, plaster c2b); POKER-24
-(skala) dostarczony częściowo — kryterium skali w sprzeciwie, patrz
-„Następny krok".
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
+(Linear weighting w MCCFR); POKER-24 (skala) dostarczony częściowo
+— kryterium skali w sprzeciwie, patrz „Następny krok".
 
 ## Co istnieje
 
@@ -241,7 +240,11 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-23
   (`--checkpoint`, `--checkpoint-every`, `--resume`): losowość iteracji
   zależy wyłącznie od pary (seed, numer), więc bieg przerwany
   i wznowiony daje artefakt identyczny z ciągłym o tej samej łącznej
-  liczbie iteracji — pod testami; trawersacja schodzi w dół mutując
+  liczbie iteracji — pod testami; od POKER-29 uśrednianie strategii
+  jest liniowe (Linear CFR: waga iteracji t; `--averaging linear`
+  domyślnie, `uniform` zostawia poprzednie sumowanie) — artefakt
+  produkcyjny `strategy_table.py` nie był regenerowany; trawersacja
+  schodzi w dół mutując
   rozdanie w miejscu tam, gdzie stan rodzica nie jest już potrzebny
   (100 iteracji: 13.7 s → 9.1 s); agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
   — inferencja stdlib: widok → infoset → rozkład → akcja losowana
@@ -331,12 +334,18 @@ dzisiejszą bramkę do 16,1 s, ale przy artefakcie na skali nie
 wystarcza. Artefakt w repozytorium pozostaje na 1000 iteracjach,
 przetrenowany nowym trenerem (regeneracja bajt w bajt zweryfikowana).
 
-Następne kroki: **POKER-27** — krzywa jakość-vs-skala (artefakty
+**POKER-29 (Linear CFR) zamknięty.** Domyślne uśrednianie strategii
+to waga t; `--averaging uniform` zostawia poprzednie sumowanie.
+Artefakt produkcyjny nietknięty — następna regeneracja (POKER-27)
+mierzy już Linear MCCFR.
+
+Następne kroki: **POKER-28** — findingi audytu POKER-24/25 (wiązanie
+checkpointu z seedem i konfiguracją, memoizacja parsowania w testach
+architektury); **POKER-27** — krzywa jakość-vs-skala (artefakty
 z rosnących skal trenowane i mierzone poza repozytorium, arena o mocy
 rozdzielającej różnice rzędu 50 BB/100) rozstrzyga, czy skala w ogóle
-kupuje jakość, i dopiero na tej podstawie wybieramy formę artefaktu;
-**POKER-28** — findingi audytu POKER-24/25 (wiązanie checkpointu
-z seedem i konfiguracją, memoizacja parsowania w testach
-architektury). Potem c3 (warstwa eksploatacyjna) albo — gdy krzywa
-okaże się płaska — nowa kwalifikacja metody (decyzja 09, pkt 4).
+kupuje jakość, i dopiero na tej podstawie wybieramy formę artefaktu
+(po 28; trener już waży liniowo). Potem c3 (restricted Nash response)
+albo — gdy krzywa okaże się płaska — nowa kwalifikacja metody
+(decyzja 09, pkt 4).
 Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
