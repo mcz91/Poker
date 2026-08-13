@@ -114,3 +114,16 @@ def test_jam_vs_depth_rosnie() -> None:
     assert rows[-1][1] > rows[0][1] + 5.0
 
 
+def test_wyzszy_blind_szerzej_jamuje() -> None:
+    deep = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
+    mid = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12, sb=2, bb_amt=4)
+    assert float(mid["utg_jam_pct"]) > float(deep["utg_jam_pct"]) + 4.0
+
+
+def test_10x_zaciska_wzgledem_wta_na_starcie() -> None:
+    wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
+    icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=12)
+    assert float(icm["btn_call_pct"]) < float(wta["btn_call_pct"])
+
+
+

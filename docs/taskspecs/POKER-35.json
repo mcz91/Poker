@@ -1,0 +1,35 @@
+{
+  "id": "POKER-35",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Tani trening: solve() przyjmuje sb/bb; offline Nash na zegarze 3×/10×. Nie ruszać strategy_table.",
+  "acceptance": [
+    "solve(..., sb, bb_amt) — wyższy blind → szerszy jam UTG na WTA (test).",
+    "10× zaciska call BTN względem 3× na 50/50/50 1/2 (test).",
+    "tools/export_clock_nash.py istnieje i woła solve na LEVELS.",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": [
+    "Regeneracja strategy_table / POKER-27.",
+    "Postflop, otwarcie 2.2x na 25 bb.",
+    "Twierdzenie, że bot bije field $1."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/jamfold.py",
+    "src/poker/spin.py",
+    "tools/export_clock_nash.py",
+    "tests/test_jamfold.py",
+    "docs/taskspecs/POKER-35.json",
+    "docs/decisions/15-tani-trening-jamfold.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["pytest -q tests/test_jamfold.py tests/test_spin.py"],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T20:15:00Z"
+  }
+}

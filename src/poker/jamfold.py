@@ -10,7 +10,9 @@ from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES, CLASS_INDEX
 from poker.preflop_equity import equity as class_equity
 from poker.spin import (
+    BIG_BLIND,
     DEPTHS,
+    SMALL_BLIND,
     award_allin,
     post_blinds,
     roles,
@@ -117,13 +119,15 @@ def solve(
     prizes: tuple[float, float, float],
     button: int = 1,
     iterations: int = 80,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
 ) -> dict[str, object]:
     """Zwraca średnie strategie fictitious play (jam/call ∈ [0, 1] per klasa)."""
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
     utg, btn, bb = roles(button)
-    behind, pot = post_blinds(stacks, button)
-    blinds = utg_shove_both_fold(stacks, button)
+    behind, pot = post_blinds(stacks, button, sb, bb_amt)
+    blinds = utg_shove_both_fold(stacks, button, sb, bb_amt)
     btn_blinds = _take(behind, btn, pot)
     bb_blinds = _take(behind, bb, pot)
 
@@ -134,12 +138,12 @@ def solve(
     btn_b = money(btn_blinds)
     bb_b = money(bb_blinds)
     hu_utg_bb = (
-        money(utg_shove_called(stacks, button, bb, utg)),
-        money(utg_shove_called(stacks, button, bb, bb)),
+        money(utg_shove_called(stacks, button, bb, utg, sb, bb_amt)),
+        money(utg_shove_called(stacks, button, bb, bb, sb, bb_amt)),
     )
     hu_utg_btn = (
-        money(utg_shove_called(stacks, button, btn, utg)),
-        money(utg_shove_called(stacks, button, btn, btn)),
+        money(utg_shove_called(stacks, button, btn, utg, sb, bb_amt)),
+        money(utg_shove_called(stacks, button, btn, btn, sb, bb_amt)),
     )
     hu_btn_bb = (
         money(_allin_two(behind, btn, bb, btn)),
@@ -270,6 +274,8 @@ def solve(
         "utg_jam": final[UTG_OPEN],
         "btn_call": final[BTN_VS_UTG],
         "bb_call": final[BB_VS_UTG],
+        "btn_open": final[BTN_OPEN],
+        "bb_vs_btn": final[BB_VS_BTN],
         "utg_jam_pct": pct(final[UTG_OPEN]),
         "btn_call_pct": pct(final[BTN_VS_UTG]),
         "bb_call_pct": pct(final[BB_VS_UTG]),
