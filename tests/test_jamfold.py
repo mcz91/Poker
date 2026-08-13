@@ -142,5 +142,54 @@ def test_exploitability_publiczne_api() -> None:
     assert hit["iterations"] == 12
 
 
+def test_epsilon_odroznia_smieci_od_nasha() -> None:
+    """ε≈0 nic nie znaczy bez mianownika. Always-jam wycieka ~0.18 BI."""
+    from poker.jamfold import (
+        N_HANDS,
+        N_NODES,
+        _allin_two,
+        _eval_values,
+        _exploitability,
+        _take,
+        _three_way,
+    )
+    from poker.icm import icm_equities
+    from poker.spin import post_blinds, roles, utg_shove_both_fold, utg_shove_called
+
+    stacks = (50, 50, 50)
+    prizes = PAYOUTS["3x"].prizes
+    utg, btn, bb = roles(1)
+    behind, pot = post_blinds(stacks, 1, 1, 2)
+    blinds = utg_shove_both_fold(stacks, 1, 1, 2)
+    money = lambda st: icm_equities(st, prizes)
+    pay = {
+        "utg": utg,
+        "btn": btn,
+        "bb": bb,
+        "utg_b": money(blinds),
+        "btn_b": money(_take(behind, btn, pot)),
+        "bb_b": money(_take(behind, bb, pot)),
+        "hu_utg_bb": (
+            money(utg_shove_called(stacks, 1, bb, utg, 1, 2)),
+            money(utg_shove_called(stacks, 1, bb, bb, 1, 2)),
+        ),
+        "hu_utg_btn": (
+            money(utg_shove_called(stacks, 1, btn, utg, 1, 2)),
+            money(utg_shove_called(stacks, 1, btn, btn, 1, 2)),
+        ),
+        "hu_btn_bb": (
+            money(_allin_two(behind, btn, bb, btn)),
+            money(_allin_two(behind, btn, bb, bb)),
+        ),
+        "tw": tuple(money(_three_way(stacks, w)) for w in range(3)),
+    }
+    junk = [[1.0] * N_HANDS for _ in range(N_NODES)]
+    nash = solve(stacks, prizes, button=1, iterations=16)
+    junk_eps = float(_exploitability(junk, pay)["max"])
+    assert junk_eps > 0.1
+    assert float(nash["exploitability"]) * 20 < junk_eps
+
+
+
 
 

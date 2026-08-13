@@ -382,8 +382,9 @@ Offline Nash na zegarze; 10× zaciska call. To nie jest crusher $1
 i nie jest cash-MCCFR. `strategy_table` nietknięty.
 
 **POKER-36 (exploitability jam/fold) zamknięty.** ε vs BR w BI.
-16 iteracji na 3× 25 bb: ≈ 0.0006. 2 iteracje są luźniejsze. To metryka
-Spina, nie BB/100.
+16 iteracji na 3× 25 bb: ≈ 0.0006 w modelu. Always-jam ≈ 0.18.
+Live vs-field UTG ~27% ≠ offline macierz ~17%. Self-ε ≠ jakość
+w pokerze (decyzja 17).
 
 Następne kroki: otwarcie 2.2x na 25 bb (bar $1 na deep) **albo**
 POKER-27 jeśli operator wraca do HU. Nie trenować cash-MCCFR bez
