@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-31
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-32
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -283,7 +283,9 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   wewnętrzna Ganzfried & Sandholm, AAMAS 2008). Equity HU z macierzy
   preflop; 3-way z pary znormalizowanej; bez blockerów. Na 25 bb WTA
   UTG jams ≈16% combo, BTN/BB call 7–8%; 10× 80/20 zaciska call.
-  `strategy_table.py` nietknięty.
+  `strategy_table.py` nietknięty. Od POKER-32 `solve` zwraca też
+  `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
+  tożsamość, na 10× przy nierównych stackach V ≠ ICM.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -320,7 +322,9 @@ Persystencji poza plikiem eksportu, side potów w maszynie licytacji
 (INV-P5, N=2 — `award_allin` w `poker.spin` liczy je tylko dla
 all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
 po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
-ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31.
+ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
+jeden backup continuation od POKER-32. Brak pełnej siatki stanów
+turnieju i zegara blindów.
 Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
@@ -362,10 +366,11 @@ mierzy już Linear MCCFR.
 **POKER-31 (jam/fold 3-max) zamknięty.** Fictitious play na jednym
 stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
 
-Następne kroki: value iteration po stanach turnieju (zewnętrzna pętla
-Ganzfrieda) **albo** powrót do **POKER-28** (findingi audytu
-POKER-24/25) i **POKER-27** (krzywa jakość-vs-skala HU Linear MCCFR)
-— kolejność ustala operator. Potem c3 (RNR) albo nowa kwalifikacja
-metody, gdy krzywa HU jest płaska (decyzja 09, pkt 4).
-Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
-HRC/ICMIZER wyłącznie jako wyrocznia offline (golden), nie zależność.
+**POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
+Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się. Nie jest to pełna
+value iteration po turnieju.
+
+Następne kroki: drugi iterate / siatka stanów / zegar blindów
+**albo** powrót do **POKER-28** i **POKER-27** (HU skala).
+Kolejność ustala operator. HRC/ICMIZER wyłącznie jako wyrocznia
+offline.

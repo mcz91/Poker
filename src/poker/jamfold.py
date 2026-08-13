@@ -234,6 +234,20 @@ def solve(
         weight_sum += weight
 
     final = avg(iterations)
+    pay = {
+        "utg": utg,
+        "btn": btn,
+        "bb": bb,
+        "utg_b": utg_b,
+        "btn_b": btn_b,
+        "bb_b": bb_b,
+        "hu_utg_bb": hu_utg_bb,
+        "hu_utg_btn": hu_utg_btn,
+        "hu_btn_bb": hu_btn_bb,
+        "tw": tw,
+    }
+    values = _eval_values(final, pay)
+    cash = icm_equities(stacks, prizes)
 
     def pct(sigma: list[float]) -> float:
         return 100.0 * _mass(sigma)
@@ -254,4 +268,77 @@ def solve(
         "bb_call_pct": pct(final[BB_VS_UTG]),
         "aa_jams": final[UTG_OPEN][aa] > 0.85,
         "junk_folds": final[UTG_OPEN][junk] < 0.25,
+        "values": values,
+        "icm": cash,
     }
+
+
+def one_step_values(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    iterations: int = 20,
+) -> tuple[float, float, float]:
+    """Pierwszy backup zewnętrzny: E[ICM(s′)] przy Nash jam/fold."""
+    result = solve(stacks, prizes, button, iterations)
+    values = result["values"]
+    assert isinstance(values, tuple)
+    return values
+
+
+def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[float, float, float]:
+    utg = int(pay["utg"])  # type: ignore[arg-type]
+    btn = int(pay["btn"])  # type: ignore[arg-type]
+    bb = int(pay["bb"])  # type: ignore[arg-type]
+    utg_r, btn_c, bb_utg, bb_both, btn_o, bb_btn = sigma
+    p_jam = _mass(utg_r)
+    p_btn_c = _mass(btn_c)
+    p_bb_utg = _mass(bb_utg)
+    p_bb_both = _mass(bb_both)
+    p_btn_o = _mass(btn_o)
+    p_bb_btn = _mass(bb_btn)
+    e_utg_bb = _eq_ranges(utg_r, bb_utg)
+    e_utg_btn = _eq_ranges(utg_r, btn_c)
+    e_utg_both = _eq_ranges(utg_r, bb_both)
+    e_call_both = _eq_ranges(btn_c, bb_both)
+    e_btn_bb = _eq_ranges(btn_o, bb_btn)
+    p3_u, p3_b, p3_c = _norm3(
+        e_utg_btn * e_utg_both,
+        (1 - e_utg_btn) * e_call_both,
+        (1 - e_utg_both) * (1 - e_call_both),
+    )
+    utg_b = pay["utg_b"]
+    btn_b = pay["btn_b"]
+    bb_b = pay["bb_b"]
+    hu_utg_bb = pay["hu_utg_bb"]
+    hu_utg_btn = pay["hu_utg_btn"]
+    hu_btn_bb = pay["hu_btn_bb"]
+    tw = pay["tw"]
+    assert isinstance(utg_b, tuple) and isinstance(btn_b, tuple) and isinstance(bb_b, tuple)
+    assert isinstance(hu_utg_bb, tuple) and isinstance(hu_utg_btn, tuple)
+    assert isinstance(hu_btn_bb, tuple) and isinstance(tw, tuple)
+
+    acc = [0.0, 0.0, 0.0]
+
+    def add(weight: float, vec: tuple[float, ...]) -> None:
+        for i in range(3):
+            acc[i] += weight * vec[i]
+
+    def mix_vec(equity: float, win: tuple[float, ...], lose: tuple[float, ...]) -> tuple[float, ...]:
+        return (
+            equity * win[0] + (1 - equity) * lose[0],
+            equity * win[1] + (1 - equity) * lose[1],
+            equity * win[2] + (1 - equity) * lose[2],
+        )
+
+    add((1 - p_jam) * (1 - p_btn_o), bb_b)
+    add((1 - p_jam) * p_btn_o * (1 - p_bb_btn), btn_b)
+    add((1 - p_jam) * p_btn_o * p_bb_btn, mix_vec(e_btn_bb, hu_btn_bb[0], hu_btn_bb[1]))
+    add(p_jam * (1 - p_btn_c) * (1 - p_bb_utg), utg_b)
+    add(p_jam * (1 - p_btn_c) * p_bb_utg, mix_vec(e_utg_bb, hu_utg_bb[0], hu_utg_bb[1]))
+    add(p_jam * p_btn_c * (1 - p_bb_both), mix_vec(e_utg_btn, hu_utg_btn[0], hu_utg_btn[1]))
+    tw_mix = tuple(
+        p3_u * tw[utg][i] + p3_b * tw[btn][i] + p3_c * tw[bb][i] for i in range(3)
+    )
+    add(p_jam * p_btn_c * p_bb_both, tw_mix)
+    return (acc[0], acc[1], acc[2])
