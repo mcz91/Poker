@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from poker.jamfold import call_beats_fold, solve
+from poker.jamfold import call_beats_fold, one_step_values, solve
+from poker.icm import icm_equities, wta_equities
 from poker.preflop import ALL_CLASSES
 from poker.spin import PAYOUTS
 
@@ -84,3 +85,25 @@ def test_jamfold_importuje_tylko_icm_spin_preflop() -> None:
     assert "poker.betting" not in poker
     assert "poker.table" not in poker
     assert "poker.strategy_table" not in poker
+
+
+def test_wta_one_step_rowne_cash_out() -> None:
+    stacks = (70, 50, 30)
+    prizes = PAYOUTS["3x"].prizes
+    result = solve(stacks, prizes, button=1, iterations=16)
+    values = result["values"]
+    cash = result["icm"]
+    assert isinstance(values, tuple) and isinstance(cash, tuple)
+    assert values == pytest.approx(wta_equities(stacks, 3.0), abs=0.05)
+    assert values == pytest.approx(cash, abs=0.05)
+    assert sum(values) == pytest.approx(sum(prizes), abs=1e-9)
+
+
+def test_icm_10x_one_step_rozjezdza_sie_przy_nierownych() -> None:
+    stacks = (16, 50, 84)
+    prizes = PAYOUTS["10x"].prizes
+    values = one_step_values(stacks, prizes, button=1, iterations=16)
+    cash = icm_equities(stacks, prizes)
+    assert sum(values) == pytest.approx(sum(prizes), abs=1e-6)
+    assert max(abs(values[i] - cash[i]) for i in range(3)) > 0.01
+

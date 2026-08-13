@@ -1,0 +1,38 @@
+{
+  "id": "POKER-32",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Pierwszy backup zewnętrzny Ganzfrieda: E[ICM(s′)] pod Nash jam/fold (one-step continuation) vs cash-out ICM. Bez pełnej siatki stanów turnieju.",
+  "acceptance": [
+    "solve zwraca values (one-step) i icm (cash-out). one_step_values to cienka otoczka.",
+    "WTA przy nierównych stackach: values ≈ WTA/ICM (abs 0.05) — pod testem. Suma = pula.",
+    "10× przy (16,50,84): max|values−ICM| > 0.01 — pod testem. Suma = 10.",
+    "HeadsUpHand, play_match, strategy_table.py nietknięte.",
+    "tests/test_jamfold.py rozszerzony. Bez nowej zależności."
+  ],
+  "non_goals": [
+    "Value iteration po pełnej siatce żetonów / zegar blindów.",
+    "Ponowne rozwiązywanie Nash w każdym następcy (drugi iterate).",
+    "Blockery, INV-P5, regeneracja strategy_table.py."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/jamfold.py",
+    "tests/test_jamfold.py",
+    "docs/taskspecs/POKER-32.json",
+    "docs/decisions/12-one-step-continuation.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q tests/test_jamfold.py"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T18:50:00Z"
+  }
+}

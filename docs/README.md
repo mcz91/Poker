@@ -147,6 +147,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-31.json`](taskspecs/POKER-31.json) — Nash jam/fold 3-max
   na jednym stanie (fictitious play, Ganzfried & Sandholm 2008);
   payoff ICM/WTA (decyzja 11).
+- [`POKER-32.json`](taskspecs/POKER-32.json) — pierwszy backup
+  zewnętrzny: E[ICM(s′)] vs cash-out (decyzja 12).
 
 ## Operator
 
