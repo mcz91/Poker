@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-34
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-35
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -377,6 +377,10 @@ Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
 **POKER-34 (eskalacja + MVP) zamknięty.** Zegar 1/2 → 10/20 co 3 ręce.
 Stół jam/fold jest w EXPLO (/play), nie w HeadsUpHand.
 
-Następne kroki: twardszy HU endgame / więcej rąk na poziom
-**albo** powrót do **POKER-28** i **POKER-27** (HU skala).
-Kolejność ustala operator.
+**POKER-35 (tani trening jam/fold) zamknięty.** `solve` zna blinds.
+Offline Nash na zegarze; 10× zaciska call. To nie jest crusher $1
+i nie jest cash-MCCFR. `strategy_table` nietknięty.
+
+Następne kroki: exploitability vs BR na drzewie (metryka Spina)
+albo otwarcie 2.2x na 25 bb — albo POKER-27, jeśli operator wraca
+do HU. Nie trenować więcej cash-MCCFR bez krzywej (decyzja 09/15).

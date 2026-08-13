@@ -113,8 +113,13 @@ def award_allin(contributions: tuple[int, ...], ranks: tuple[int, ...]) -> tuple
     return tuple(payouts)
 
 
-def utg_shove_both_fold(stacks: Stacks3, button: int) -> Stacks3:
-    behind, pot = post_blinds(stacks, button)
+def utg_shove_both_fold(
+    stacks: Stacks3,
+    button: int,
+    sb: int = SMALL_BLIND,
+    bb: int = BIG_BLIND,
+) -> Stacks3:
+    behind, pot = post_blinds(stacks, button, sb, bb)
     utg, _, _ = roles(button)
     out = list(behind)
     out[utg] += pot
@@ -126,13 +131,15 @@ def utg_shove_called(
     button: int,
     caller: int,
     winner: int,
+    sb: int = SMALL_BLIND,
+    bb: int = BIG_BLIND,
 ) -> Stacks3:
-    utg, btn, bb = roles(button)
+    utg, btn, bb_seat = roles(button)
     if caller == utg:
         raise ValueError("caller nie może być UTG")
     contrib = [0, 0, 0]
-    contrib[btn] += min(stacks[btn], SMALL_BLIND)
-    contrib[bb] += min(stacks[bb], BIG_BLIND)
+    contrib[btn] += min(stacks[btn], sb)
+    contrib[bb_seat] += min(stacks[bb_seat], bb)
     contrib[utg] = stacks[utg]
     already = contrib[caller]
     target = contrib[utg]
