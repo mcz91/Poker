@@ -36,6 +36,9 @@
    — sprzeciw kodera wobec POKER-24 uznany (kryteria sprzeczne),
    kryterium ≥50k wycofane; krzywa jakość-vs-skala poza repozytorium
    przed wyborem formy artefaktu; warunki dla trzech opcji formy.
+10. [`10-spin-and-go-icm-bez-pokerkit.md`](decisions/10-spin-and-go-icm-bez-pokerkit.md)
+    — Spin & Go pierwszy: własny ICM Harville, bez PokerKit i bez
+    otwierania INV-P5; 2×/3× WTA, 10× 80/20.
 
 ## TaskSpeki
 
@@ -138,6 +141,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-29.json`](taskspecs/POKER-29.json) — Linear weighting
   w MCCFR (Linear CFR, waga t); `--averaging linear` domyślnie,
   artefakt produkcyjny nietknięty (zamknięty, commit `a9f7444`).
+- [`POKER-30.json`](taskspecs/POKER-30.json) — ICM Malmuth–Harville
+  i wypłaty Spin 3-max (2×/3× WTA, 10× 80/20), rozliczenie all-in
+  jam/fold; PokerKit odrzucony (decyzja 10).
 
 ## Operator
 

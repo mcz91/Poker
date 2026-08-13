@@ -1,0 +1,47 @@
+{
+  "id": "POKER-30",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Własny moduł ICM (Malmuth–Harville) i wypłat Spin & Go 3-max: WTA 2×/3×, 10× 80/20, rozliczenie all-in jam/fold. Bez PokerKit i bez otwierania INV-P5.",
+  "acceptance": [
+    "src/poker/icm.py: chip_shares, place_probabilities, icm_equities, wta_equities, risk_premium. Czysty stdlib, zero importów poker.*.",
+    "WTA tożsama z ICM przy nagrodach (pula, 0, …, 0) — pod testem. Równe stacki dzielą pulę równo — pod testem.",
+    "Złoty przypadek (5000, 3000, 2000) vs (50, 30, 20) = (38.392857…, 32.75, 28.857142…) — pod testem.",
+    "Stack 0 dostaje ostatnie miejsce — pod testem. Suma $EV = suma nagród.",
+    "src/poker/spin.py: STARTING_CHIPS=50 (25 bb przy bb=2), PAYOUTS 2x/3x WTA i 10x 80/20, role 3-max (button=SB), post_blinds, award_allin (side pot + zwrot nadpłaty), utg_shove_both_fold, utg_shove_called, utg_shove_ev. Importuje wyłącznie poker.icm.",
+    "award_allin: (10,10,10)+(0,1,2)=(30,0,0); krótki wygrywa (5,10,10)+(0,1,2)=(15,10,0); nadpłata (20,10,0)+(0,1,2)=(30,0,0) — pod testem.",
+    "utg_shove_both_fold((50,50,50), button=1)=(53,49,48). WTA shove-fold > fold EV — pod testem.",
+    "HeadsUpHand, play_match, strategy_table.py, train_mccfr.py nietknięte. Brak nowej zależności (PokerKit odrzucony decyzją 10).",
+    "Nowe testy tests/test_icm.py i tests/test_spin.py. Bramka ruff / mypy / pytest zielona."
+  ],
+  "non_goals": [
+    "Otwarcie INV-P5 / multiway w poker.betting i poker.table.",
+    "Zależność PokerKit lub jakakolwiek inna w pakiecie produktu.",
+    "Pełny 3-max NL, zegar blindów, Nash jam/fold (Ganzfried 2008) — następny kontrakt.",
+    "Discounted CFR, RNR, regeneracja strategy_table.py.",
+    "Integracja HRC/ICMIZER (wyrocznia offline, nie kod)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/icm.py",
+    "src/poker/spin.py",
+    "tests/test_icm.py",
+    "tests/test_spin.py",
+    "docs/taskspecs/POKER-30.json",
+    "docs/decisions/10-spin-and-go-icm-bez-pokerkit.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q tests/test_icm.py tests/test_spin.py",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T15:40:00Z"
+  }
+}

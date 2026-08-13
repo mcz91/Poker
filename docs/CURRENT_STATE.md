@@ -1,8 +1,8 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
-(Linear weighting w MCCFR); POKER-24 (skala) dostarczony częściowo
-— kryterium skali w sprzeciwie, patrz „Następny krok".
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-30
+(ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
+zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
 ## Co istnieje
 
@@ -269,6 +269,15 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
   POKER-27). Poprzednia wersja tego bloku opisywała artefakt sprzed
   regeneracji w POKER-24 (20 607 infosetów) — liczby wymieniono po
   reprodukcji;
+- `poker.icm` + `poker.spin` — matematyka $EV turnieju 3-max (POKER-30,
+  decyzja 10): ICM Malmuth–Harville (stdlib, bez importów silnika),
+  WTA jako szczególny przypadek nagród `(pula, 0, …, 0)`, premia
+  żetonowa (chipEV − ICM); Spin: start 25 bb (`STARTING_CHIPS=50`,
+  bb=2), wypłaty 2×/3× WTA i 10× 80/20, role 3-max (button=SB),
+  rozliczenie all-in z side potem i zwrotem nadpłaty, EV shove UTG
+  (fold / obie fold / jeden caller z zadanym equity). **Nie otwiera
+  INV-P5** — `HeadsUpHand` i `play_match` zostają przy N=2. PokerKit
+  i obce solvery nie są zależnością (decyzja 10).
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -301,11 +310,12 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
 
 ## Czego nie ma
 
-Persystencji poza plikiem eksportu, side potów multiway, struktur
-turniejowych, UI/sieci/wielu stołów (pokerroom), replayu i analizy
-(trener), agentów ML (bot) — gałęzie przyszłe z decyzji 01 pozostają
-otwarte i niezamówione. Sandbox niezaufanych agentów to osobna
-decyzja, gdy pojawi się agent spoza repozytorium.
+Persystencji poza plikiem eksportu, side potów w maszynie licytacji
+(INV-P5, N=2 — `award_allin` w `poker.spin` liczy je tylko dla
+all-inów jam/fold), zegara blindów, pełnego 3-max NL, Nash jam/fold
+3-max (Ganzfried 2008), UI poza LAN. ICM/WTA i wypłaty Spin są od
+POKER-30. Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
+się agent spoza repozytorium.
 
 ## Następny krok
 
@@ -339,13 +349,13 @@ to waga t; `--averaging uniform` zostawia poprzednie sumowanie.
 Artefakt produkcyjny nietknięty — następna regeneracja (POKER-27)
 mierzy już Linear MCCFR.
 
-Następne kroki: **POKER-28** — findingi audytu POKER-24/25 (wiązanie
-checkpointu z seedem i konfiguracją, memoizacja parsowania w testach
-architektury); **POKER-27** — krzywa jakość-vs-skala (artefakty
-z rosnących skal trenowane i mierzone poza repozytorium, arena o mocy
-rozdzielającej różnice rzędu 50 BB/100) rozstrzyga, czy skala w ogóle
-kupuje jakość, i dopiero na tej podstawie wybieramy formę artefaktu
-(po 28; trener już waży liniowo). Potem c3 (restricted Nash response)
-albo — gdy krzywa okaże się płaska — nowa kwalifikacja metody
-(decyzja 09, pkt 4).
+**POKER-30 (ICM + Spin 3-max) zamknięty.** Własny Harville i wypłaty
+2×/3×/10×; INV-P5 nietknięte; PokerKit odrzucony (decyzja 10).
+
+Następne kroki: jam/fold 3-max (Ganzfried & Sandholm AAMAS 2008) na
+tej matematyce **albo** powrót do **POKER-28** (findingi audytu
+POKER-24/25) i **POKER-27** (krzywa jakość-vs-skala HU Linear MCCFR)
+— kolejność ustala operator. Potem c3 (RNR) albo nowa kwalifikacja
+metody, gdy krzywa HU jest płaska (decyzja 09, pkt 4).
 Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
+HRC/ICMIZER wyłącznie jako wyrocznia offline (golden), nie zależność.
