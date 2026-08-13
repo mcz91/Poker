@@ -24,8 +24,7 @@ Protokół (koszt czytelnika > koszt pisarza):
   i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
   integracyjnym. POKER-27 i POKER-28 u koderów.
 - 2026-08-13 product: Spin pierwszy; PokerKit nie wchodzi do pakietu
-  (decyzja 10–15). Gałąź `poker-35-clock-nash` — nie main.
-  Boty /play = offline jam/fold, nie strategy_table (−329 BB/100).
+  (decyzja 10–16). Gałąź `poker-36-expl` — nie main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

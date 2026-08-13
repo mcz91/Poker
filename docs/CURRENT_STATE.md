@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-35
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-36
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -381,6 +381,10 @@ Stół jam/fold jest w EXPLO (/play), nie w HeadsUpHand.
 Offline Nash na zegarze; 10× zaciska call. To nie jest crusher $1
 i nie jest cash-MCCFR. `strategy_table` nietknięty.
 
-Następne kroki: exploitability vs BR na drzewie (metryka Spina)
-albo otwarcie 2.2x na 25 bb — albo POKER-27, jeśli operator wraca
-do HU. Nie trenować więcej cash-MCCFR bez krzywej (decyzja 09/15).
+**POKER-36 (exploitability jam/fold) zamknięty.** ε vs BR w BI.
+16 iteracji na 3× 25 bb: ≈ 0.0006. 2 iteracje są luźniejsze. To metryka
+Spina, nie BB/100.
+
+Następne kroki: otwarcie 2.2x na 25 bb (bar $1 na deep) **albo**
+POKER-27 jeśli operator wraca do HU. Nie trenować cash-MCCFR bez
+krzywej.

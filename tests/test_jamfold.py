@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from poker.jamfold import call_beats_fold, jam_vs_depth, one_step_values, solve
+from poker.jamfold import call_beats_fold, exploitability, jam_vs_depth, one_step_values, solve
 from poker.icm import icm_equities, wta_equities
 from poker.preflop import ALL_CLASSES
 from poker.spin import PAYOUTS
@@ -124,6 +124,23 @@ def test_10x_zaciska_wzgledem_wta_na_starcie() -> None:
     wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
     icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=12)
     assert float(icm["btn_call_pct"]) < float(wta["btn_call_pct"])
+
+
+def test_wiecej_iteracji_sciska_exploitability() -> None:
+    loose = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=2)
+    tight = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=16)
+    assert float(tight["exploitability"]) < float(loose["exploitability"])
+    assert float(tight["exploitability"]) < 0.01
+    eps = tight["epsilon"]
+    assert isinstance(eps, tuple)
+    assert min(eps) >= -1e-6
+
+
+def test_exploitability_publiczne_api() -> None:
+    hit = exploitability((50, 50, 50), PAYOUTS["3x"].prizes, iterations=12)
+    assert float(hit["max"]) < 0.02
+    assert hit["iterations"] == 12
+
 
 
 
