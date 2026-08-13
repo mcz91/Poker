@@ -1,0 +1,37 @@
+{
+  "id": "POKER-33",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Zegar Spin: jam/fold na głębokościach 25/15/10/6 bb (równe stacki, blinds 1/2). Krótszy stack → szerszy jam UTG.",
+  "acceptance": [
+    "poker.spin.DEPTHS: (25,(50,50,50)), (15,(30,30,30)), (10,(20,20,20)), (6,(12,12,12)).",
+    "jam_vs_depth(prizes) zwraca wiersze (bb, utg, btn, bb_call). Importuje spin.DEPTHS.",
+    "Na 3× WTA jam UTG przy 6 bb > jam przy 25 bb o ≥5 pp — pod testem.",
+    "HeadsUpHand, strategy_table.py, INV-P5 nietknięte. spin.py nadal importuje tylko icm.",
+    "tests/test_jamfold.py: test_jam_vs_depth_rosnie."
+  ],
+  "non_goals": [
+    "Zegar ręka-po-ręce z eskalacją w trakcie turnieju.",
+    "Pełna siatka stanów / drugi iterate V.",
+    "Nierówne stacki na krzywej (tylko equal-stack depths)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin.py",
+    "src/poker/jamfold.py",
+    "tests/test_jamfold.py",
+    "docs/taskspecs/POKER-33.json",
+    "docs/decisions/13-spin-clock.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "pytest -q tests/test_jamfold.py tests/test_spin.py"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T19:10:00Z"
+  }
+}

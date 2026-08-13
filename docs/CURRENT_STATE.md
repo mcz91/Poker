@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-32
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-33
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -286,6 +286,8 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   `strategy_table.py` nietknięty. Od POKER-32 `solve` zwraca też
   `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
   tożsamość, na 10× przy nierównych stackach V ≠ ICM.
+  Od POKER-33 `DEPTHS` 25/15/10/6 bb i `jam_vs_depth`: na WTA
+  UTG 14% → 31% (krótszy stack, szerszy jam).
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -323,8 +325,8 @@ Persystencji poza plikiem eksportu, side potów w maszynie licytacji
 all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
 po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
 ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
-jeden backup continuation od POKER-32. Brak pełnej siatki stanów
-turnieju i zegara blindów.
+jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
+od POKER-33. Brak eskalacji ręka-po-ręce i pełnej siatki stanów.
 Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
@@ -367,10 +369,12 @@ mierzy już Linear MCCFR.
 stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
 
 **POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
-Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się. Nie jest to pełna
-value iteration po turnieju.
+Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
 
-Następne kroki: drugi iterate / siatka stanów / zegar blindów
+**POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb;
+UTG jam rośnie gdy stack maleje. To nie jest zegar ręka-po-ręce.
+
+Następne kroki: drugi iterate / pełna siatka / eskalacja w trakcie
 **albo** powrót do **POKER-28** i **POKER-27** (HU skala).
 Kolejność ustala operator. HRC/ICMIZER wyłącznie jako wyrocznia
 offline.

@@ -27,6 +27,14 @@ PAYOUTS: dict[str, SpinPayout] = {
 
 Stacks3 = tuple[int, int, int]
 
+# Equal-stack depths (bb=2). Classic Spin clock, chips scale.
+DEPTHS: tuple[tuple[int, Stacks3], ...] = (
+    (25, (50, 50, 50)),
+    (15, (30, 30, 30)),
+    (10, (20, 20, 20)),
+    (6, (12, 12, 12)),
+)
+
 
 def roles(button: int) -> tuple[int, int, int]:
     """(utg, btn_sb, bb). Button posts SB; left of button is BB; other acts first."""
