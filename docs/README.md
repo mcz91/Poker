@@ -151,6 +151,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   zewnętrzny: E[ICM(s′)] vs cash-out (decyzja 12).
 - [`POKER-33.json`](taskspecs/POKER-33.json) — zegar głębokości
   25/15/10/6 bb, jam UTG rośnie na krótkim (decyzja 13).
+- [`POKER-34.json`](taskspecs/POKER-34.json) — eskalacja w trakcie
+  (3 ręce / poziom) i grywalne jam/fold MVP (decyzja 14).
 
 ## Operator
 

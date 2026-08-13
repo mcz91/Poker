@@ -1,6 +1,6 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-33
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-34
 (ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
@@ -287,7 +287,8 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
   tożsamość, na 10× przy nierównych stackach V ≠ ICM.
   Od POKER-33 `DEPTHS` 25/15/10/6 bb i `jam_vs_depth`: na WTA
-  UTG 14% → 31% (krótszy stack, szerszy jam).
+  UTG 14% → 31% (krótszy stack, szerszy jam). Od POKER-34 zegar
+  w trakcie: `blinds_for_hand`, 3 ręce na poziom, `post_blinds(sb, bb)`.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -371,10 +372,11 @@ stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
 **POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
 Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
 
-**POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb;
-UTG jam rośnie gdy stack maleje. To nie jest zegar ręka-po-ręce.
+**POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb.
 
-Następne kroki: drugi iterate / pełna siatka / eskalacja w trakcie
+**POKER-34 (eskalacja + MVP) zamknięty.** Zegar 1/2 → 10/20 co 3 ręce.
+Stół jam/fold jest w EXPLO (/play), nie w HeadsUpHand.
+
+Następne kroki: twardszy HU endgame / więcej rąk na poziom
 **albo** powrót do **POKER-28** i **POKER-27** (HU skala).
-Kolejność ustala operator. HRC/ICMIZER wyłącznie jako wyrocznia
-offline.
+Kolejność ustala operator.

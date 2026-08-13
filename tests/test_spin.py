@@ -9,10 +9,12 @@ import pytest
 
 from poker.spin import (
     BIG_BLIND,
+    HANDS_PER_LEVEL,
     PAYOUTS,
     SMALL_BLIND,
     STARTING_CHIPS,
     award_allin,
+    blinds_for_hand,
     post_blinds,
     roles,
     utg_shove_both_fold,
@@ -30,6 +32,22 @@ def test_post_blinds_25bb() -> None:
     behind, pot = post_blinds((STARTING_CHIPS,) * 3, 1)
     assert pot == SMALL_BLIND + BIG_BLIND
     assert behind == (50, 49, 48)
+
+
+def test_zegar_eskaluje_co_trzy_rece() -> None:
+    assert HANDS_PER_LEVEL == 3
+    assert blinds_for_hand(0) == (1, 2, 0)
+    assert blinds_for_hand(2) == (1, 2, 0)
+    assert blinds_for_hand(3) == (2, 4, 1)
+    assert blinds_for_hand(20)[0] == 10
+    with pytest.raises(ValueError, match="ujemny"):
+        blinds_for_hand(-1)
+
+
+def test_post_blinds_poziom_dwa() -> None:
+    behind, pot = post_blinds((50, 50, 50), 1, 2, 4)
+    assert pot == 6
+    assert behind == (50, 48, 46)
 
 
 def test_award_rowny_trzy_way() -> None:

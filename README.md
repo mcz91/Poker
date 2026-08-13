@@ -211,7 +211,8 @@ Winner-take-all (2×/3× Spin) jest tożsamy z udziałem żetonów.
 `poker.spin` trzyma start 25 bb, wypłaty 2×/3×/10× i rozliczenie
 all-in jam/fold 3-max. `poker.jamfold` liczy Nash jam/fold na jednym
 stanie stacków (fictitious play). `solve` zwraca też wartość po jednej
-ręce (continuation) obok cash-out ICM. `DEPTHS` to zegar 25–6 bb.
+ręce (continuation) obok cash-out ICM. `DEPTHS` to przekrój 25–6 bb. `blinds_for_hand` to zegar w trakcie
+(3 ręce na poziom, 1/2 → 10/20).
 To nie otwiera licytacji multiway (`HeadsUpHand` zostaje przy dwóch
 miejscach).
 
