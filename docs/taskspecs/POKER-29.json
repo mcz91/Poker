@@ -1,0 +1,41 @@
+{
+  "id": "POKER-29",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Linear weighting w MCCFR: średnia strategia ważona numerem iteracji t (Linear CFR). Najwyższy stosunek efekt/koszt przed RNR i krzywą skali.",
+  "acceptance": [
+    "tools/train_mccfr.py uśrednia strategię wagą t (index+1) przy --averaging linear (domyślnie); --averaging uniform zachowuje poprzednie sumowanie jednostajne.",
+    "quantize() i format artefaktu bez zmian (wagi nadal sumują się do DENOMINATOR). Artefakt produkcyjny src/poker/strategy_table.py nie jest regenerowany w tym zadaniu.",
+    "Wznowienie z checkpointu przy tym samym --averaging daje artefakt bajt w bajt równy biegowi ciągłemu — pod testem.",
+    "Bieg linear i uniform na tym samym seedzie i skali dają różne artefakty — pod testem.",
+    "Wersja checkpointu podniesiona; stary format odrzucany jawnym błędem. Resume z innym --averaging niż w checkpointcie kończy się błędem — pod testem.",
+    "Nowe testy w tests/test_mccfr_linear.py. Istniejące testy wznowień i reprodukcji pozostają zielone (domyślne linear jest deterministyczne).",
+    "Bramka ruff / mypy / pytest zielona. README wymienia --averaging."
+  ],
+  "non_goals": [
+    "Discounted CFR / HS-DCFR / Deep CFR.",
+    "Restricted Nash Response (c3) — następny kontrakt po pomiarze.",
+    "Regeneracja artefaktu produkcyjnego i zmiana ABSTRACTION_VERSION.",
+    "Krzywa jakość-vs-skala — POKER-27 (po tym commicie linear jest domyślne, krzywa mierzy już Linear MCCFR).",
+    "Zmiany silnika, widoków, agentów, areny, LAN."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/train_mccfr.py",
+    "tests/test_mccfr_linear.py",
+    "README.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "docs/taskspecs/POKER-29.json",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest -q"
+  ],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T12:40:00Z"
+  }
+}
