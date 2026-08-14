@@ -10,6 +10,7 @@ STARTING_CHIPS = 50
 SMALL_BLIND = 1
 BIG_BLIND = 2
 HANDS_PER_LEVEL = 3
+JAM_FOLD_BB = 7
 LEVELS: tuple[tuple[int, int], ...] = (
     (1, 2),
     (2, 4),
@@ -63,6 +64,21 @@ def blinds_for_hand(hand: int) -> tuple[int, int, int]:
     level = min(hand // HANDS_PER_LEVEL, len(LEVELS) - 1)
     sb, bb = LEVELS[level]
     return sb, bb, level
+
+
+def open_amount(bb: int) -> int:
+    return max(bb * 2, int(round(bb * 2.2)))
+
+
+def effective_bb(stacks: Stacks3, bb: int) -> float:
+    live = [s for s in stacks if s > 0]
+    if not live or bb <= 0:
+        return 0.0
+    return min(live) / bb
+
+
+def is_jam_fold_depth(stacks: Stacks3, bb: int) -> bool:
+    return effective_bb(stacks, bb) <= JAM_FOLD_BB
 
 
 def post_blinds(
