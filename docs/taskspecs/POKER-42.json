@@ -1,0 +1,26 @@
+{
+  "id": "POKER-42",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Arena ROI vs fish. Tight GTO call przegrywa z always-jam. Exploit call vs random bije go (CI>0).",
+  "acceptance": [
+    "play_spin kończy się wypłatą sumującą pulę.",
+    "foldbot < jammer.",
+    "call_vs_random(0.50) ma masę 40–58%.",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": ["Twierdzenie o fieldzie $1", "MCCFR cash", "CI w teście jednostkowym 360 spinów"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/arena.py",
+    "tools/run_arena.py",
+    "tests/test_arena.py",
+    "docs/taskspecs/POKER-42.json",
+    "docs/decisions/22-arena-roi.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["python tests/test_arena.py"],
+  "approved": {"by": "PRODUCT", "ts": "2026-08-14T03:20:00Z"}
+}

@@ -395,5 +395,9 @@ na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 **POKER-41 (ciasny 3bet) zamknięty.** Spot vs zamrożony open, continue
 55%: BTN ≈ 9.4% na 3× 25 bb. Nie 35% z no-flat Nash.
 
-Następne kroki: arena ROI vs fish, albo VI na endgame ≤7 bb.
-Nie trenować cash-MCCFR.
+**POKER-42 (arena ROI) zamknięty.** Tight vs always-jam: −47% ROI
+(N=360). Exploit call vs random: +17%, CI > 0. Play woła jam na
+głębokim stole exploitem.
+
+Następne: exploit vs szeroki open, albo więcej N, albo VI ≤7 bb.
+Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.

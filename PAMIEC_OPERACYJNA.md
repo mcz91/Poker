@@ -24,7 +24,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
   integracyjnym. POKER-27 i POKER-28 u koderów.
 - 2026-08-14 product: PF tylko ≤7 bb. Open tree first-in w
-  `poker-40-open`. 3bet z no-flat nie jest polityką. Nie main.
+  `poker-40-open`. 3bet z no-flat nie jest polityką. Arena: tight
+  −47% vs always-jam, exploit +17%. Nie main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
