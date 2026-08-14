@@ -392,5 +392,8 @@ w pokerze (decyzja 17).
 **POKER-40 (open 2.2x first-in) zamknięty.** UTG open ≈ 23% / jam ≈ 1%
 na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 
-Następne kroki: ciasny 3bet z pomiarem, albo VI na endgame, albo
-arena ROI. Nie trenować cash-MCCFR.
+**POKER-41 (ciasny 3bet) zamknięty.** Spot vs zamrożony open, continue
+55%: BTN ≈ 9.4% na 3× 25 bb. Nie 35% z no-flat Nash.
+
+Następne kroki: arena ROI vs fish, albo VI na endgame ≤7 bb.
+Nie trenować cash-MCCFR.

@@ -1,0 +1,25 @@
+{
+  "id": "POKER-41",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Ciasny 3bet: spot vs zamrożony UTG open, continue 55%. 6–18% na 3× 25 bb.",
+  "acceptance": [
+    "threebet() BTN 6–18% na 3× 25 bb; AA jams; 72o folds.",
+    "10× nie jest szerszy niż 3×.",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": ["Nash pełnego drzewa 3bet", "Flop", "Regeneracja strategy_table"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/openfold.py",
+    "tools/export_open_nash.py",
+    "tests/test_openfold.py",
+    "docs/taskspecs/POKER-41.json",
+    "docs/decisions/21-threebet-spot.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["threebet test"],
+  "approved": {"by": "PRODUCT", "ts": "2026-08-14T03:00:00Z"}
+}

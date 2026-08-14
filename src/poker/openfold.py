@@ -296,3 +296,104 @@ def solve(
         "aa_plays": final[UTG_OPEN][aa] + final[UTG_JAM][aa] > 0.85,
         "junk_folds": final[UTG_OPEN][junk] + final[UTG_JAM][junk] < 0.25,
     }
+
+
+def _top_slice(sigma: list[float], frac: float) -> list[float]:
+    """Strongest `frac` of a range (by equity vs that range)."""
+    if frac <= 0:
+        return [0.0] * N_HANDS
+    if frac >= 1:
+        return list(sigma)
+    ranked = sorted(range(N_HANDS), key=lambda i: -_eq_vs(i, sigma))
+    target = frac * _mass(sigma)
+    out = [0.0] * N_HANDS
+    acc = 0.0
+    denom = float(sum(WEIGHTS))
+    for i in ranked:
+        if sigma[i] <= 0:
+            continue
+        out[i] = sigma[i]
+        acc += WEIGHTS[i] * sigma[i] / denom
+        if acc >= target:
+            break
+    return out
+
+
+def threebet(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    iterations: int = 16,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
+    continue_frac: float = 0.55,
+) -> dict[str, object]:
+    """BTN/BB jam-or-fold vs a frozen UTG open. Continue = top of that open.
+
+    Not a Nash of the full tree — the no-flat 3bet explodes. This is the
+    policy we actually ship (decyzja 20).
+    """
+    if not 0.0 < continue_frac <= 1.0:
+        raise ValueError("continue_frac")
+    first = solve(stacks, prizes, button, iterations, sb, bb_amt)
+    return _threebet_from_open(
+        first, stacks, prizes, button, sb, bb_amt, continue_frac
+    )
+
+
+def _threebet_from_open(
+    first: dict[str, object],
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int,
+    sb: int,
+    bb_amt: int,
+    continue_frac: float,
+) -> dict[str, object]:
+    utg_open = first["utg_open"]
+    assert isinstance(utg_open, list)
+    cont = _top_slice(utg_open, continue_frac)
+    utg, btn, bb = roles(button)
+    size = open_amount(bb_amt)
+    blinds = _blinds(stacks, button, sb, bb_amt)
+    opened = _put(stacks, blinds, utg, size)
+
+    def money(state: tuple[int, int, int]) -> tuple[float, ...]:
+        return icm_equities(state, prizes)
+
+    steal = money(_take(stacks, opened, utg))
+    btn_wins = money(_take(stacks, _put(stacks, opened, btn, stacks[btn]), btn))
+    bb_wins = money(_take(stacks, _put(stacks, opened, bb, stacks[bb]), bb))
+
+    def hu(a: int, b: int, w: int) -> tuple[float, ...]:
+        c = _put(stacks, _put(stacks, opened, a, stacks[a]), b, stacks[b])
+        return money(_sd(stacks, c, w))
+
+    hu_btn = (hu(utg, btn, utg), hu(utg, btn, btn))
+    hu_bb = (hu(utg, bb, utg), hu(utg, bb, bb))
+    p_cont = continue_frac
+    btn_j = [0.0] * N_HANDS
+    bb_j = [0.0] * N_HANDS
+    for h in range(N_HANDS):
+        e = _eq_vs(h, cont)
+        jam_btn = (1 - p_cont) * btn_wins[btn] + p_cont * _mix(e, hu_btn[1][btn], hu_btn[0][btn])
+        jam_bb = (1 - p_cont) * bb_wins[bb] + p_cont * _mix(e, hu_bb[1][bb], hu_bb[0][bb])
+        btn_j[h] = 1.0 if jam_btn > steal[btn] else 0.0
+        bb_j[h] = 1.0 if jam_bb > steal[bb] else 0.0
+    aa = 0
+    junk = next(
+        i
+        for i, cls in enumerate(ALL_CLASSES)
+        if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
+    )
+    return {
+        "continue_frac": continue_frac,
+        "btn_vs_open": btn_j,
+        "bb_vs_open": bb_j,
+        "btn_vs_open_pct": 100.0 * _mass(btn_j),
+        "bb_vs_open_pct": 100.0 * _mass(bb_j),
+        "aa_jams": btn_j[aa] > 0.85,
+        "junk_folds": btn_j[junk] < 0.25,
+        "utg_open_pct": first["utg_open_pct"],
+    }
+
