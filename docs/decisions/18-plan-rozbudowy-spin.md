@@ -3,51 +3,30 @@
 Cel produktu: bot, który **nie jest rybą na $1 Spin** (3-max NLH).
 Nie crusher. Nie HU cash. `strategy_table` i INV-P5 zostają.
 
-Dwa tory. Nie mieszać ich metryk.
+Push/fold jest **endgame**: dopiero przy **≤ 7 bb** efektywnych.
+Wyżej (25 → 8 bb) drzewo to fold / open 2.2x / jam; vs open:
+fold / 3bet-jam. Bez flata, bez flopu — zamknięte, preflop.
 
-| Tor | Jednostka | Kupuje | Nie kupuje |
-|---|---|---|---|
-| A · jam/fold | ε transfer + ROI vs fish | fazę od ~12 bb | pierwsze ręce 25 bb |
-| B · 25 bb | ROI / $EV turnieju | open 2.2x / fold / 3bet-jam | flop |
+| Tor | Kiedy | Jednostka |
+|---|---|---|
+| B · open 2.2x | > 7 bb | ROI / $EV |
+| A · jam/fold | ≤ 7 bb | ε transfer + ROI vs fish |
 
-POKER-27 (krzywa HU MCCFR) tylko jeśli operator wraca do cash HU.
+POKER-27 tylko jeśli operator wraca do cash HU.
 
-## Co już jest (i czego nie udawać)
+## Kolejność
 
-- Zegar, ICM/WTA, stół /play, offline FP na równych stackach.
-- Self-ε ≈ 0 w modelu ≠ Nash pokera (decyzja 17).
-- Live vs-field UTG ~27% ≠ macierz UTG ~17%.
-- Cash MCCFR: −329 BB/100 vs `rule`. Zamrożone.
-
-## Kolejność (A zanim B, C tylko po pomiarze)
-
-1. **Jedna polityka.** Play i lab czytają ten sam artefakt
-   (Python + macierz). Live vs-field przestaje być źródłem decyzji.
-   Tanio. Przywraca wiarygodność.
-2. **ε transfer.** BR w modelu macierzy przeciw polityce lab/Play.
-   Mianownik: always-jam 0.18 BI. Koniec porównań do Ganzfrieda.
-3. **Nierówne stacki.** Kubły chipów (nie tylko 50/50/50 × poziom).
-   Bez tego bot po pierwszym shovie zgaduje.
-4. **Zewnętrzna pętla Ganzfrieda.** V już jest jednokrokowe
-   (POKER-32). Value iteration po stanach stacków = prawdziwy
-   jam/fold turniejowy (AAMAS 2008). Godziny CPU, nie GPU.
-5. **Arena ROI.** Duplikat Spina vs skryptowany fish (za szeroki
-   call, always-jam). Metryka (b) z decyzji 15. Bar: ROI > fish
-   na ≥ N turniejach z CI. Nie BB/100.
-6. **Drzewo 25 bb: fold / open 2.2x / jam; call / fold / 3bet-jam.**
-   To wyciek $1 na starcie. Nadal preflop. Nadal stdlib.
-7. **Flop (tor C).** Tylko jeśli po (5)+(6) ROI vs fish stoi w miejscu
-   i wyciek widać na SPR po minraise. Abstrakcja + MCCFR HU najpierw,
-   3-max później. Droższe niż wszystko powyżej razem.
+1. **Próg 7 bb na stole.** Play nie zmusza do shove na 25 bb.
+2. **Jedna polityka jam/fold** na ≤7 bb (macierz, nie vs-field).
+3. **Nierówne stacki** — eff bb = min(żywe) / bb.
+4. **Nash drzewa 2.2x** (FP jak jam/fold, nadal preflop).
+5. **VI Ganzfrieda** na jam/fold endgame + kontynuacje z 2.2x.
+6. **Arena ROI** vs fish. Bar $1.
+7. **Flop** tylko jeśli po (4)+(6) widać wyciek na SPR.
 
 ## Świadomie nie robimy
 
-- Regeneracji `strategy_table` i skali c2 bez krzywej 09.
-- PokerKit / AGPL / silnika N=3 w `HeadsUpHand`.
+- Jam/fold jako modelu 12–25 bb.
+- Regeneracji `strategy_table`.
+- PokerKit / N=3 w `HeadsUpHand`.
 - Twierdzenia „bijemy field $1” przed areną ROI.
-- Postflopu „bo tak się robi GTO”.
-
-## Źródła (te same co przy wyborze metody)
-
-- Ganzfried & Sandholm, AAMAS 2008 / IJCAI 2009 — FP + VI, nie ML.
-- Decyzje 09, 15, 17.

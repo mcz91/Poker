@@ -10,11 +10,15 @@ import pytest
 from poker.spin import (
     BIG_BLIND,
     HANDS_PER_LEVEL,
+    JAM_FOLD_BB,
     PAYOUTS,
     SMALL_BLIND,
     STARTING_CHIPS,
     award_allin,
     blinds_for_hand,
+    effective_bb,
+    is_jam_fold_depth,
+    open_amount,
     post_blinds,
     roles,
     utg_shove_both_fold,
@@ -42,6 +46,17 @@ def test_zegar_eskaluje_co_trzy_rece() -> None:
     assert blinds_for_hand(20)[0] == 10
     with pytest.raises(ValueError, match="ujemny"):
         blinds_for_hand(-1)
+
+
+def test_push_fold_dopiero_przy_siedmiu_bb() -> None:
+    assert JAM_FOLD_BB == 7
+    assert open_amount(2) == 4
+    assert not is_jam_fold_depth((50, 50, 50), 2)
+    assert not is_jam_fold_depth((50, 50, 50), 6)
+    assert is_jam_fold_depth((50, 50, 50), 8)
+    assert is_jam_fold_depth((14, 50, 50), 2)
+    assert effective_bb((50, 50, 50), 2) == 25.0
+    assert effective_bb((50, 50, 50), 8) == 6.25
 
 
 def test_post_blinds_poziom_dwa() -> None:
