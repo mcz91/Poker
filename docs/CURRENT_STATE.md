@@ -389,5 +389,8 @@ w pokerze (decyzja 17).
 **Próg 7 bb (decyzja 19).** Push/fold tylko ≤ 7 bb eff. Wyżej open
 2.2x, bez flata. `JAM_FOLD_BB` w `poker.spin`.
 
-Następne kroki (decyzja 18/19): Nash drzewa 2.2x, potem VI na
-endgame, potem arena ROI. Nie trenować cash-MCCFR.
+**POKER-40 (open 2.2x first-in) zamknięty.** UTG open ≈ 23% / jam ≈ 1%
+na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
+
+Następne kroki: ciasny 3bet z pomiarem, albo VI na endgame, albo
+arena ROI. Nie trenować cash-MCCFR.

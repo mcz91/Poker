@@ -1,0 +1,32 @@
+{
+  "id": "POKER-40",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "First-in fold/open 2.2x/jam powyżej 7 bb. 3bet z tego drzewa nie jest polityką.",
+  "acceptance": [
+    "solve openfold: na 3× 25 bb UTG open 12–45% i wyraźnie > jam.",
+    "AA gra, 72o folduje.",
+    "tools/export_open_nash.py tylko poziomy > 7 bb.",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": [
+    "Nash 3betu / flata / flopu.",
+    "Twierdzenie, że to GTO 25 bb."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/openfold.py",
+    "tools/export_open_nash.py",
+    "tests/test_openfold.py",
+    "docs/taskspecs/POKER-40.json",
+    "docs/decisions/20-open-tree.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["python -c tests"],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-14T02:50:00Z"
+  }
+}
