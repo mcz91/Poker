@@ -23,9 +23,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 arch: POKER-24 (częściowo, sprzeciw uznany decyzją 09)
   i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
   integracyjnym. POKER-27 i POKER-28 u koderów.
-- 2026-08-14 product: PF tylko ≤7 bb. Open tree first-in w
-  `poker-40-open`. 3bet z no-flat nie jest polityką. Arena: tight
-  −47% vs always-jam, exploit +17%. Nie main.
+- 2026-08-17 product: field exploit (open 48 / 3bet 39 / call 48)
+  bije $1-ish fish +16% i always-jam +23% (N=320). Nie field $1.
+  Gałąź `poker-43-field`. Nie main.
 
 ## WĄTKI — otwarte, bez TaskSpec
 

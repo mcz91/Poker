@@ -397,3 +397,23 @@ def _threebet_from_open(
         "utg_open_pct": first["utg_open_pct"],
     }
 
+
+def threebet_vs_range(
+    open_sigma: list[float],
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
+    continue_frac: float = 0.35,
+) -> dict[str, object]:
+    """3bet-jam vs a known open range. Lower continue = they fold too much."""
+    if not 0.0 < continue_frac <= 1.0:
+        raise ValueError("continue_frac")
+    fake = {
+        "utg_open": open_sigma,
+        "utg_open_pct": 100.0 * _mass(open_sigma),
+    }
+    return _threebet_from_open(fake, stacks, prizes, button, sb, bb_amt, continue_frac)
+
+

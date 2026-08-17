@@ -28,3 +28,28 @@ def test_call_vs_random_to_nie_jest_gto() -> None:
     mass = 100.0 * _mass(call_vs_random(0.50))
     assert 40.0 < mass < 58.0
 
+
+def test_dollar_fish_otwiera_za_szeroko() -> None:
+    from poker.arena import dollar_fish
+    from poker.openfold import threebet_vs_range
+
+    fish = dollar_fish()
+    assert 45.0 < 100.0 * _mass(fish.open) < 65.0
+    assert 100.0 * _mass(fish.vs_open) < 100.0 * _mass(fish.open)
+    hit = threebet_vs_range(
+        fish.open, (50, 50, 50), PAYOUTS["3x"].prizes, continue_frac=0.45
+    )
+    assert 12.0 <= float(hit["btn_vs_open_pct"]) <= 40.0
+    assert hit["aa_jams"]
+    assert hit["junk_folds"]
+
+
+def test_field_exploit_kradnie_szerzej() -> None:
+    from poker.arena import field_exploit
+
+    book = field_exploit()
+    assert 40.0 < 100.0 * _mass(book.open) < 60.0
+    assert 25.0 < 100.0 * _mass(book.vs_open) < 50.0
+    assert 100.0 * _mass(book.vs_jam) > 35.0
+
+

@@ -53,6 +53,29 @@ def call_vs_random(thresh: float = 0.50) -> list[float]:
     return out
 
 
+def range_vs_random(thresh: float) -> list[float]:
+    return call_vs_random(thresh)
+
+
+def field_exploit() -> SeatBook:
+    """Population exploit for $1: steal wide, 3bet wide, call jams vs random."""
+    steal = range_vs_random(0.50)
+    premium = range_vs_random(0.62)
+    three = range_vs_random(0.53)
+    call = range_vs_random(0.50)
+    short = range_vs_random(0.48)
+    return SeatBook(steal, premium, three, call, short, call)
+
+
+def dollar_fish() -> SeatBook:
+    """$1-ish: opens too wide, under-3bets (would flat), calls jams too wide."""
+    open_r = range_vs_random(0.485)
+    three = range_vs_random(0.58)
+    call = range_vs_random(0.51)
+    short = range_vs_random(0.46)
+    return SeatBook(open_r, ZERO, three, call, short, call)
+
+
 def wide_call(p: float = 0.45) -> SeatBook:
     freq = [p] * N_HANDS
     return SeatBook(freq, freq, freq, freq, freq, freq)
