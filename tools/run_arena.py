@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sys
 
-from poker.arena import SeatBook, always_jam, call_vs_random, sample, wide_call
+from poker.arena import SeatBook, always_jam, call_vs_random, dollar_fish, field_exploit, sample, wide_call
 from poker.jamfold import solve as solve_jf
-from poker.openfold import _threebet_from_open, solve as solve_open
+from poker.openfold import _threebet_from_open, solve as solve_open, threebet_vs_range
 from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, is_jam_fold_depth
 
 
@@ -36,16 +36,23 @@ def hero_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
 
 
 def exploit_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
-    """Same first-in, but call a jam vs random. This is the $1 maniac exploit."""
+    """$1 book: call jams vs random; 3bet a wide fish who folds too much."""
     base = hero_book(pay, iterations)
-    vs = call_vs_random(0.50)
+    vs_jam = call_vs_random(0.50)
+    fish = dollar_fish()
+    three = threebet_vs_range(
+        fish.open,
+        (STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS),
+        PAYOUTS[pay].prizes,
+        continue_frac=0.45,
+    )
     return SeatBook(
         open=base.open,
         overjam=base.overjam,
-        vs_open=base.vs_open,
-        vs_jam=vs,
+        vs_open=list(three["btn_vs_open"]),
+        vs_jam=vs_jam,
         jf_first=base.jf_first,
-        jf_vs_jam=vs,
+        jf_vs_jam=vs_jam,
     )
 
 
@@ -54,13 +61,16 @@ def main() -> None:
     pay = sys.argv[2] if len(sys.argv) > 2 else "3x"
     hero = hero_book(pay)
     expl = exploit_book(pay)
+    field = field_exploit()
+    fish = dollar_fish()
     prizes = PAYOUTS[pay].prizes
     out = {
         "pay": pay,
         "tight_vs_always_jam": sample(hero, always_jam(), prizes, n, seed=21),
-        "exploit_vs_always_jam": sample(expl, always_jam(), prizes, n, seed=21),
-        "exploit_vs_wide": sample(expl, wide_call(0.45), prizes, n, seed=22),
-        "tight_vs_tight": sample(hero, hero, prizes, n, seed=23),
+        "field_vs_always_jam": sample(field, always_jam(), prizes, n, seed=21),
+        "tight_vs_dollar": sample(hero, fish, prizes, n, seed=24),
+        "field_vs_dollar": sample(field, fish, prizes, n, seed=24),
+        "field_vs_wide": sample(field, wide_call(0.45), prizes, n, seed=22),
     }
     print(json.dumps(out, indent=2))
 

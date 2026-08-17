@@ -399,5 +399,9 @@ na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 (N=360). Exploit call vs random: +17%, CI > 0. Play woła jam na
 głębokim stole exploitem.
 
-Następne: exploit vs szeroki open, albo więcej N, albo VI ≤7 bb.
+**POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
+z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
+Vs $1-ish fish +16% (N=320, CI +0.2..+32). Vs always-jam +23%.
+
+Następne: więcej N, albo flats/flop, albo VI ≤7 bb.
 Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.

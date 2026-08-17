@@ -1,0 +1,26 @@
+{
+  "id": "POKER-43",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Field exploit vs szeroki $1 fish. Open/3bet/call vs random. CI>0 vs always-jam i vs dollar-fish.",
+  "acceptance": [
+    "dollar_fish otwiera 45–65% i 3betuje ciaśniej niż open.",
+    "field_exploit otwiera 40–60% i 3betuje 25–50%.",
+    "strategy_table.py, HeadsUpHand nietknięte."
+  ],
+  "non_goals": ["Twierdzenie o fieldzie $1", "Flop / flat", "MCCFR cash"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/arena.py",
+    "src/poker/openfold.py",
+    "tools/run_arena.py",
+    "tests/test_arena.py",
+    "docs/taskspecs/POKER-43.json",
+    "docs/decisions/23-field-exploit.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["tests/test_arena.py"],
+  "approved": {"by": "PRODUCT", "ts": "2026-08-17T01:30:00Z"}
+}
