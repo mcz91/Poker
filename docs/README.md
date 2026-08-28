@@ -36,6 +36,45 @@
    — sprzeciw kodera wobec POKER-24 uznany (kryteria sprzeczne),
    kryterium ≥50k wycofane; krzywa jakość-vs-skala poza repozytorium
    przed wyborem formy artefaktu; warunki dla trzech opcji formy.
+10. [`10-spin-and-go-icm-bez-pokerkit.md`](decisions/10-spin-and-go-icm-bez-pokerkit.md)
+    — Spin & Go pierwszy: własny ICM Harville, bez PokerKit i bez
+    otwierania INV-P5; 2×/3× WTA, 10× 80/20;
+11. [`11-jamfold-fictitious-play.md`](decisions/11-jamfold-fictitious-play.md)
+    — Nash jam/fold 3-max fictitious play na jednym stanie stacków
+    (Ganzfried & Sandholm 2008), payoff ICM/WTA;
+12. [`12-one-step-continuation.md`](decisions/12-one-step-continuation.md)
+    — pierwszy backup zewnętrzny: V¹ = E[ICM(s′)] pod Nash vs cash-out;
+13. [`13-spin-clock.md`](decisions/13-spin-clock.md) — zegar głębokości
+    25/15/10/6 bb; krzywa jamu przeliczona w POKER-45;
+14. [`14-playable-spin.md`](decisions/14-playable-spin.md) — grywalny
+    Spin z eskalacją blindów (LEVELS, HANDS_PER_LEVEL);
+15. [`15-tani-trening-jamfold.md`](decisions/15-tani-trening-jamfold.md)
+    — offline Nash na zegarze; monotoniczność jamu potwierdzona
+    pomiarem po naprawach POKER-45;
+16. [`16-exploitability-jamfold.md`](decisions/16-exploitability-jamfold.md)
+    — ε vs best response w buy-inach; porównanie do Ganzfrieda
+    unieważnione decyzją 17;
+17. [`17-epsilon-to-model.md`](decisions/17-epsilon-to-model.md)
+    — self-ε mierzy równowagę modelu, nie jakość pokera; koniec
+    porównań zewnętrznych;
+18. [`18-plan-rozbudowy-spin.md`](decisions/18-plan-rozbudowy-spin.md)
+    — plan rozbudowy Spin $1 plastrami; POKER-27 tylko przy powrocie
+    do cash HU (uwaga: dokument przepisany w miejscu — adnotacja);
+19. [`19-push-fold-siedem-bb.md`](decisions/19-push-fold-siedem-bb.md)
+    — próg push/fold ≤ 7 bb efektywnych; wyżej open 2.2x, bez flata;
+20. [`20-open-tree.md`](decisions/20-open-tree.md) — first-in 2.2x;
+    3bet z drzewa bez flata nie jest polityką;
+21. [`21-threebet-spot.md`](decisions/21-threebet-spot.md) — ciasny
+    3bet vs zamrożony open; zakres i procent generowane z kodu
+    (POKER-45);
+22. [`22-arena-roi.md`](decisions/22-arena-roi.md) — arena ROI vs
+    fish; pomiary przeliczone w POKER-45;
+23. [`23-field-exploit.md`](decisions/23-field-exploit.md) — field
+    exploit; teza „bije $1-ish fisha" nieosiągnięta na N=320
+    (CI obejmuje zero);
+24. [`24-audyt-i-scalenie-linii-spin.md`](decisions/24-audyt-i-scalenie-linii-spin.md)
+    — audyt linii Spin w trzech transzach (2026-08-28), uznane
+    sprzeciwy, naprawy POKER-44/45, scalenie do main.
 
 ## TaskSpeki
 
@@ -138,6 +177,46 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-29.json`](taskspecs/POKER-29.json) — Linear weighting
   w MCCFR (Linear CFR, waga t); `--averaging linear` domyślnie,
   artefakt produkcyjny nietknięty (zamknięty, commit `a9f7444`).
+- [`POKER-30.json`](taskspecs/POKER-30.json) — ICM Malmuth–Harville
+  i wypłaty Spin 3-max (2×/3× WTA, 10× 80/20), rozliczenie all-in
+  jam/fold; PokerKit odrzucony (decyzja 10).
+- [`POKER-31.json`](taskspecs/POKER-31.json) — Nash jam/fold 3-max
+  na jednym stanie (fictitious play, Ganzfried & Sandholm 2008);
+  payoff ICM/WTA (decyzja 11).
+- [`POKER-32.json`](taskspecs/POKER-32.json) — pierwszy backup
+  zewnętrzny: E[ICM(s′)] vs cash-out (decyzja 12).
+- [`POKER-33.json`](taskspecs/POKER-33.json) — zegar głębokości
+  25/15/10/6 bb, jam UTG rośnie na krótkim (decyzja 13).
+- [`POKER-34.json`](taskspecs/POKER-34.json) — eskalacja blindów
+  i grywalny Spin (zamknięty na linii Spin; audyt 2026-08-28:
+  FINDINGI — decyzja 24);
+- [`POKER-35.json`](taskspecs/POKER-35.json) — tani trening jam/fold
+  na zegarze (zamknięty; audyt: FINDINGI — teza doprecyzowana
+  pomiarem w POKER-45);
+- [`POKER-36.json`](taskspecs/POKER-36.json) — exploitability
+  jam/fold vs best response (zamknięty; audyt: FINDINGI — typowanie
+  wyniku naprawione w POKER-44);
+- kroki 37–39 (uczciwe ε, plan rozbudowy, próg 7 bb) — bez
+  TaskSpeców; odstępstwo odnotowane
+  w [decyzji 24](decisions/24-audyt-i-scalenie-linii-spin.md);
+- [`POKER-40.json`](taskspecs/POKER-40.json) — first-in open 2.2x
+  powyżej 7 bb (zamknięty; audyt: FINDINGI);
+- [`POKER-41.json`](taskspecs/POKER-41.json) — ciasny 3bet spot vs
+  zamrożony open (zamknięty; audyt: FINDINGI — zakres w decyzji 21
+  wygenerowany z kodu w POKER-45);
+- [`POKER-42.json`](taskspecs/POKER-42.json) — arena ROI (zamknięty;
+  audyt: OBJECTION: INCOMPLETE wobec kontraktu uznany — naprawa
+  w POKER-44, pomiary przeliczone w POKER-45);
+- [`POKER-43.json`](taskspecs/POKER-43.json) — field exploit
+  (zamknięty; audyt: FINDINGI; teza główna nieosiągnięta po pomiarze
+  POKER-45);
+- [`POKER-44.json`](taskspecs/POKER-44.json) — arena HU przywrócona,
+  `poker.spin_arena` wydzielona, INV-P1 w tasowaniu, typowany
+  `solve` (zamknięty, commit `52dbe01`; weryfikacja niezależna
+  architekta);
+- [`POKER-45.json`](taskspecs/POKER-45.json) — wierne rozliczenia
+  żetonów i zmierzone liczby (zamknięty, commit `310d592`; sprzeciw
+  kodera uznany decyzją 24).
 
 ## Operator
 

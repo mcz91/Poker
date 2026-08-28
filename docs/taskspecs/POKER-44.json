@@ -1,0 +1,44 @@
+{
+  "id": "POKER-44",
+  "spec_version": 1,
+  "class_hint": "regression",
+  "goal": "Scalona arena HU i CLI --series znów działają, a pełna bramka repozytorium jest zielona na linii Spin.",
+  "context": "Audyt linii Spin (2026-08-28): POKER-42 wpisał arenę ROI w zajęty moduł poker.arena, kasując produkt POKER-13 — 8 modułów testowych nie importuje się, CLI --series martwe, test_architecture czerwony; tasowanie list(FULL_DECK) łamie INV-P1 (kolejność zależna od PYTHONHASHSEED); ręka HU z wybitym graczem na BB gubi żywego gracza UTG (36% rąk bez akcji); solve() -> dict[str, object] jest źródłem ~35 błędów mypy i zepsutych type: ignore.",
+  "acceptance": [
+    "ruff check ., mypy i pytest (pełna kolekcja, zero błędów kolekcji) zielone w czystym venv 3.13.",
+    "poker.arena ma publiczne API POKER-13 identyczne z main 0086417 (SeriesConfig, SeriesReport, series_pair_seeds, play_mirrored_pair, run_series); tests/test_arena.py przywrócony z main bez zmian asercji i zielony; wszystkie testy przechodzące na main przechodzą.",
+    "Arena ROI Spin żyje w nowym module poker.spin_arena z testami w tests/test_spin_arena.py; tools/run_arena.py używa poker.spin_arena i drukuje także wyniki exploit_book (odtwarzalność pomiarów decyzji 22).",
+    "Tasowanie spin-areny przez poker.dealing.shuffled_deck (albo równoważnie posortowaną talię); test dowodzi, że ten sam seed daje identyczny wynik przy dwóch różnych PYTHONHASHSEED (subprocess).",
+    "Ręka heads-up z wybitym graczem: dla każdej z trzech pozycji buttona obaj żywi gracze działają i blindy są pobierane — pod testem, czerwonym na bazie tego kontraktu.",
+    "solve() w poker.jamfold i poker.openfold zwraca typ jawny (TypedDict albo frozen dataclass); zero komentarzy type: ignore w src/poker; testy czytają pola bez rzutowań float(object).",
+    "tests/test_architecture.py: kontrakt importów areny HU przywrócony jak na main; nowy wpis ogranicza importy poker.spin_arena (bez adapterów, bez poker.betting/table — świadoma duplikacja rozgrywacza pozostaje do rozstrzygnięcia w POKER-45 i jest poza tym kontraktem)."
+  ],
+  "non_goals": [
+    "Naprawa rozliczeń żetonów spin/jamfold (utg_shove_ev, _allin_two, _three_way) — POKER-45.",
+    "Przeliczanie i wymiana liczb opublikowanych w decyzjach i CURRENT_STATE — POKER-45.",
+    "Zmiany HeadsUpHand, play_match, strategy_table.py i pozostałych artefaktów.",
+    "Zmiany modelu fictitious play i drzewa open/3bet."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/arena.py",
+    "src/poker/spin_arena.py",
+    "src/poker/icm.py",
+    "src/poker/jamfold.py",
+    "src/poker/openfold.py",
+    "src/poker/spin.py",
+    "tests/test_arena.py",
+    "tests/test_spin_arena.py",
+    "tests/test_architecture.py",
+    "tests/test_icm.py",
+    "tests/test_jamfold.py",
+    "tests/test_openfold.py",
+    "tests/test_spin.py",
+    "tools/run_arena.py",
+    "tools/export_clock_nash.py",
+    "tools/export_open_nash.py",
+    "docs/taskspecs/POKER-44.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-28T19:30:00Z", "basis": "polecenie operatora 2026-08-28: audyt i scalenie linii Spin"}
+}

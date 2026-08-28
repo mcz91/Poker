@@ -1,8 +1,9 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
-(Linear weighting w MCCFR); POKER-24 (skala) dostarczony częściowo
-— kryterium skali w sprzeciwie, patrz „Następny krok".
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-45
+(rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady legalne —
+i liczby linii Spin wymienione na zmierzone); POKER-29 (Linear CFR)
+zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
 ## Co istnieje
 
@@ -269,6 +270,29 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
   POKER-27). Poprzednia wersja tego bloku opisywała artefakt sprzed
   regeneracji w POKER-24 (20 607 infosetów) — liczby wymieniono po
   reprodukcji;
+- `poker.icm` + `poker.spin` — matematyka $EV turnieju 3-max (POKER-30,
+  decyzja 10): ICM Malmuth–Harville (stdlib, bez importów silnika),
+  WTA jako szczególny przypadek nagród `(pula, 0, …, 0)`, premia
+  żetonowa (chipEV − ICM); Spin: start 25 bb (`STARTING_CHIPS=50`,
+  bb=2), wypłaty 2×/3× WTA i 10× 80/20, role 3-max (button=SB),
+  rozliczenie all-in z side potem i zwrotem nadpłaty, EV shove UTG
+  (fold / obie fold / jeden caller z zadanym equity). **Nie otwiera
+  INV-P5** — `HeadsUpHand` i `play_match` zostają przy N=2. PokerKit
+  i obce solvery nie są zależnością (decyzja 10).
+- `poker.jamfold` — Nash jam/fold 3-max na jednym stanie stacków
+  (POKER-31, decyzja 11): fictitious play z wagą liniową t (gra
+  wewnętrzna Ganzfried & Sandholm, AAMAS 2008). Equity HU z macierzy
+  preflop; 3-way z pary znormalizowanej; bez blockerów. Na 25 bb WTA
+  UTG jams 16.4% combo, BTN/BB call 7.3/8.3% (solve 20 iteracji,
+  POKER-45); 10× 80/20 zaciska call.
+  `strategy_table.py` nietknięty. Od POKER-32 `solve` zwraca też
+  `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
+  przybliżona tożsamość, na 10× przy nierównych stackach V ≠ ICM.
+  Od POKER-33 `DEPTHS` 25/15/10/6 bb i `jam_vs_depth`: na WTA
+  UTG 14.1% → 37.9% (krótszy stack, szerszy jam; 12 iteracji,
+  zmierzone po naprawie rozliczeń POKER-45 —
+  [decyzja 13](decisions/13-spin-clock.md)). Od POKER-34 zegar
+  w trakcie: `blinds_for_hand`, 3 ręce na poziom, `post_blinds(sb, bb)`.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -301,11 +325,15 @@ Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-29
 
 ## Czego nie ma
 
-Persystencji poza plikiem eksportu, side potów multiway, struktur
-turniejowych, UI/sieci/wielu stołów (pokerroom), replayu i analizy
-(trener), agentów ML (bot) — gałęzie przyszłe z decyzji 01 pozostają
-otwarte i niezamówione. Sandbox niezaufanych agentów to osobna
-decyzja, gdy pojawi się agent spoza repozytorium.
+Persystencji poza plikiem eksportu, side potów w maszynie licytacji
+(INV-P5, N=2 — `award_allin` w `poker.spin` liczy je tylko dla
+all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
+po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
+ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
+jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
+od POKER-33. Brak eskalacji ręka-po-ręce i pełnej siatki stanów.
+Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
+się agent spoza repozytorium.
 
 ## Następny krok
 
@@ -339,13 +367,86 @@ to waga t; `--averaging uniform` zostawia poprzednie sumowanie.
 Artefakt produkcyjny nietknięty — następna regeneracja (POKER-27)
 mierzy już Linear MCCFR.
 
-Następne kroki: **POKER-28** — findingi audytu POKER-24/25 (wiązanie
-checkpointu z seedem i konfiguracją, memoizacja parsowania w testach
-architektury); **POKER-27** — krzywa jakość-vs-skala (artefakty
-z rosnących skal trenowane i mierzone poza repozytorium, arena o mocy
-rozdzielającej różnice rzędu 50 BB/100) rozstrzyga, czy skala w ogóle
-kupuje jakość, i dopiero na tej podstawie wybieramy formę artefaktu
-(po 28; trener już waży liniowo). Potem c3 (restricted Nash response)
-albo — gdy krzywa okaże się płaska — nowa kwalifikacja metody
-(decyzja 09, pkt 4).
-Ulepszenia agentów wyłącznie z pomiarem w arenie (decyzja 04, pkt 2).
+**POKER-30 (ICM + Spin 3-max) zamknięty.** Własny Harville i wypłaty
+2×/3×/10×; INV-P5 nietknięte; PokerKit odrzucony (decyzja 10).
+
+**POKER-31 (jam/fold 3-max) zamknięty.** Fictitious play na jednym
+stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
+
+**POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
+Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
+
+**POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb.
+
+**POKER-34 (eskalacja + MVP) zamknięty.** Zegar 1/2 → 10/20 co 3 ręce.
+Stół jam/fold jest w EXPLO (/play), nie w HeadsUpHand.
+
+**POKER-35 (tani trening jam/fold) zamknięty.** `solve` zna blinds.
+Offline Nash na zegarze; 10× zaciska call. To nie jest crusher $1
+i nie jest cash-MCCFR. `strategy_table` nietknięty.
+
+**POKER-36 (exploitability jam/fold) zamknięty.** ε vs BR w BI.
+16 iteracji na 3× 25 bb: ≈ 0.0006 w modelu. Always-jam ≈ 0.18.
+Live vs-field UTG ~27% ≠ offline macierz ~17%. Self-ε ≠ jakość
+w pokerze (decyzja 17).
+
+**Próg 7 bb (decyzja 19).** Push/fold tylko ≤ 7 bb eff. Wyżej open
+2.2x, bez flata. `JAM_FOLD_BB` w `poker.spin`.
+
+**POKER-40 (open 2.2x first-in) zamknięty.** UTG open ≈ 23% / jam ≈ 1%
+na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
+
+**POKER-41 (ciasny 3bet) zamknięty.** Spot vs zamrożony open, continue
+55%: BTN 10.4% na 3× 25 bb (12 iteracji; zakres z kodu —
+[decyzja 21](decisions/21-threebet-spot.md)). Nie 35% z no-flat Nash.
+
+**POKER-42 (arena ROI) zamknięty.** Pomiar POKER-45
+(`tools/run_arena.py 360 3x`): tight vs always-jam −46.7% ROI.
+Exploit call vs random: +18.3%, CI (+3.2, +33.5) > 0. Play woła jam
+na głębokim stole exploitem.
+
+**POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
+z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
+Pomiar POKER-45 (`tools/run_arena.py 320 3x`): vs always-jam +16.3%
+(CI +0.2..+32.3); vs $1-ish fish +4.1% (CI −11.6..+19.7) — CI obejmuje
+zero, oczekiwanie „bije $1-ish fisha" **nieosiągnięte** na N=320
+([decyzja 23](decisions/23-field-exploit.md)).
+
+**POKER-44 (arena HU przywrócona, spin_arena wydzielona) zamknięty.**
+`poker.arena` (HU, duplicate) wraca z main; arena ROI Spin żyje w
+`poker.spin_arena`; talia z `poker.dealing` (INV-P1 — wynik niezależny
+od PYTHONHASHSEED); martwa ręka HU po wybiciu naprawiona; `solve`
+utypowane.
+
+**POKER-45 (rozliczenia żetonów + uczciwe liczby) zamknięty.**
+Gałąź fold `utg_shove_ev` nie gubi blindów (pod WTA fold == udział
+żetonowy); `_allin_two` liczy wkłady od pełnych stacków sprzed blindów;
+`_three_way` każe wołającym wstawić min(stack, shove); niezmiennik sumy
+żetonów stanów terminalnych pod testami (`_terminal_states`, ręka
+areny); `effective_bb` odrzuca bb ≤ 0 i pusty stół. Liczby decyzji
+13/15/21/22/23 wymienione na zmierzone; odwrócenie monotoniczności
+jamu na 8/16 i 10/20 z audytu było artefaktem gubienia blindów — po
+naprawie jam rośnie monotonicznie przez cały zegar
+([decyzja 15](decisions/15-tani-trening-jamfold.md)).
+
+**Linia Spin scalona do `main` po audycie i naprawach**
+([decyzja 24](decisions/24-audyt-i-scalenie-linii-spin.md)).
+
+Następne kroki:
+
+1. **Kierunek treningu wybrany przez operatora (2026-08-28): droga
+   Pluribusa** — tabelaryczny MCCFR/CFR + Linear/Discounted CFR na
+   ręcznej abstrakcji, CPU; głęboki research architekta (mechanika
+   blueprintu i depth-limited search, ICM-CFR po siatce stanów) w toku;
+   decyzja i pierwszy kontrakt po raporcie;
+2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
+   N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
+   twierdzenie „bije X" wróci do dokumentów;
+3. kwalifikacja duplikacji rozgrywacza `poker.spin_arena` względem
+   silnika zdarzeniowego (wątek z audytu POKER-42);
+4. POKER-26 (informacja zwrotna przy stole LAN) — szkic czeka na
+   zatwierdzenie; POKER-28 (memoizacja parsowania w testach
+   architektury, wiązanie checkpointu) nadal zasadny; POKER-27
+   warunkowy — tylko przy powrocie do cash HU (decyzja 18).
+
+Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.

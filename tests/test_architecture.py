@@ -101,6 +101,20 @@ def test_arena_zalezy_od_silnika_a_cli_od_areny() -> None:
     assert "poker.arena" in _imports(SRC_POKER / "adapters" / "cli.py")
 
 
+def test_spin_arena_zalezy_od_silnika_spin_bez_adapterow() -> None:
+    spin_arena = SRC_POKER / "spin_arena.py"
+    assert spin_arena.is_file()
+    poker_imports = {name for name in _imports(spin_arena) if name.startswith("poker.")}
+    assert poker_imports <= {
+        "poker.cards",
+        "poker.dealing",
+        "poker.evaluation",
+        "poker.openfold",
+        "poker.preflop",
+        "poker.spin",
+    }, f"spin_arena.py importuje poza dozwolonym zbiorem: {sorted(poker_imports)}"
+
+
 def test_korpus_zalezy_od_silnika_rejestru_i_eksportu() -> None:
     corpus = SRC_POKER / "adapters" / "corpus.py"
     assert corpus.is_file()

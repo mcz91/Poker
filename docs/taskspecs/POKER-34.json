@@ -1,0 +1,34 @@
+{
+  "id": "POKER-34",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Eskalacja blindów w trakcie Spina (co 3 ręce) i grywalne MVP jam/fold 3-max. INV-P5 nietknięte.",
+  "acceptance": [
+    "blinds_for_hand(0..2)=(1,2,0), (3)=(2,4,1); ostatni poziom 10/20. Ręka ujemna → ValueError.",
+    "post_blinds przyjmuje opcjonalne sb/bb (domyślnie 1/2). test_post_blinds_25bb bez zmian.",
+    "LEVELS: (1,2),(2,4),(3,6),(4,8),(5,10),(8,16),(10,20). HANDS_PER_LEVEL=3.",
+    "HeadsUpHand, play_match, strategy_table.py nietknięte. spin.py nadal importuje tylko icm.",
+    "tests/test_spin.py: test_zegar_eskaluje_co_trzy_rece, test_post_blinds_poziom_dwa."
+  ],
+  "non_goals": [
+    "Pełna licytacja postflop. Multiway poza jam/fold.",
+    "Otwieranie INV-P5 / HeadsUpHand na 3 graczy.",
+    "Sieć, multiplayer, ante."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin.py",
+    "tests/test_spin.py",
+    "docs/taskspecs/POKER-34.json",
+    "docs/decisions/14-playable-spin.md",
+    "docs/CURRENT_STATE.md",
+    "docs/README.md",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": ["pytest -q tests/test_spin.py"],
+  "approved": {
+    "by": "PRODUCT",
+    "ts": "2026-08-13T19:25:00Z"
+  }
+}

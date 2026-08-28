@@ -1,0 +1,47 @@
+{
+  "id": "POKER-45",
+  "spec_version": 1,
+  "class_hint": "regression",
+  "goal": "Rozliczenia żetonów Spin/jamfold są wierne (suma stała, wkłady legalne), a każda liczba opublikowana w dokumentach linii Spin jest zmierzona komendą z repo albo jawnie oznaczona jako nieosiągnięta.",
+  "context": "Audyt linii Spin (2026-08-28): utg_shove_ev w gałęzi fold gubi 3 żetony blindów (147/150); _allin_two rozlicza wkłady od stacków po blindach (żetony znikają); _three_way każe wołającym wstawić całe stacki zamiast min(stack, shove); asercje sum-nagród są tożsamościami bez mocy; opublikowane liczby (krzywa jam-vs-depth 14/23/29/31, 3bet 9.4% z błędną listą rąk, ROI +17%/+16% z CI>0) są artefaktami defektów albo nieodtwarzalne — zmierzone CI obejmują zero.",
+  "acceptance": [
+    "utg_shove_ev: gałąź fold rozlicza pełną pulę blindów; pod WTA fold równa się dokładnie udziałowi żetonowemu — pod testem czerwonym na bazie.",
+    "_allin_two: wkłady liczone od pełnych stacków sprzed blindów; _three_way: wkład wołającego to min(stack, shove) — test terminala na (16,50,84) dla obu zwycięzców, czerwony na bazie.",
+    "Suma żetonów przy stole stała w każdym stanie terminalnym budowanym przez poker.jamfold i poker.spin_arena — test niezmiennika (nie suma nagród ICM).",
+    "split_pot z remisem rang pod testem: pula parzysta i nieparzysta, reguła niepodzielnej reszty udokumentowana w docstringu.",
+    "Osłabione asercje wzmocnione: LEVELS przybite w całości wraz z blinds_for_hand(18); icm_open <= wta_open bez luzu +8; btn_3bet(10x) <= btn_3bet(3x) bez luzu +1.0; aa_plays/junk_folds sprawdzane na rozkładzie strategii przez próg testu, nie na werdykcie produkcyjnym.",
+    "effective_bb rzuca ValueError dla bb <= 0 i pustego stołu, spójnie z blinds_for_hand — pod testem.",
+    "Liczby w decyzjach 13, 15, 21, 22, 23 i w CURRENT_STATE przeliczone po naprawach i wymienione na zmierzone, każda z komendą odtwarzającą i liczbą iteracji; lista rąk 3bet w decyzji 21 wygenerowana z kodu; twierdzenia, których pomiar nie potwierdza (CI obejmujące zero), zapisane wprost jako nieosiągnięte; teza decyzji 15 zawężona do zakresu, w którym zachodzi, z testem przybijającym odwrócenie monotoniczności na 8/16 i 10/20 jako znaną własność modelu.",
+    "Pełna bramka (ruff check ., mypy, pytest) zielona w czystym venv 3.13."
+  ],
+  "non_goals": [
+    "Nowe funkcje i zmiany modelu (VI, kontynuacje, kubełki) — plan decyzji 18.",
+    "Zmiany HeadsUpHand, play_match, strategy_table.py i artefaktów.",
+    "Usuwanie duplikacji rozgrywacza spin_arena względem silnika zdarzeniowego — osobna kwalifikacja architekta."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin.py",
+    "src/poker/jamfold.py",
+    "src/poker/openfold.py",
+    "src/poker/spin_arena.py",
+    "src/poker/icm.py",
+    "tests/test_spin.py",
+    "tests/test_jamfold.py",
+    "tests/test_openfold.py",
+    "tests/test_spin_arena.py",
+    "tests/test_icm.py",
+    "tools/run_arena.py",
+    "tools/export_clock_nash.py",
+    "tools/export_open_nash.py",
+    "docs/decisions/13-spin-clock.md",
+    "docs/decisions/15-tani-trening-jamfold.md",
+    "docs/decisions/21-threebet-spot.md",
+    "docs/decisions/22-arena-roi.md",
+    "docs/decisions/23-field-exploit.md",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-45.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-28T19:30:00Z", "basis": "polecenie operatora 2026-08-28: audyt i scalenie linii Spin"}
+}
