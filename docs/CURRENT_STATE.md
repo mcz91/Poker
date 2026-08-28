@@ -1,7 +1,8 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-36
-(ICM Malmuth–Harville + wypłaty Spin 3-max); POKER-29 (Linear CFR)
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-45
+(rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady legalne —
+i liczby linii Spin wymienione na zmierzone); POKER-29 (Linear CFR)
 zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
 
 ## Co istnieje
@@ -282,12 +283,15 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   (POKER-31, decyzja 11): fictitious play z wagą liniową t (gra
   wewnętrzna Ganzfried & Sandholm, AAMAS 2008). Equity HU z macierzy
   preflop; 3-way z pary znormalizowanej; bez blockerów. Na 25 bb WTA
-  UTG jams ≈16% combo, BTN/BB call 7–8%; 10× 80/20 zaciska call.
+  UTG jams 16.4% combo, BTN/BB call 7.3/8.3% (solve 20 iteracji,
+  POKER-45); 10× 80/20 zaciska call.
   `strategy_table.py` nietknięty. Od POKER-32 `solve` zwraca też
   `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
-  tożsamość, na 10× przy nierównych stackach V ≠ ICM.
+  przybliżona tożsamość, na 10× przy nierównych stackach V ≠ ICM.
   Od POKER-33 `DEPTHS` 25/15/10/6 bb i `jam_vs_depth`: na WTA
-  UTG 14% → 31% (krótszy stack, szerszy jam). Od POKER-34 zegar
+  UTG 14.1% → 37.9% (krótszy stack, szerszy jam; 12 iteracji,
+  zmierzone po naprawie rozliczeń POKER-45 —
+  [decyzja 13](decisions/13-spin-clock.md)). Od POKER-34 zegar
   w trakcie: `blinds_for_hand`, 3 ręce na poziom, `post_blinds(sb, bb)`.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
@@ -393,15 +397,37 @@ w pokerze (decyzja 17).
 na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 
 **POKER-41 (ciasny 3bet) zamknięty.** Spot vs zamrożony open, continue
-55%: BTN ≈ 9.4% na 3× 25 bb. Nie 35% z no-flat Nash.
+55%: BTN 10.4% na 3× 25 bb (12 iteracji; zakres z kodu —
+[decyzja 21](decisions/21-threebet-spot.md)). Nie 35% z no-flat Nash.
 
-**POKER-42 (arena ROI) zamknięty.** Tight vs always-jam: −47% ROI
-(N=360). Exploit call vs random: +17%, CI > 0. Play woła jam na
-głębokim stole exploitem.
+**POKER-42 (arena ROI) zamknięty.** Pomiar POKER-45
+(`tools/run_arena.py 360 3x`): tight vs always-jam −46.7% ROI.
+Exploit call vs random: +18.3%, CI (+3.2, +33.5) > 0. Play woła jam
+na głębokim stole exploitem.
 
 **POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
 z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
-Vs $1-ish fish +16% (N=320, CI +0.2..+32). Vs always-jam +23%.
+Pomiar POKER-45 (`tools/run_arena.py 320 3x`): vs always-jam +16.3%
+(CI +0.2..+32.3); vs $1-ish fish +4.1% (CI −11.6..+19.7) — CI obejmuje
+zero, oczekiwanie „bije $1-ish fisha" **nieosiągnięte** na N=320
+([decyzja 23](decisions/23-field-exploit.md)).
+
+**POKER-44 (arena HU przywrócona, spin_arena wydzielona) zamknięty.**
+`poker.arena` (HU, duplicate) wraca z main; arena ROI Spin żyje w
+`poker.spin_arena`; talia z `poker.dealing` (INV-P1 — wynik niezależny
+od PYTHONHASHSEED); martwa ręka HU po wybiciu naprawiona; `solve`
+utypowane.
+
+**POKER-45 (rozliczenia żetonów + uczciwe liczby) zamknięty.**
+Gałąź fold `utg_shove_ev` nie gubi blindów (pod WTA fold == udział
+żetonowy); `_allin_two` liczy wkłady od pełnych stacków sprzed blindów;
+`_three_way` każe wołającym wstawić min(stack, shove); niezmiennik sumy
+żetonów stanów terminalnych pod testami (`_terminal_states`, ręka
+areny); `effective_bb` odrzuca bb ≤ 0 i pusty stół. Liczby decyzji
+13/15/21/22/23 wymienione na zmierzone; odwrócenie monotoniczności
+jamu na 8/16 i 10/20 z audytu było artefaktem gubienia blindów — po
+naprawie jam rośnie monotonicznie przez cały zegar
+([decyzja 15](decisions/15-tani-trening-jamfold.md)).
 
 Następne: więcej N, albo flats/flop, albo VI ≤7 bb.
 Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.

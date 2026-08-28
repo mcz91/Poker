@@ -120,11 +120,11 @@ def pick(
     return "fold"
 
 
-def play_spin(
+def run_spin(
     books: tuple[SeatBook, SeatBook, SeatBook],
-    prizes: tuple[float, float, float],
     seed: int,
-) -> tuple[float, float, float]:
+) -> tuple[tuple[int, int, int], str]:
+    """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk)."""
     rng = random.Random(seed)
     stacks = [STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS]
     button = 1
@@ -138,6 +138,16 @@ def play_spin(
         first = False
         stacks = _play_hand(stacks, button, sb, bb, books, rng)
         hand_i += 1
+    reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
+    return (stacks[0], stacks[1], stacks[2]), reason
+
+
+def play_spin(
+    books: tuple[SeatBook, SeatBook, SeatBook],
+    prizes: tuple[float, float, float],
+    seed: int,
+) -> tuple[float, float, float]:
+    stacks, _ = run_spin(books, seed)
     order = sorted(range(3), key=lambda i: (-stacks[i], i))
     money = [0.0, 0.0, 0.0]
     for place, seat in enumerate(order):

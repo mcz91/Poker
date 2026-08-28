@@ -133,26 +133,70 @@ def _take(behind: tuple[int, int, int], seat: int, pot: int) -> tuple[int, int, 
 
 
 def _allin_two(
-    behind: tuple[int, int, int], a: int, b: int, winner: int
+    stacks: tuple[int, int, int], a: int, b: int, winner: int
 ) -> tuple[int, int, int]:
+    """All-in dwóch miejsc: wkłady od pełnych stacków sprzed blindów.
+
+    Blindy siedzą w pełnych wkładach; nadpłatę większego stacka zwraca
+    `award_allin` — suma żetonów przy stole jest stała.
+    """
     contrib = [0, 0, 0]
-    contrib[a] = behind[a]
-    contrib[b] = behind[b]
+    contrib[a] = stacks[a]
+    contrib[b] = stacks[b]
     ranks = [2, 2, 2]
     ranks[winner] = 0
     awarded = award_allin((contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2]))
     return (
-        behind[0] - contrib[0] + awarded[0],
-        behind[1] - contrib[1] + awarded[1],
-        behind[2] - contrib[2] + awarded[2],
+        stacks[0] - contrib[0] + awarded[0],
+        stacks[1] - contrib[1] + awarded[1],
+        stacks[2] - contrib[2] + awarded[2],
     )
 
 
-def _three_way(stacks: tuple[int, int, int], winner: int) -> tuple[int, int, int]:
+def _three_way(
+    stacks: tuple[int, int, int], shover: int, winner: int
+) -> tuple[int, int, int]:
+    """3-way all-in za shove shovera: wołający wkłada min(stack, shove)."""
+    shove = stacks[shover]
+    contrib = [min(stacks[i], shove) for i in range(3)]
     ranks = [1, 1, 1]
     ranks[winner] = 0
-    awarded = award_allin(stacks, (ranks[0], ranks[1], ranks[2]))
-    return (awarded[0], awarded[1], awarded[2])
+    awarded = award_allin((contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2]))
+    return (
+        stacks[0] - contrib[0] + awarded[0],
+        stacks[1] - contrib[1] + awarded[1],
+        stacks[2] - contrib[2] + awarded[2],
+    )
+
+
+def _terminal_states(
+    stacks: tuple[int, int, int],
+    button: int,
+    sb: int,
+    bb_amt: int,
+) -> tuple[tuple[int, int, int], ...]:
+    """Stany żetonowe wszystkich terminali drzewa jam/fold, w stałej kolejności.
+
+    (blindy do UTG, blindy do BTN, blindy do BB, HU UTG–BB ×2, HU UTG–BTN ×2,
+    HU BTN–BB ×2, 3-way ×3). Jedno źródło dla wypłat `solve` i testu
+    niezmiennika sumy żetonów.
+    """
+    utg, btn, bb = roles(button)
+    behind, pot = post_blinds(stacks, button, sb, bb_amt)
+    return (
+        utg_shove_both_fold(stacks, button, sb, bb_amt),
+        _take(behind, btn, pot),
+        _take(behind, bb, pot),
+        utg_shove_called(stacks, button, bb, utg, sb, bb_amt),
+        utg_shove_called(stacks, button, bb, bb, sb, bb_amt),
+        utg_shove_called(stacks, button, btn, utg, sb, bb_amt),
+        utg_shove_called(stacks, button, btn, btn, sb, bb_amt),
+        _allin_two(stacks, btn, bb, btn),
+        _allin_two(stacks, btn, bb, bb),
+        _three_way(stacks, utg, 0),
+        _three_way(stacks, utg, 1),
+        _three_way(stacks, utg, 2),
+    )
 
 
 def call_beats_fold(equity: float, fold_ev: float, win_ev: float, lose_ev: float) -> bool:
@@ -174,34 +218,21 @@ def solve(
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
     utg, btn, bb = roles(button)
-    behind, pot = post_blinds(stacks, button, sb, bb_amt)
-    blinds = utg_shove_both_fold(stacks, button, sb, bb_amt)
-    btn_blinds = _take(behind, btn, pot)
-    bb_blinds = _take(behind, bb, pot)
-
-    def money(state: tuple[int, int, int]) -> tuple[float, ...]:
-        return icm_equities(state, prizes)
-
+    m = tuple(
+        icm_equities(state, prizes)
+        for state in _terminal_states(stacks, button, sb, bb_amt)
+    )
     pay = _Payoffs(
         utg=utg,
         btn=btn,
         bb=bb,
-        utg_b=money(blinds),
-        btn_b=money(btn_blinds),
-        bb_b=money(bb_blinds),
-        hu_utg_bb=(
-            money(utg_shove_called(stacks, button, bb, utg, sb, bb_amt)),
-            money(utg_shove_called(stacks, button, bb, bb, sb, bb_amt)),
-        ),
-        hu_utg_btn=(
-            money(utg_shove_called(stacks, button, btn, utg, sb, bb_amt)),
-            money(utg_shove_called(stacks, button, btn, btn, sb, bb_amt)),
-        ),
-        hu_btn_bb=(
-            money(_allin_two(behind, btn, bb, btn)),
-            money(_allin_two(behind, btn, bb, bb)),
-        ),
-        tw=tuple(money(_three_way(stacks, w)) for w in range(3)),
+        utg_b=m[0],
+        btn_b=m[1],
+        bb_b=m[2],
+        hu_utg_bb=(m[3], m[4]),
+        hu_utg_btn=(m[5], m[6]),
+        hu_btn_bb=(m[7], m[8]),
+        tw=(m[9], m[10], m[11]),
     )
 
     cum = [[0.0] * N_HANDS for _ in range(N_NODES)]

@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 from poker.openfold import _mass, threebet_vs_range
-from poker.spin import PAYOUTS
+from poker.spin import PAYOUTS, STARTING_CHIPS
 from poker.spin_arena import (
     _play_hand,
     always_fold,
@@ -17,6 +17,7 @@ from poker.spin_arena import (
     dollar_fish,
     field_exploit,
     play_spin,
+    run_spin,
     sample,
 )
 
@@ -32,10 +33,28 @@ def test_foldbot_przegrywa_z_jammerem() -> None:
     assert hit["mean_bi"] < 0.85
 
 
-def test_spin_konczy_sie_wyplata() -> None:
-    money = play_spin((always_jam(), always_jam(), always_jam()), PAYOUTS["3x"].prizes, 11)
-    assert sum(money) == 3.0
-    assert max(money) == 3.0
+def test_spin_konczy_sie_bustem_bez_utraty_zetonow() -> None:
+    """Powód końca i suma żetonów — nie suma nagród, która jest tożsamością wypłat."""
+    books = (always_jam(), always_jam(), always_jam())
+    stacks, reason = run_spin(books, 11)
+    assert reason == "bust"
+    assert sum(stacks) == 3 * STARTING_CHIPS
+    assert sorted(stacks) == [0, 0, 3 * STARTING_CHIPS]
+    money = play_spin(books, PAYOUTS["3x"].prizes, 11)
+    assert money[stacks.index(3 * STARTING_CHIPS)] == 3.0
+
+
+def test_kazda_reka_areny_zachowuje_sume_zetonow() -> None:
+    books = (field_exploit(), dollar_fish(), always_jam())
+    for seed in range(20):
+        rng = random.Random(seed)
+        for stacks in ([50, 50, 50], [16, 50, 84], [3, 1, 146], [0, 60, 90]):
+            for button in range(3):
+                if stacks[button] <= 0:
+                    continue
+                out = _play_hand(list(stacks), button, 2, 4, books, rng)
+                assert sum(out) == sum(stacks), (seed, stacks, button, out)
+                assert all(s >= 0 for s in out)
 
 
 def test_call_vs_random_to_nie_jest_gto() -> None:

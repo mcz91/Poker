@@ -18,3 +18,20 @@ stack/bb, więc Nash jam/fold.
 
 Widać, po co Spin jest jam/fold: im płycej, tym więcej rąk idzie
 all-in. 10× nadal zaciska call względem WTA.
+
+## Pomiar (POKER-45, po naprawie rozliczeń żetonów)
+
+Krzywa 3× WTA, button=1, 12 iteracji; komenda:
+`python -c "from poker.jamfold import jam_vs_depth; from poker.spin
+import PAYOUTS; print(jam_vs_depth(PAYOUTS['3x'].prizes, button=1,
+iterations=12))"`.
+
+| bb eff | UTG jam % | BTN call % | BB call % |
+|---|---|---|---|
+| 25 | 14.1 | 9.0 | 10.0 |
+| 15 | 24.0 | 11.7 | 14.1 |
+| 10 | 32.2 | 16.2 | 21.6 |
+| 6 | 37.9 | 23.9 | 33.9 |
+
+Wcześniejsza krzywa 14/23/29/31 była liczona na kodzie gubiącym żetony
+blindów w stanach terminalnych (`_allin_two` przed POKER-45).

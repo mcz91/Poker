@@ -71,9 +71,11 @@ def open_amount(bb: int) -> int:
 
 
 def effective_bb(stacks: Stacks3, bb: int) -> float:
+    if bb <= 0:
+        raise ValueError(f"big blind musi być dodatni: {bb}")
     live = [s for s in stacks if s > 0]
-    if not live or bb <= 0:
-        return 0.0
+    if not live:
+        raise ValueError("brak żywych stacków przy stole")
     return min(live) / bb
 
 
@@ -97,7 +99,12 @@ def post_blinds(
 
 
 def award_allin(contributions: tuple[int, ...], ranks: tuple[int, ...]) -> tuple[int, ...]:
-    """Niższy rank wygrywa. Nadpłata wraca. Side poty po poziomach wpłaty."""
+    """Niższy rank wygrywa. Nadpłata wraca. Side poty po poziomach wpłaty.
+
+    Remis rang dzieli pulę (każdy side pot osobno) równo między zwycięzców;
+    niepodzielna reszta żetonów trafia do zwycięzcy o najniższym indeksie
+    miejsca — deterministycznie, żaden żeton nie ginie.
+    """
     if len(contributions) != len(ranks):
         raise ValueError("wkłady i rangi muszą mieć tę samą długość")
     if any(amount < 0 for amount in contributions):
@@ -178,12 +185,19 @@ def utg_shove_ev(
     caller: int,
     equity: float,
 ) -> tuple[float, float, float]:
-    """$EV UTG: fold / jam obie fold / jam caller woła z danym equity."""
+    """$EV UTG: fold / jam obie fold / jam caller woła z danym equity.
+
+    Gałąź fold zamyka rozdanie po stronie BTN/BB najprostszym legalnym
+    rozstrzygnięciem: BTN też folduje i BB zgarnia pulę blindów — pełna
+    księgowość żetonów (pod WTA fold to dokładnie udział żetonowy UTG).
+    """
     if not 0.0 <= equity <= 1.0:
         raise ValueError(f"equity poza [0, 1]: {equity}")
-    utg, _, _ = roles(button)
-    behind, _ = post_blinds(stacks, button)
-    fold = icm_equities(behind, prizes)[utg]
+    utg, _, bb_seat = roles(button)
+    behind, pot = post_blinds(stacks, button)
+    folded = list(behind)
+    folded[bb_seat] += pot
+    fold = icm_equities((folded[0], folded[1], folded[2]), prizes)[utg]
     shove_fold = icm_equities(utg_shove_both_fold(stacks, button), prizes)[utg]
     win = icm_equities(utg_shove_called(stacks, button, caller, utg), prizes)[utg]
     lose = icm_equities(utg_shove_called(stacks, button, caller, caller), prizes)[utg]
