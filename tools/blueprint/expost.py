@@ -26,6 +26,7 @@ Uruchomienie (venv z extras train):
 """
 
 import argparse
+import gc
 import importlib.util
 import json
 import statistics
@@ -109,6 +110,9 @@ def _expost_state_job(index: int) -> tuple[int, np.ndarray]:
     for hero, seat in enumerate(role_seats):
         _, root = solve_grid._hero_action_values(problem, hero, sigma, "best")
         row[seat] = float(root.sum()) / problem.total_weight
+    # Jak w solverze: cykle domknięć trzymają tensory wypłat do pełnego gc.
+    del problem
+    gc.collect()
     return index, row
 
 

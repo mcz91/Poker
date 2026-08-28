@@ -42,6 +42,7 @@ przez procesy i maszyna się dusi (zmierzone: load 16 na 4 rdzeniach):
 """
 
 import argparse
+import gc
 import hashlib
 import importlib.util
 import itertools
@@ -52,6 +53,7 @@ import statistics
 import sys
 import tempfile
 import time
+import traceback
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -210,25 +212,32 @@ def forked_map(job: Callable[[int], Any], indices: Sequence[int], jobs: int) -> 
         if pid == 0:
             code = 1
             try:
-                rows = [job(index) for index in share]
+                try:
+                    payload: tuple[str, Any] = ("ok", [job(index) for index in share])
+                    code = 0
+                except BaseException:
+                    payload = ("error", traceback.format_exc())
                 with open(path, "wb") as sink:
-                    pickle.dump(rows, sink, protocol=pickle.HIGHEST_PROTOCOL)
-                code = 0
+                    pickle.dump(payload, sink, protocol=pickle.HIGHEST_PROTOCOL)
             finally:
                 os._exit(code)
         children.append((pid, path))
     merged: list[Any] = []
-    failed = False
+    failures: list[str] = []
     for pid, path in children:
         _, status = os.waitpid(pid, 0)
-        if os.waitstatus_to_exitcode(status) != 0:
-            failed = True
-        else:
+        try:
             with open(path, "rb") as source:
-                merged.extend(pickle.load(source))
+                kind, payload_read = pickle.load(source)
+        except Exception:
+            kind, payload_read = "error", f"proces {pid} bez wyniku, status {status}"
+        if kind == "ok":
+            merged.extend(payload_read)
+        else:
+            failures.append(str(payload_read))
         os.unlink(path)
-    if failed:
-        raise RuntimeError("proces potomny forked_map zakończył się błędem")
+    if failures:
+        raise RuntimeError("proces potomny forked_map zakończył się błędem:\n" + failures[0])
     return merged
 
 
@@ -1234,6 +1243,10 @@ def _solve_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray, float, in
     sigma_out = np.zeros((N_NODES, tensors.count, 3), dtype=np.float32)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
+    # Rekurencyjne domknięcia przechodu tworzą cykle trzymające tensory wypłat
+    # stanu (setki MB) do pełnego gc — wymuszamy zbiórkę po każdym stanie.
+    del problem
+    gc.collect()
     return index, values, sigma_out, eps, iterations, MODE_NAMES.index(mode)
 
 
