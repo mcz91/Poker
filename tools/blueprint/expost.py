@@ -30,7 +30,6 @@ import importlib.util
 import json
 import statistics
 import sys
-from multiprocessing import Pool
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -136,12 +135,7 @@ def run_expost(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
             v_br_index={state: pos for pos, state in enumerate(v_br_states)},
             v_br_next=v_br_next,
         )
-        indices = range(len(states))
-        if workers <= 1:
-            rows = [_expost_state_job(position) for position in indices]
-        else:
-            with Pool(processes=workers) as pool_handle:
-                rows = list(pool_handle.imap(_expost_state_job, indices, chunksize=4))
+        rows = solve_grid.forked_map(_expost_state_job, range(len(states)), workers)
         rows.sort(key=lambda item: item[0])
         v_br = np.stack([row for _, row in rows], axis=0)
         eps = (v_br - layer["v"]) / pool_prize

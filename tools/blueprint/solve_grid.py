@@ -32,9 +32,12 @@ Zapis atomowy per warstwa (tmp → os.replace) z manifestem (konfiguracja,
 hash, sha artefaktów tensora); wznowienie po przerwaniu liczy tylko
 brakujące warstwy i daje pliki bajt w bajt identyczne z biegiem ciągłym.
 
-Uruchomienie pilota (venv z extras train):
+Uruchomienie pilota (venv z extras train). Przy --jobs > 1 ogranicz wątki
+BLAS do jednego na proces — inaczej wątki mnożeń tensorowych mnożą się
+przez procesy i maszyna się dusi (zmierzone: load 16 na 4 rdzeniach):
 
-    python tools/blueprint/solve_grid.py --tensor KATALOG --out KATALOG \
+    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+        python tools/blueprint/solve_grid.py --tensor KATALOG --out KATALOG \
         --grid-step 5 --jobs 4
 """
 
@@ -43,11 +46,14 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import os
+import pickle
 import statistics
 import sys
+import tempfile
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
-from multiprocessing import Pool
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -171,12 +177,59 @@ def n_hands(config: GridConfig) -> int:
 
 
 def config_hash(config: GridConfig, tensor_manifest: dict[str, Any]) -> str:
+    fields = asdict(config)
+    del fields["jobs"]  # liczba procesów nie wpływa na wynik — wznowienie jej nie pilnuje
     payload = {
-        "config": asdict(config),
+        "config": fields,
         "tensor_sha256": tensor_manifest["sha256"],
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def forked_map(job: Callable[[int], Any], indices: Sequence[int], jobs: int) -> list[Any]:
+    """Mapa równoległa przez surowy os.fork i pliki wyników — bez kolejek i blokad.
+
+    multiprocessing.Pool tworzony wielokrotnie w jednym procesie potrafił się
+    zakleszczyć (fork wyścigał się z wątkami pomocniczymi poprzedniej puli —
+    workerzy czekali na semaforze zadań przy bezczynnym rodzicu). Dziecko
+    dziedziczy pełny stan przez fork, liczy swój przydział (co `jobs`-ty
+    indeks) i zapisuje wynik piklem do pliku; rodzic czeka `waitpid` i skleja
+    wyniki w stałym porządku indeksów, więc podział nie wpływa na wynik.
+    Wymaga jednowątkowego rodzica (BLAS ograniczony do jednego wątku).
+    """
+    if jobs <= 1 or len(indices) <= 1:
+        return [job(index) for index in indices]
+    workers = min(jobs, len(indices))
+    children: list[tuple[int, str]] = []
+    for worker in range(workers):
+        share = list(indices[worker::workers])
+        handle, path = tempfile.mkstemp(suffix=".pickle", prefix="forked-map-")
+        os.close(handle)
+        pid = os.fork()
+        if pid == 0:
+            code = 1
+            try:
+                rows = [job(index) for index in share]
+                with open(path, "wb") as sink:
+                    pickle.dump(rows, sink, protocol=pickle.HIGHEST_PROTOCOL)
+                code = 0
+            finally:
+                os._exit(code)
+        children.append((pid, path))
+    merged: list[Any] = []
+    failed = False
+    for pid, path in children:
+        _, status = os.waitpid(pid, 0)
+        if os.waitstatus_to_exitcode(status) != 0:
+            failed = True
+        else:
+            with open(path, "rb") as source:
+                merged.extend(pickle.load(source))
+        os.unlink(path)
+    if failed:
+        raise RuntimeError("proces potomny forked_map zakończył się błędem")
+    return merged
 
 
 def grid_states(total: int, step: int) -> tuple[tuple[int, int, int], ...]:
@@ -1202,12 +1255,7 @@ def _solve_layer(
         v_next_index={state: index for index, state in enumerate(v_next_states)},
         v_next=v_next,
     )
-    indices = range(len(states))
-    if config.jobs <= 1:
-        rows = [_solve_state_job(index) for index in indices]
-    else:
-        with Pool(processes=config.jobs) as pool:
-            rows = list(pool.imap(_solve_state_job, indices, chunksize=4))
+    rows = forked_map(_solve_state_job, range(len(states)), config.jobs)
     rows.sort(key=lambda row: row[0])
     values = np.stack([row[1] for row in rows], axis=0)
     sigma = np.stack([row[2] for row in rows], axis=0)

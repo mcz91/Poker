@@ -259,6 +259,19 @@ def test_solver_bajt_w_bajt_po_wznowieniu(tmp_path: Path) -> None:
         sg.solve(_toy_config(sg, fp_max_iters=7), tensor_dir, resumed_dir)
 
 
+def test_solver_niezalezny_od_liczby_procesow(tmp_path: Path) -> None:
+    sg = _load("solve_grid")
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    solo_dir = tmp_path / "solo"
+    sg.solve(_toy_config(sg), tensor_dir, solo_dir)
+    forked_dir = tmp_path / "forked"
+    sg.solve(_toy_config(sg, jobs=2), tensor_dir, forked_dir)
+    names = sorted(path.name for path in solo_dir.glob("*.npz"))
+    assert names
+    for name in names:
+        assert (solo_dir / name).read_bytes() == (forked_dir / name).read_bytes(), name
+
+
 def test_v_pelnym_wektorem_sumuje_sie_do_puli(toy_run: dict[str, Any]) -> None:
     sg = toy_run["sg"]
     layers = sg.load_layers(toy_run["out_dir"])
