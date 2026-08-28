@@ -434,11 +434,14 @@ naprawie jam rośnie monotonicznie przez cały zegar
 
 Następne kroki:
 
-1. **Kierunek treningu wybrany przez operatora (2026-08-28): droga
-   Pluribusa** — tabelaryczny MCCFR/CFR + Linear/Discounted CFR na
-   ręcznej abstrakcji, CPU; głęboki research architekta (mechanika
-   blueprintu i depth-limited search, ICM-CFR po siatce stanów) w toku;
-   decyzja i pierwszy kontrakt po raporcie;
+1. **Kierunek treningu rozstrzygnięty
+   ([decyzja 25](decisions/25-blueprint-po-dagu-zegara-pifp-cfrplus.md)):**
+   blueprint po DAG-u zegara (backward induction, ICM tylko na
+   horyzoncie), PI-FP w grze 3-osobowej + CFR+ w endgame'ach HU,
+   169 klas z łącznymi rozkładami trójek; metryka: ex-post
+   best-response ε. Pierwszy kontrakt: **POKER-46 (pilot, u kodera)**
+   — zgrubna siatka mierzy koszt i jakość przed kontraktem
+   produkcyjnym;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;

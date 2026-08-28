@@ -1,0 +1,33 @@
+{
+  "id": "POKER-46",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Pilot blueprintu po DAG-u zegara: na zgrubnej siatce stanów operator dostaje zmierzony koszt, jakość (ex-post ε) i różnicę względem ICM, na których zbudujemy kontrakt produkcyjny.",
+  "context": "Decyzja 25: backward induction po DAG-u (poziom, ręka, stacki) z ICM na horyzoncie; PI-FP w grze 3-osobowej, CFR+ w endgame'ach HU; 169 klas lossless z propagacją łącznych rozkładów trójek. Pilot jest estymatorem budżetu (PUŁAPKA: kryteria ilościowe dopiero po pomiarze) — dlatego siatka zgrubna i próby MC umiarkowane, a kryteria jakości sprawozdawcze, nie progowe.",
+  "acceptance": [
+    "tools/blueprint/rollout_tensor.py generuje deterministyczny (seedowany) tensor rozstrzygnięć all-in 3-way: dla trójki klas preflop rozkład 13 zdarzeń (kto wygrywa/splity), Monte Carlo na prawdziwych kartach z agregacją do klas (card removal wbudowane); metadane metody, seeda i liczby prób w artefakcie; reprodukcja podzbioru pod testem; zmierzony koszt pełnego tensora wpisany do raportu.",
+    "tools/blueprint/solve_grid.py rozwiązuje pełny DAG zegara (LEVELS z poker.spin, 3 ręce na poziom) na siatce stacków o rozdzielczości 5 żetonów: backward induction warstwami; stage game 3-handed drzewem decyzji 25 (fold/open 2.2x/jam; vs open fold/3bet-jam; vs jam fold/call; jam/fold przy <=7 bb efektywnych wg poker.spin) solverem fictitious play z restartami; endgame HU po odpadnięciu gracza solverem CFR+ (gra o stałej sumie); pula 2-way przy trzech żywych rozliczana pełnym wektorem ICM trzech graczy, nigdy jako gra zero-sum.",
+    "Wyjście pilota: tablica V[warstwa, stan, gracz] i strategie per stan, zapis atomowy z manifestem (seed, konfiguracja, hash) — wznowienie po przerwaniu daje wynik bajt w bajt (pod testem na małym wycinku).",
+    "Ex-post best-response check (Ganzfried Alg. 6: dwie strategie zamrożone, trzeci gracz optymalizuje po DAG-u) policzony dla każdego stanu pilota; raport max/mediana epsilon w jednostkach puli.",
+    "Raport porównania z baseline ICM: różnica V vs ICM per stan, z wyszczególnieniem stanów krótkiego BB (tam Ganzfried mierzył największy błąd ICM); zgodność sanity: strategie jam/fold przy równych głębokich stackach porównane z istniejącym poker.jamfold.",
+    "Zmierzone: sekundy/stan, iteracje FP do epsilon, ekstrapolacja rdzenio-godzin dla siatki 2-żetonowej — wpisane do CURRENT_STATE z komendami (każda liczba z komendą i liczbą iteracji).",
+    "Pakiet produktu nietknięty (żadnych zmian w src/poker) — pilot żyje w tools/blueprint/ z zależnościami extras train; testy pilota w tests/ mogą importować tools zgodnie z wzorcem istniejących testów reprodukcji; pełna bramka (ruff, mypy, pytest) zielona."
+  ],
+  "non_goals": [
+    "Produkcyjna siatka 2-żetonowa i pełnoprecyzyjny tensor (kontrakt po pomiarach pilota).",
+    "Format binarny artefaktu produkcyjnego i jego dystrybucja (decyzja 25 pkt 6, osobny kontrakt).",
+    "Agent blueprint w rejestrze CLI i pomiar w arenie.",
+    "AIVAT.",
+    "Zmiany silnika, poker.spin, poker.jamfold, artefaktów istniejących."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/test_blueprint_pilot.py",
+    "pyproject.toml",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-46.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-28T21:30:00Z", "basis": "decyzja operatora 2026-08-28 (droga Pluribusa) + decyzja 25; mandat autonomii 2026-08-09 na drodze GTO+explo"}
+}

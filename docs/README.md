@@ -74,7 +74,12 @@
     (CI obejmuje zero);
 24. [`24-audyt-i-scalenie-linii-spin.md`](decisions/24-audyt-i-scalenie-linii-spin.md)
     — audyt linii Spin w trzech transzach (2026-08-28), uznane
-    sprzeciwy, naprawy POKER-44/45, scalenie do main.
+    sprzeciwy, naprawy POKER-44/45, scalenie do main;
+25. [`25-blueprint-po-dagu-zegara-pifp-cfrplus.md`](decisions/25-blueprint-po-dagu-zegara-pifp-cfrplus.md)
+    — droga Pluribusa na naszej skali: backward induction po DAG-u
+    zegara z ICM na horyzoncie, PI-FP (3-handed) + CFR+ (endgame HU),
+    169 klas z łącznymi rozkładami trójek, ex-post ε jako metryka,
+    artefakt binarny poza modułem Pythona.
 
 ## TaskSpeki
 
@@ -216,7 +221,10 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   architekta);
 - [`POKER-45.json`](taskspecs/POKER-45.json) — wierne rozliczenia
   żetonów i zmierzone liczby (zamknięty, commit `310d592`; sprzeciw
-  kodera uznany decyzją 24).
+  kodera uznany decyzją 24);
+- [`POKER-46.json`](taskspecs/POKER-46.json) — pilot blueprintu po
+  DAG-u zegara: zgrubna siatka, PI-FP + CFR+, ex-post ε, pomiar
+  budżetu produkcji (zatwierdzony, decyzja 25; u kodera).
 
 ## Operator
 

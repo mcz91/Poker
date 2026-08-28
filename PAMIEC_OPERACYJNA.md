@@ -21,8 +21,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-28 arch: gałąź integracyjna =
   `claude/poker-project-architecture-jw6ukd` (dfmo3y nieaktywna);
   weryfikacja niezależna (czysty venv 3.13) przed scaleniem. Gałęzi
-  koderów POKER-26/27/28 brak na zdalnym; research drogi Pluribusa
-  w toku, decyzja przed pierwszym kontraktem treningu.
+  koderów POKER-26/27/28 brak na zdalnym. Raporty researchu drogi
+  Pluribusa żyją w transkrypcie sesji architekta (decyzja 25 streszcza).
 
 ## WĄTKI — otwarte, bez TaskSpec
 
