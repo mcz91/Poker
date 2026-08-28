@@ -715,11 +715,15 @@ def _fp_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int, np.n
         weight_sum = 1.0
         iterations = 0
         eps = float("inf")
+        accepted: dict[int, np.ndarray] | None = None
         for step in range(1, config.fp_max_iters + 1):
             average = {node_id: cumulative[node_id] / weight_sum for node_id in problem.nodes}
+            checking = step % config.fp_check_every == 0 or step == config.fp_max_iters
             reply: dict[int, np.ndarray] = {}
+            best_roots = np.zeros(problem.n_roles, dtype=np.float64)
             for hero in range(problem.n_roles):
-                record, _ = _hero_action_values(problem, hero, average, "best")
+                record, root = _hero_action_values(problem, hero, average, "best")
+                best_roots[hero] = float(root.sum()) / problem.total_weight
                 for node_id, values in record.items():
                     allowed = problem.allowed[node_id]
                     stacked = np.stack(values, axis=0)
@@ -728,21 +732,28 @@ def _fp_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int, np.n
                     for position, slot in enumerate(allowed):
                         matrix[:, slot] = (choice == position).astype(np.float32)
                     reply[node_id] = matrix
+            iterations = step
+            if checking:
+                # BR policzone względem `average`, więc ε dotyczy dokładnie tego
+                # profilu — zwracamy go, nie profil po kolejnej aktualizacji.
+                eps = float(np.max(best_roots - _profile_values(problem, average)))
+                if eps <= config.fp_tol:
+                    accepted = average
+                    break
             weight = float(step)
             for node_id in problem.nodes:
                 cumulative[node_id] += weight * reply[node_id]
             weight_sum += weight
-            iterations = step
-            if step % config.fp_check_every == 0 or step == config.fp_max_iters:
-                average = {
-                    node_id: cumulative[node_id] / weight_sum for node_id in problem.nodes
-                }
-                eps = _internal_eps(problem, average)
-                if eps <= config.fp_tol:
-                    break
-        average = {node_id: cumulative[node_id] / weight_sum for node_id in problem.nodes}
+        if accepted is None:
+            accepted = {
+                node_id: cumulative[node_id] / weight_sum for node_id in problem.nodes
+            }
+            eps = _internal_eps(problem, accepted)
         if eps < best_eps:
-            best_sigma, best_eps, best_iters = average, eps, iterations
+            best_sigma, best_eps, best_iters = accepted, eps, iterations
+        if best_eps <= config.fp_tol:
+            # Profil osiągnął próg — kolejne inicjalizacje nic nie wnoszą do wyboru po ε.
+            break
     assert best_sigma is not None
     return best_sigma, best_eps, best_iters
 
