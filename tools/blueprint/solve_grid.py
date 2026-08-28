@@ -415,6 +415,17 @@ def _tree_nodes(tree: Tree, allowed: dict[int, tuple[int, ...]]) -> tuple[int, .
     return tuple(found)
 
 
+def _tree_leaves(tree: Tree, allowed: dict[int, tuple[int, ...]]) -> frozenset[int]:
+    """Liście osiągalne przy maskach — dla pozostałych nie budujemy tensorów wypłat."""
+    if tree[0] == "leaf":
+        return frozenset((tree[1],))
+    found: frozenset[int] = frozenset()
+    for slot, child in tree[3]:
+        if slot in allowed[tree[1]]:
+            found |= _tree_leaves(child, allowed)
+    return found
+
+
 # --- tensory rozdań ------------------------------------------------------
 
 
@@ -1018,8 +1029,13 @@ def build_stage_problem(
     leaf_payload: list[Any] = []
     outcomes2 = rollout_tensor.OUTCOMES_2
     outcomes3 = rollout_tensor.OUTCOMES_3
+    reachable_leaves = _tree_leaves(tree, allowed)
     for leaf_index, (kind, meta) in enumerate(leaf_defs):
         leaf_contribs = contribs[leaf_index]
+        if leaf_index not in reachable_leaves:
+            leaf_kind.append(kind)
+            leaf_payload.append(None)
+            continue
         if kind == "fold":
             winner = int(meta)
             payoff = _settle(seat_stacks, role_seats, leaf_contribs,
