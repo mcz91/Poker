@@ -14,9 +14,8 @@ STACKS = (STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS)
 PAY_IDS = ("3x", "10x")
 
 
-def pack(sigma: object) -> list[int]:
-    assert isinstance(sigma, list)
-    return [int(round(100 * float(p))) for p in sigma]
+def pack(sigma: tuple[float, ...]) -> list[int]:
+    return [int(round(100 * p)) for p in sigma]
 
 
 def main() -> None:
@@ -29,14 +28,14 @@ def main() -> None:
                 "pay": pay_id,
                 "sb": sb,
                 "bb": bb,
-                "utg": result["utg_jam_pct"],
-                "btn": result["btn_call_pct"],
-                "bb_call": result["bb_call_pct"],
-                "utgJam": pack(result["utg_jam"]),
-                "btnCall": pack(result["btn_call"]),
-                "bbCall": pack(result["bb_call"]),
-                "btnOpen": pack(result["btn_open"]),
-                "bbVsBtn": pack(result["bb_vs_btn"]),
+                "utg": result.utg_jam_pct,
+                "btn": result.btn_call_pct,
+                "bb_call": result.bb_call_pct,
+                "utgJam": pack(result.utg_jam),
+                "btnCall": pack(result.btn_call),
+                "bbCall": pack(result.bb_call),
+                "btnOpen": pack(result.btn_open),
+                "bbVsBtn": pack(result.bb_vs_btn),
             }
             out.append(row)
             print(

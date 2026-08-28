@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import lru_cache
+from functools import cache
 
 
 def _validate(
@@ -44,7 +44,7 @@ def place_probabilities(stacks: Sequence[int]) -> tuple[tuple[float, ...], ...]:
     return tuple(tuple(row) for row in matrix)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _remaining(active: tuple[tuple[int, int], ...]) -> dict[int, tuple[float, ...]]:
     if not active:
         return {}

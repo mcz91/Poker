@@ -13,9 +13,8 @@ ITERS = 16
 STACKS = (STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS)
 
 
-def pack(sigma: object) -> list[int]:
-    assert isinstance(sigma, list)
-    return [int(round(100 * float(p))) for p in sigma]
+def pack(sigma: tuple[float, ...]) -> list[int]:
+    return [int(round(100 * p)) for p in sigma]
 
 
 def main() -> None:
@@ -26,22 +25,24 @@ def main() -> None:
             if effective_bb(STACKS, bb) <= JAM_FOLD_BB:
                 continue
             result = solve(STACKS, prizes, button=1, iterations=ITERS, sb=sb, bb_amt=bb)
-            tb = _threebet_from_open(result, STACKS, prizes, 1, sb, bb, 0.55)
+            tb = _threebet_from_open(
+                result.utg_open, result.utg_open_pct, STACKS, prizes, 1, sb, bb, 0.55
+            )
             row = {
                 "pay": pay_id,
                 "sb": sb,
                 "bb": bb,
-                "utgOpenPct": result["utg_open_pct"],
-                "utgJamPct": result["utg_jam_pct"],
-                "btnOpenPct": result["btn_open_pct"],
-                "btn3betPct": tb["btn_vs_open_pct"],
-                "bb3betPct": tb["bb_vs_open_pct"],
-                "utgOpen": pack(result["utg_open"]),
-                "utgJam": pack(result["utg_jam"]),
-                "btnOpen": pack(result["btn_open"]),
-                "btnJam": pack(result["btn_jam"]),
-                "btn3bet": pack(tb["btn_vs_open"]),
-                "bb3bet": pack(tb["bb_vs_open"]),
+                "utgOpenPct": result.utg_open_pct,
+                "utgJamPct": result.utg_jam_pct,
+                "btnOpenPct": result.btn_open_pct,
+                "btn3betPct": tb.btn_vs_open_pct,
+                "bb3betPct": tb.bb_vs_open_pct,
+                "utgOpen": pack(result.utg_open),
+                "utgJam": pack(result.utg_jam),
+                "btnOpen": pack(result.btn_open),
+                "btnJam": pack(result.btn_jam),
+                "btn3bet": pack(tb.btn_vs_open),
+                "bb3bet": pack(tb.bb_vs_open),
             }
             out.append(row)
             print(

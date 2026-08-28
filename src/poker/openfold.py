@@ -5,8 +5,11 @@ Used above JAM_FOLD_BB. Jam/fold remains the endgame (decyzja 19).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 from poker.icm import icm_equities
-from poker.preflop import ALL_CLASSES, CLASS_INDEX
+from poker.preflop import ALL_CLASSES
 from poker.preflop_equity import equity as class_equity
 from poker.spin import (
     BIG_BLIND,
@@ -28,15 +31,49 @@ WEIGHTS: tuple[int, ...] = tuple(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class OpenFoldSolution:
+    iterations: int
+    utg_open: tuple[float, ...]
+    utg_jam: tuple[float, ...]
+    btn_vs_open: tuple[float, ...]
+    btn_vs_jam: tuple[float, ...]
+    bb_vs_open: tuple[float, ...]
+    utg_def: tuple[float, ...]
+    btn_open: tuple[float, ...]
+    btn_jam: tuple[float, ...]
+    bb_vs_btn_open: tuple[float, ...]
+    utg_open_pct: float
+    utg_jam_pct: float
+    btn_vs_open_pct: float
+    bb_vs_open_pct: float
+    btn_open_pct: float
+    utg_def_pct: float
+    aa_plays: bool
+    junk_folds: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ThreeBetSolution:
+    continue_frac: float
+    btn_vs_open: tuple[float, ...]
+    bb_vs_open: tuple[float, ...]
+    btn_vs_open_pct: float
+    bb_vs_open_pct: float
+    aa_jams: bool
+    junk_folds: bool
+    utg_open_pct: float
+
+
 def _hu(i: int, j: int) -> float:
     return class_equity(ALL_CLASSES[i], ALL_CLASSES[j])
 
 
-def _mass(sigma: list[float]) -> float:
+def _mass(sigma: Sequence[float]) -> float:
     return sum(WEIGHTS[i] * sigma[i] for i in range(N_HANDS)) / sum(WEIGHTS)
 
 
-def _eq_vs(h: int, sigma: list[float]) -> float:
+def _eq_vs(h: int, sigma: Sequence[float]) -> float:
     num = 0.0
     den = 0.0
     for i in range(N_HANDS):
@@ -93,7 +130,7 @@ def solve(
     iterations: int = 24,
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
-) -> dict[str, object]:
+) -> OpenFoldSolution:
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
     utg, btn, bb = roles(button)
@@ -143,16 +180,16 @@ def solve(
         p_bdef = _mass(sigma[BTN_DEF])
 
         # After UTG folds: BTN first-in, then BB.
+        bb_pot_vs_btn = money(_take(stacks, _put(stacks, opened_btn, bb, stacks[bb]), bb))
         ev_utg_fold = (
             (1 - p_bto - p_btj) * fold_both[utg]
             + p_btj * (1 - p_cbj) * jam_btn_fold[utg]
             + p_btj * p_cbj * _mix(0.5, hu_bj[0][utg], hu_bj[1][utg])
             + p_bto * (1 - p_cbo) * steal_btn[utg]
-            + p_bto * p_cbo * (1 - p_bdef) * money(_take(stacks, _put(stacks, opened_btn, bb, stacks[bb]), bb))[utg]
+            + p_bto * p_cbo * (1 - p_bdef) * bb_pot_vs_btn[utg]
             + p_bto * p_cbo * p_bdef * _mix(0.5, hu_bo[0][utg], hu_bo[1][utg])
         )
         ev_btn_after_utg_fold_fold = fold_both[btn]
-        ev_bb_after_utg_fold_if_btn_folds = fold_both[bb]
 
         out = [[0.0] * N_HANDS for _ in range(N_NODES)]
         for h in range(N_HANDS):
@@ -229,7 +266,6 @@ def solve(
             jam_btn = (1 - p_cbj) * jam_btn_fold[btn] + p_cbj * _mix(
                 e_cbj, hu_bj[0][btn], hu_bj[1][btn]
             )
-            bb_pot_vs_btn = money(_take(stacks, _put(stacks, opened_btn, bb, stacks[bb]), bb))
             open_btn = (1 - p_cbo) * steal_btn[btn] + p_cbo * max(
                 _mix(e_cbo, hu_bo[0][btn], hu_bo[1][btn]),
                 bb_pot_vs_btn[btn],
@@ -253,7 +289,6 @@ def solve(
             out[BTN_DEF][h] = (
                 1.0 if _mix(e_cbo, hu_bo[0][btn], hu_bo[1][btn]) > bb_pot_vs_btn[btn] else 0.0
             )
-            _ = ev_bb_after_utg_fold_if_btn_folds
         return out
 
     for done in range(iterations):
@@ -275,30 +310,29 @@ def solve(
         for i, cls in enumerate(ALL_CLASSES)
         if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
     )
-    _ = CLASS_INDEX
-    return {
-        "iterations": iterations,
-        "utg_open": final[UTG_OPEN],
-        "utg_jam": final[UTG_JAM],
-        "btn_vs_open": final[BTN_VS_OPEN],
-        "btn_vs_jam": final[BTN_VS_JAM],
-        "bb_vs_open": final[BB_VS_OPEN],
-        "utg_def": final[UTG_DEF],
-        "btn_open": final[BTN_OPEN],
-        "btn_jam": final[BTN_JAM],
-        "bb_vs_btn_open": final[BB_VS_BTN_OPEN],
-        "utg_open_pct": pct(UTG_OPEN),
-        "utg_jam_pct": pct(UTG_JAM),
-        "btn_vs_open_pct": pct(BTN_VS_OPEN),
-        "bb_vs_open_pct": pct(BB_VS_OPEN),
-        "btn_open_pct": pct(BTN_OPEN),
-        "utg_def_pct": pct(UTG_DEF),
-        "aa_plays": final[UTG_OPEN][aa] + final[UTG_JAM][aa] > 0.85,
-        "junk_folds": final[UTG_OPEN][junk] + final[UTG_JAM][junk] < 0.25,
-    }
+    return OpenFoldSolution(
+        iterations=iterations,
+        utg_open=tuple(final[UTG_OPEN]),
+        utg_jam=tuple(final[UTG_JAM]),
+        btn_vs_open=tuple(final[BTN_VS_OPEN]),
+        btn_vs_jam=tuple(final[BTN_VS_JAM]),
+        bb_vs_open=tuple(final[BB_VS_OPEN]),
+        utg_def=tuple(final[UTG_DEF]),
+        btn_open=tuple(final[BTN_OPEN]),
+        btn_jam=tuple(final[BTN_JAM]),
+        bb_vs_btn_open=tuple(final[BB_VS_BTN_OPEN]),
+        utg_open_pct=pct(UTG_OPEN),
+        utg_jam_pct=pct(UTG_JAM),
+        btn_vs_open_pct=pct(BTN_VS_OPEN),
+        bb_vs_open_pct=pct(BB_VS_OPEN),
+        btn_open_pct=pct(BTN_OPEN),
+        utg_def_pct=pct(UTG_DEF),
+        aa_plays=final[UTG_OPEN][aa] + final[UTG_JAM][aa] > 0.85,
+        junk_folds=final[UTG_OPEN][junk] + final[UTG_JAM][junk] < 0.25,
+    )
 
 
-def _top_slice(sigma: list[float], frac: float) -> list[float]:
+def _top_slice(sigma: Sequence[float], frac: float) -> list[float]:
     """Strongest `frac` of a range (by equity vs that range)."""
     if frac <= 0:
         return [0.0] * N_HANDS
@@ -327,7 +361,7 @@ def threebet(
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
     continue_frac: float = 0.55,
-) -> dict[str, object]:
+) -> ThreeBetSolution:
     """BTN/BB jam-or-fold vs a frozen UTG open. Continue = top of that open.
 
     Not a Nash of the full tree — the no-flat 3bet explodes. This is the
@@ -337,21 +371,20 @@ def threebet(
         raise ValueError("continue_frac")
     first = solve(stacks, prizes, button, iterations, sb, bb_amt)
     return _threebet_from_open(
-        first, stacks, prizes, button, sb, bb_amt, continue_frac
+        first.utg_open, first.utg_open_pct, stacks, prizes, button, sb, bb_amt, continue_frac
     )
 
 
 def _threebet_from_open(
-    first: dict[str, object],
+    utg_open: Sequence[float],
+    utg_open_pct: float,
     stacks: tuple[int, int, int],
     prizes: tuple[float, float, float],
     button: int,
     sb: int,
     bb_amt: int,
     continue_frac: float,
-) -> dict[str, object]:
-    utg_open = first["utg_open"]
-    assert isinstance(utg_open, list)
+) -> ThreeBetSolution:
     cont = _top_slice(utg_open, continue_frac)
     utg, btn, bb = roles(button)
     size = open_amount(bb_amt)
@@ -386,34 +419,37 @@ def _threebet_from_open(
         for i, cls in enumerate(ALL_CLASSES)
         if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
     )
-    return {
-        "continue_frac": continue_frac,
-        "btn_vs_open": btn_j,
-        "bb_vs_open": bb_j,
-        "btn_vs_open_pct": 100.0 * _mass(btn_j),
-        "bb_vs_open_pct": 100.0 * _mass(bb_j),
-        "aa_jams": btn_j[aa] > 0.85,
-        "junk_folds": btn_j[junk] < 0.25,
-        "utg_open_pct": first["utg_open_pct"],
-    }
+    return ThreeBetSolution(
+        continue_frac=continue_frac,
+        btn_vs_open=tuple(btn_j),
+        bb_vs_open=tuple(bb_j),
+        btn_vs_open_pct=100.0 * _mass(btn_j),
+        bb_vs_open_pct=100.0 * _mass(bb_j),
+        aa_jams=btn_j[aa] > 0.85,
+        junk_folds=btn_j[junk] < 0.25,
+        utg_open_pct=utg_open_pct,
+    )
 
 
 def threebet_vs_range(
-    open_sigma: list[float],
+    open_sigma: Sequence[float],
     stacks: tuple[int, int, int],
     prizes: tuple[float, float, float],
     button: int = 1,
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
     continue_frac: float = 0.35,
-) -> dict[str, object]:
+) -> ThreeBetSolution:
     """3bet-jam vs a known open range. Lower continue = they fold too much."""
     if not 0.0 < continue_frac <= 1.0:
         raise ValueError("continue_frac")
-    fake = {
-        "utg_open": open_sigma,
-        "utg_open_pct": 100.0 * _mass(open_sigma),
-    }
-    return _threebet_from_open(fake, stacks, prizes, button, sb, bb_amt, continue_frac)
-
-
+    return _threebet_from_open(
+        open_sigma,
+        100.0 * _mass(open_sigma),
+        stacks,
+        prizes,
+        button,
+        sb,
+        bb_amt,
+        continue_frac,
+    )

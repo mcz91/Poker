@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from poker.jamfold import call_beats_fold, exploitability, jam_vs_depth, one_step_values, solve
 from poker.icm import icm_equities, wta_equities
+from poker.jamfold import call_beats_fold, exploitability, jam_vs_depth, one_step_values, solve
 from poker.preflop import ALL_CLASSES
 from poker.spin import PAYOUTS
 
@@ -33,37 +33,33 @@ def test_wta_25bb_aa_jamuje_72o_folduje() -> None:
         for i, cls in enumerate(ALL_CLASSES)
         if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
     )
-    assert result["aa_jams"] is True
-    assert result["junk_folds"] is True
-    assert result["utg_jam"][0] > 0.85
-    assert result["utg_jam"][junk] < 0.25
+    assert result.aa_jams is True
+    assert result.junk_folds is True
+    assert result.utg_jam[0] > 0.85
+    assert result.utg_jam[junk] < 0.25
 
 
 def test_wta_25bb_zakresy_w_pasie_nash() -> None:
     result = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=20)
-    utg = result["utg_jam_pct"]
-    btn = result["btn_call_pct"]
-    bb = result["bb_call_pct"]
-    assert isinstance(utg, float) and isinstance(btn, float) and isinstance(bb, float)
-    assert 10.0 <= utg <= 22.0
-    assert 4.0 <= btn <= 14.0
-    assert 5.0 <= bb <= 16.0
-    assert btn < utg
-    assert bb < utg
+    assert 10.0 <= result.utg_jam_pct <= 22.0
+    assert 4.0 <= result.btn_call_pct <= 14.0
+    assert 5.0 <= result.bb_call_pct <= 16.0
+    assert result.btn_call_pct < result.utg_jam_pct
+    assert result.bb_call_pct < result.utg_jam_pct
 
 
 def test_icm_10x_zaciska_call_wzgledem_wta() -> None:
     wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=20)
     icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=20)
-    assert icm["btn_call_pct"] < wta["btn_call_pct"]
-    assert icm["bb_call_pct"] < wta["bb_call_pct"]
+    assert icm.btn_call_pct < wta.btn_call_pct
+    assert icm.bb_call_pct < wta.bb_call_pct
 
 
 def test_solve_jest_deterministyczny() -> None:
     a = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=8)
     b = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=8)
-    assert a["utg_jam"] == b["utg_jam"]
-    assert a["btn_call"] == b["btn_call"]
+    assert a.utg_jam == b.utg_jam
+    assert a.btn_call == b.btn_call
 
 
 def test_jamfold_importuje_tylko_icm_spin_preflop() -> None:
@@ -91,12 +87,9 @@ def test_wta_one_step_rowne_cash_out() -> None:
     stacks = (70, 50, 30)
     prizes = PAYOUTS["3x"].prizes
     result = solve(stacks, prizes, button=1, iterations=16)
-    values = result["values"]
-    cash = result["icm"]
-    assert isinstance(values, tuple) and isinstance(cash, tuple)
-    assert values == pytest.approx(wta_equities(stacks, 3.0), abs=0.05)
-    assert values == pytest.approx(cash, abs=0.05)
-    assert sum(values) == pytest.approx(sum(prizes), abs=1e-9)
+    assert result.values == pytest.approx(wta_equities(stacks, 3.0), abs=0.05)
+    assert result.values == pytest.approx(result.icm, abs=0.05)
+    assert sum(result.values) == pytest.approx(sum(prizes), abs=1e-9)
 
 
 def test_icm_10x_one_step_rozjezdza_sie_przy_nierownych() -> None:
@@ -117,43 +110,41 @@ def test_jam_vs_depth_rosnie() -> None:
 def test_wyzszy_blind_szerzej_jamuje() -> None:
     deep = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
     mid = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12, sb=2, bb_amt=4)
-    assert float(mid["utg_jam_pct"]) > float(deep["utg_jam_pct"]) + 4.0
+    assert mid.utg_jam_pct > deep.utg_jam_pct + 4.0
 
 
 def test_10x_zaciska_wzgledem_wta_na_starcie() -> None:
     wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
     icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=12)
-    assert float(icm["btn_call_pct"]) < float(wta["btn_call_pct"])
+    assert icm.btn_call_pct < wta.btn_call_pct
 
 
 def test_wiecej_iteracji_sciska_exploitability() -> None:
     loose = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=2)
     tight = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=16)
-    assert float(tight["exploitability"]) < float(loose["exploitability"])
-    assert float(tight["exploitability"]) < 0.01
-    eps = tight["epsilon"]
-    assert isinstance(eps, tuple)
-    assert min(eps) >= -1e-6
+    assert tight.exploitability < loose.exploitability
+    assert tight.exploitability < 0.01
+    assert min(tight.epsilon) >= -1e-6
 
 
 def test_exploitability_publiczne_api() -> None:
     hit = exploitability((50, 50, 50), PAYOUTS["3x"].prizes, iterations=12)
-    assert float(hit["max"]) < 0.02
-    assert hit["iterations"] == 12
+    assert hit.max_gain < 0.02
+    assert hit.iterations == 12
 
 
 def test_epsilon_odroznia_smieci_od_nasha() -> None:
     """ε≈0 nic nie znaczy bez mianownika. Always-jam wycieka ~0.18 BI."""
+    from poker.icm import icm_equities
     from poker.jamfold import (
         N_HANDS,
         N_NODES,
         _allin_two,
-        _eval_values,
         _exploitability,
+        _Payoffs,
         _take,
         _three_way,
     )
-    from poker.icm import icm_equities
     from poker.spin import post_blinds, roles, utg_shove_both_fold, utg_shove_called
 
     stacks = (50, 50, 50)
@@ -161,35 +152,33 @@ def test_epsilon_odroznia_smieci_od_nasha() -> None:
     utg, btn, bb = roles(1)
     behind, pot = post_blinds(stacks, 1, 1, 2)
     blinds = utg_shove_both_fold(stacks, 1, 1, 2)
-    money = lambda st: icm_equities(st, prizes)
-    pay = {
-        "utg": utg,
-        "btn": btn,
-        "bb": bb,
-        "utg_b": money(blinds),
-        "btn_b": money(_take(behind, btn, pot)),
-        "bb_b": money(_take(behind, bb, pot)),
-        "hu_utg_bb": (
+
+    def money(state: tuple[int, int, int]) -> tuple[float, ...]:
+        return icm_equities(state, prizes)
+
+    pay = _Payoffs(
+        utg=utg,
+        btn=btn,
+        bb=bb,
+        utg_b=money(blinds),
+        btn_b=money(_take(behind, btn, pot)),
+        bb_b=money(_take(behind, bb, pot)),
+        hu_utg_bb=(
             money(utg_shove_called(stacks, 1, bb, utg, 1, 2)),
             money(utg_shove_called(stacks, 1, bb, bb, 1, 2)),
         ),
-        "hu_utg_btn": (
+        hu_utg_btn=(
             money(utg_shove_called(stacks, 1, btn, utg, 1, 2)),
             money(utg_shove_called(stacks, 1, btn, btn, 1, 2)),
         ),
-        "hu_btn_bb": (
+        hu_btn_bb=(
             money(_allin_two(behind, btn, bb, btn)),
             money(_allin_two(behind, btn, bb, bb)),
         ),
-        "tw": tuple(money(_three_way(stacks, w)) for w in range(3)),
-    }
+        tw=tuple(money(_three_way(stacks, w)) for w in range(3)),
+    )
     junk = [[1.0] * N_HANDS for _ in range(N_NODES)]
     nash = solve(stacks, prizes, button=1, iterations=16)
-    junk_eps = float(_exploitability(junk, pay)["max"])
+    junk_eps = max(_exploitability(junk, pay))
     assert junk_eps > 0.1
-    assert float(nash["exploitability"]) * 20 < junk_eps
-
-
-
-
-
+    assert nash.exploitability * 20 < junk_eps

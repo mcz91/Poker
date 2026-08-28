@@ -6,6 +6,8 @@ preflop (POKER-12). 3-way: para znormalizowana. Bez blockerów.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES, CLASS_INDEX
 from poker.preflop_equity import equity as class_equity
@@ -27,6 +29,52 @@ N_NODES = 6
 WEIGHTS: tuple[int, ...] = tuple(
     6 if cls.high == cls.low else (4 if cls.suited else 12) for cls in ALL_CLASSES
 )
+
+Equities3 = tuple[float, ...]
+HuPair = tuple[Equities3, Equities3]
+
+
+@dataclass(frozen=True, slots=True)
+class _Payoffs:
+    """$EV stanów terminalnych drzewa jam/fold, stałe przez cały fictitious play."""
+
+    utg: int
+    btn: int
+    bb: int
+    utg_b: Equities3
+    btn_b: Equities3
+    bb_b: Equities3
+    hu_utg_bb: HuPair
+    hu_utg_btn: HuPair
+    hu_btn_bb: HuPair
+    tw: tuple[Equities3, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class JamFoldSolution:
+    iterations: int
+    utg_jam: tuple[float, ...]
+    btn_call: tuple[float, ...]
+    bb_call: tuple[float, ...]
+    btn_open: tuple[float, ...]
+    bb_vs_btn: tuple[float, ...]
+    utg_jam_pct: float
+    btn_call_pct: float
+    bb_call_pct: float
+    aa_jams: bool
+    junk_folds: bool
+    values: tuple[float, float, float]
+    icm: tuple[float, ...]
+    epsilon: tuple[float, float, float]
+    exploitability: float
+
+
+@dataclass(frozen=True, slots=True)
+class ExploitabilityReport:
+    epsilon: tuple[float, float, float]
+    max_gain: float
+    values: tuple[float, float, float]
+    iterations: int
 
 
 def _hu(i: int, j: int) -> float:
@@ -121,7 +169,7 @@ def solve(
     iterations: int = 80,
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
-) -> dict[str, object]:
+) -> JamFoldSolution:
     """Zwraca średnie strategie fictitious play (jam/call ∈ [0, 1] per klasa)."""
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
@@ -134,35 +182,27 @@ def solve(
     def money(state: tuple[int, int, int]) -> tuple[float, ...]:
         return icm_equities(state, prizes)
 
-    utg_b = money(blinds)
-    btn_b = money(btn_blinds)
-    bb_b = money(bb_blinds)
-    hu_utg_bb = (
-        money(utg_shove_called(stacks, button, bb, utg, sb, bb_amt)),
-        money(utg_shove_called(stacks, button, bb, bb, sb, bb_amt)),
+    pay = _Payoffs(
+        utg=utg,
+        btn=btn,
+        bb=bb,
+        utg_b=money(blinds),
+        btn_b=money(btn_blinds),
+        bb_b=money(bb_blinds),
+        hu_utg_bb=(
+            money(utg_shove_called(stacks, button, bb, utg, sb, bb_amt)),
+            money(utg_shove_called(stacks, button, bb, bb, sb, bb_amt)),
+        ),
+        hu_utg_btn=(
+            money(utg_shove_called(stacks, button, btn, utg, sb, bb_amt)),
+            money(utg_shove_called(stacks, button, btn, btn, sb, bb_amt)),
+        ),
+        hu_btn_bb=(
+            money(_allin_two(behind, btn, bb, btn)),
+            money(_allin_two(behind, btn, bb, bb)),
+        ),
+        tw=tuple(money(_three_way(stacks, w)) for w in range(3)),
     )
-    hu_utg_btn = (
-        money(utg_shove_called(stacks, button, btn, utg, sb, bb_amt)),
-        money(utg_shove_called(stacks, button, btn, btn, sb, bb_amt)),
-    )
-    hu_btn_bb = (
-        money(_allin_two(behind, btn, bb, btn)),
-        money(_allin_two(behind, btn, bb, bb)),
-    )
-    tw = tuple(money(_three_way(stacks, w)) for w in range(3))
-
-    pay = {
-        "utg": utg,
-        "btn": btn,
-        "bb": bb,
-        "utg_b": utg_b,
-        "btn_b": btn_b,
-        "bb_b": bb_b,
-        "hu_utg_bb": hu_utg_bb,
-        "hu_utg_btn": hu_utg_btn,
-        "hu_btn_bb": hu_btn_bb,
-        "tw": tw,
-    }
 
     cum = [[0.0] * N_HANDS for _ in range(N_NODES)]
     weight_sum = 0.0
@@ -183,7 +223,7 @@ def solve(
     final = avg(iterations)
     values = _eval_values(final, pay)
     cash = icm_equities(stacks, prizes)
-    expl = _exploitability(final, pay)
+    epsilon = _exploitability(final, pay)
 
     def pct(sigma: list[float]) -> float:
         return 100.0 * _mass(sigma)
@@ -194,23 +234,23 @@ def solve(
         for i, cls in enumerate(ALL_CLASSES)
         if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
     )
-    return {
-        "iterations": iterations,
-        "utg_jam": final[UTG_OPEN],
-        "btn_call": final[BTN_VS_UTG],
-        "bb_call": final[BB_VS_UTG],
-        "btn_open": final[BTN_OPEN],
-        "bb_vs_btn": final[BB_VS_BTN],
-        "utg_jam_pct": pct(final[UTG_OPEN]),
-        "btn_call_pct": pct(final[BTN_VS_UTG]),
-        "bb_call_pct": pct(final[BB_VS_UTG]),
-        "aa_jams": final[UTG_OPEN][aa] > 0.85,
-        "junk_folds": final[UTG_OPEN][junk] < 0.25,
-        "values": values,
-        "icm": cash,
-        "epsilon": expl["epsilon"],
-        "exploitability": expl["max"],
-    }
+    return JamFoldSolution(
+        iterations=iterations,
+        utg_jam=tuple(final[UTG_OPEN]),
+        btn_call=tuple(final[BTN_VS_UTG]),
+        bb_call=tuple(final[BB_VS_UTG]),
+        btn_open=tuple(final[BTN_OPEN]),
+        bb_vs_btn=tuple(final[BB_VS_BTN]),
+        utg_jam_pct=pct(final[UTG_OPEN]),
+        btn_call_pct=pct(final[BTN_VS_UTG]),
+        bb_call_pct=pct(final[BB_VS_UTG]),
+        aa_jams=final[UTG_OPEN][aa] > 0.85,
+        junk_folds=final[UTG_OPEN][junk] < 0.25,
+        values=values,
+        icm=cash,
+        epsilon=epsilon,
+        exploitability=max(epsilon),
+    )
 
 
 def one_step_values(
@@ -220,16 +260,11 @@ def one_step_values(
     iterations: int = 20,
 ) -> tuple[float, float, float]:
     """Pierwszy backup zewnętrzny: E[ICM(s′)] przy Nash jam/fold."""
-    result = solve(stacks, prizes, button, iterations)
-    values = result["values"]
-    assert isinstance(values, tuple)
-    return values
+    return solve(stacks, prizes, button, iterations).values
 
 
-def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[float, float, float]:
-    utg = int(pay["utg"])  # type: ignore[arg-type]
-    btn = int(pay["btn"])  # type: ignore[arg-type]
-    bb = int(pay["bb"])  # type: ignore[arg-type]
+def _eval_values(sigma: list[list[float]], pay: _Payoffs) -> tuple[float, float, float]:
+    utg, btn, bb = pay.utg, pay.btn, pay.bb
     utg_r, btn_c, bb_utg, bb_both, btn_o, bb_btn = sigma
     p_jam = _mass(utg_r)
     p_btn_c = _mass(btn_c)
@@ -247,16 +282,13 @@ def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[floa
         (1 - e_utg_btn) * e_call_both,
         (1 - e_utg_both) * (1 - e_call_both),
     )
-    utg_b = pay["utg_b"]
-    btn_b = pay["btn_b"]
-    bb_b = pay["bb_b"]
-    hu_utg_bb = pay["hu_utg_bb"]
-    hu_utg_btn = pay["hu_utg_btn"]
-    hu_btn_bb = pay["hu_btn_bb"]
-    tw = pay["tw"]
-    assert isinstance(utg_b, tuple) and isinstance(btn_b, tuple) and isinstance(bb_b, tuple)
-    assert isinstance(hu_utg_bb, tuple) and isinstance(hu_utg_btn, tuple)
-    assert isinstance(hu_btn_bb, tuple) and isinstance(tw, tuple)
+    utg_b = pay.utg_b
+    btn_b = pay.btn_b
+    bb_b = pay.bb_b
+    hu_utg_bb = pay.hu_utg_bb
+    hu_utg_btn = pay.hu_utg_btn
+    hu_btn_bb = pay.hu_btn_bb
+    tw = pay.tw
 
     acc = [0.0, 0.0, 0.0]
 
@@ -264,7 +296,9 @@ def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[floa
         for i in range(3):
             acc[i] += weight * vec[i]
 
-    def mix_vec(equity: float, win: tuple[float, ...], lose: tuple[float, ...]) -> tuple[float, ...]:
+    def mix_vec(
+        equity: float, win: tuple[float, ...], lose: tuple[float, ...]
+    ) -> tuple[float, ...]:
         return (
             equity * win[0] + (1 - equity) * lose[0],
             equity * win[1] + (1 - equity) * lose[1],
@@ -284,20 +318,15 @@ def _eval_values(sigma: list[list[float]], pay: dict[str, object]) -> tuple[floa
     return (acc[0], acc[1], acc[2])
 
 
-def _best_response(sigma: list[list[float]], pay: dict[str, object]) -> list[list[float]]:
-    utg = int(pay["utg"])  # type: ignore[arg-type]
-    btn = int(pay["btn"])  # type: ignore[arg-type]
-    bb = int(pay["bb"])  # type: ignore[arg-type]
-    utg_b = pay["utg_b"]
-    btn_b = pay["btn_b"]
-    bb_b = pay["bb_b"]
-    hu_utg_bb = pay["hu_utg_bb"]
-    hu_utg_btn = pay["hu_utg_btn"]
-    hu_btn_bb = pay["hu_btn_bb"]
-    tw = pay["tw"]
-    assert isinstance(utg_b, tuple) and isinstance(btn_b, tuple) and isinstance(bb_b, tuple)
-    assert isinstance(hu_utg_bb, tuple) and isinstance(hu_utg_btn, tuple)
-    assert isinstance(hu_btn_bb, tuple) and isinstance(tw, tuple)
+def _best_response(sigma: list[list[float]], pay: _Payoffs) -> list[list[float]]:
+    utg, btn, bb = pay.utg, pay.btn, pay.bb
+    utg_b = pay.utg_b
+    btn_b = pay.btn_b
+    bb_b = pay.bb_b
+    hu_utg_bb = pay.hu_utg_bb
+    hu_utg_btn = pay.hu_utg_btn
+    hu_btn_bb = pay.hu_btn_bb
+    tw = pay.tw
     utg_r, btn_c, bb_utg, bb_both, btn_o, bb_btn = sigma
     p_btn_c, p_bb_utg, p_bb_both = _mass(btn_c), _mass(bb_utg), _mass(bb_both)
     p_btn_o, p_bb_btn = _mass(btn_o), _mass(bb_btn)
@@ -364,10 +393,9 @@ def _best_response(sigma: list[list[float]], pay: dict[str, object]) -> list[lis
     return out
 
 
-def _exploitability(sigma: list[list[float]], pay: dict[str, object]) -> dict[str, object]:
-    utg = int(pay["utg"])  # type: ignore[arg-type]
-    btn = int(pay["btn"])  # type: ignore[arg-type]
-    bb = int(pay["bb"])  # type: ignore[arg-type]
+def _exploitability(sigma: list[list[float]], pay: _Payoffs) -> tuple[float, float, float]:
+    """ε per miejsce: zysk z jednostronnego odchylenia do best response."""
+    utg, btn, bb = pay.utg, pay.btn, pay.bb
     ev = _eval_values(sigma, pay)
     reply = _best_response(sigma, pay)
 
@@ -384,11 +412,7 @@ def _exploitability(sigma: list[list[float]], pay: dict[str, object]) -> dict[st
     seats[utg] = ev_utg[utg] - ev[utg]
     seats[btn] = ev_btn[btn] - ev[btn]
     seats[bb] = ev_bb[bb] - ev[bb]
-    return {
-        "epsilon": (seats[0], seats[1], seats[2]),
-        "max": max(seats),
-        "sum": sum(seats),
-    }
+    return (seats[0], seats[1], seats[2])
 
 
 def exploitability(
@@ -398,15 +422,15 @@ def exploitability(
     iterations: int = 24,
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
-) -> dict[str, object]:
+) -> ExploitabilityReport:
     """Max zysk z odchylenia do BR. Metryka Spina (decyzja 15), w buy-inach."""
     result = solve(stacks, prizes, button, iterations, sb, bb_amt)
-    return {
-        "epsilon": result["epsilon"],
-        "max": result["exploitability"],
-        "values": result["values"],
-        "iterations": iterations,
-    }
+    return ExploitabilityReport(
+        epsilon=result.epsilon,
+        max_gain=result.exploitability,
+        values=result.values,
+        iterations=iterations,
+    )
 
 
 def jam_vs_depth(
@@ -418,9 +442,5 @@ def jam_vs_depth(
     rows: list[tuple[int, float, float, float]] = []
     for bb, stacks in DEPTHS:
         result = solve(stacks, prizes, button, iterations)
-        utg = result["utg_jam_pct"]
-        btn = result["btn_call_pct"]
-        bb_c = result["bb_call_pct"]
-        assert isinstance(utg, float) and isinstance(btn, float) and isinstance(bb_c, float)
-        rows.append((bb, utg, btn, bb_c))
+        rows.append((bb, result.utg_jam_pct, result.btn_call_pct, result.bb_call_pct))
     return tuple(rows)
