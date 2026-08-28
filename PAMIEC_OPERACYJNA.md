@@ -16,16 +16,13 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: gałąź integracyjna = `claude/poker-architecture-dfmo3y`;
-  weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
-  Tylko tu: F2 POKER-1 — odstępstwo decyzją operatora; regeneracja
-  equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-10 arch: POKER-24 (częściowo, sprzeciw uznany decyzją 09)
-  i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
-  integracyjnym. POKER-27 i POKER-28 u koderów.
-- 2026-08-28 koder: POKER-45 zamknięty na `integracja-spin`; pomiary
-  field exploit po naprawach w decyzji 23 (vs $1-ish fish CI obejmuje
-  zero — teza „bije fisha" nieosiągnięta). Nie main.
+- 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją operatora;
+  regeneracja equity ≈40 min/4 rdzenie (POKER-12).
+- 2026-08-28 arch: gałąź integracyjna =
+  `claude/poker-project-architecture-jw6ukd` (dfmo3y nieaktywna);
+  weryfikacja niezależna (czysty venv 3.13) przed scaleniem. Gałęzi
+  koderów POKER-26/27/28 brak na zdalnym; research drogi Pluribusa
+  w toku, decyzja przed pierwszym kontraktem treningu.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -35,6 +32,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
   zduplikowana; publiczne API w preflop_equity osobnym kontraktem
   (refaktor dotyka abstrakcji, od której zależy artefakt).
+- 2026-08-28 arch: spin_arena ma własny rozgrywacz obok
+  poker.betting/table (audyt POKER-42; świadomie poza kontraktami
+  44/45) — kwalifikacja przed każdą rozbudową spin_arena.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
@@ -47,36 +47,33 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-- Zatwierdzenie TaskSpeca N+1 i każde zamknięcie zadania aktualizuje
-  też „Następny krok" w `CURRENT_STATE.md` — dryf powtórzył się przy
-  POKER-2, POKER-8 i POKER-25; oba dokumenty jednym commitem.
-- mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
-  czerwona mimo poprawnych typów.
-- Regeneracja artefaktu unieważnia pomiary opisane przy nim
-  w `CURRENT_STATE.md`, a bramka tego nie łapie (testy pilnują tylko
-  `INFOSETS == len(STRATEGY)`): POKER-24 podmienił strategię
-  (20 607→20 971 infosetów), zostawiając wyniki areny sprzed podmiany.
-- Kryterium acceptance wyliczające zakres („na każdej ulicy") czytaj
-  jak checklistę asercji: w POKER-5 turn/river zostały bez asercji mimo
-  deklaracji pełnego pokrycia w opisie commita — deklaracja ≠ dowód.
-- Frozen dataclass ≠ izolacja: object.__setattr__/__delattr__
-  i introspekcja ramek (sys._getframe) omijają każdą czysto-pythonową
-  „szczelność" w procesie; testy przecieku INV-P3/P4 dowodzą
+- Zamknięcie zadania i zatwierdzenie TaskSpeca N+1 aktualizuje też
+  „Następny krok" w CURRENT_STATE — dryf przy POKER-2/8/25 i nagłówek
+  przy POKER-31/32/33; numer i opis jednym commitem.
+- Regeneracja artefaktu unieważnia pomiary przy nim w CURRENT_STATE,
+  a bramka tego nie łapie (POKER-24: 20 607→20 971 infosetów).
+- Kryterium acceptance wyliczające zakres czytaj jak checklistę
+  asercji — deklaracja ≠ dowód (POKER-5: turn/river bez asercji).
+- Frozen dataclass ≠ izolacja: testy przecieku INV-P3/P4 dowodzą
   szczelności API, nie bezpieczeństwa — izolację niezaufanego agenta
   stawiać na granicy procesu (adapter, INV-P7).
-- Asercja pod `if` w teście deterministycznym (np. `if reason is BUST:
-  assert…`) to uśpiona ochrona: przy przybitym seedzie przebieg jest
-  jeden — przybijaj wynik bezwarunkowo, inaczej regresja zmieniająca
-  przebieg przechodzi na zielono (POKER-7, test stacka poniżej blindu).
-- socket.makefile duplikuje deskryptor: zamknięcie samego gniazda bez
-  pliku nie wysyła FIN — readline po drugiej stronie wisi (POKER-21).
-- Artefakt jako moduł Pythona ma sufit ~5 MB (przy 20 MB bramka rośnie
-  z 23 s do 57 s); koszt zdominowany przez `pytest` — `ast.parse`
-  artefaktu 5x w testach architektury, nie przez mypy (POKER-24).
-- ARCHITEKT: kryterium ilościowe (skala, próg, limit czasu) wpisuj do
-  kontraktu wyłącznie po oszacowaniu budżetu z danych repo — druga
-  instancja klasy (POKER-19 F1, POKER-24 OBJECTION); trzecia to
-  `BLOCKED` wg reguły 7 konstytucji.
+- Asercja pod `if` w teście deterministycznym to uśpiona ochrona —
+  przybijaj wynik bezwarunkowo (POKER-7).
+- Artefakt-moduł Pythona: sufit ~5 MB; koszt bramki dominuje
+  `ast.parse` w testach architektury, nie mypy (POKER-24).
+- ARCHITEKT: kryterium ilościowe wyłącznie po oszacowaniu budżetu
+  z danych repo (POKER-19, POKER-24); liczba w dokumencie wymaga
+  komendy odtwarzającej i liczby iteracji; kontrakt z celem-pomiarem
+  bez asercji pomiaru produkuje liczby bez dowodu (POKER-42/43).
+- Moduł w allowed_paths ≠ pusty: przed przepisaniem policz konsumentów
+  grepem; konsument poza allowed_paths = OBJECTION: INCOMPLETE, nie
+  zadanie (POKER-42 skasował arenę POKER-13).
+- Ręcznie budowane stany $EV gubią żetony (stacki po blindach jako
+  wkłady, całe stacki wołających), a „suma = pula" na wektorach ICM to
+  tożsamość — niezmiennikiem jest suma żetonów terminala (POKER-30–33).
+- Asercja werdyktu produkcyjnego, mianownik na replice modelu
+  i monotoniczność z jednej pary punktów nie chronią zachowania
+  (POKER-35/37/40; naprawy w POKER-45).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

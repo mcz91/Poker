@@ -1,5 +1,10 @@
 # 18 — Plan rozbudowy: Spin $1, nie większy cash-MCCFR
 
+> Uwaga ([decyzja 24](24-audyt-i-scalenie-linii-spin.md)): ten dokument
+> został przepisany w miejscu w commicie 42aae23; pierwotna treść
+> (z sekcją Źródła) jest w historii pod commitem a437d34. Od decyzji 24
+> dokument decyzji unieważnia się odesłaniem w nowej decyzji, nie edycją.
+
 Cel produktu: bot, który **nie jest rybą na $1 Spin** (3-max NLH).
 Nie crusher. Nie HU cash. `strategy_table` i INV-P5 zostają.
 

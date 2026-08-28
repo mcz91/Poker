@@ -429,5 +429,24 @@ jamu na 8/16 i 10/20 z audytu było artefaktem gubienia blindów — po
 naprawie jam rośnie monotonicznie przez cały zegar
 ([decyzja 15](decisions/15-tani-trening-jamfold.md)).
 
-Następne: więcej N, albo flats/flop, albo VI ≤7 bb.
+**Linia Spin scalona do `main` po audycie i naprawach**
+([decyzja 24](decisions/24-audyt-i-scalenie-linii-spin.md)).
+
+Następne kroki:
+
+1. **Kierunek treningu wybrany przez operatora (2026-08-28): droga
+   Pluribusa** — tabelaryczny MCCFR/CFR + Linear/Discounted CFR na
+   ręcznej abstrakcji, CPU; głęboki research architekta (mechanika
+   blueprintu i depth-limited search, ICM-CFR po siatce stanów) w toku;
+   decyzja i pierwszy kontrakt po raporcie;
+2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
+   N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
+   twierdzenie „bije X" wróci do dokumentów;
+3. kwalifikacja duplikacji rozgrywacza `poker.spin_arena` względem
+   silnika zdarzeniowego (wątek z audytu POKER-42);
+4. POKER-26 (informacja zwrotna przy stole LAN) — szkic czeka na
+   zatwierdzenie; POKER-28 (memoizacja parsowania w testach
+   architektury, wiązanie checkpointu) nadal zasadny; POKER-27
+   warunkowy — tylko przy powrocie do cash HU (decyzja 18).
+
 Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.
