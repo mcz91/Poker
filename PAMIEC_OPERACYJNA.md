@@ -20,9 +20,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   weryfikacja niezależna (czysty venv 3.13) przed każdym scaleniem.
   Tylko tu: F2 POKER-1 — odstępstwo decyzją operatora; regeneracja
   equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-10 arch: POKER-24 (częściowo, sprzeciw uznany decyzją 09)
-  i POKER-25 scalone; doc-drift pomiarów naprawiony w commicie
-  integracyjnym. POKER-27 i POKER-28 u koderów.
+- 2026-08-28 arch: linia Spin `poker-43-field` (POKER-30–43, decyzje
+  10–23) niescalona i bez śladu audytów — main nie podąża bez ich
+  kompletu. Gałęzi koderów 26/27/28 brak; POKER-27 warunkowy (dec. 18).
 
 ## WĄTKI — otwarte, bez TaskSpec
 
