@@ -47,8 +47,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zatwierdzenie TaskSpeca N+1 i każde zamknięcie zadania aktualizuje
   też „Następny krok" w `CURRENT_STATE.md` — dryf powtórzył się przy
   POKER-2, POKER-8 i POKER-25; oba dokumenty jednym commitem.
-- mypy strict wymaga markera `src/poker/py.typed` — bez niego bramka
-  czerwona mimo poprawnych typów.
+- Zmiana domyślnych flag trenera unieważnia przepis regeneracji wpisany
+  w nagłówek nieregenerowanego artefaktu (POKER-29: `strategy_table.py`).
 - Regeneracja artefaktu unieważnia pomiary opisane przy nim
   w `CURRENT_STATE.md`, a bramka tego nie łapie (testy pilnują tylko
   `INFOSETS == len(STRATEGY)`): POKER-24 podmienił strategię
