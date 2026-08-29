@@ -1,9 +1,9 @@
 {
   "id": "POKER-49",
-  "spec_version": 2,
+  "spec_version": 3,
   "class_hint": "regression",
   "goal": "Rdzeń blueprintu jest chroniony testami tam, gdzie już raz się złamał, a jego warunek brzegowy jest zbieżny i mierzalny — żeby bieg produkcyjny za 91 rdzenio-godzin nie stał na tablicy bez kotwicy ani na niezbieżnym horyzoncie.",
-  "context": "Audyt linii blueprintu (2026-08-29, świeży kontekst) na commitach 2ae6ea6..f7f02ab. Finding BLOKUJĄCY: tensor puli 2-way przy trzech żywych (`wt2_fold`, budowany w `load_tensors`, konsumowany w liściach 3, 5, 8, 10, 11, 14, 15) nie ma żadnej kotwicy orientacji osi — audytor pokazał dwie mutacje (odwrócenie osi w kolapsie oraz podmiana klucza pary), które przechodzą pełną bramkę 343 testów, przy czym equity roli trzymającej AA leci z 0,917 na 0,083. To ta sama klasa błędu, którą naprawiono w POKER-46 (`f41f85a`) i wpisano do PUŁAPEK; kolaps trójki do pary jest inwolucją, więc pomyłka kierunku znów nie zostawia śladu w zieleni. Dotyczy dominującej ścieżki trybu `jamfold`: 79% stanów pilota i 68 859 z 76 072 solve'ów siatki produkcyjnej. Jedynym dowodem orientacji jest dziś jednorazowy skrypt spoza repozytorium opisany prozą — deklaracja, nie dowód. Pozostałe otwarte sprawy: niezbieżny horyzont (delta 0,00209 przy suficie trzech cykli, 4,8x powyżej zmierzonego ε i niewidoczna w ex-post ε, bo ogon jest zamrożony dla obu stron), CFR+ uśredniający strategię bez wagi własnego reachu (odstępstwo od gwarancji, zmierzona cena 7% ε na najgorszym stanie hu-deep) oraz 39 stanów hu-deep powyżej tolerancji.",
+  "context": "Audyt linii blueprintu (2026-08-29, świeży kontekst) na commitach 2ae6ea6..f7f02ab. Finding BLOKUJĄCY: tensor puli 2-way przy trzech żywych (`wt2_fold`, budowany w `load_tensors`, konsumowany w liściach 3, 5, 8, 10, 11, 14, 15) nie ma żadnej kotwicy orientacji osi — audytor pokazał dwie mutacje (odwrócenie osi w kolapsie oraz podmiana klucza pary), które przechodzą pełną bramkę 343 testów, przy czym equity roli trzymającej AA leci z 0,917 na 0,083. To ta sama klasa błędu, którą naprawiono w POKER-46 (`f41f85a`) i wpisano do PUŁAPEK; kolaps trójki do pary jest inwolucją, więc pomyłka kierunku znów nie zostawia śladu w zieleni. Dotyczy dominującej ścieżki trybu `jamfold`: 79% stanów pilota i 68 859 z 76 072 solve'ów siatki produkcyjnej. Jedynym dowodem orientacji jest dziś jednorazowy skrypt spoza repozytorium opisany prozą — deklaracja, nie dowód. Pozostałe otwarte sprawy: niezbieżny horyzont (delta 0,00209 przy suficie trzech cykli, 4,8x powyżej zmierzonego ε i niewidoczna w ex-post ε, bo ogon jest zamrożony dla obu stron), CFR+ uśredniający strategię bez wagi własnego reachu (odstępstwo od gwarancji, zmierzona cena 7% ε na najgorszym stanie hu-deep) oraz 39 stanów hu-deep powyżej tolerancji. | Poprawka do wersji 3 (2026-08-29): koder zgłosił kolizję granic — `tests/test_repo_gate.py` przybija `mypy.files == {src, tests}`, więc rozszerzenia `files` nie da się wykonać bez zapisu poza allowed_paths. Test spójności bramki istnieje po to, by łapać dryf między pyproject a kontraktami, więc przy legalnej zmianie bramki oba pliki zmieniają się razem — dopisuję go do allowed_paths.",
   "acceptance": [
     "Kotwica orientacji osi dla `wt2_fold`: test na prawdziwym tensorze, przebiegający wszystkie trzy pary osi i wszystkie kolejności klas — rola posadzona na AA ma equity AA niezależnie od klasy foldującego i od porządku argumentów; test czerwony pod obiema mutacjami z audytu (odwrócenie osi w kolapsie i podmiana klucza pary) — dowód czerwieni w raporcie.",
     "Kotwica wypłat na co najmniej jednym liściu 2-way przy trzech żywych (np. 5 albo 15), analogiczna do istniejącej dla liścia 16: rola najsilniejsza dostaje pulę, foldujący nie dostaje nic ponad zwrot nadpłaty.",
@@ -11,7 +11,7 @@
     "Horyzont zbiega do zadanej tolerancji zamiast kończyć na sufcie cykli; kryterium stopu i sufit to parametry z domyślnymi dobranymi z pomiaru (krzywa delta-vs-liczba cykli), a bieg raportuje osiągniętą deltę.",
     "Ślepota metryki skwantyfikowana: blueprint policzony dla co najmniej dwóch jawnie zaburzonych warunków brzegowych (zaburzenie rzędu zmierzonej delty 0,002); raport podaje, o ile zmienia się ex-post ε i strategie w warstwach przed horyzontem. Liczba, nie zapewnienie.",
     "CFR+ w endgame'ach HU: albo średnia ważona własnym prawdopodobieństwem dojścia (zgodnie z nazwą i gwarancją, na którą powołuje się decyzja 25 pkt 2), albo jawnie udokumentowane odstępstwo z jego zmierzoną ceną; kryterium stopu spójne z solverem 3-osobowym (tolerancja z sufitem jako zabezpieczeniem), po czym żaden stan hu-deep nie ma ε etapowego powyżej tolerancji albo raport wyjaśnia pomiarem, dlaczego to niemożliwe.",
-    "`tools/blueprint/` wchodzi pod `mypy` (rozszerzenie `files` w pyproject albo równoważne) i przechodzi strict na zero błędów — dziś bramka nie widzi 2,9 tys. linii dostarczonych przez kontrakty POKER-46/47 (19 błędów strict), więc `verification: mypy` jest wobec nich puste.",
+    "`tools/blueprint/` wchodzi pod `mypy` (rozszerzenie `files` w pyproject wraz z dostosowaniem `tests/test_repo_gate.py` — droga preferowana, bo jawna; albo droga równoważna, jeśli jest już zielona i jej mechanizm jest opisany w CURRENT_STATE) i przechodzi strict na zero błędów — dziś bramka nie widzi 2,9 tys. linii dostarczonych przez kontrakty POKER-46/47 (19 błędów strict), więc `verification: mypy` jest wobec nich puste.",
     "Powtórzony pilot (siatka 5, pełny zegar) pod domkniętym rdzeniem i brzegiem: nowe ex-post ε (maks, mediana), nowy koszt i nowa ekstrapolacja rdzenio-godzin; liczby zastępują poprzednie w CURRENT_STATE, każda z komendą. Koszt trybu `deep` podany z rozrzutem (mediana i maksimum), nie samą medianą — dziś cena produkcji stoi na medianie z dziesięciu stanów przy maksimum 2,35x wyższym.",
     "Determinizm i wznowienia zachowane (jobs 1 i 4, przerwanie i wznowienie) — pod testem; `src/poker` nietknięte; pełna bramka zielona."
   ],
@@ -27,9 +27,18 @@
     "tools/blueprint/",
     "tests/test_blueprint_pilot.py",
     "pyproject.toml",
+    "tests/test_repo_gate.py",
     "docs/CURRENT_STATE.md",
     "docs/taskspecs/POKER-49.json"
   ],
-  "verification": ["ruff check .", "mypy", "pytest"],
-  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T20:00:00Z", "basis": "audyt linii blueprintu 2026-08-29 (finding blokujący wt2_fold); raport POKER-47; decyzja 25 pkt 7"}
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-08-29T20:00:00Z",
+    "basis": "audyt linii blueprintu 2026-08-29 (finding blokujący wt2_fold); raport POKER-47; decyzja 25 pkt 7"
+  }
 }
