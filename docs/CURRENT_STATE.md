@@ -1,9 +1,12 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-45
-(rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady legalne —
-i liczby linii Spin wymienione na zmierzone); POKER-29 (Linear CFR)
-zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-46 (pilot
+blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
+i różnica względem ICM zmierzone; pakiet `poker` nietknięty);
+POKER-45 (rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady
+legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
+(Linear CFR) zamknięty; POKER-24 (skala) częściowo — patrz
+„Następny krok".
 
 ## Co istnieje
 
@@ -293,6 +296,33 @@ zamknięty; POKER-24 (skala) częściowo — patrz „Następny krok".
   zmierzone po naprawie rozliczeń POKER-45 —
   [decyzja 13](decisions/13-spin-clock.md)). Od POKER-34 zegar
   w trakcie: `blinds_for_hand`, 3 ręce na poziom, `post_blinds(sb, bb)`.
+- `tools/blueprint/` — **pilot blueprintu po DAG-u zegara** (POKER-46,
+  [decyzja 25](decisions/25-blueprint-po-dagu-zegara-pifp-cfrplus.md));
+  zależności extras `train` (numpy), pakiet `poker` nietknięty.
+  `rollout_tensor.py` — deterministyczny (seedowany) tensor
+  rozstrzygnięć all-in preflop: dla multizbioru trzech klas rozkład 13
+  słabych porządków, Monte Carlo na prawdziwych kartach (card removal
+  w losowaniu; wagi rozdania dokładne z kombinatoryki, nie z prób),
+  osobny tensor par dla endgame'u HU; backend `table` (jednorazowa
+  tablica wartości wszystkich C(52,5)) albo `direct` (`evaluate_five`
+  wprost). `solve_grid.py` — backward induction po warstwach
+  (ręka × wektor stacków), horyzont punktem stałym ostatniego poziomu
+  iterowanym od ICM; gra etapowa 14 węzłów (fold / open 2.2x / jam,
+  maska jam/fold ≤ 7 bb wg `poker.spin`), PI-FP z restartami przy
+  trzech żywych i CFR+ w endgame HU; pula 2-way przy trzech żywych
+  zawsze pełnym wektorem ICM trzech graczy; zapis atomowy warstw
+  z manifestem, wznowienie bajt w bajt i wynik niezależny od liczby
+  procesów — pod testami. `expost.py` — ex-post best response po całym
+  DAG-u (Ganzfried Alg. 6), raport V vs ICM per warstwa z
+  wyszczególnieniem krótkiego BB, sanity jam/fold obok
+  `poker.jamfold.solve`. Testy `tests/test_blueprint_pilot.py`, w tym
+  **kotwice orientacji osi**: AA wygrywa dokładnie na tej osi, na
+  której ją posadzono — osobno w tensorze, w `load_tensors` (wszystkie
+  sześć kolejności trójki, więc także 3-cykle) i w tensorze wypłat
+  liścia showdownu 3-way. Kotwice powstały po błędzie, który przeżył
+  pierwszy bieg pilota: tabela permutacji zdarzeń była zbudowana
+  w odwrotną stronę, a że transpozycje są inwolucjami, psuła wyłącznie
+  trójki klas o trzech różnych indeksach ustawione 3-cyklem.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -331,8 +361,10 @@ all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
 po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
 ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
 jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
-od POKER-33. Brak eskalacji ręka-po-ręce i pełnej siatki stanów.
-Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
+od POKER-33. Pełna siatka stanów istnieje wyłącznie jako pilot
+w `tools/blueprint/` (krok 5 żetonów, artefakt poza repozytorium,
+POKER-46) — w pakiecie `poker` jej nie ma i żaden agent z niej nie
+korzysta. Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
 ## Następny krok
@@ -432,6 +464,106 @@ naprawie jam rośnie monotonicznie przez cały zegar
 **Linia Spin scalona do `main` po audycie i naprawach**
 ([decyzja 24](decisions/24-audyt-i-scalenie-linii-spin.md)).
 
+**POKER-46 (pilot blueprintu po DAG-u zegara) zamknięty.** Wszystkie
+liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
+`PILOT` to katalog artefaktów poza repozytorium (tensor 16 MB, warstwy
+6 MB — patrz decyzja 25 pkt 6). Komendy odtwarzające:
+
+```
+A  OMP_NUM_THREADS=1 python tools/blueprint/rollout_tensor.py \
+       --out PILOT/tensor --trials 2000 --hu-trials 8000 --seed 7 --jobs 4
+B  OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+   python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/grid5 --grid-step 5 --jobs 4
+C  python tools/blueprint/expost.py expost --out PILOT/grid5 --jobs 4
+D  python tools/blueprint/expost.py icm --out PILOT/grid5
+E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
+```
+
+1. **Tensor (A).** Tablica wartości C(52,5): 25,59 s. Trójki:
+   1 163,9 s przy 4 procesach dla 818 805 multizbiorów (325 z nich
+   nierozdawalnych, waga 0) × 2 000 prób → **2,84 µs/próbę rdzenia**.
+   Pary HU: 49,19 s dla 14 365 par × 8 000 prób (1,71 µs/próbę — dwie
+   ręce zamiast trzech). Backend `direct` (`evaluate_five` na 21
+   podzbiorach) to ~550 µs/próbę, czyli 190× drożej: **tablica wartości
+   z `poker.evaluation` wystarcza, numba/GPU nie są potrzebne.**
+   Ekstrapolacja produkcyjnych 15 000 prób/multizbiór: 8 729 s przy
+   4 procesach ≈ **9,7 rdzenio-godziny**.
+2. **Solver (B).** Cały bieg 3 408,1 s (56,8 min). Horyzont (punkt
+   stały ostatniego poziomu): 987,1 s, **3 cykle**, delta 0,00188
+   (4 437 solve'ów, 0,890 rdzenio-s/stan). 21 warstw: 8 654 stany
+   w 2 417,9 s → **0,279 s/stan przy 4 procesach, 1,118
+   rdzenio-s/stan**. Mieszanka trybów warstw: `deep` 253, `jamfold`
+   6 798, `hu-deep` 397, `hu-jamfold` 1 206. Koszt pojedynczego stanu
+   zmierzony osobno (jobs=1, mediana z 10 stanów na tryb): `deep`
+   3,99 s, `jamfold` 0,87 s, `hu-deep` 0,066 s, `hu-jamfold` 0,037 s —
+   suma po tej mieszance to 0,807 rdzenio-s/stan, czyli narzut forka
+   i zbiórki cykli dokłada ~1,39× do kosztu w biegu równoległym.
+   Iteracje: PI-FP mediana **16**, maksimum 24 (sufit `--fp-iters`);
+   97,1% z 7 051 stanów 3-osobowych kończy z ε wewnętrznym ≤ 1e−3
+   (`--fp-tol`), reszta wyczerpuje sufit iteracji. CFR+
+   w HU stałe 128 iteracji. ε wewnętrzne (self-ε, **nie** jakość —
+   decyzja 17): FP mediana 4,4e−4, maks 3,6e−3; CFR+ mediana 4,0e−6.
+3. **Ex-post best response (C).** 883 s dla 8 654 stanów. W jednostkach
+   puli (pula = 1): **ε max 0,00848, mediana 0,00092**, min −7e−8
+   (szum f32). Punkt odniesienia decyzji 25 to 0,05% puli — mediana
+   jest 1,8× wyżej, a maksimum **17× wyżej**. Dziesięć najgorszych
+   stanów to wyłącznie ręce 0–3 przy ~25 bb, czyli tryb `deep`
+   (14 węzłów, pełne drzewo z openem): tam 24 iteracje PI-FP nie
+   wystarczają. Stany jam/fold i HU są o rząd wielkości lepsze.
+4. **V vs ICM (D).** Max |V − ICM| na warstwę rośnie z zegarem: 0,0031
+   (ręka 0) → 0,0785 (ręka 20); średnia 0,0031 → 0,0214. Stany
+   krótkiego BB (< 5 bb bieżącego poziomu): 4 327 stanów, max **0,0785**,
+   średnia 0,0200. Największe rozjazdy mają kształt „jeden gracz na 5
+   żetonach, dwaj z resztą" (np. ręka 15, stan 125/20/5). To ~2,6×
+   więcej niż 3% puli, które Ganzfried mierzył jako błąd ICM —
+   **ICM jako wartość „po ręce" jest w naszym reżimie jeszcze gorszy,
+   niż zakładała decyzja 25.**
+5. **Sanity vs `poker.jamfold` (E).** Równe stacki 50/50/50 przy 1/2
+   (25 bb), drzewo jam/fold wymuszone, kontynuacja dokładnym ICM po
+   ręce — ten sam model co `poker.jamfold`, inna maszyneria equity.
+   UTG jam 15,29% vs 15,26% (zgodność klas 0,953); BTN call 4,60% vs
+   3,94% (0,982); BB call vs UTG 5,24% vs 4,49% (0,988); BTN first-in
+   jam 39,86% vs 39,42% (0,905); BB call vs BTN 11,02% vs 10,51%
+   (0,988). Rozjazdy to wyłącznie ręce na krawędzi zakresu. Modele
+   equity są zgodne bez obciążenia: kontrola na próbce 30 par (equity
+   wołającego z `wt2_fold[(1, 2)]` zmarginalizowanego po klasie
+   foldującego, obok `poker.preflop_equity.equity`) daje średnią
+   różnicę +0,0004 i największą 0,027. Różnicę pojedynczych klas
+   tłumaczy precyzja tensora: przy 2 000 prób na multizbiór błąd
+   standardowy zdarzeń jednej trójki to ~1,1 punktu procentowego —
+   tyle, ile dzieli sąsiednie klasy przy progu obojętności. Zgodność
+   klas rośnie więc z liczbą prób, nie ze zmianą modelu; to pierwszy
+   parametr do podniesienia w biegu produkcyjnym (punkt 1).
+6. **DAG vs model jednej ręki.** Ten sam stan 50/50/50 czytany z warstw
+   biegu B (`layer_NN.npz`, pole `sigma`, węzły `N_U_ROOT` /
+   `N_T_VS_U_JAM` / `N_B_VS_U_JAM_T_FOLD`, klasy ważone
+   `poker.jamfold.WEIGHTS`) obok `poker.jamfold.solve(stacks, prizes,
+   button=hand % 3, iterations=80, sb, bb_amt)` z blindami tej samej
+   warstwy; porównywane wyłącznie warstwy w trybie `jamfold`, bo przy
+   pełnym drzewie open odbiera część zakresu jamowi. BB call vs jam
+   UTG: ręka 9 (6,2 bb) 14,5% vs 16,0%; ręka 12 (5,0 bb) 27,2% vs
+   20,4%; ręka 20 (2,5 bb) **71,5% vs 52,4%**. Kierunek jest zgodny
+   z Ganzfriedem, ale nie monotoniczny w jedną stronę: przy głębszych
+   stackach DAG bywa ciaśniejszy, a przy 2–3 bb jest wyraźnie szerszy,
+   bo w DAG-u fold płaci przyszłe blindy, których ICM „po ręce" nie
+   widzi. To ten sam mechanizm, który daje punkt 4.
+7. **Ekstrapolacja siatki 2-żetonowej.** `grid_states(150, 2)` = 2 923
+   stany; warstwy osiągalne 49 765 + horyzont 26 307 (2 923 × 3 ręce ×
+   3 cykle) = **76 072 solve'y**. Przy 1,118 rdzenio-s/stan to **23,6
+   rdzenio-godziny**, po korekcie na mieszankę trybów siatki 2
+   (`deep` 1 198, `jamfold` 68 859, `hu-deep` 932, `hu-jamfold` 5 083)
+   **24,9 rdzenio-godziny** — z tensorem 9,7 rdzenio-h razem ~35.
+   Oszacowanie decyzji 25 (48,6 tys. solve'ów, ~108 rdzenio-godzin)
+   było **za wysokie ~4,4× w koszcie i za niskie 1,6× w liczbie
+   stanów**; budżet klasy Colab wystarcza z zapasem.
+
+Wniosek pilota do rozstrzygnięcia przez architekta: koszt nie jest
+przeszkodą, a jakość jest — ε ex-post w węzłach `deep` (0,85% puli)
+jest 17× powyżej punktu odniesienia decyzji 25 i to tam, nie w koszcie,
+leży kontrakt produkcyjny (więcej iteracji PI-FP albo inny solver dla
+pełnego drzewa 14-węzłowego).
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
@@ -439,9 +571,10 @@ Następne kroki:
    blueprint po DAG-u zegara (backward induction, ICM tylko na
    horyzoncie), PI-FP w grze 3-osobowej + CFR+ w endgame'ach HU,
    169 klas z łącznymi rozkładami trójek; metryka: ex-post
-   best-response ε. Pierwszy kontrakt: **POKER-46 (pilot, u kodera)**
-   — zgrubna siatka mierzy koszt i jakość przed kontraktem
-   produkcyjnym;
+   best-response ε. **Pilot POKER-46 zmierzony** (blok wyżej) —
+   kontrakt produkcyjny czeka na decyzję architekta o budżecie
+   iteracji PI-FP w węzłach `deep`, bo tam ε ex-post nie mieści się
+   w punkcie odniesienia decyzji 25;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;
