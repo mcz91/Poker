@@ -731,15 +731,17 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    0,0000838, min −4,6e−8** (było 0,00848 / 0,00092) — maksimum 19,6×
    niżej, mediana 11,0× niżej, w 916 s. Rozbicie po trybach: `deep`
    maks 4,322e−4 (mediana 2,422e−4), `jamfold` 2,696e−4 (1,080e−4),
-   `hu-deep` 2,175e−4, `hu-jamfold` 4,791e−5. **Żaden z 8 654 stanów
+   `hu-deep` 2,175e−4, `hu-jamfold` 4,791e−5 (te dwie liczby są w obu
+   biegach identyczne **co do bitu** — patrz niżej). **Żaden z 8 654 stanów
    nie przekracza 0,001 puli** (poprzednio 253 z 253 stanów `deep`
    i 4 514 z 6 798 `jamfold` przekraczało), a maksimum 0,043% puli jest
    **poniżej punktu odniesienia decyzji 25** (0,05%) — nie tylko poniżej
-   podwojonego progu z kontraktu. Wartości `hu-deep` i `hu-jamfold` są
-   co do cyfry te same w obu biegach i tak ma być: po odpadnięciu gracza
+   podwojonego progu z kontraktu. Na stanach HU V i ε ex-post są w obu
+   biegach identyczne co do bitu (20 z 20 warstw mających stany HU,
+   największa różnica ε dokładnie 0) i tak ma być: po odpadnięciu gracza
    gra nie wraca do trzech żywych, więc pod-DAG HU (CFR+, 128 iteracji
    nietknięte) liczy się identycznie — to niezależna kontrola, że zmiana
-   dotknęła wyłącznie solvera 3-osobowego. Różnica V vs ICM (M) się nie
+   budżetu dotknęła wyłącznie solvera 3-osobowego. Różnica V vs ICM (M) się nie
    zmieniła i zmienić nie mogła (to własność modelu, nie dokładności
    solvera): krótki BB 4 327 stanów, maks **0,0788** (było 0,0785),
    średnia 0,0200, najgorszy nadal ręka 15, stan 125/20/5.
@@ -780,8 +782,8 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
 
 Świadomie zostawione: 39 stanów `hu-deep` ma ε etapowe powyżej nowej
 tolerancji (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach —
-nie dotykaliśmy go, skoro jego wkład w ex-post ε jest o rząd wielkości
-mniejszy od 3-osobowego. Horyzont nadal kończy się na sufcie trzech
+nietknięty, skoro jego wkład w ex-post ε jest o rząd wielkości mniejszy
+niż solvera 3-osobowego. Horyzont nadal kończy się na sufcie trzech
 cykli z deltą 0,00209 > `--tail-tol`; to błąd warunku brzegowego, a nie
 solvera, i w ex-post ε się nie pojawia (ogon jest zamrożony dla obu
 stron) — osobna sprawa do kwalifikacji.
