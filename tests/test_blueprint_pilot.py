@@ -656,6 +656,24 @@ def test_probka_krzywej_deterministyczna_i_tylko_deep(curve_run: dict[str, Any])
     assert min(picked) >= max(drawn)
 
 
+def test_koszt_trybu_mierzy_konfiguracje_biegu(curve_run: dict[str, Any]) -> None:
+    """Koszt trybu liczony budżetem biegu (nie pomiaru) — z tego idzie ekstrapolacja."""
+    ec = _load("eps_curve")
+    report = ec.mode_costs(curve_run["out_dir"], per_mode=1)
+    assert report["fp_max_iters"] == curve_run["config"].fp_max_iters
+    assert report["fp_tol"] == curve_run["config"].fp_tol
+    modes = {row["mode"]: row for row in report["modes"]}
+    assert "deep" in modes
+    for row in report["modes"]:
+        assert row["n_states"] >= 1
+        assert row["core_seconds_median"] > 0.0
+        budget = (
+            curve_run["config"].cfr_iters if row["mode"].startswith("hu-")
+            else curve_run["config"].fp_max_iters
+        )
+        assert row["iterations_median"] <= budget, row
+
+
 def test_dekompozycja_oddziela_epsilon_etapowe_od_odziedziczonego(
     curve_run: dict[str, Any],
 ) -> None:

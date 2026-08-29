@@ -1,8 +1,10 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-46 (pilot
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-47 (krzywa
+ex-post ε vs budżet iteracji PI-FP zmierzona, budżet solvera wybrany
+z pomiaru, pilot powtórzony; pakiet `poker` nietknięty); POKER-46 (pilot
 blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
-i różnica względem ICM zmierzone; pakiet `poker` nietknięty);
+i różnica względem ICM zmierzone);
 POKER-45 (rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady
 legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
 (Linear CFR) zamknięty; POKER-24 (skala) częściowo — patrz
@@ -312,10 +314,24 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   trzech żywych i CFR+ w endgame HU; pula 2-way przy trzech żywych
   zawsze pełnym wektorem ICM trzech graczy; zapis atomowy warstw
   z manifestem, wznowienie bajt w bajt i wynik niezależny od liczby
-  procesów — pod testami. `expost.py` — ex-post best response po całym
+  procesów (jobs 1 vs 2 vs 4) — pod testami. Domyślny budżet PI-FP
+  (sufit 384 iteracji, tolerancja 5e−5) pochodzi z pomiaru POKER-47,
+  nie z założenia; `build_parser` bierze domyślne wartości CLI wprost
+  z `GridConfig`, więc jedno i drugie nie może się rozjechać (pod
+  testem). `expost.py` — ex-post best response po całym
   DAG-u (Ganzfried Alg. 6), raport V vs ICM per warstwa z
   wyszczególnieniem krótkiego BB, sanity jam/fold obok
-  `poker.jamfold.solve`. Testy `tests/test_blueprint_pilot.py`, w tym
+  `poker.jamfold.solve`. `eps_curve.py` (POKER-47) — krzywa ε ex-post
+  gry etapowej po sufitach iteracji PI-FP na próbce stanów jednego
+  trybu (najgorsze ex-post z biegu plus losowanie o jawnym seedzie),
+  rozkład ε ex-post po DAG-u na część etapową i odziedziczoną oraz
+  odczyt budżetu potrzebnego do zadanego progu. Pomiar wyłącza
+  tolerancję biegu (`NO_TOLERANCE`), bo inaczej PI-FP kończy na niej,
+  a nie na sufcie; jeden bieg obsługuje całą drabinkę przez bierny hak
+  obserwatora w `_fp_solve` (hak nie zmienia profilu — pod testem,
+  a punkt drabinki równa się co do bitu profilowi z osobnego biegu
+  `_fp_solve` z tym sufitem — też pod testem). Testy
+  `tests/test_blueprint_pilot.py`, w tym
   **kotwice orientacji osi**: AA wygrywa dokładnie na tej osi, na
   której ją posadzono — osobno w tensorze, w `load_tensors` (wszystkie
   sześć kolejności trójki, więc także 3-cykle) i w tensorze wypłat
@@ -363,7 +379,7 @@ ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
 jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
 od POKER-33. Pełna siatka stanów istnieje wyłącznie jako pilot
 w `tools/blueprint/` (krok 5 żetonów, artefakt poza repozytorium,
-POKER-46) — w pakiecie `poker` jej nie ma i żaden agent z niej nie
+POKER-46/47) — w pakiecie `poker` jej nie ma i żaden agent z niej nie
 korzysta. Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
@@ -511,6 +527,8 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    stanów to wyłącznie ręce 0–3 przy ~25 bb, czyli tryb `deep`
    (14 węzłów, pełne drzewo z openem): tam 24 iteracje PI-FP nie
    wystarczają. Stany jam/fold i HU są o rząd wielkości lepsze.
+   **Wyjaśnienie „bo 24 iteracje" okazało się błędne — patrz blok
+   POKER-47 niżej; te liczby zastąpił bieg pod nowym budżetem.**
 4. **V vs ICM (D).** Max |V − ICM| na warstwę rośnie z zegarem: 0,0031
    (ręka 0) → 0,0785 (ręka 20); średnia 0,0031 → 0,0214. Stany
    krótkiego BB (< 5 bb bieżącego poziomu): 4 327 stanów, max **0,0785**,
@@ -556,13 +574,17 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    **24,9 rdzenio-godziny** — z tensorem 9,7 rdzenio-h razem ~35.
    Oszacowanie decyzji 25 (48,6 tys. solve'ów, ~108 rdzenio-godzin)
    było **za wysokie ~4,4× w koszcie i za niskie 1,6× w liczbie
-   stanów**; budżet klasy Colab wystarcza z zapasem.
+   stanów**; budżet klasy Colab wystarcza z zapasem. **Ta ekstrapolacja
+   dotyczyła budżetu 24/1e−3, który nie trzymał jakości; obowiązuje
+   liczba z bloku POKER-47 (~91 rdzenio-godzin) i zapasu już nie ma.**
 
 Wniosek pilota do rozstrzygnięcia przez architekta: koszt nie jest
 przeszkodą, a jakość jest — ε ex-post w węzłach `deep` (0,85% puli)
 jest 17× powyżej punktu odniesienia decyzji 25 i to tam, nie w koszcie,
 leży kontrakt produkcyjny (więcej iteracji PI-FP albo inny solver dla
-pełnego drzewa 14-węzłowego).
+pełnego drzewa 14-węzłowego). **Rozstrzygnięte w POKER-47: wystarczył
+budżet iteracji i tolerancji, inny solver nie był potrzebny, ale koszt
+przestał być darmowy.**
 
 **Rozstrzygnięcie architekta (weryfikacja niezależna 2026-08-29).**
 Czerwień testu kotwicznego na kodzie sprzed poprawki odtworzona
@@ -583,6 +605,174 @@ budżetu iteracji, nie porażka metody, więc następny krok jest wąski
 o kryteriach ilościowych POKER-47 najpierw **mierzy krzywą
 ε-vs-iteracje**, a dopiero z niej bierze próg — nie odwrotnie.
 
+**POKER-47 (krzywa ε-vs-iteracje i budżet PI-FP) zamknięty; wariant (i)
+kontraktu.** Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras
+`train`; `PILOT/grid5` to artefakty pilota POKER-46, `PILOT/grid5n` —
+bieg powtórzony pod nowym budżetem. Komendy (wszystkie z
+`OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1`):
+
+```
+F  python tools/blueprint/eps_curve.py decompose --out PILOT/grid5 \
+       --worst 10 --jobs 4
+G  python tools/blueprint/eps_curve.py curve --out PILOT/grid5 \
+       --ladder 24,48,96,192,384,768,1536,2000 \
+       --worst 10 --extra 10 --seed 47 --jobs 4
+H  python tools/blueprint/eps_curve.py curve --out PILOT/grid5 --mode jamfold \
+       --ladder 24,48,96,192,384,768,1536,2000 \
+       --worst 10 --extra 10 --seed 47 --jobs 4 --report eps_curve_jamfold.json
+I  python tools/blueprint/eps_curve.py curve --out PILOT/grid5 \
+       --ladder 24,48,96,192,384,768,1536,2000 \
+       --worst 3 --extra 0 --seed 47 --dense 64 --jobs 3 --report eps_curve_dense.json
+J  python tools/blueprint/eps_curve.py budget --report PILOT/grid5/eps_curve.json
+K  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/grid5n --grid-step 5 --jobs 4
+L  python tools/blueprint/expost.py expost --out PILOT/grid5n --jobs 4
+M  python tools/blueprint/expost.py icm --out PILOT/grid5n
+```
+
+1. **Diagnoza była błędna, a pomiar ją poprawił (F).** Wniosek POKER-46
+   „dziesięć najgorszych stanów to `deep`, więc brakuje iteracji"
+   opisywał korelację, nie przyczynę. Rozkład ε ex-post na część
+   **etapową** (best response przy zamrożonej kontynuacji V tej samej
+   warstwy) i **odziedziczoną** (to, co best responder dobiera sobie
+   w warstwach późniejszych) daje dla dziesięciu najgorszych stanów
+   medianę udziału odziedziczonego **76,2%**, a dla najgorszego stanu
+   całego pilota — startowego 50/50/50 w ręce 0 — ε ex-post 0,00848
+   przy ε etapowym **0,00021**, czyli **97,5% długu jest spoza tego
+   stanu**. ε ex-post rośnie monotonicznie w stronę początku zegara
+   (ręka 20: 0,00099 → ręka 0: 0,00848), a warstwy 9–20 nie mają ani
+   jednego stanu `deep` i każdy ich stan kończy PI-FP **na
+   tolerancji**, nie na sufcie. ε ex-post jednej warstwy to więc suma
+   długów wszystkich warstw za nią, a nie własność stanu. Uwaga
+   pochodna: ε ex-post stanu startowego (odwiedzanego z
+   prawdopodobieństwem 1) **jest** eksploatowalnością całego blueprintu
+   ważoną częstością odwiedzin — indukcja wsteczna BR waży sobie stany
+   sama; osobne Σ P(s)·ε(s) po ε ex-post liczyłoby ten sam dług
+   wielokrotnie. Maksimum po stanach i liczba ważona odwiedzinami to
+   tutaj ta sama liczba: 0,00848.
+2. **Progiem wiążącym była tolerancja, nie sufit (F).** ε etapowe biegu
+   POKER-46 po trybach: `deep` maks 3,56e−3, mediana 1,60e−3 (203 z 253
+   stanów powyżej tolerancji, 239 z 253 na sufcie 24 iteracji);
+   `jamfold` maks 1,00e−3 — **równo tolerancja `--fp-tol`, na której
+   bieg się zatrzymywał** — mediana 4,24e−4, ani jeden stan powyżej
+   tolerancji; `hu-deep` 7,1e−5 / 1,9e−5;
+   `hu-jamfold` 8,9e−6 / 3,1e−6 (CFR+, 128 iteracji — bez zarzutu).
+   6 798 stanów `jamfold` to 79% siatki i występują w **każdej**
+   warstwie, więc to one dyktowały tempo narastania długu. Podnoszenie
+   samego `--fp-iters` nic by nie dało: PI-FP kończył na tolerancji
+   średnio po 16 iteracjach.
+3. **Krzywa ε-vs-iteracje, tryb `deep` (G, J).** Próbka 20 stanów:
+   dziesięć najgorszych ex-post z POKER-46 plus dziesięć losowych
+   (seed 47). Tolerancja w pomiarze wyłączona, więc sufit jest jedynym
+   ogranicznikiem; koszt to rdzenio-sekundy obu restartów.
+
+   | sufit | ε maks | ε mediana | rdzenio-s/stan |
+   |------:|-------:|----------:|---------------:|
+   |    24 | 3,56e−3 | 1,57e−3 |   4,94 |
+   |    48 | 1,45e−3 | 8,62e−4 |   9,46 |
+   |    96 | 6,81e−4 | 3,18e−4 |  18,51 |
+   |   192 | 3,00e−4 | 1,06e−4 |  36,51 |
+   |   384 | 1,30e−4 | 3,51e−5 |  72,69 |
+   |   768 | 5,11e−5 | 1,12e−5 | 145,54 |
+   |  1536 | 1,36e−5 | 3,91e−6 | 292,92 |
+   |  2000 | 8,97e−6 | 2,37e−6 | 382,44 |
+
+   Nachylenie log ε vs log t: **−1,35** na całej drabince (odcinkami
+   −1,09…−1,91). To szybciej niż O(1/√t) z literatury PI-FP; koszt
+   rośnie liniowo z sufitem (4,94 s na 24 iteracje → 382 s na 2 000).
+   Sufit potrzebny do progu (J): 1e−3 → mediana 48, maks 96; 1e−4 →
+   288 / 768; 5e−5 → 384 / 1536; 1e−5 → 1536 / 2000.
+4. **Krzywa `jamfold` (H).** Ten sam pomiar dla trybu, który dominuje
+   siatkę: 24 iteracje dają ε maks 3,17e−4 i medianę 1,14e−4 (koszt
+   2,23 rdzenio-s), 48 → 8,20e−5 / 2,85e−5 (4,26 s), 96 → 2,07e−5 /
+   7,49e−6 (8,32 s), 384 → 1,30e−6 / 4,96e−7 (32,66 s). Nachylenie
+   **−2,00** aż do 768 iteracji, potem krzywa siada na podłodze
+   arytmetyki f32 (~1,7e−7) i przestaje spadać — to podłoga
+   numeryczna, nie plateau algorytmu. Wniosek: samo obniżenie
+   tolerancji poprawia `jamfold` **3,7× przy sufcie, którego nikt nie
+   podniósł** (mediana 4,24e−4 przy zatrzymaniu na tolerancji po 16
+   iteracjach wobec 1,14e−4 po pełnych 24) — a przy 96 iteracjach
+   jest 57× lepiej.
+5. **Sufit czy oscylacja? Sufit (I).** Przebieg ε po każdej z pierwszych
+   64 iteracji dla trzech najgorszych stanów `deep`. Stan startowy
+   50/50/50 (ręka 0): 9,1e−3 (1 iteracja) → 8,6e−4 (8) → 1,8e−4 (16) →
+   6,5e−5 (24) → 1,2e−5 (48) → 6,2e−6 (64) → 3,3e−8 (2 000) —
+   monotonicznie, bez piły. Najwolniejszy stan (ręka 1, 50/50/50):
+   2,3e−3 (24) → 5,4e−5 (384) → 2,0e−6 (2 000), z drobnym garbem
+   1,1e−3 → 1,3e−3 między 32 a 40 iteracją. Trzy testy odróżniające
+   wolną zbieżność od cyklu fictitious play wypadają zgodnie: (a)
+   nachylenie log-log −1,60, nigdzie nie płaskie; (b) długości runów
+   identycznego best response są krótkie na początku (jedynki) i długie
+   dopiero na końcu, gdy ε spadło do ~1e−8 — czyli best response
+   zastyga **po** zbieżności, a nie geometrycznie rosnącymi cyklami jak
+   w kontrprzykładzie Shapleya; (c) ε ostatniej iteracji jest równe ε
+   najlepszej napotkanej (stosunek 1,00 w drabince gęstej, maks 1,08 na
+   próbce 20 stanów, przy czym te 8% to podłoga f32 rzędu 1e−8).
+   Dlatego **nie** wprowadzono wyboru argmin po napotkanych iteracjach:
+   przy tej krzywej to czysty no-op, a kod na wszelki wypadek jest
+   kodem bez uzasadnienia.
+6. **Wybrany budżet: sufit 384 iteracji, tolerancja 5e−5** — domyślny
+   w `GridConfig` i w CLI solvera. Uzasadnienie z krzywej, nie
+   z założenia: dług DAG-u jest sumą ε etapowych ~21 warstw, więc żeby
+   ε ex-post maks zeszło z 0,00848 poniżej 0,001 (2× punktu odniesienia
+   decyzji 25, którym pozostaje 0,05% puli), typowe ε etapowe musi
+   spaść ~9×; tolerancja 5e−5 wobec 1e−3 daje zapas 20×, a sufit 384
+   jest miejscem, w którym mediana `deep` tę tolerancję osiąga
+   (a `jamfold` osiąga ją już przy 48–96).
+7. **Powtórzony pilot (K, L, M) — kryterium wariantu (i) spełnione.**
+   Cały bieg 11 587,3 s (3,22 h) wobec 3 408,1 s poprzednio (**3,40×**).
+   Horyzont 2 342,0 s, 3 cykle, delta 0,00209. 21 warstw: 8 654 stany
+   w 9 242,1 s → **1,068 s/stan przy 4 procesach, 4,272
+   rdzenio-s/stan** (poprzednio 0,279 / 1,118). Mediana iteracji PI-FP:
+   `jamfold` 40, `deep` 360; 111 z 253 stanów `deep` kończy na sufcie
+   384. ε etapowe po trybach: `deep` maks 1,64e−4, mediana 4,94e−5
+   (było 3,56e−3 / 1,60e−3); `jamfold` maks 5,00e−5, mediana 4,17e−5
+   (było 1,00e−3 / 4,24e−4). **Ex-post ε (L): maks 0,000432, mediana
+   0,0000838, min −4,6e−8** (było 0,00848 / 0,00092) — maksimum 19,6×
+   niżej, mediana 11,0× niżej, w 916 s. Rozbicie po trybach: `deep`
+   maks 4,322e−4 (mediana 2,422e−4), `jamfold` 2,696e−4 (1,080e−4),
+   `hu-deep` 2,175e−4, `hu-jamfold` 4,791e−5. **Żaden z 8 654 stanów
+   nie przekracza 0,001 puli** (poprzednio 253 z 253 stanów `deep`
+   i 4 514 z 6 798 `jamfold` przekraczało), a maksimum 0,043% puli jest
+   **poniżej punktu odniesienia decyzji 25** (0,05%) — nie tylko poniżej
+   podwojonego progu z kontraktu. Wartości `hu-deep` i `hu-jamfold` są
+   co do cyfry te same w obu biegach i tak ma być: po odpadnięciu gracza
+   gra nie wraca do trzech żywych, więc pod-DAG HU (CFR+, 128 iteracji
+   nietknięte) liczy się identycznie — to niezależna kontrola, że zmiana
+   dotknęła wyłącznie solvera 3-osobowego. Różnica V vs ICM (M) się nie
+   zmieniła i zmienić nie mogła (to własność modelu, nie dokładności
+   solvera): krótki BB 4 327 stanów, maks **0,0788** (było 0,0785),
+   średnia 0,0200, najgorszy nadal ręka 15, stan 125/20/5.
+8. **Nowa ekstrapolacja siatki 2-żetonowej.** Koszt stanu pod
+   budżetem produkcyjnym (`cost`, jobs=1, mediana z 10 stanów na tryb,
+   seed 47): `deep` **38,56** rdzenio-s (było 3,99), `jamfold` **2,10**
+   (0,87), `hu-deep` 0,056, `hu-jamfold` 0,027 (CFR+ nietknięty).
+   Ta mieszanka na siatce 5 daje 2,780 rdzenio-s/stan wobec 4,272
+   zmierzonych w biegu, czyli narzut forka, zbiórki cykli i rywalizacji
+   o pamięć to **1,537×** (POKER-46: 1,39×). Siatka 2-żetonowa to nadal
+   76 072 solve'y (2 923 stany; warstwy 49 765 + horyzont 26 307)
+   o mieszance `deep` 1 198, `jamfold` 68 859, `hu-deep` 932,
+   `hu-jamfold` 5 083 → 190 708 rdzenio-s czystego solvera, po narzucie
+   **81,4 rdzenio-godziny**; z tensorem 15 000 prób (9,7 rdzenio-h,
+   POKER-46) razem **~91 rdzenio-godzin** wobec ~35 przy starym
+   budżecie. Jakość kosztuje więc 2,6× całości i **zjada cały zapas
+   względem ~108 rdzenio-godzin z decyzji 25** — budżet klasy Colab
+   nadal wystarcza, ale bez marginesu, więc każde dalsze zaostrzenie
+   tolerancji wymaga decyzji o koszcie.
+
+   ```
+   N  python tools/blueprint/eps_curve.py cost --out PILOT/grid5n \
+          --per-mode 10 --seed 47 --jobs 1
+   ```
+
+Świadomie zostawione: 39 stanów `hu-deep` ma ε etapowe powyżej nowej
+tolerancji (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach —
+nie dotykaliśmy go, skoro jego wkład w ex-post ε jest o rząd wielkości
+mniejszy od 3-osobowego. Horyzont nadal kończy się na sufcie trzech
+cykli z deltą 0,00209 > `--tail-tol`; to błąd warunku brzegowego, a nie
+solvera, i w ex-post ε się nie pojawia (ogon jest zamrożony dla obu
+stron) — osobna sprawa do kwalifikacji.
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
@@ -591,12 +781,12 @@ Następne kroki:
    horyzoncie), PI-FP w grze 3-osobowej + CFR+ w endgame'ach HU,
    169 klas z łącznymi rozkładami trójek; metryka: ex-post
    best-response ε. **Pilot POKER-46 zdany i zweryfikowany
-   niezależnie** (blok wyżej). Następny krok to **POKER-47**
-   (u kodera): krzywa ε-vs-iteracje w węzłach `deep`, wybór budżetu
-   z pomiaru i powtórzony pilot pod nowym budżetem. Bieg produkcyjny
-   siatki 2-żetonowej dopiero po zamknięciu POKER-47 — nie ma sensu
-   płacić ~25 rdzenio-godzin za solver, o którym wiadomo, że
-   w 1,6% stanów nie trzyma jakości;
+   niezależnie**, **POKER-47 zamknięty wariantem (i)**: budżet PI-FP
+   wybrany z krzywej (sufit 384, tolerancja 5e−5), pilot powtórzony,
+   ex-post ε poniżej progu 0,001 puli (bloki wyżej). Następny krok to
+   **bieg produkcyjny siatki 2-żetonowej** pod tym budżetem, wraz
+   z tensorem 15 000 prób i formatem binarnym artefaktu (decyzja 25
+   pkt 6) — kontrakt do specyfikacji przez architekta;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;

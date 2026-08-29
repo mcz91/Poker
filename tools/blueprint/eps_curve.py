@@ -1,7 +1,7 @@
 """Krzywa ex-post ε vs budżet iteracji PI-FP w węzłach deep (POKER-47, decyzja 25).
 
-Mierzy na artefaktach zamkniętego biegu solvera dwie rzeczy, których pilot
-POKER-46 nie rozstrzygał:
+Mierzy na artefaktach zamkniętego biegu solvera to, czego pilot POKER-46 nie
+rozstrzygał:
 
 1. `curve` — dla próbki stanów `deep` (najgorsze ex-post z biegu plus losowa
    próbka o jawnym seedzie) przebieg **ε ex-post gry etapowej** po iteracjach
@@ -22,6 +22,10 @@ POKER-46 nie rozstrzygał:
    część, której nie widać w self-ε solvera: self-ε jest dokładnie ε etapowym
    zapisanego profilu (raport to sprawdza polem `eps_stage_reported`), a ε
    ex-post dokłada do niego dług wszystkich warstw za nim.
+3. `budget` — odczyt z zapisanej krzywej: najmniejszy sufit, przy którym stan
+   schodzi do zadanego progu ε, z kosztem tego sufitu.
+4. `cost` — koszt rozwiązania stanu per tryb pod KONFIGURACJĄ BIEGU (tolerancja
+   działa, więc to koszt produkcyjny), podkład pod ekstrapolację siatki.
 
 Uruchomienie (venv z extras train):
 
@@ -29,6 +33,7 @@ Uruchomienie (venv z extras train):
         --ladder 24,48,96,192,384 --worst 10 --extra 10 --seed 47 --jobs 4
     python tools/blueprint/eps_curve.py decompose --out KATALOG --worst 10
     python tools/blueprint/eps_curve.py budget --report KATALOG/eps_curve.json
+    python tools/blueprint/eps_curve.py cost --out KATALOG --per-mode 10 --jobs 1
 
 `--mode` przestawia próbkę na inny tryb gry etapowej (domyślnie `deep`);
 `--dense N` dokłada ocenę ε po każdej z pierwszych N iteracji, żeby na jednym
@@ -338,6 +343,86 @@ def eps_curve(
     return report
 
 
+def _cost_job(index: int) -> dict[str, Any]:
+    entry: SampleState = _CWORK["sample"][index]
+    config = _CWORK["config"]
+    sb, bb_amt = solve_grid.level_blinds(config, entry.hand)
+    problem, _, mode = solve_grid.build_stage_problem(
+        _CWORK["tensors"], config, entry.state, entry.hand, sb, bb_amt,
+        _CWORK["lookups"][entry.hand],
+    )
+    started = time.process_time()
+    if problem.n_roles == 3:
+        _, eps, iterations = solve_grid._fp_solve(problem, config)
+    else:
+        _, eps, iterations = solve_grid._cfr_plus_solve(problem, config)
+    seconds = time.process_time() - started
+    del problem
+    gc.collect()
+    return {"index": index, "mode": mode, "core_seconds": seconds,
+            "iterations": iterations, "eps": eps}
+
+
+def mode_costs(
+    out_dir: Path, per_mode: int = 10, seed: int = 47, jobs: int = 1
+) -> dict[str, Any]:
+    """Koszt rozwiązania stanu per tryb pod KONFIGURACJĄ BIEGU — podkład ekstrapolacji.
+
+    Budżet bierze się z manifestu biegu, nie z pomiaru krzywej: tolerancja
+    działa, więc mierzony jest koszt produkcyjny, a nie koszt pełnego sufitu.
+    """
+    config, tensors, layers, boundary_v = expost.load_run(out_dir)
+    eps_arrays = artifacts.read_npz(out_dir / "expost.npz")
+    full_states = solve_grid.grid_states(config.total_chips, config.grid_step)
+    sample: list[SampleState] = []
+    for name in solve_grid.MODE_NAMES:
+        entries = deep_entries(layers, eps_arrays, name)
+        if not entries:
+            continue
+        picks = random.Random(seed).sample(range(len(entries)), min(per_mode, len(entries)))
+        sample.extend(entries[index] for index in sorted(picks))
+    _CWORK.update(
+        config=config,
+        tensors=tensors,
+        sample=tuple(sample),
+        lookups={
+            entry.hand: _continuation(config, layers, boundary_v, full_states, entry.hand)
+            for entry in sample
+        },
+    )
+    rows = solve_grid.forked_map(_cost_job, range(len(sample)), jobs)
+    rows.sort(key=lambda row: row["index"])
+    modes = []
+    for name in solve_grid.MODE_NAMES:
+        picked = [row for row in rows if row["mode"] == name]
+        if not picked:
+            continue
+        seconds = [row["core_seconds"] for row in picked]
+        modes.append(
+            {
+                "mode": name,
+                "n_states": len(picked),
+                "core_seconds_median": float(statistics.median(seconds)),
+                "core_seconds_max": max(seconds),
+                "iterations_median": float(
+                    statistics.median([row["iterations"] for row in picked])
+                ),
+                "eps_max": max(row["eps"] for row in picked),
+            }
+        )
+    report = {
+        "run": str(out_dir.resolve()),
+        "seed": seed,
+        "per_mode": per_mode,
+        "fp_max_iters": config.fp_max_iters,
+        "fp_tol": config.fp_tol,
+        "cfr_iters": config.cfr_iters,
+        "modes": modes,
+    }
+    artifacts.write_json(out_dir / "mode_costs.json", report)
+    return report
+
+
 DEFAULT_TARGETS = (1e-3, 5e-4, 1e-4, 5e-5, 1e-5)
 
 
@@ -505,6 +590,11 @@ def main(argv: Any = None) -> int:
     split.add_argument("--out", type=Path, required=True)
     split.add_argument("--worst", type=int, default=10)
     split.add_argument("--jobs", type=int, default=1)
+    cost = commands.add_parser("cost")
+    cost.add_argument("--out", type=Path, required=True)
+    cost.add_argument("--per-mode", type=int, default=10)
+    cost.add_argument("--seed", type=int, default=47)
+    cost.add_argument("--jobs", type=int, default=1)
     budget = commands.add_parser("budget")
     budget.add_argument("--report", type=Path, required=True)
     budget.add_argument("--targets", type=str,
@@ -516,6 +606,10 @@ def main(argv: Any = None) -> int:
             tuple(float(part) for part in args.targets.split(",")),
         )
         print(json.dumps(rows, ensure_ascii=False))
+    elif args.command == "cost":
+        print(json.dumps(
+            mode_costs(args.out, per_mode=args.per_mode, seed=args.seed, jobs=args.jobs),
+            ensure_ascii=False))
     elif args.command == "curve":
         report = eps_curve(
             args.out,
