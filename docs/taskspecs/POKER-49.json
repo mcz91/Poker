@@ -1,31 +1,35 @@
 {
   "id": "POKER-49",
-  "spec_version": 1,
+  "spec_version": 2,
   "class_hint": "regression",
-  "goal": "Warunek brzegowy blueprintu jest zbieżny, a jego zbieżność jest widoczna w metryce jakości — żeby bieg produkcyjny nie stał na liczbie, której nie umiemy obronić.",
-  "context": "POKER-47 zamknięty: ex-post ε maks 4,32e−4, poniżej punktu odniesienia decyzji 25. Ale bieg zostawia dwa otwarte defekty warunku brzegowego. (1) Horyzont (punkt stały ostatniego poziomu zegara) kończy się na sufcie trzech cykli z deltą 0,00209 — 4,8× większą od zmierzonego ε; ex-post ε tej niezbieżności NIE widzi, bo ogon jest zamrożony dla obu stron porównania, więc nasza metryka jakości jest w tym miejscu ślepa. (2) 39 stanów `hu-deep` ma ε etapowe powyżej tolerancji 5e−5 (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach. Bieg produkcyjny kosztuje ~91 rdzenio-godzin i propaguje warunek brzegowy do każdej warstwy — dlatego domknięcie wchodzi przed nim, nie po nim.",
+  "goal": "Rdzeń blueprintu jest chroniony testami tam, gdzie już raz się złamał, a jego warunek brzegowy jest zbieżny i mierzalny — żeby bieg produkcyjny za 91 rdzenio-godzin nie stał na tablicy bez kotwicy ani na niezbieżnym horyzoncie.",
+  "context": "Audyt linii blueprintu (2026-08-29, świeży kontekst) na commitach 2ae6ea6..f7f02ab. Finding BLOKUJĄCY: tensor puli 2-way przy trzech żywych (`wt2_fold`, budowany w `load_tensors`, konsumowany w liściach 3, 5, 8, 10, 11, 14, 15) nie ma żadnej kotwicy orientacji osi — audytor pokazał dwie mutacje (odwrócenie osi w kolapsie oraz podmiana klucza pary), które przechodzą pełną bramkę 343 testów, przy czym equity roli trzymającej AA leci z 0,917 na 0,083. To ta sama klasa błędu, którą naprawiono w POKER-46 (`f41f85a`) i wpisano do PUŁAPEK; kolaps trójki do pary jest inwolucją, więc pomyłka kierunku znów nie zostawia śladu w zieleni. Dotyczy dominującej ścieżki trybu `jamfold`: 79% stanów pilota i 68 859 z 76 072 solve'ów siatki produkcyjnej. Jedynym dowodem orientacji jest dziś jednorazowy skrypt spoza repozytorium opisany prozą — deklaracja, nie dowód. Pozostałe otwarte sprawy: niezbieżny horyzont (delta 0,00209 przy suficie trzech cykli, 4,8x powyżej zmierzonego ε i niewidoczna w ex-post ε, bo ogon jest zamrożony dla obu stron), CFR+ uśredniający strategię bez wagi własnego reachu (odstępstwo od gwarancji, zmierzona cena 7% ε na najgorszym stanie hu-deep) oraz 39 stanów hu-deep powyżej tolerancji.",
   "acceptance": [
-    "Horyzont zbiega do zadanej tolerancji zamiast kończyć na sufcie cykli: kryterium stopu i sufit są parametrami z udokumentowanymi domyślnymi, a bieg raportuje osiągniętą deltę; domyślne wartości dobrane z pomiaru (krzywa delta-vs-liczba cykli, tak jak POKER-47 dobierał budżet PI-FP), nie z założenia.",
-    "Ślepota metryki usunięta: miara, która wykrywa niezbieżność horyzontu — czyli wrażliwość wyniku na wartości brzegowe. Wystarczy pomiar propagacji: policz blueprint dla dwóch różnych, jawnie zaburzonych warunków brzegowych (np. delta rzędu zmierzonej 0,002) i zaraportuj, o ile zmienia się ex-post ε oraz strategie w warstwach przed horyzontem. Wynik wpisany do CURRENT_STATE jako liczba, nie jako zapewnienie.",
-    "CFR+ w endgame'ach HU dostaje kryterium stopu spójne z solverem 3-osobowym (tolerancja zamiast stałej liczby iteracji, sufit jako zabezpieczenie); po zmianie żaden stan `hu-deep` nie ma ε etapowego powyżej tolerancji, albo raport wyjaśnia pomiarem, dlaczego to niemożliwe.",
-    "Powtórzony pilot (siatka 5, pełny zegar) pod domkniętym warunkiem brzegowym: nowe ex-post ε (maks i mediana), nowy koszt i nowa ekstrapolacja rdzenio-godzin dla siatki 2-żetonowej; liczby zastępują poprzednie w CURRENT_STATE, każda z komendą.",
-    "Determinizm i wznowienia zachowane: ten sam wynik przy jobs=1 i jobs=4 oraz po przerwaniu i wznowieniu — pod testem.",
-    "Nowe testy czerwone na bazie tego kontraktu (dowód czerwieni w raporcie); pakiet produktu nietknięty (żadnych zmian w src/poker); pełna bramka (ruff, mypy, pytest) zielona."
+    "Kotwica orientacji osi dla `wt2_fold`: test na prawdziwym tensorze, przebiegający wszystkie trzy pary osi i wszystkie kolejności klas — rola posadzona na AA ma equity AA niezależnie od klasy foldującego i od porządku argumentów; test czerwony pod obiema mutacjami z audytu (odwrócenie osi w kolapsie i podmiana klucza pary) — dowód czerwieni w raporcie.",
+    "Kotwica wypłat na co najmniej jednym liściu 2-way przy trzech żywych (np. 5 albo 15), analogiczna do istniejącej dla liścia 16: rola najsilniejsza dostaje pulę, foldujący nie dostaje nic ponad zwrot nadpłaty.",
+    "Niezmiennik equity `wt2_fold` związany z istniejącym `poker.preflop_equity` pod testem (a nie skryptem poza repozytorium): dla próbki par klas zmarginalizowane equity z tensora zgadza się z macierzą produktu w granicach błędu Monte Carlo tensora — próg wyprowadzony z liczby prób, nie dobrany ręcznie.",
+    "Horyzont zbiega do zadanej tolerancji zamiast kończyć na sufcie cykli; kryterium stopu i sufit to parametry z domyślnymi dobranymi z pomiaru (krzywa delta-vs-liczba cykli), a bieg raportuje osiągniętą deltę.",
+    "Ślepota metryki skwantyfikowana: blueprint policzony dla co najmniej dwóch jawnie zaburzonych warunków brzegowych (zaburzenie rzędu zmierzonej delty 0,002); raport podaje, o ile zmienia się ex-post ε i strategie w warstwach przed horyzontem. Liczba, nie zapewnienie.",
+    "CFR+ w endgame'ach HU: albo średnia ważona własnym prawdopodobieństwem dojścia (zgodnie z nazwą i gwarancją, na którą powołuje się decyzja 25 pkt 2), albo jawnie udokumentowane odstępstwo z jego zmierzoną ceną; kryterium stopu spójne z solverem 3-osobowym (tolerancja z sufitem jako zabezpieczeniem), po czym żaden stan hu-deep nie ma ε etapowego powyżej tolerancji albo raport wyjaśnia pomiarem, dlaczego to niemożliwe.",
+    "`tools/blueprint/` wchodzi pod `mypy` (rozszerzenie `files` w pyproject albo równoważne) i przechodzi strict na zero błędów — dziś bramka nie widzi 2,9 tys. linii dostarczonych przez kontrakty POKER-46/47 (19 błędów strict), więc `verification: mypy` jest wobec nich puste.",
+    "Powtórzony pilot (siatka 5, pełny zegar) pod domkniętym rdzeniem i brzegiem: nowe ex-post ε (maks, mediana), nowy koszt i nowa ekstrapolacja rdzenio-godzin; liczby zastępują poprzednie w CURRENT_STATE, każda z komendą. Koszt trybu `deep` podany z rozrzutem (mediana i maksimum), nie samą medianą — dziś cena produkcji stoi na medianie z dziesięciu stanów przy maksimum 2,35x wyższym.",
+    "Determinizm i wznowienia zachowane (jobs 1 i 4, przerwanie i wznowienie) — pod testem; `src/poker` nietknięte; pełna bramka zielona."
   ],
   "non_goals": [
     "Bieg produkcyjny siatki 2-żetonowej i tensor 15 000 prób (kontrakt po tym).",
     "Format binarny artefaktu i jego dystrybucja (decyzja 25 pkt 6; rozmiar policzony: ~38 MB).",
-    "Zamiana PI-FP na CFR+ w grze 3-osobowej — POKER-47 rozstrzygnął, że PI-FP wystarcza do jakości; kwestia ceny jest osobna.",
-    "Zmiany areny, agentów i pakietu produktu.",
-    "Optymalizacja kosztu solvera (osobna kwalifikacja, jeśli 91 rdzenio-godzin okaże się problemem)."
+    "Zamiana PI-FP na CFR+ w grze 3-osobowej (POKER-47 rozstrzygnął jakość; cena to osobna sprawa).",
+    "Optymalizacja kosztu solvera.",
+    "Zmiany areny, agentów i pakietu produktu."
   ],
   "operator_inputs": {},
   "allowed_paths": [
     "tools/blueprint/",
     "tests/test_blueprint_pilot.py",
+    "pyproject.toml",
     "docs/CURRENT_STATE.md",
     "docs/taskspecs/POKER-49.json"
   ],
   "verification": ["ruff check .", "mypy", "pytest"],
-  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T18:00:00Z", "basis": "raport POKER-47 zweryfikowany niezależnie; decyzja 25 pkt 7; mandat autonomii 2026-08-09"}
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T20:00:00Z", "basis": "audyt linii blueprintu 2026-08-29 (finding blokujący wt2_fold); raport POKER-47; decyzja 25 pkt 7"}
 }

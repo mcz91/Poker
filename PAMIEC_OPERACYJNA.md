@@ -47,33 +47,33 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-- Zamknięcie zadania i zatwierdzenie TaskSpeca N+1 aktualizuje też
-  „Następny krok" w CURRENT_STATE (dryf: POKER-2/8/25, nagłówek
-  31/32/33) — jednym commitem.
-- Regeneracja artefaktu unieważnia pomiary przy nim w CURRENT_STATE,
-  a bramka tego nie łapie (POKER-24: 20 607→20 971 infosetów).
-- Frozen dataclass ≠ izolacja: testy INV-P3/P4 dowodzą szczelności
-  API, nie bezpieczeństwa — niezaufany agent za granicę procesu.
+- Zamknięcie zadania aktualizuje też „Następny krok" w CURRENT_STATE
+  (dryf: POKER-2/8/25, nagłówek 31/32/33) — jednym commitem.
+- Regeneracja artefaktu unieważnia pomiary przy nim, a bramka tego nie
+  łapie (POKER-24: 20 607→20 971 infosetów).
+- Frozen dataclass ≠ izolacja — niezaufany agent za granicę procesu.
 - ARCHITEKT: kryterium ilościowe po oszacowaniu budżetu z repo (19/24;
-  wzorzec 47: zmierz krzywą, potem próg); acceptance to checklista
-  asercji (5); cel-pomiar bez asercji = liczby bez dowodu (42/43).
-- Moduł w allowed_paths ≠ pusty: policz konsumentów grepem; konsument
-  poza allowed_paths = OBJECTION, nie zadanie (POKER-42).
-- Ręcznie budowane stany $EV gubią żetony, a „suma = pula" na wektorach
-  ICM to tożsamość — niezmiennik to suma żetonów terminala (30–33).
-- Asercja werdyktu produkcyjnego, mianownik na replice modelu
-  i monotoniczność z jednej pary punktów nie chronią zachowania
-  (POKER-35/37/40; naprawy w POKER-45).
-- Tabela permutacji zbudowana w złą stronę przeżywa testy na
-  transpozycjach (inwolucje) — psują się dopiero 3-cykle; kotwicz
-  każdą oś osobno (POKER-46: najsilniejsza ręka brała wypłatę
-  najsłabszej przy self-ε 7e-5).
+  wzorzec 47: zmierz krzywą, potem próg); cel-pomiar bez asercji =
+  liczby bez dowodu (42/43); acceptance to checklista (5).
+- Moduł w allowed_paths ≠ pusty: konsument poza allowed_paths =
+  OBJECTION, nie zadanie (POKER-42).
+- Asercja werdyktu produkcyjnego, mianownik na replice modelu ani
+  monotoniczność z jednej pary punktów nie chronią zachowania (35/37/40).
+- Tabela permutacji w złą stronę przeżywa testy na transpozycjach
+  i kolapsach (inwolucje) — psują się dopiero 3-cykle. Kotwicz każdą oś
+  i KAŻDĄ tablicę osobno: wt2_fold został bez kotwicy, dwie mutacje osi
+  przeżywają 343 testy, equity AA leci 0,917→0,083 (POKER-46, audyt).
 - ε ex-post warstwy DAG-u to suma długów warstw za nią (stan startowy
-  97,5% odziedziczonego) — „najgorszy stan" to miejsce akumulacji, nie
-  przyczyna; rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
+  97,5%) — rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
   (POKER-47: tolerancja, nie sufit iteracji — wbrew diagnozie arch.).
-- Pomiar kosztu po drabince parametrów w jednym biegu wymaga zegara
-  zerowanego na restart (POKER-47).
+- Koszt po drabince w jednym biegu: zeruj zegar na restart (POKER-47).
+- Dowód skryptem w scratchpadzie nie chroni następnego biegu: liczba
+  w dokumencie = niezmiennik w teście.
+- Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
+  artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
+  i fałszywe zdanie o nich (audyt).
+- mypy nie widzi `tools/` (files = src, tests) — „bramka zielona" nie
+  znaczy „typy sprawdzone" dla kodu dostarczanego tam.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

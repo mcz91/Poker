@@ -639,8 +639,10 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    medianę udziału odziedziczonego **76,2%**, a dla najgorszego stanu
    całego pilota — startowego 50/50/50 w ręce 0 — ε ex-post 0,00848
    przy ε etapowym **0,00021**, czyli **97,5% długu jest spoza tego
-   stanu**. ε ex-post rośnie monotonicznie w stronę początku zegara
-   (ręka 20: 0,00099 → ręka 0: 0,00848), a warstwy 9–20 nie mają ani
+   stanu**. ε ex-post rośnie z trendem w stronę początku zegara
+   (ręka 20: 0,00099 → ręka 0: 0,00848), ale **nie monotonicznie** —
+   audyt 2026-08-29 wskazał trzy lokalne inwersje w
+   `eps_decomposition.json` (ręka 1 < 2, 10 < 11, 12 < 13); warstwy 9–20 nie mają ani
    jednego stanu `deep` i każdy ich stan kończy PI-FP **na
    tolerancji**, nie na sufcie. ε ex-post jednej warstwy to więc suma
    długów wszystkich warstw za nią, a nie własność stanu. Uwaga
@@ -741,10 +743,13 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    największa różnica ε dokładnie 0) i tak ma być: po odpadnięciu gracza
    gra nie wraca do trzech żywych, więc pod-DAG HU (CFR+, 128 iteracji
    nietknięte) liczy się identycznie — to niezależna kontrola, że zmiana
-   budżetu dotknęła wyłącznie solvera 3-osobowego. Różnica V vs ICM (M) się nie
-   zmieniła i zmienić nie mogła (to własność modelu, nie dokładności
-   solvera): krótki BB 4 327 stanów, maks **0,0788** (było 0,0785),
-   średnia 0,0200, najgorszy nadal ręka 15, stan 125/20/5.
+   budżetu dotknęła wyłącznie solvera 3-osobowego. Różnica V vs ICM (M)
+   zmieniła się nieznacznie na maksimum krótkiego BB: 4 327 stanów, maks
+   **0,0788** (było 0,0785), średnia 0,0200, najgorszy nadal ręka 15,
+   stan 125/20/5. Wcześniejsze zdanie, że „zmienić nie mogła, bo to
+   własność modelu, nie dokładności solvera", było **fałszywe** (audyt
+   2026-08-29): V zależy od dokładności solvera, więc |V − ICM| też —
+   na warstwie 0 `max_abs_delta` urosło z 0,003116 na 0,005017, o 61%.
 8. **Nowa ekstrapolacja siatki 2-żetonowej.** Koszt stanu pod
    budżetem produkcyjnym (`cost`, jobs=1, mediana z 10 stanów na tryb,
    seed 47): `deep` **38,56** rdzenio-s (było 3,99), `jamfold` **2,10**
