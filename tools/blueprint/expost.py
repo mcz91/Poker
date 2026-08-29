@@ -74,7 +74,7 @@ def _class_name(index: int) -> str:
     return f"{high}{low}{'s' if cls.suited else 'o'}"
 
 
-def _load_run(out_dir: Path) -> tuple[Any, Any, dict[int, dict[str, np.ndarray]], np.ndarray]:
+def load_run(out_dir: Path) -> tuple[Any, Any, dict[int, dict[str, np.ndarray]], np.ndarray]:
     manifest = artifacts.read_json(out_dir / "solve_manifest.json")
     if manifest["status"] != "done":
         raise ValueError("bieg solvera nie jest zakończony — ex-post wymaga pełnego DAG-u")
@@ -117,7 +117,7 @@ def _expost_state_job(index: int) -> tuple[int, np.ndarray]:
 
 
 def run_expost(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
-    config, tensors, layers, boundary_v = _load_run(out_dir)
+    config, tensors, layers, boundary_v = load_run(out_dir)
     total = solve_grid.n_hands(config)
     full_states = solve_grid.grid_states(config.total_chips, config.grid_step)
     v_br_states: tuple[tuple[int, int, int], ...] = full_states

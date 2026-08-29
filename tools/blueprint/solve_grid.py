@@ -120,6 +120,9 @@ SLOT_FOLD, SLOT_MID, SLOT_JAM = 0, 1, 2
 
 MODE_NAMES = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
+# Hak pomiarowy PI-FP: (styl restartu, numer iteracji, profil średni, best response).
+FpObserver = Callable[[str, int, dict[int, np.ndarray], dict[int, np.ndarray]], None]
+
 _AXIS_PAIRS = ((0, 1), (0, 2), (1, 2))
 
 
@@ -132,9 +135,12 @@ class GridConfig:
     start_stacks: tuple[int, int, int] = (STARTING_CHIPS,) * 3
     grid_step: int = 5
     classes: tuple[int, ...] = tuple(range(len(ALL_CLASSES)))
-    fp_max_iters: int = 24
+    # Budżet PI-FP zmierzony krzywą ε-vs-iteracje (POKER-47, `eps_curve.py`):
+    # tolerancja jest progiem wiążącym, bo dług każdej warstwy sumuje się przez
+    # cały DAG — 5e-5 przy sufcie 384 trzyma ex-post ε poniżej 0,001 puli.
+    fp_max_iters: int = 384
     fp_check_every: int = 8
-    fp_tol: float = 1e-3
+    fp_tol: float = 5e-5
     fp_restarts: int = 2
     cfr_iters: int = 128
     tail_max_cycles: int = 3
@@ -774,8 +780,9 @@ def _init_profile(problem: StageProblem, style: str) -> dict[int, np.ndarray]:
     return sigma
 
 
-def _fp_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int, np.ndarray],
-                                                                  float, int]:
+def _fp_solve(problem: StageProblem, config: GridConfig,
+              observer: FpObserver | None = None) -> tuple[dict[int, np.ndarray], float, int]:
+    """PI-FP z restartami; `observer` to bierny hak pomiarowy (krzywa ε-vs-iteracje)."""
     styles = ("uniform", "tight", "loose")[: max(1, config.fp_restarts)]
     best_sigma: dict[int, np.ndarray] | None = None
     best_eps = float("inf")
@@ -813,6 +820,8 @@ def _fp_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int, np.n
                         matrix[:, slot] = (choice == position).astype(np.float32)
                     reply[node_id] = matrix
             iterations = step
+            if observer is not None:
+                observer(style, step, average, reply)
             if checking:
                 # BR policzone względem `average`, więc ε dotyczy dokładnie tego
                 # profilu — zwracamy go, nie profil po kolejnej aktualizacji.
@@ -1431,22 +1440,28 @@ def load_layers(out_dir: Path) -> dict[int, dict[str, np.ndarray]]:
     return layers
 
 
-def main(argv: Any = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """Wiersz poleceń solvera; domyślne wartości bierze z `GridConfig` — jedno źródło."""
+    defaults = GridConfig()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tensor", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--grid-step", type=int, default=5)
-    parser.add_argument("--prizes", type=str, default="0.8,0.2,0.0")
-    parser.add_argument("--fp-iters", type=int, default=24)
-    parser.add_argument("--fp-check-every", type=int, default=8)
-    parser.add_argument("--fp-tol", type=float, default=1e-3)
-    parser.add_argument("--fp-restarts", type=int, default=2)
-    parser.add_argument("--cfr-iters", type=int, default=128)
-    parser.add_argument("--tail-cycles", type=int, default=3)
-    parser.add_argument("--tail-tol", type=float, default=1e-3)
-    parser.add_argument("--jobs", type=int, default=1)
+    parser.add_argument("--grid-step", type=int, default=defaults.grid_step)
+    parser.add_argument("--prizes", type=str, default=",".join(str(x) for x in defaults.prizes))
+    parser.add_argument("--fp-iters", type=int, default=defaults.fp_max_iters)
+    parser.add_argument("--fp-check-every", type=int, default=defaults.fp_check_every)
+    parser.add_argument("--fp-tol", type=float, default=defaults.fp_tol)
+    parser.add_argument("--fp-restarts", type=int, default=defaults.fp_restarts)
+    parser.add_argument("--cfr-iters", type=int, default=defaults.cfr_iters)
+    parser.add_argument("--tail-cycles", type=int, default=defaults.tail_max_cycles)
+    parser.add_argument("--tail-tol", type=float, default=defaults.tail_tol)
+    parser.add_argument("--jobs", type=int, default=defaults.jobs)
     parser.add_argument("--layers-limit", type=int, default=None)
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: Any = None) -> int:
+    args = build_parser().parse_args(argv)
     prizes = tuple(float(part) for part in args.prizes.split(","))
     if len(prizes) != 3:
         raise SystemExit("--prizes wymaga trzech wartości")

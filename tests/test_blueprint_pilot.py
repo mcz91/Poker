@@ -6,6 +6,7 @@ Testy używają malutkich konfiguracji: podzbiór klas preflop, siatka 25
 żetonów, 2 poziomy zegara i syntetyczny tensor — pełny pilot żyje poza bramką.
 """
 
+import dataclasses
 import importlib.util
 import itertools
 import json
@@ -157,6 +158,28 @@ def axis_tensor(tmp_path_factory: pytest.TempPathFactory) -> Path:
         classes=_axis_classes(), jobs=1, backend="direct",
     )
     return out_dir
+
+
+@pytest.fixture(scope="module")
+def curve_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    """Bieg toy z tolerancją, która kończy PI-FP przed sufitem — baza pomiaru krzywej.
+
+    Trzy ręce na tych samych blindach, żeby w warstwach był więcej niż jeden
+    stan `deep`; `fp_tol=1.0` jest osiągalne w pierwszym sprawdzeniu, więc bieg
+    nigdy nie dochodzi do sufitu — dokładnie sytuacja, którą pomiar ma omijać.
+    """
+    sg = _load("solve_grid")
+    ep = _load("expost")
+    tmp = tmp_path_factory.mktemp("curve")
+    tensor_dir = _synthetic_artifacts(tmp, _toy_classes())
+    out_dir = tmp / "solve"
+    config = _toy_config(
+        sg, levels=((1, 2), (1, 2), (1, 2)), hands_per_level=1,
+        fp_max_iters=6, fp_check_every=2, fp_tol=1.0,
+    )
+    sg.solve(config, tensor_dir, out_dir)
+    ep.run_expost(out_dir)
+    return {"sg": sg, "out_dir": out_dir, "config": config}
 
 
 @pytest.fixture(scope="module")
@@ -410,6 +433,25 @@ def test_kwantyzacja_zachowuje_sume_zywych_i_wielokrotnosc() -> None:
     assert sg.quantize_stacks((1, 1, 148), 5) == (5, 5, 140)
 
 
+def test_domyslny_budzet_pi_fp_pochodzi_z_krzywej_i_jest_ten_sam_w_cli() -> None:
+    """Budżet PI-FP zmierzony w POKER-47; CLI nie może się rozjechać z GridConfig.
+
+    Sufit 384 i tolerancja 5e-5 pochodzą z krzywej ε-vs-iteracje (POKER-47):
+    tolerancja 1e-3 pilota POKER-46 była progiem wiążącym — kończyła PI-FP
+    zanim sufit cokolwiek znaczył, a jej dług sumował się przez 21 warstw DAG-u.
+    """
+    sg = _load("solve_grid")
+    defaults = sg.GridConfig()
+    assert (defaults.fp_max_iters, defaults.fp_tol) == (384, 5e-5)
+    parsed = sg.build_parser().parse_args(["--tensor", "t", "--out", "o"])
+    assert parsed.fp_iters == defaults.fp_max_iters
+    assert parsed.fp_tol == defaults.fp_tol
+    assert parsed.fp_restarts == defaults.fp_restarts
+    assert parsed.fp_check_every == defaults.fp_check_every
+    assert parsed.cfr_iters == defaults.cfr_iters
+    assert parsed.grid_step == defaults.grid_step
+
+
 def test_poziomy_blindow_zgodne_z_poker_spin() -> None:
     sg = _load("solve_grid")
     config = _toy_config(sg, levels=None, hands_per_level=3)
@@ -437,16 +479,20 @@ def test_solver_bajt_w_bajt_po_wznowieniu(tmp_path: Path) -> None:
 
 
 def test_solver_niezalezny_od_liczby_procesow(tmp_path: Path) -> None:
+    """Budżet iteracji nie może uczynić wyniku zależnym od podziału pracy na procesy."""
     sg = _load("solve_grid")
     tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
     solo_dir = tmp_path / "solo"
     sg.solve(_toy_config(sg), tensor_dir, solo_dir)
-    forked_dir = tmp_path / "forked"
-    sg.solve(_toy_config(sg, jobs=2), tensor_dir, forked_dir)
     names = sorted(path.name for path in solo_dir.glob("*.npz"))
     assert names
-    for name in names:
-        assert (solo_dir / name).read_bytes() == (forked_dir / name).read_bytes(), name
+    for jobs in (2, 4):
+        forked_dir = tmp_path / f"forked{jobs}"
+        sg.solve(_toy_config(sg, jobs=jobs), tensor_dir, forked_dir)
+        for name in names:
+            assert (solo_dir / name).read_bytes() == (forked_dir / name).read_bytes(), (
+                name, jobs
+            )
 
 
 def test_v_pelnym_wektorem_sumuje_sie_do_puli(toy_run: dict[str, Any]) -> None:
@@ -501,6 +547,139 @@ def test_expost_epsilon_nieujemny_i_raport(toy_run: dict[str, Any]) -> None:
     assert report["states"] > 0
     written = json.loads((toy_run["out_dir"] / "expost_report.json").read_text())
     assert written["epsilon_max"] == report["epsilon_max"]
+
+
+def test_obserwator_pi_fp_nie_zmienia_wyniku(toy_run: dict[str, Any]) -> None:
+    """Hak pomiarowy PI-FP jest bierny: profil z obserwatorem i bez jest ten sam."""
+    sg = toy_run["sg"]
+    config = toy_run["config"]
+    tensors = sg.load_tensors(toy_run["tensor_dir"], config.classes)
+    problem, _, mode = sg.build_stage_problem(
+        tensors, config, (50, 50, 50), 0, 1, 2,
+        lambda state: sg.np.asarray(icm_equities(state, PRIZES), dtype=float),
+    )
+    assert mode == "deep"
+    plain_sigma, plain_eps, plain_iters = sg._fp_solve(problem, config)
+    seen: list[tuple[str, int]] = []
+    watched_sigma, watched_eps, watched_iters = sg._fp_solve(
+        problem, config, observer=lambda style, step, average, reply: seen.append((style, step))
+    )
+    assert seen and seen[0][1] == 1
+    assert (plain_eps, plain_iters) == (watched_eps, watched_iters)
+    for node_id in problem.nodes:
+        assert bool((plain_sigma[node_id] == watched_sigma[node_id]).all()), node_id
+
+
+def test_krzywa_epsilon_zgadza_sie_z_solverem_przy_tym_sufcie(curve_run: dict[str, Any]) -> None:
+    """Punkt krzywej dla sufitu k to dokładnie ε profilu, który zwraca PI-FP z tym sufitem.
+
+    Bez tego pomiar mierzyłby własną replikę fictitious play, nie solver pilota.
+    """
+    ec = _load("eps_curve")
+    sg = curve_run["sg"]
+    ladder = (2, 5)
+    report = ec.eps_curve(curve_run["out_dir"], ladder=ladder, worst=1, extra=0, seed=47)
+    assert [point["iters"] for point in report["points"]] == list(ladder)
+    entry = report["per_state"][0]
+    config = curve_run["config"]
+    tensors = sg.load_tensors(Path(report["tensor_dir"]), config.classes)
+    layers = sg.load_layers(curve_run["out_dir"])
+    next_states = [tuple(int(x) for x in row) for row in layers[entry["hand"] + 1]["states"]]
+    index = {state: position for position, state in enumerate(next_states)}
+    values = layers[entry["hand"] + 1]["v"]
+    sb, bb_amt = sg.level_blinds(config, entry["hand"])
+    problem, _, _ = sg.build_stage_problem(
+        tensors, config, tuple(entry["state"]), entry["hand"], sb, bb_amt,
+        lambda state: values[index[sg.quantize_stacks(state, config.grid_step)]],
+    )
+    for position, cap in enumerate(ladder):
+        capped = dataclasses.replace(
+            config, fp_max_iters=cap, fp_check_every=cap, fp_tol=ec.NO_TOLERANCE
+        )
+        _, eps, iters = sg._fp_solve(problem, capped)
+        assert iters == cap, (cap, iters)  # tolerancja biegu nie skraca pomiaru
+        assert entry["eps"][position] == pytest.approx(eps, rel=1e-9, abs=1e-12), cap
+
+
+def test_koszt_punktu_krzywej_jest_kosztem_tego_sufitu(curve_run: dict[str, Any]) -> None:
+    """Koszt punktu to k iteracji w każdym restarcie, nie cały bieg do najwyższego sufitu.
+
+    Jeden bieg obsługuje całą drabinkę, więc zegar restartu musi startować od zera
+    — inaczej najtańszy punkt raportuje prawie koszt najdroższego.
+    """
+    ec = _load("eps_curve")
+    report = ec.eps_curve(curve_run["out_dir"], ladder=(1, 16), worst=1, extra=0, seed=47)
+    cheap, dear = (point["core_seconds_per_state"] for point in report["points"])
+    assert 0.0 < cheap < 0.3 * dear, (cheap, dear)
+
+
+def test_odczyt_budzetu_z_krzywej_bierze_pierwszy_sufit_ponizej_progu() -> None:
+    ec = _load("eps_curve")
+    report = {
+        "ladder": [4, 8, 16],
+        "per_state": [
+            {"budgets": [4, 8, 16], "eps": [1e-2, 1e-3, 1e-4], "core_seconds": [1.0, 2.0, 4.0]},
+            {"budgets": [4, 8, 16], "eps": [1e-3, 1e-4, 1e-5], "core_seconds": [1.5, 3.0, 6.0]},
+        ],
+    }
+    loose, tight = ec.budgets_for_targets(report, (1e-3, 1e-5))
+    assert loose == {
+        "epsilon": 1e-3, "n_reached": 2, "n_unreached": 0,
+        "budget_median": 6.0, "budget_max": 8,
+        "core_seconds_median": 1.75, "core_seconds_max": 2.0,
+    }
+    assert (tight["n_reached"], tight["n_unreached"], tight["budget_max"]) == (1, 1, 16)
+
+
+def test_probka_krzywej_deterministyczna_i_tylko_deep(curve_run: dict[str, Any]) -> None:
+    ec = _load("eps_curve")
+    sg = curve_run["sg"]
+    layers = sg.load_layers(curve_run["out_dir"])
+    kwargs: dict[str, Any] = {"ladder": (1,), "worst": 1, "extra": 2}
+    first = ec.eps_curve(curve_run["out_dir"], seed=11, **kwargs)
+    again = ec.eps_curve(curve_run["out_dir"], seed=11, **kwargs)
+
+    def names(report: dict[str, Any]) -> list[tuple[int, tuple[int, ...]]]:
+        return [(row["hand"], tuple(row["state"])) for row in report["sample"]]
+
+    assert names(first) == names(again)
+    assert len(names(first)) == len(set(names(first)))
+    for row in first["sample"]:
+        layer = layers[row["hand"]]
+        states = [tuple(int(x) for x in item) for item in layer["states"]]
+        position = states.index(tuple(row["state"]))
+        assert sg.MODE_NAMES[int(layer["mode"][position])] == "deep", row
+    picked = [row["eps_dag"] for row in first["sample"] if row["source"] == "worst"]
+    drawn = [row["eps_dag"] for row in first["sample"] if row["source"] == "random"]
+    assert len(picked) == 1 and len(drawn) == 2
+    assert first["sample"][0]["source"] == "worst"  # najgorsze idą przed losowaniem
+    assert min(picked) >= max(drawn)
+
+
+def test_dekompozycja_oddziela_epsilon_etapowe_od_odziedziczonego(
+    curve_run: dict[str, Any],
+) -> None:
+    """ε ex-post po DAG-u nie jest mniejsze od etapowego, a ε etapowe to self-ε biegu.
+
+    Ta równość jest sednem PUŁAPKI decyzji 17: self-ε solvera mierzy wyłącznie
+    jedną warstwę, a ε ex-post dokłada do niej dług warstw późniejszych.
+    """
+    ec = _load("eps_curve")
+    report = ec.decompose(curve_run["out_dir"], worst=2)
+    assert report["states"]
+    for row in report["states"]:
+        assert row["eps_dag_max"] >= row["eps_stage_max"] - 1e-6, row
+        assert row["eps_stage_max"] == pytest.approx(row["eps_stage_reported"], abs=1e-6), row
+        assert 0.0 <= row["inherited_share"] <= 1.0 + 1e-9, row
+    assert report["layers"][0]["hand"] == 0
+    modes = {row["mode"]: row for row in report["modes"]}
+    assert "deep" in modes
+    assert sum(row["n_states"] for row in report["modes"]) == sum(
+        row["n_states"] for row in report["layers"]
+    )
+    for row in report["modes"]:
+        assert row["eps_stage_max"] >= row["eps_stage_median"] >= 0.0, row
+        assert row["above_tolerance"] <= row["n_states"], row
 
 
 def test_raport_icm_struktura(toy_run: dict[str, Any]) -> None:
