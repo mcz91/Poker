@@ -32,9 +32,6 @@ Protokół (koszt czytelnika > koszt pisarza):
 - 2026-08-10 arch: F1 audytu POKER-22 — formuła equity-przeciw-polu
   zduplikowana; publiczne API w preflop_equity osobnym kontraktem
   (refaktor dotyka abstrakcji, od której zależy artefakt).
-- 2026-08-28 arch: spin_arena ma własny rozgrywacz obok
-  poker.betting/table (audyt POKER-42; świadomie poza kontraktami
-  44/45) — kwalifikacja przed każdą rozbudową spin_arena.
 
 ## DECYZJE Z CZATU — obowiązują, niezmechanizowane
 
@@ -72,8 +69,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
-- mypy nie widzi `tools/` (files = src, tests) — „bramka zielona" nie
-  znaczy „typy sprawdzone" dla kodu dostarczanego tam.
+- mypy widzi tylko `files` z pyproject (od POKER-49: src, tests,
+  tools/blueprint) — kod w pozostałych `tools/` przechodzi tylko ruff
+  i pytest; „bramka zielona" ≠ „typy sprawdzone" poza tym zbiorem.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

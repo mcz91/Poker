@@ -84,7 +84,12 @@
 26. [`26-moc-pomiaru-areny-redukcja-wariancji.md`](decisions/26-moc-pomiaru-areny-redukcja-wariancji.md)
     — moc pomiaru areny: kolejność redukcji wariancji (rotacje przed
     AIVAT), AIVAT zablokowany na funkcji wartości blueprintu, zakaz
-    Jensena i zakaz strojenia funkcji wartości po danych.
+    Jensena i zakaz strojenia funkcji wartości po danych;
+27. [`27-rozgrywacz-spin-arena-duplikacja-pod-straza.md`](decisions/27-rozgrywacz-spin-arena-duplikacja-pod-straza.md)
+    — duplikacja rozgrywacza spin_arena uzasadniona (HeadsUpHand jest
+    N=2 z INV-P5), zakres zamrożony na drzewo preflopowe, rozliczenia
+    wyłącznie przez poker.spin, kotwica krzyżowa z silnikiem na rękach
+    HU; każde rozszerzenie wymaga najpierw kwalifikacji multiway.
 
 ## TaskSpeki
 
