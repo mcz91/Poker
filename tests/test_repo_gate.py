@@ -7,11 +7,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_konfiguracja_mypy_obejmuje_src_i_tests() -> None:
+def test_konfiguracja_mypy_obejmuje_pakiet_testy_i_narzedzia_blueprintu() -> None:
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     mypy_config = pyproject["tool"]["mypy"]
     assert mypy_config.get("strict") is True
-    assert set(mypy_config.get("files", [])) == {"src", "tests"}
+    # `tools/blueprint` dołożone w POKER-49: narzędzia treningu dostarczają kod
+    # do bramki tak samo jak pakiet, więc mają być typowane tak samo.
+    assert set(mypy_config.get("files", [])) == {"src", "tests", "tools/blueprint"}
 
 
 def test_numpy_w_extras_train_przypiety_dokladnie() -> None:

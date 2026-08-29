@@ -315,9 +315,12 @@ def _node(node_id: int, actor: int, children: tuple[tuple[int, Tree], ...]) -> T
     return ("node", node_id, actor, children)
 
 
+# Liść: ("fold", zwycięzca) albo ("sd", uczestnicy showdownu).
+LeafDef = tuple[str, int | tuple[int, ...]]
+
 # Liście 3-max: (uczestnicy showdownu | zwycięzca folda, linia).
 # Wkłady per rola liczone w _stage_3max; kolejność uczestników rosnąca po osi.
-_LEAF_DEFS_3 = (
+_LEAF_DEFS_3: tuple[LeafDef, ...] = (
     ("fold", 2),  # 0  U fold, T fold → BB bierze blindy
     ("fold", 1),  # 1  U fold, T open, B fold
     ("fold", 2),  # 2  U fold, T open, B jam, T fold
@@ -337,7 +340,7 @@ _LEAF_DEFS_3 = (
     ("sd", (0, 1, 2)),  # 16 U jam, T call, B call
 )
 
-_LEAF_DEFS_HU = (
+_LEAF_DEFS_HU: tuple[LeafDef, ...] = (
     ("fold", 1),  # 0 N fold
     ("fold", 0),  # 1 N open, B fold
     ("fold", 1),  # 2 N open, B jam, N fold
@@ -667,15 +670,15 @@ def _contract_hero(p_flat: np.ndarray, reach: dict[int, np.ndarray], hero: int,
                    count: int, n_roles: int) -> np.ndarray:
     if n_roles == 2:
         matrix = p_flat.reshape(count, count)
-        return matrix @ reach[1] if hero == 0 else reach[0] @ matrix
+        return np.asarray(matrix @ reach[1] if hero == 0 else reach[0] @ matrix)
     if hero == 0:
         tmp = (p_flat.reshape(count * count, count) @ reach[2]).reshape(count, count)
-        return tmp @ reach[1]
+        return np.asarray(tmp @ reach[1])
     if hero == 1:
         tmp = (p_flat.reshape(count * count, count) @ reach[2]).reshape(count, count)
-        return reach[0] @ tmp
+        return np.asarray(reach[0] @ tmp)
     tmp = (reach[0] @ p_flat.reshape(count, count * count)).reshape(count, count)
-    return reach[1] @ tmp
+    return np.asarray(reach[1] @ tmp)
 
 
 def _leaf_hero_ev(problem: StageProblem, leaf: int, hero: int,
@@ -1085,6 +1088,9 @@ def build_stage_problem(
     tryb sanity porównania z `poker.jamfold` na głębokich stackach.
     """
     prizes = config.prizes
+    contribs: tuple[tuple[int, ...], ...]
+    leaf_defs: tuple[LeafDef, ...]
+    allowed: dict[int, tuple[int, ...]]
     alive = [seat for seat in range(3) if seat_stacks[seat] > 0]
     jamfold = (
         is_jam_fold_depth(seat_stacks, bb_amt) if force_jamfold is None else force_jamfold
@@ -1186,19 +1192,20 @@ def build_stage_problem(
             leaf_payload.append(None)
             continue
         if kind == "fold":
-            winner = int(meta)
+            assert isinstance(meta, int), "liść foldu opisuje jednego zwycięzcę"
             payoff = _settle(seat_stacks, role_seats, leaf_contribs,
-                             _fold_ranks(n_roles, winner), prizes, v_lookup)
+                             _fold_ranks(n_roles, meta), prizes, v_lookup)
             leaf_kind.append("fold")
-            leaf_payload.append((winner, payoff))
+            leaf_payload.append((meta, payoff))
             continue
-        participants = tuple(meta)
+        assert isinstance(meta, tuple), "liść showdownu opisuje uczestników"
+        participants = meta
         if len(participants) == n_roles and n_roles == 3:
             outcome_list: tuple[tuple[int, ...], ...] = outcomes3
             base = tensors.wt13
         elif n_roles == 3:
             outcome_list = outcomes2
-            base = tensors.wt2_fold[participants]
+            base = tensors.wt2_fold[(participants[0], participants[1])]
         else:
             outcome_list = outcomes2
             base = tensors.wt2_endgame
@@ -1314,7 +1321,7 @@ def _solve_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray, float, in
     v_next: np.ndarray = _WORK["v_next"]
 
     def lookup(target: tuple[int, int, int]) -> np.ndarray:
-        return v_next[v_next_states[quantize_stacks(target, config.grid_step)]]
+        return np.asarray(v_next[v_next_states[quantize_stacks(target, config.grid_step)]])
 
     problem, role_seats, mode = build_stage_problem(
         tensors, config, state, hand, sb, bb_amt, lookup
@@ -1373,7 +1380,7 @@ def _solve_layer(
 
 
 def _reachable_sets(config: GridConfig) -> list[tuple[tuple[int, int, int], ...]]:
-    layers = [
+    layers: list[tuple[tuple[int, int, int], ...]] = [
         (quantize_stacks(config.start_stacks, config.grid_step),)
     ]
     total = n_hands(config)
@@ -1463,6 +1470,7 @@ def solve(
     out_dir.mkdir(parents=True, exist_ok=True)
     digest = config_hash(config, tensors.manifest)
     manifest_path = out_dir / "solve_manifest.json"
+    manifest: dict[str, Any]
     if manifest_path.exists():
         manifest = artifacts.read_json(manifest_path)
         if manifest["config_hash"] != digest:

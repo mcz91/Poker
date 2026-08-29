@@ -360,7 +360,10 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   zdarzeń była zbudowana w odwrotną stronę, a że transpozycje są
   inwolucjami, psuła wyłącznie trójki klas o trzech różnych indeksach
   ustawione 3-cyklem; ta sama klasa błędu w `wt2_fold` przeżyła 343
-  testy do POKER-49.
+  testy do POKER-49. Cały katalog wchodzi pod `mypy --strict`
+  (`files = ["src", "tests", "tools/blueprint"]` w pyproject, wraz
+  z asercją w `tests/test_repo_gate.py` — oba pliki zmieniają się
+  razem, bo ten test istnieje po to, by łapać ich dryf).
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`

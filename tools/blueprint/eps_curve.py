@@ -148,7 +148,7 @@ def _continuation(
     step = config.grid_step
 
     def lookup(target: tuple[int, int, int]) -> np.ndarray:
-        return values[index[solve_grid.quantize_stacks(target, step)]]
+        return np.asarray(values[index[solve_grid.quantize_stacks(target, step)]])
 
     return lookup
 

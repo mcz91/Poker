@@ -43,4 +43,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests"]
+# `tools/blueprint` wchodzi do bramki (POKER-49): 2,9 tys. linii dostarczonych
+# przez POKER-46/47 było poza `files`, więc `verification: mypy` było wobec nich
+# puste. Reszta `tools/` to skrypty sprzed tej reguły — osobny dług.
+files = ["src", "tests", "tools/blueprint"]

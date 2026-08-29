@@ -100,7 +100,9 @@ def _expost_state_job(index: int) -> tuple[int, np.ndarray]:
     state = states[index]
 
     def lookup(target: tuple[int, int, int]) -> np.ndarray:
-        return v_br_next[v_br_index[solve_grid.quantize_stacks(target, config.grid_step)]]
+        return np.asarray(
+            v_br_next[v_br_index[solve_grid.quantize_stacks(target, config.grid_step)]]
+        )
 
     problem, role_seats, _ = solve_grid.build_stage_problem(
         tensors, config, state, hand, sb, bb_amt, lookup
