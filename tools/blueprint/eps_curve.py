@@ -1,4 +1,4 @@
-"""Krzywa ex-post ε vs budżet iteracji PI-FP w węzłach deep (POKER-47, decyzja 25).
+"""Krzywa ex-post ε vs budżet iteracji solvera gry etapowej (POKER-47/49, decyzja 25).
 
 Mierzy na artefaktach zamkniętego biegu solvera to, czego pilot POKER-46 nie
 rozstrzygał:
@@ -35,9 +35,11 @@ Uruchomienie (venv z extras train):
     python tools/blueprint/eps_curve.py budget --report KATALOG/eps_curve.json
     python tools/blueprint/eps_curve.py cost --out KATALOG --per-mode 10 --jobs 1
 
-`--mode` przestawia próbkę na inny tryb gry etapowej (domyślnie `deep`);
-`--dense N` dokłada ocenę ε po każdej z pierwszych N iteracji, żeby na jednym
-złym stanie było widać kształt przebiegu, a nie tylko punkty drabinki.
+`--mode` przestawia próbkę na inny tryb gry etapowej (domyślnie `deep`); tryby
+`hu-*` mierzą CFR+, a nie PI-FP — solverem drabinki jest ten, którym bieg
+rozwiązuje dany tryb. `--dense N` dokłada ocenę ε po każdej z pierwszych N
+iteracji, żeby na jednym złym stanie było widać kształt przebiegu, a nie tylko
+punkty drabinki (wyłącznie dla PI-FP: CFR+ mierzy każdy sufit osobnym biegiem).
 """
 
 import argparse
@@ -215,6 +217,41 @@ class _Recorder:
         return eps, seconds
 
 
+class _CfrClock:
+    """Zegar solvera CFR+: sumuje czas iteracji, pomijając ocenę ε po ostatniej."""
+
+    def __init__(self) -> None:
+        self.spent = 0.0
+        self._mark = time.process_time()
+
+    def __call__(self, step: int, current: dict[int, np.ndarray]) -> None:
+        self.spent += time.process_time() - self._mark
+        self._mark = time.process_time()
+
+
+def _cfr_ladder(problem: Any, config: Any,
+                budgets: tuple[int, ...]) -> tuple[list[float], list[float]]:
+    """Drabinka dla endgame'u HU: CFR+ nie ma restartów, więc każdy sufit osobnym biegiem.
+
+    Ciąg profili CFR+ zależy od własnej średniej tylko przez ε, a tolerancja jest
+    w pomiarze wyłączona, więc bieg z sufitem k to prefiks biegu dłuższego —
+    osobny bieg mierzy dokładnie koszt tego sufitu.
+    """
+    eps: list[float] = []
+    seconds: list[float] = []
+    for budget in budgets:
+        capped = dataclasses.replace(
+            config, cfr_iters=budget, cfr_check_every=budget, cfr_tol=NO_TOLERANCE
+        )
+        clock = _CfrClock()
+        _, value, iterations = solve_grid._cfr_plus_solve(problem, capped, observer=clock)
+        if iterations != budget:
+            raise AssertionError(f"CFR+ skrócił pomiar do {iterations} przy sufcie {budget}")
+        eps.append(value)
+        seconds.append(clock.spent)
+    return eps, seconds
+
+
 _CWORK: dict[str, Any] = {}
 
 
@@ -227,14 +264,18 @@ def _curve_job(index: int) -> dict[str, Any]:
         _CWORK["tensors"], config, entry.state, entry.hand, sb, bb_amt,
         _CWORK["lookups"][entry.hand],
     )
-    recorder = _Recorder(problem, budgets)
-    capped = dataclasses.replace(
-        config, fp_max_iters=max(budgets) + 1, fp_check_every=max(budgets) + 1,
-        fp_tol=NO_TOLERANCE,
-    )
-    solve_grid._fp_solve(problem, capped, observer=recorder)
-    recorder.close()
-    eps, seconds = recorder.merged(budgets)
+    recorder: _Recorder | None = None
+    if problem.n_roles == 2:
+        eps, seconds = _cfr_ladder(problem, config, budgets)
+    else:
+        recorder = _Recorder(problem, budgets)
+        capped = dataclasses.replace(
+            config, fp_max_iters=max(budgets) + 1, fp_check_every=max(budgets) + 1,
+            fp_tol=NO_TOLERANCE,
+        )
+        solve_grid._fp_solve(problem, capped, observer=recorder)
+        recorder.close()
+        eps, seconds = recorder.merged(budgets)
     best = min(range(len(budgets)), key=lambda position: eps[position])
     row = {
         "index": index,
@@ -248,7 +289,9 @@ def _curve_job(index: int) -> dict[str, Any]:
         "core_seconds": seconds,
         "eps_best": eps[best],
         "budget_best": budgets[best],
-        "run_lengths": {style: recorder.runs[style] for style in recorder.runs},
+        "run_lengths": (
+            {} if recorder is None else {style: recorder.runs[style] for style in recorder.runs}
+        ),
     }
     del problem
     gc.collect()
@@ -417,6 +460,7 @@ def mode_costs(
         "fp_max_iters": config.fp_max_iters,
         "fp_tol": config.fp_tol,
         "cfr_iters": config.cfr_iters,
+        "cfr_tol": config.cfr_tol,
         "modes": modes,
     }
     artifacts.write_json(out_dir / "mode_costs.json", report)
@@ -481,7 +525,7 @@ def _decompose_job(index: int) -> dict[str, Any]:
     values = solve_grid._profile_values(problem, sigma)
     stage = np.full(3, 0.0)
     for role, seat in enumerate(role_seats):
-        _, root = solve_grid._hero_action_values(problem, role, sigma, "best")
+        _, _, root = solve_grid._hero_action_values(problem, role, sigma, "best")
         stage[seat] = float(root.sum()) / problem.total_weight - float(values[role])
     dag = _DWORK["eps"][f"eps_{entry.hand:02d}"][position]
     alive = [seat for seat in range(3) if entry.state[seat] > 0]

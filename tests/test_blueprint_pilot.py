@@ -1,4 +1,4 @@
-"""Testy pilota blueprintu (POKER-46): tensor rolloutu 3-way, solver siatki DAG-u, ex-post.
+"""Testy pilota blueprintu (POKER-46/47/49): tensor rolloutu 3-way, solver siatki, ex-post.
 
 Narzędzia żyją w tools/blueprint/ (zależności extras train) i są ładowane
 przez importlib jak w testach reprodukcji treningu (test_mccfr, test_mlp).
@@ -10,6 +10,7 @@ import dataclasses
 import importlib.util
 import itertools
 import json
+import math
 import random
 import sys
 from pathlib import Path
@@ -20,7 +21,9 @@ import pytest
 from poker.cards import Card, Rank, Suit
 from poker.evaluation import evaluate_five
 from poker.icm import icm_equities
-from poker.preflop import CLASS_INDEX, PreflopClass
+from poker.preflop import ALL_CLASSES, CLASS_INDEX, PreflopClass
+from poker.preflop_equity import equity as class_equity
+from poker.preflop_equity_data import TRIALS_PER_PAIR
 from poker.spin import blinds_for_hand
 
 REPO = Path(__file__).resolve().parent.parent
@@ -60,13 +63,49 @@ TEST_CLASSES = ("AA", "KK", "Q7s", "72o")
 # inwolucjami, więc odwrócona tabela permutacji przechodzi je niezauważona).
 AXIS_CLASSES = ("AA", "72o", "J8o")
 
+# Klasy prawdziwego tensora kotwic: trójka osi plus KK, żeby próbka par
+# w porównaniu z `poker.preflop_equity` miała dziesięć par, a nie trzy.
+TENSOR_CLASSES = (*AXIS_CLASSES, "KK")
+
+# Liście puli 2-way przy trzech żywych w stanie 50/50/50 na blindach 1/2:
+# (liść, uczestnicy showdownu, wkłady per rola z `_contribs_3max`). Trzy liście
+# pokrywają wszystkie trzy pary osi, więc kotwica przechodzi każdą tablicę
+# `wt2_fold` — a nie tylko tę, którą akurat czyta pierwszy liść.
+LEAVES_2WAY = (
+    (5, (1, 2), (0, 50, 50)),  # U fold, T jam, B call
+    (10, (0, 1), (50, 50, 2)),  # U open, T jam, B fold, U call
+    (15, (0, 2), (50, 1, 50)),  # U jam, T fold, B call
+)
+
 
 def _toy_classes() -> tuple[int, ...]:
     return tuple(sorted(_cls(name) for name in TEST_CLASSES))
 
 
 def _axis_classes() -> tuple[int, ...]:
-    return tuple(sorted(_cls(name) for name in AXIS_CLASSES))
+    return tuple(sorted(_cls(name) for name in TENSOR_CLASSES))
+
+
+def _pair_equity(rt: Any, row: Any) -> float:
+    """Equity roli na pierwszej osi pary z wiersza (3,) tensora 2-way: wygrana + pół remisu."""
+    total = float(row.sum())
+    assert total > 0.0
+    win = float(row[rt.OUTCOMES_2.index((0, 1))])
+    tie = float(row[rt.OUTCOMES_2.index((0, 0))])
+    return (win + 0.5 * tie) / total
+
+
+def _mc_tolerance(effective_trials: float, sigmas: float = 4.0) -> float:
+    """Próg zgodności equity wyprowadzony z liczby prób, nie dobrany do wyniku.
+
+    Equity to średnia zmiennej z [0, 1], więc wariancja jednej próby ≤ 1/4.
+    Porównujemy dwa pomiary Monte Carlo — tensor (`effective_trials` prób
+    efektywnych) i macierz `poker.preflop_equity` (TRIALS_PER_PAIR prób na
+    parę) — więc próg to `sigmas` odchyleń ich złożonego błędu.
+    """
+    return sigmas * math.hypot(
+        0.5 / math.sqrt(effective_trials), 0.5 / math.sqrt(TRIALS_PER_PAIR)
+    )
 
 
 def _outright_by_axis(rt: Any, probs: Any) -> Any:
@@ -380,6 +419,160 @@ def test_kontrakcja_wyplat_sadza_aa_na_wlasciwej_roli(axis_tensor: Path) -> None
     assert max(aa_values) - min(aa_values) < 1e-5, aa_values
 
 
+def _chips_problem(sg: Any, tensors: Any, classes: tuple[int, ...]) -> tuple[Any, tuple[int, ...]]:
+    """Gra etapowa 50/50/50 na blindach 1/2 z kontynuacją „wartość = stacki po ręce".
+
+    Kontynuacja podaje wprost wektor stacków, więc wypłata liścia jest oczekiwaną
+    liczbą żetonów roli — wypłaty widać wprost, bez pośrednictwa ICM.
+    """
+    config = _toy_config(sg, classes=classes)
+    problem, role_seats, mode = sg.build_stage_problem(
+        tensors, config, (50, 50, 50), 0, 1, 2,
+        lambda state: sg.np.asarray(state, dtype=float),
+    )
+    assert mode == "deep"
+    return problem, role_seats
+
+
+def _flat_index(tensors: Any, slot: dict[int, int], ordered: tuple[int, ...]) -> int:
+    count = int(tensors.count)
+    return (slot[ordered[0]] * count + slot[ordered[1]]) * count + slot[ordered[2]]
+
+
+def test_kotwica_orientacji_osi_wt2_fold(axis_tensor: Path) -> None:
+    """Kotwica orientacji osi puli 2-way przy trzech żywych — tensor i jego konsument.
+
+    Kolaps trójki do pary jest inwolucją, więc odwrócenie osi nie zostawia śladu
+    w niczym poza equity roli, a wybór złej pary osi nie zostawia śladu w ogóle.
+    Kotwica przechodzi wszystkie trzy pary osi (`wt2_fold` wprost i trzy liście
+    2-way, po jednym na parę) i wszystkie sześć kolejności klas: rola posadzona
+    na AA ma equity AA niezależnie od klasy foldującego i od porządku argumentów.
+    """
+    sg = _load("solve_grid")
+    rt = _load("rollout_tensor")
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    assert sorted(tensors.wt2_fold) == [(0, 1), (0, 2), (1, 2)]
+    slot = {index: position for position, index in enumerate(classes)}
+    aa = _cls("AA")
+    base_triple = tuple(_cls(name) for name in AXIS_CLASSES)
+    problem, _ = _chips_problem(sg, tensors, classes)
+    seen: dict[tuple[int, int, int], list[float]] = {}
+    for source in itertools.permutations(range(3)):
+        ordered = tuple(base_triple[source[axis]] for axis in range(3))
+        flat = _flat_index(tensors, slot, ordered)
+        weight = float(tensors.deal3[flat])
+        assert weight > 0.0
+        for leaf, participants, contribs in LEAVES_2WAY:
+            axis_a, axis_b = participants
+            folder = 3 - axis_a - axis_b
+            pot = sum(contribs)
+            payload = problem.leaf_payload[leaf]
+            assert problem.leaf_kind[leaf] == "sd"
+            equities = (
+                _pair_equity(rt, tensors.wt2_fold[(axis_a, axis_b)][flat]),
+                (float(payload[axis_a][flat]) / weight
+                 - (50 - contribs[axis_a])) / pot,
+            )
+            for equity in equities:
+                if ordered[axis_a] == aa:
+                    assert equity > 0.75, (leaf, ordered, equity)
+                if ordered[axis_b] == aa:
+                    assert equity < 0.25, (leaf, ordered, equity)
+            # Ta sama para klas przy tym samym foldującym musi dać tę samą liczbę
+            # z każdej pary osi i z obu porządków — inaczej osie się rozjeżdżają.
+            assert abs(equities[0] - equities[1]) < 1e-3, (leaf, ordered, equities)
+            seen.setdefault(
+                (ordered[axis_a], ordered[axis_b], ordered[folder]), []
+            ).append(equities[0])
+    assert len(seen) == 6  # trzy klasy: trzy wybory foldującego × dwa kierunki pary
+    for key, values in seen.items():
+        assert len(values) == 3
+        assert max(values) - min(values) < 1e-5, (key, values)
+        mirrored = seen[(key[1], key[0], key[2])]
+        assert abs(values[0] + mirrored[0] - 1.0) < 1e-5, (key, values, mirrored)
+
+
+def test_kotwica_wyplat_lisca_2way(axis_tensor: Path) -> None:
+    """Wypłaty liścia 2-way przy trzech żywych: pula do najsilniejszego, folder bez niej.
+
+    Odpowiednik istniejącej kotwicy liścia 16 dla puli 2-way: suma żetonów jest
+    stała, foldujący traci dokładnie swój wkład (zwrot nadpłaty i nic ponadto),
+    a rola z AA przeciw 72o zabiera pulę.
+    """
+    sg = _load("solve_grid")
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    slot = {index: position for position, index in enumerate(classes)}
+    aa, junk, dead = _cls("AA"), _cls("72o"), _cls("J8o")
+    problem, _ = _chips_problem(sg, tensors, classes)
+    for leaf, participants, contribs in LEAVES_2WAY:
+        payload = problem.leaf_payload[leaf]
+        folder = 3 - participants[0] - participants[1]
+        pot = sum(contribs)
+        ordered_list = [dead, dead, dead]
+        ordered_list[participants[0]], ordered_list[participants[1]] = aa, junk
+        ordered = (ordered_list[0], ordered_list[1], ordered_list[2])
+        flat = _flat_index(tensors, slot, ordered)
+        weight = float(tensors.deal3[flat])
+        chips = [float(payload[role][flat]) / weight for role in range(3)]
+        assert abs(sum(chips) - 150.0) < 1e-2, (leaf, chips)
+        assert abs(chips[folder] - (50 - contribs[folder])) < 1e-2, (leaf, chips)
+        won = [(chips[role] - (50 - contribs[role])) / pot for role in participants]
+        assert won[0] > 0.85, (leaf, chips, won)
+        assert won[1] < 0.15, (leaf, chips, won)
+        assert abs(won[0] + won[1] - 1.0) < 1e-3, (leaf, won)
+
+
+def test_equity_wt2_fold_zgadza_sie_z_macierza_preflop_equity(axis_tensor: Path) -> None:
+    """Equity puli 2-way z tensora obok `poker.preflop_equity` — próg z liczby prób.
+
+    Marginalizacja po klasie foldującego (wagami rozdania) daje equity pary klas
+    liczone na innym modelu niż macierz produktu (trójki z card removal, board
+    z 46 kart wobec par i 48 kart), więc wiąże je błąd Monte Carlo obu źródeł,
+    a nie równość. Próg jest wyprowadzony z liczb prób obu artefaktów.
+    """
+    sg = _load("solve_grid")
+    rt = _load("rollout_tensor")
+    np = sg.np
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    trials = float(tensors.manifest["trials"])
+    count = tensors.count
+    pairs = 0
+    worst = 0.0
+    for first in range(count):
+        for second in range(count):
+            base = (first * count + second) * count
+            rows = tensors.wt2_fold[(0, 1)][base:base + count]
+            weights = np.asarray(
+                [float(tensors.deal3[base + folder]) for folder in range(count)]
+            )
+            live = weights[weights > 0.0]
+            assert live.size > 0
+            equity = _pair_equity(rt, rows.sum(axis=0))
+            expected = class_equity(ALL_CLASSES[classes[first]], ALL_CLASSES[classes[second]])
+            # Próby efektywne marginalizacji: wagi rozdania nie są równe, więc
+            # liczy się (Σw)²/Σw² wierszy, a nie ich liczba.
+            n_eff = trials * float(live.sum() ** 2 / (live**2).sum())
+            tolerance = _mc_tolerance(n_eff)
+            assert tolerance < 0.1, tolerance  # próg luźniejszy nie odróżniałby klas
+            assert abs(equity - expected) <= tolerance, (
+                classes[first], classes[second], equity, expected, tolerance
+            )
+            pairs += 1
+            worst = max(worst, abs(equity - expected))
+    assert pairs == count * count and pairs >= 16
+    # Próg musi odróżniać klasy, a nie tylko przepuszczać: podmiana partnera
+    # w parze (72o na J8o przy AA) daje różnicę większą niż on.
+    aa, junk, other = _cls("AA"), _cls("72o"), _cls("J8o")
+    mismatch = abs(
+        class_equity(ALL_CLASSES[aa], ALL_CLASSES[junk])
+        - class_equity(ALL_CLASSES[aa], ALL_CLASSES[other])
+    )
+    assert worst < mismatch, (worst, mismatch)
+
+
 def test_artefakt_tensora_reprodukcja_podzbioru(tmp_path: Path) -> None:
     rt = _load("rollout_tensor")
     np = rt.np
@@ -450,6 +643,173 @@ def test_domyslny_budzet_pi_fp_pochodzi_z_krzywej_i_jest_ten_sam_w_cli() -> None
     assert parsed.fp_check_every == defaults.fp_check_every
     assert parsed.cfr_iters == defaults.cfr_iters
     assert parsed.grid_step == defaults.grid_step
+
+
+def test_kryteria_stopu_solverow_maja_ten_sam_ksztalt_i_te_same_wartosci_w_cli() -> None:
+    """Kryteria stopu mają ten sam kształt, a CLI nie rozjeżdża się z konfiguracją.
+
+    Tolerancja CFR+ jest ta sama co PI-FP, bo dług obu solverów sumuje się
+    w tym samym DAG-u i mierzy go ta sama metryka ex-post.
+    """
+    sg = _load("solve_grid")
+    defaults = sg.GridConfig()
+    assert defaults.cfr_tol == defaults.fp_tol
+    assert defaults.cfr_iters > 0 and defaults.tail_max_cycles > 0
+    assert defaults.boundary_perturb == 0.0
+    parsed = sg.build_parser().parse_args(["--tensor", "t", "--out", "o"])
+    assert parsed.tail_cycles == defaults.tail_max_cycles
+    assert parsed.tail_tol == defaults.tail_tol
+    assert parsed.cfr_iters == defaults.cfr_iters
+    assert parsed.cfr_check_every == defaults.cfr_check_every
+    assert parsed.cfr_tol == defaults.cfr_tol
+    assert parsed.perturb == defaults.boundary_perturb
+    assert parsed.perturb_kind == defaults.boundary_perturb_kind
+    assert parsed.boundary_from is None
+
+
+def test_horyzont_konczy_na_tolerancji_a_nie_na_sufcie(tmp_path: Path) -> None:
+    """Punkt stały ostatniego poziomu zbiega do tolerancji; sufit tylko zabezpiecza.
+
+    Bieg raportuje deltę każdego cyklu, więc „zbiegł" i „skończył się budżet" są
+    rozróżnialne w artefakcie — pilot POKER-47 kończył na sufcie i nie było tego
+    widać w żadnej liczbie poza prozą.
+    """
+    sg = _load("solve_grid")
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    loose = _toy_config(sg, tail_max_cycles=6, tail_tol=1.0)
+    boundary = sg.solve(loose, tensor_dir, tmp_path / "loose", layers_limit=0)["boundary"]
+    assert boundary["converged"] is True
+    assert boundary["cycles"] < loose.tail_max_cycles
+    assert boundary["delta"] <= loose.tail_tol
+    assert boundary["deltas"] == pytest.approx([boundary["delta"]])
+    assert boundary["source"]["kind"] == "computed"
+    tight = _toy_config(sg, tail_max_cycles=2, tail_tol=0.0)
+    strict = sg.solve(tight, tensor_dir, tmp_path / "tight", layers_limit=0)["boundary"]
+    assert strict["converged"] is False
+    assert strict["cycles"] == tight.tail_max_cycles == len(strict["deltas"])
+    assert strict["delta"] > 0.0
+
+
+def test_zaburzenie_brzegu_jest_zerosumowe_i_deterministyczne() -> None:
+    """Zaburzony brzeg jest nadal legalnym brzegiem: suma nagród stała, wybici bez zmian."""
+    sg = _load("solve_grid")
+    np = sg.np
+    states = sg.grid_states(150, 25)
+    values = np.stack(
+        [np.asarray(icm_equities(state, PRIZES), dtype=float) for state in states]
+    )
+    assert sg.perturb_boundary(values, states, 0.0, "tilt") is values
+    for kind in sg.PERTURB_KINDS:
+        shifted = sg.perturb_boundary(values, states, 0.002, kind)
+        assert bool((shifted == sg.perturb_boundary(values, states, 0.002, kind)).all())
+        assert float(np.max(np.abs(shifted.sum(axis=1) - values.sum(axis=1)))) < 1e-12
+        assert float(np.max(np.abs(shifted - values))) == pytest.approx(0.002, rel=1e-9)
+        for position, state in enumerate(states):
+            for seat in range(3):
+                if state[seat] == 0:
+                    assert shifted[position, seat] == values[position, seat]
+    tilt = sg.perturb_boundary(values, states, 0.002, "tilt")
+    noise = sg.perturb_boundary(values, states, 0.002, "noise")
+    assert float(np.max(np.abs(tilt - noise))) > 1e-4  # dwa różne błędy brzegu
+    with pytest.raises(ValueError):
+        sg.perturb_boundary(values, states, 0.002, "gaussian")
+
+
+def test_wrazliwosc_na_brzeg_mierzy_zmiane_epsilon_i_strategii(tmp_path: Path) -> None:
+    """Pomiar ślepoty metryki: zaburzony brzeg wchodzi do porównania, zerowy nie zmienia nic."""
+    sg = _load("solve_grid")
+    ep = _load("expost")
+    bs = _load("boundary_sensitivity")
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    reference_dir = tmp_path / "ref"
+    sg.solve(_toy_config(sg), tensor_dir, reference_dir)
+    ep.run_expost(reference_dir)
+    for amount, expect_change in ((0.0, False), (0.05, True)):
+        target = tmp_path / f"perturbed{amount}"
+        config = _toy_config(sg, boundary_perturb=amount, boundary_perturb_kind="tilt")
+        manifest = sg.solve(config, tensor_dir, target, boundary_from=reference_dir)
+        assert manifest["boundary"]["source"]["kind"] == "imported"
+        assert manifest["boundary"]["perturb_max_abs"] == pytest.approx(amount)
+        ep.run_expost(target)
+        report = bs.compare(reference_dir, target)
+        assert report["boundary"]["max_abs_delta"] == pytest.approx(amount)
+        assert len(report["layers"]) == len(sg.load_layers(reference_dir))
+        assert report["strategy"]["infosets"] > 0
+        if expect_change:
+            assert report["strategy"]["v_max_abs_delta"] > 0.0
+            assert report["epsilon"]["start_state_perturbed"] >= 0.0
+        else:
+            assert report["strategy"]["v_max_abs_delta"] == 0.0
+            assert report["strategy"]["sigma_max_abs_delta"] == 0.0
+            assert report["strategy"]["action_changes"] == 0
+            assert report["epsilon"]["start_state_delta"] == 0.0
+    written = json.loads((tmp_path / "perturbed0.05" / "boundary_sensitivity.json").read_text())
+    assert written["epsilon"]["perturbed_max"] >= 0.0
+
+
+def test_cfr_plus_wazy_srednia_wlasnym_prawdopodobienstwem_dojscia(tmp_path: Path) -> None:
+    """Średnia CFR+ jest ważona własnym reachem — na tej średniej stoi gwarancja zbieżności.
+
+    W drzewie HU jedynym węzłem o nietrywialnym własnym reachu jest `H_N_VS_3BET`
+    (bohater dochodzi tam wyłącznie przez własny open), więc wagą iteracji jest
+    jego prawdopodobieństwo openu w tej iteracji. Test odtwarza średnią z samego
+    ciągu profili i sprawdza, że średnia nieważona daje inny profil.
+    """
+    sg = _load("solve_grid")
+    np = sg.np
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    config = _toy_config(sg, cfr_iters=12, cfr_check_every=32, cfr_tol=-1.0)
+    tensors = sg.load_tensors(tensor_dir, config.classes)
+    problem, _, mode = sg.build_stage_problem(
+        tensors, config, (0, 75, 75), 0, 1, 2,
+        lambda state: np.asarray(icm_equities(state, PRIZES), dtype=float),
+    )
+    assert mode == "hu-deep"
+    node = sg.H_N_VS_3BET
+    assert node in problem.nodes and len(problem.allowed[node]) > 1
+    seen: list[dict[int, Any]] = []
+    sigma, eps, iterations = sg._cfr_plus_solve(
+        problem, config,
+        observer=lambda step, current: seen.append(
+            {key: value.copy() for key, value in current.items()}
+        ),
+    )
+    assert iterations == config.cfr_iters == len(seen)
+    assert eps >= 0.0
+    reach = np.zeros(problem.count, dtype=float)
+    weighted = np.zeros((problem.count, 3), dtype=float)
+    flat = np.zeros((problem.count, 3), dtype=float)
+    for step, current in enumerate(seen, start=1):
+        own = step * current[sg.H_ROOT][:, sg.SLOT_MID].astype(float)
+        reach += own
+        weighted += own[:, None] * current[node].astype(float)
+        flat += step * current[node].astype(float)
+    live = reach > 0.0
+    assert bool(live.any())
+    expected = weighted[live] / reach[live][:, None]
+    assert float(np.max(np.abs(sigma[node][live] - expected))) < 1e-5
+    unweighted = flat[live] / sum(range(1, len(seen) + 1))
+    assert float(np.max(np.abs(unweighted - expected))) > 1e-3  # średnie są różne
+    for row in sigma[node]:
+        assert abs(float(row.sum()) - 1.0) < 1e-5
+
+
+def test_cfr_plus_konczy_na_tolerancji_przed_sufitem(tmp_path: Path) -> None:
+    """Stop CFR+ jest na tolerancji, sufit zabezpiecza — jak w solverze 3-osobowym."""
+    sg = _load("solve_grid")
+    np = sg.np
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    config = _toy_config(sg, cfr_iters=256, cfr_check_every=4, cfr_tol=1e-3)
+    tensors = sg.load_tensors(tensor_dir, config.classes)
+    problem, _, mode = sg.build_stage_problem(
+        tensors, config, (0, 75, 75), 0, 1, 2,
+        lambda state: np.asarray(icm_equities(state, PRIZES), dtype=float),
+    )
+    assert mode == "hu-deep"
+    _, eps, iterations = sg._cfr_plus_solve(problem, config)
+    assert eps <= config.cfr_tol
+    assert iterations < config.cfr_iters
+    assert iterations % config.cfr_check_every == 0
 
 
 def test_poziomy_blindow_zgodne_z_poker_spin() -> None:
@@ -598,6 +958,40 @@ def test_krzywa_epsilon_zgadza_sie_z_solverem_przy_tym_sufcie(curve_run: dict[st
         )
         _, eps, iters = sg._fp_solve(problem, capped)
         assert iters == cap, (cap, iters)  # tolerancja biegu nie skraca pomiaru
+        assert entry["eps"][position] == pytest.approx(eps, rel=1e-9, abs=1e-12), cap
+
+
+def test_krzywa_trybu_hu_mierzy_cfr_plus_a_nie_pi_fp(curve_run: dict[str, Any]) -> None:
+    """Drabinkę trybu mierzy ten solver, którym bieg ten tryb rozwiązuje.
+
+    Bez tego budżet CFR+ w endgame'ach HU byłby dobrany z krzywej PI-FP, czyli
+    z pomiaru innego algorytmu niż ten, który liczy te stany.
+    """
+    ec = _load("eps_curve")
+    ep = _load("expost")
+    sg = curve_run["sg"]
+    ladder = (2, 8)
+    report = ec.eps_curve(
+        curve_run["out_dir"], ladder=ladder, worst=1, extra=0, seed=47,
+        mode="hu-deep", report_name="eps_curve_hu.json",
+    )
+    entry = report["per_state"][0]
+    assert entry["mode"] == "hu-deep"
+    assert entry["run_lengths"] == {}  # CFR+ nie ma restartów ani runów best response
+    config, tensors, layers, boundary_v = ep.load_run(curve_run["out_dir"])
+    full_states = sg.grid_states(config.total_chips, config.grid_step)
+    problem, _, mode = sg.build_stage_problem(
+        tensors, config, tuple(entry["state"]), entry["hand"],
+        *sg.level_blinds(config, entry["hand"]),
+        ec._continuation(config, layers, boundary_v, full_states, entry["hand"]),
+    )
+    assert mode == "hu-deep" and problem.n_roles == 2
+    for position, cap in enumerate(ladder):
+        capped = dataclasses.replace(
+            config, cfr_iters=cap, cfr_check_every=cap, cfr_tol=ec.NO_TOLERANCE
+        )
+        _, eps, iterations = sg._cfr_plus_solve(problem, capped)
+        assert iterations == cap, (cap, iterations)
         assert entry["eps"][position] == pytest.approx(eps, rel=1e-9, abs=1e-12), cap
 
 

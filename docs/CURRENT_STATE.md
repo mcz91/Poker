@@ -314,16 +314,30 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   trzech żywych i CFR+ w endgame HU; pula 2-way przy trzech żywych
   zawsze pełnym wektorem ICM trzech graczy; zapis atomowy warstw
   z manifestem, wznowienie bajt w bajt i wynik niezależny od liczby
-  procesów (jobs 1 vs 2 vs 4) — pod testami. Domyślny budżet PI-FP
-  (sufit 384 iteracji, tolerancja 5e−5) pochodzi z pomiaru POKER-47,
-  nie z założenia; `build_parser` bierze domyślne wartości CLI wprost
-  z `GridConfig`, więc jedno i drugie nie może się rozjechać (pod
-  testem). `expost.py` — ex-post best response po całym
+  procesów (jobs 1 vs 2 vs 4) — pod testami. Trzy kryteria stopu mają
+  ten sam kształt: tolerancja wiąże, sufit zabezpiecza — PI-FP (sufit 384,
+  tolerancja 5e−5 z pomiaru POKER-47), CFR+ w endgame'ach HU i horyzont
+  (POKER-49; tolerancja CFR+ równa tolerancji PI-FP, bo dług obu sumuje
+  się w tym samym DAG-u). Średnia CFR+ jest
+  ważona własnym prawdopodobieństwem dojścia — na tej średniej stoi
+  gwarancja zbieżności, na której powołuje się decyzja 25 pkt 2 (pod
+  testem odtwarzającym wagę z ciągu profili). Horyzont raportuje deltę
+  każdego cyklu i flagę `converged`, więc „zbiegł" i „skończył się
+  budżet" są rozróżnialne w artefakcie. `build_parser` bierze domyślne
+  wartości CLI wprost z `GridConfig`, więc jedno i drugie nie może się
+  rozjechać (pod testem). `--perturb`/`--boundary-from` liczą blueprint
+  na jawnie zaburzonym warunku brzegowym (zerosumowo per stan,
+  deterministycznie), a `boundary_sensitivity.py` zestawia taki bieg
+  z biegiem odniesienia — ex-post ε zamraża ogon dla obu stron, więc
+  bez tego pomiaru błąd horyzontu jest dla metryki niewidzialny.
+  `expost.py` — ex-post best response po całym
   DAG-u (Ganzfried Alg. 6), raport V vs ICM per warstwa z
   wyszczególnieniem krótkiego BB, sanity jam/fold obok
   `poker.jamfold.solve`. `eps_curve.py` (POKER-47) — krzywa ε ex-post
-  gry etapowej po sufitach iteracji PI-FP na próbce stanów jednego
-  trybu (najgorsze ex-post z biegu plus losowanie o jawnym seedzie),
+  gry etapowej po sufitach iteracji na próbce stanów jednego trybu
+  (najgorsze ex-post z biegu plus losowanie o jawnym seedzie; w trybach
+  `hu-*` mierzy CFR+, a nie PI-FP — solverem drabinki jest ten, którym
+  bieg dany tryb rozwiązuje),
   rozkład ε ex-post po DAG-u na część etapową i odziedziczoną oraz
   odczyt budżetu potrzebnego do zadanego progu. Pomiar wyłącza
   tolerancję biegu (`NO_TOLERANCE`), bo inaczej PI-FP kończy na niej,
@@ -334,11 +348,19 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   `tests/test_blueprint_pilot.py`, w tym
   **kotwice orientacji osi**: AA wygrywa dokładnie na tej osi, na
   której ją posadzono — osobno w tensorze, w `load_tensors` (wszystkie
-  sześć kolejności trójki, więc także 3-cykle) i w tensorze wypłat
-  liścia showdownu 3-way. Kotwice powstały po błędzie, który przeżył
-  pierwszy bieg pilota: tabela permutacji zdarzeń była zbudowana
-  w odwrotną stronę, a że transpozycje są inwolucjami, psuła wyłącznie
-  trójki klas o trzech różnych indeksach ustawione 3-cyklem.
+  sześć kolejności trójki, więc także 3-cykle), w tensorze wypłat
+  liścia showdownu 3-way oraz (POKER-49) w tablicach `wt2_fold` puli
+  2-way przy trzech żywych: wszystkie trzy pary osi, wszystkie sześć
+  kolejności klas, jednocześnie w tensorze i u konsumenta (trzy liście
+  2-way, po jednym na parę). Do tego kotwica wypłat liścia 2-way (suma
+  żetonów stała, foldujący traci dokładnie swój wkład, najsilniejszy
+  bierze pulę) i związanie equity `wt2_fold` z `poker.preflop_equity`
+  progiem wyprowadzonym z liczb prób obu artefaktów. Kotwice powstały
+  po błędzie, który przeżył pierwszy bieg pilota: tabela permutacji
+  zdarzeń była zbudowana w odwrotną stronę, a że transpozycje są
+  inwolucjami, psuła wyłącznie trójki klas o trzech różnych indeksach
+  ustawione 3-cyklem; ta sama klasa błędu w `wt2_fold` przeżyła 343
+  testy do POKER-49.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`

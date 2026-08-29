@@ -108,7 +108,7 @@ def _expost_state_job(index: int) -> tuple[int, np.ndarray]:
     sigma = {node_id: sigma_all[index, node_id] for node_id in problem.nodes}
     row = np.full(3, config.prizes[2], dtype=np.float64)
     for hero, seat in enumerate(role_seats):
-        _, root = solve_grid._hero_action_values(problem, hero, sigma, "best")
+        _, _, root = solve_grid._hero_action_values(problem, hero, sigma, "best")
         row[seat] = float(root.sum()) / problem.total_weight
     # Jak w solverze: cykle domknięć trzymają tensory wypłat do pełnego gc.
     del problem

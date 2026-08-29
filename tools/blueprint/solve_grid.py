@@ -123,6 +123,9 @@ MODE_NAMES = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 # Hak pomiarowy PI-FP: (styl restartu, numer iteracji, profil średni, best response).
 FpObserver = Callable[[str, int, dict[int, np.ndarray], dict[int, np.ndarray]], None]
 
+# Hak pomiarowy CFR+: (numer iteracji, profil bieżący).
+CfrObserver = Callable[[int, dict[int, np.ndarray]], None]
+
 _AXIS_PAIRS = ((0, 1), (0, 2), (1, 2))
 
 
@@ -142,9 +145,20 @@ class GridConfig:
     fp_check_every: int = 8
     fp_tol: float = 5e-5
     fp_restarts: int = 2
+    # CFR+ w endgame'ach HU ma to samo kryterium stopu co PI-FP: wiąże tolerancja,
+    # sufit jest zabezpieczeniem. Tolerancja jest ta sama co `fp_tol`, bo dług
+    # obu solverów sumuje się w tym samym DAG-u; sufit zostaje z POKER-46.
     cfr_iters: int = 128
+    cfr_check_every: int = 32
+    cfr_tol: float = 5e-5
+    # Horyzont: punkt stały ostatniego poziomu zegara kończy na tolerancji, a nie
+    # na sufcie cykli; wartości zostają z POKER-46.
     tail_max_cycles: int = 3
     tail_tol: float = 1e-3
+    # Jawne zaburzenie warunku brzegowego — wyłącznie do pomiaru ślepoty metryki
+    # (ex-post ε zamraża ogon dla obu stron, więc błędu horyzontu nie widzi).
+    boundary_perturb: float = 0.0
+    boundary_perturb_kind: str = "tilt"
     jobs: int = 1
 
 
@@ -164,8 +178,12 @@ def config_from_dict(payload: dict[str, Any]) -> GridConfig:
         fp_tol=payload["fp_tol"],
         fp_restarts=payload["fp_restarts"],
         cfr_iters=payload["cfr_iters"],
+        cfr_check_every=payload["cfr_check_every"],
+        cfr_tol=payload["cfr_tol"],
         tail_max_cycles=payload["tail_max_cycles"],
         tail_tol=payload["tail_tol"],
+        boundary_perturb=payload["boundary_perturb"],
+        boundary_perturb_kind=payload["boundary_perturb_kind"],
         jobs=payload["jobs"],
     )
 
@@ -671,25 +689,30 @@ def _leaf_hero_ev(problem: StageProblem, leaf: int, hero: int,
 
 
 def _walk_hero(problem: StageProblem, tree: Tree, hero: int, reach: dict[int, np.ndarray],
-               sigma: dict[int, np.ndarray], propagate: str,
-               record: dict[int, list[np.ndarray]]) -> np.ndarray:
+               own: np.ndarray, sigma: dict[int, np.ndarray], propagate: str,
+               record: dict[int, list[np.ndarray]],
+               own_record: dict[int, np.ndarray]) -> np.ndarray:
     if tree[0] == "leaf":
         return _leaf_hero_ev(problem, tree[1], hero, reach)
     _, node_id, actor, children = tree
     allowed = problem.allowed[node_id]
     if actor == hero:
+        own_record[node_id] = own
         values = []
         for slot, child in children:
             if slot not in allowed:
                 continue
-            values.append(_walk_hero(problem, child, hero, reach, sigma, propagate, record))
+            values.append(
+                _walk_hero(problem, child, hero, reach, own * sigma[node_id][:, slot],
+                           sigma, propagate, record, own_record)
+            )
         record[node_id] = values
         if propagate == "best":
             return np.max(np.stack(values, axis=0), axis=0)
-        own = sigma[node_id]
+        strategy = sigma[node_id]
         total = np.zeros(problem.count, dtype=np.float32)
         for position, slot in enumerate(allowed):
-            total += own[:, slot] * values[position]
+            total += strategy[:, slot] * values[position]
         return total
     total = np.zeros(problem.count, dtype=np.float32)
     for slot, child in children:
@@ -697,20 +720,31 @@ def _walk_hero(problem: StageProblem, tree: Tree, hero: int, reach: dict[int, np
             continue
         new_reach = dict(reach)
         new_reach[actor] = reach[actor] * sigma[node_id][:, slot]
-        total += _walk_hero(problem, child, hero, new_reach, sigma, propagate, record)
+        total += _walk_hero(problem, child, hero, new_reach, own, sigma, propagate,
+                            record, own_record)
     return total
 
 
-def _hero_action_values(problem: StageProblem, hero: int, sigma: dict[int, np.ndarray],
-                        propagate: str) -> tuple[dict[int, list[np.ndarray]], np.ndarray]:
+def _hero_action_values(
+    problem: StageProblem, hero: int, sigma: dict[int, np.ndarray], propagate: str
+) -> tuple[dict[int, list[np.ndarray]], dict[int, np.ndarray], np.ndarray]:
+    """Wartości akcji bohatera, jego własny reach w każdym własnym węźle i wartość korzenia.
+
+    Własny reach (iloczyn własnych prawdopodobieństw na drodze do węzła) jest
+    wagą średniej CFR+ — bez niego średnia nie jest tą, dla której zachodzi
+    gwarancja zbieżności.
+    """
     reach = {
         role: np.ones(problem.count, dtype=np.float32)
         for role in range(problem.n_roles)
         if role != hero
     }
     record: dict[int, list[np.ndarray]] = {}
-    root = _walk_hero(problem, problem.tree, hero, reach, sigma, propagate, record)
-    return record, root
+    own_record: dict[int, np.ndarray] = {}
+    root = _walk_hero(problem, problem.tree, hero, reach,
+                      np.ones(problem.count, dtype=np.float32), sigma, propagate,
+                      record, own_record)
+    return record, own_record, root
 
 
 def _profile_values(problem: StageProblem, sigma: dict[int, np.ndarray]) -> np.ndarray:
@@ -749,7 +783,7 @@ def _profile_values(problem: StageProblem, sigma: dict[int, np.ndarray]) -> np.n
 def _best_response_values(problem: StageProblem, sigma: dict[int, np.ndarray]) -> np.ndarray:
     best = np.zeros(problem.n_roles, dtype=np.float64)
     for hero in range(problem.n_roles):
-        _, root = _hero_action_values(problem, hero, sigma, "best")
+        _, _, root = _hero_action_values(problem, hero, sigma, "best")
         best[hero] = float(root.sum()) / problem.total_weight
     return best
 
@@ -809,7 +843,7 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
             reply: dict[int, np.ndarray] = {}
             best_roots = np.zeros(problem.n_roles, dtype=np.float64)
             for hero in range(problem.n_roles):
-                record, root = _hero_action_values(problem, hero, average, "best")
+                record, _, root = _hero_action_values(problem, hero, average, "best")
                 best_roots[hero] = float(root.sum()) / problem.total_weight
                 for node_id, values in record.items():
                     allowed = problem.allowed[node_id]
@@ -847,13 +881,24 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
     return best_sigma, best_eps, best_iters
 
 
-def _cfr_plus_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int, np.ndarray],
-                                                                        float, int]:
+def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
+                    observer: CfrObserver | None = None) -> tuple[dict[int, np.ndarray],
+                                                                  float, int]:
+    """CFR+ ze średnią ważoną własnym reachem i stopem na tolerancji (sufit zabezpiecza).
+
+    Gwarancja zbieżności CFR+ dotyczy średniej ważonej prawdopodobieństwem
+    dojścia gracza do infosetu; średnia nieważona to inny obiekt i zbiega
+    wolniej (decyzja 25 pkt 2). `observer` to bierny hak pomiarowy — jak
+    w PI-FP.
+    """
     regrets = {
         node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
     }
     average = {
         node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
+    }
+    reach_sum = {
+        node_id: np.zeros(problem.count, dtype=np.float32) for node_id in problem.nodes
     }
 
     def policy() -> dict[int, np.ndarray]:
@@ -873,11 +918,29 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int
             sigma[node_id] = matrix
         return sigma
 
+    def averaged() -> dict[int, np.ndarray]:
+        """Średnia ważona reachem; infoset o zerowej wadze (nieosiągalny) → rozkład równy."""
+        sigma: dict[int, np.ndarray] = {}
+        for node_id in problem.nodes:
+            allowed = problem.allowed[node_id]
+            totals = reach_sum[node_id]
+            matrix = np.zeros((problem.count, 3), dtype=np.float32)
+            uniform = np.float32(1.0 / len(allowed))
+            for slot in allowed:
+                matrix[:, slot] = np.where(
+                    totals > 0.0, average[node_id][:, slot] / np.maximum(totals, 1e-30), uniform
+                )
+            sigma[node_id] = matrix
+        return sigma
+
     iterations = 0
+    eps = float("inf")
     for step in range(1, config.cfr_iters + 1):
         current = policy()
+        own_reach: dict[int, np.ndarray] = {}
         for hero in range(problem.n_roles):
-            record, _ = _hero_action_values(problem, hero, current, "current")
+            record, own_record, _ = _hero_action_values(problem, hero, current, "current")
+            own_reach.update(own_record)
             for node_id, values in record.items():
                 allowed = problem.allowed[node_id]
                 stacked = np.stack(values, axis=0)  # (n_akcji, C)
@@ -889,11 +952,19 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig) -> tuple[dict[int
                     )
         weight = float(step)
         for node_id in problem.nodes:
-            average[node_id] += weight * current[node_id]
+            weighted = weight * own_reach[node_id]
+            average[node_id] += weighted[:, None] * current[node_id]
+            reach_sum[node_id] += weighted
         iterations = step
-    total = sum(range(1, iterations + 1))
-    sigma = {node_id: average[node_id] / float(total) for node_id in problem.nodes}
-    eps = _internal_eps(problem, sigma)
+        if observer is not None:
+            observer(step, current)
+        if step % config.cfr_check_every == 0 or step == config.cfr_iters:
+            eps = _internal_eps(problem, averaged())
+            if eps <= config.cfr_tol:
+                break
+    sigma = averaged()
+    if eps == float("inf"):
+        eps = _internal_eps(problem, sigma)
     return sigma, eps, iterations
 
 
@@ -1317,28 +1388,68 @@ def _reachable_sets(config: GridConfig) -> list[tuple[tuple[int, int, int], ...]
 
 def _boundary(
     tensors: Tensors, config: GridConfig, states: tuple[tuple[int, int, int], ...]
-) -> tuple[np.ndarray, int, float]:
-    """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM."""
+) -> tuple[np.ndarray, list[float]]:
+    """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
+
+    Zwraca deltę każdego cyklu, nie samą ostatnią — z tego ciągu bierze się
+    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol`.
+    """
     total = n_hands(config)
     sb, bb_amt = level_blinds(config, total)
     current = np.stack(
         [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
     )
-    delta = float("inf")
-    cycles = 0
-    for cycle in range(config.tail_max_cycles):
+    deltas: list[float] = []
+    for _ in range(config.tail_max_cycles):
         next_v = current
         for offset in (2, 1, 0):
             layer = _solve_layer(
                 tensors, config, states, total + offset, (sb, bb_amt), states, next_v
             )
             next_v = layer["v"]
-        delta = float(np.max(np.abs(next_v - current)))
+        deltas.append(float(np.max(np.abs(next_v - current))))
         current = next_v
-        cycles = cycle + 1
-        if delta <= config.tail_tol:
+        if deltas[-1] <= config.tail_tol:
             break
-    return current, cycles, delta
+    return current, deltas
+
+
+PERTURB_KINDS = ("tilt", "noise")
+_PERTURB_SEED = 49
+
+
+def perturb_boundary(
+    values: np.ndarray, states: tuple[tuple[int, int, int], ...], amount: float, kind: str
+) -> np.ndarray:
+    """Jawne zaburzenie warunku brzegowego o zadanej amplitudzie, per stan zerosumowe.
+
+    Suma nagród w stanie zostaje stała, a miejsca wybite zachowują `prizes[2]`,
+    więc zaburzony brzeg jest nadal legalnym warunkiem brzegowym — różni się od
+    punktu stałego wyłącznie o `amount`. `tilt` przesuwa wartość systematycznie
+    (najniższe żywe miejsce w górę, najwyższe w dół), `noise` losuje kierunek
+    deterministycznie ze stałego seeda — dwa jakościowo różne błędy horyzontu.
+    """
+    if kind not in PERTURB_KINDS:
+        raise ValueError(f"nieznany rodzaj zaburzenia brzegu: {kind}")
+    if amount == 0.0:
+        return values
+    rng = np.random.Generator(np.random.PCG64(_PERTURB_SEED))
+    out = values.copy()
+    for position, state in enumerate(states):
+        alive = [seat for seat in range(3) if state[seat] > 0]
+        if len(alive) < 2:
+            continue
+        if kind == "tilt":
+            shift = np.zeros(len(alive))
+            shift[0], shift[-1] = amount, -amount
+        else:
+            draw = rng.standard_normal(len(alive))
+            draw -= draw.mean()
+            scale = float(np.max(np.abs(draw)))
+            shift = draw * (amount / scale) if scale > 0.0 else draw
+        for offset, seat in enumerate(alive):
+            out[position, seat] += shift[offset]
+    return out
 
 
 def solve(
@@ -1346,6 +1457,7 @@ def solve(
     tensor_dir: Path,
     out_dir: Path,
     layers_limit: int | None = None,
+    boundary_from: Path | None = None,
 ) -> dict[str, Any]:
     tensors = load_tensors(tensor_dir, config.classes)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1372,7 +1484,27 @@ def solve(
     boundary_path = out_dir / "boundary.npz"
     if manifest["boundary"] is None or not boundary_path.exists():
         boundary_started = time.perf_counter()
-        boundary_v, cycles, delta = _boundary(tensors, config, full_states)
+        if boundary_from is None:
+            fixed_point, deltas = _boundary(tensors, config, full_states)
+            source: dict[str, Any] = {"kind": "computed"}
+        else:
+            # Pomiar wrażliwości na brzeg ma zmieniać wyłącznie brzeg: punkt stały
+            # przejmujemy z biegu odniesienia, żeby porównanie nie mieszało do
+            # różnicy własnego przebiegu iteracji horyzontu.
+            imported = artifacts.read_npz(boundary_from / "boundary.npz")
+            if imported["states"].tolist() != np.array(full_states, dtype=np.int16).tolist():
+                raise ValueError("brzeg z innego biegu ma inną siatkę stanów")
+            fixed_point = imported["v"]
+            inherited = artifacts.read_json(boundary_from / "solve_manifest.json")["boundary"]
+            deltas = list(inherited["deltas"])
+            source = {
+                "kind": "imported",
+                "dir": str(boundary_from.resolve()),
+                "sha256": inherited["sha256"],
+            }
+        boundary_v = perturb_boundary(
+            fixed_point, full_states, config.boundary_perturb, config.boundary_perturb_kind
+        )
         artifacts.write_npz(
             boundary_path,
             {"states": np.array(full_states, dtype=np.int16), "v": boundary_v},
@@ -1380,8 +1512,14 @@ def solve(
         manifest["boundary"] = {
             "file": "boundary.npz",
             "sha256": artifacts.sha256_file(boundary_path),
-            "cycles": cycles,
-            "delta": delta,
+            "source": source,
+            "cycles": len(deltas),
+            "delta": deltas[-1],
+            "deltas": deltas,
+            "converged": deltas[-1] <= config.tail_tol,
+            "perturb": config.boundary_perturb,
+            "perturb_kind": config.boundary_perturb_kind,
+            "perturb_max_abs": float(np.max(np.abs(boundary_v - fixed_point))),
             "seconds": round(time.perf_counter() - boundary_started, 3),
         }
         artifacts.write_json(manifest_path, manifest)
@@ -1453,8 +1591,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fp-tol", type=float, default=defaults.fp_tol)
     parser.add_argument("--fp-restarts", type=int, default=defaults.fp_restarts)
     parser.add_argument("--cfr-iters", type=int, default=defaults.cfr_iters)
+    parser.add_argument("--cfr-check-every", type=int, default=defaults.cfr_check_every)
+    parser.add_argument("--cfr-tol", type=float, default=defaults.cfr_tol)
     parser.add_argument("--tail-cycles", type=int, default=defaults.tail_max_cycles)
     parser.add_argument("--tail-tol", type=float, default=defaults.tail_tol)
+    parser.add_argument("--perturb", type=float, default=defaults.boundary_perturb)
+    parser.add_argument("--perturb-kind", choices=PERTURB_KINDS,
+                        default=defaults.boundary_perturb_kind)
+    parser.add_argument("--boundary-from", type=Path, default=None)
     parser.add_argument("--jobs", type=int, default=defaults.jobs)
     parser.add_argument("--layers-limit", type=int, default=None)
     return parser
@@ -1473,12 +1617,23 @@ def main(argv: Any = None) -> int:
         fp_tol=args.fp_tol,
         fp_restarts=args.fp_restarts,
         cfr_iters=args.cfr_iters,
+        cfr_check_every=args.cfr_check_every,
+        cfr_tol=args.cfr_tol,
         tail_max_cycles=args.tail_cycles,
         tail_tol=args.tail_tol,
+        boundary_perturb=args.perturb,
+        boundary_perturb_kind=args.perturb_kind,
         jobs=args.jobs,
     )
-    manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit)
-    print(json.dumps({"status": manifest["status"]}))
+    manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit,
+                     boundary_from=args.boundary_from)
+    boundary = manifest["boundary"]
+    print(json.dumps({
+        "status": manifest["status"],
+        "boundary_cycles": boundary["cycles"],
+        "boundary_delta": boundary["delta"],
+        "boundary_converged": boundary["converged"],
+    }))
     return 0
 
 
