@@ -1,0 +1,31 @@
+{
+  "id": "POKER-49",
+  "spec_version": 1,
+  "class_hint": "regression",
+  "goal": "Warunek brzegowy blueprintu jest zbieżny, a jego zbieżność jest widoczna w metryce jakości — żeby bieg produkcyjny nie stał na liczbie, której nie umiemy obronić.",
+  "context": "POKER-47 zamknięty: ex-post ε maks 4,32e−4, poniżej punktu odniesienia decyzji 25. Ale bieg zostawia dwa otwarte defekty warunku brzegowego. (1) Horyzont (punkt stały ostatniego poziomu zegara) kończy się na sufcie trzech cykli z deltą 0,00209 — 4,8× większą od zmierzonego ε; ex-post ε tej niezbieżności NIE widzi, bo ogon jest zamrożony dla obu stron porównania, więc nasza metryka jakości jest w tym miejscu ślepa. (2) 39 stanów `hu-deep` ma ε etapowe powyżej tolerancji 5e−5 (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach. Bieg produkcyjny kosztuje ~91 rdzenio-godzin i propaguje warunek brzegowy do każdej warstwy — dlatego domknięcie wchodzi przed nim, nie po nim.",
+  "acceptance": [
+    "Horyzont zbiega do zadanej tolerancji zamiast kończyć na sufcie cykli: kryterium stopu i sufit są parametrami z udokumentowanymi domyślnymi, a bieg raportuje osiągniętą deltę; domyślne wartości dobrane z pomiaru (krzywa delta-vs-liczba cykli, tak jak POKER-47 dobierał budżet PI-FP), nie z założenia.",
+    "Ślepota metryki usunięta: miara, która wykrywa niezbieżność horyzontu — czyli wrażliwość wyniku na wartości brzegowe. Wystarczy pomiar propagacji: policz blueprint dla dwóch różnych, jawnie zaburzonych warunków brzegowych (np. delta rzędu zmierzonej 0,002) i zaraportuj, o ile zmienia się ex-post ε oraz strategie w warstwach przed horyzontem. Wynik wpisany do CURRENT_STATE jako liczba, nie jako zapewnienie.",
+    "CFR+ w endgame'ach HU dostaje kryterium stopu spójne z solverem 3-osobowym (tolerancja zamiast stałej liczby iteracji, sufit jako zabezpieczenie); po zmianie żaden stan `hu-deep` nie ma ε etapowego powyżej tolerancji, albo raport wyjaśnia pomiarem, dlaczego to niemożliwe.",
+    "Powtórzony pilot (siatka 5, pełny zegar) pod domkniętym warunkiem brzegowym: nowe ex-post ε (maks i mediana), nowy koszt i nowa ekstrapolacja rdzenio-godzin dla siatki 2-żetonowej; liczby zastępują poprzednie w CURRENT_STATE, każda z komendą.",
+    "Determinizm i wznowienia zachowane: ten sam wynik przy jobs=1 i jobs=4 oraz po przerwaniu i wznowieniu — pod testem.",
+    "Nowe testy czerwone na bazie tego kontraktu (dowód czerwieni w raporcie); pakiet produktu nietknięty (żadnych zmian w src/poker); pełna bramka (ruff, mypy, pytest) zielona."
+  ],
+  "non_goals": [
+    "Bieg produkcyjny siatki 2-żetonowej i tensor 15 000 prób (kontrakt po tym).",
+    "Format binarny artefaktu i jego dystrybucja (decyzja 25 pkt 6; rozmiar policzony: ~38 MB).",
+    "Zamiana PI-FP na CFR+ w grze 3-osobowej — POKER-47 rozstrzygnął, że PI-FP wystarcza do jakości; kwestia ceny jest osobna.",
+    "Zmiany areny, agentów i pakietu produktu.",
+    "Optymalizacja kosztu solvera (osobna kwalifikacja, jeśli 91 rdzenio-godzin okaże się problemem)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/test_blueprint_pilot.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-49.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T18:00:00Z", "basis": "raport POKER-47 zweryfikowany niezależnie; decyzja 25 pkt 7; mandat autonomii 2026-08-09"}
+}

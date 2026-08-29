@@ -54,19 +54,13 @@ Protokół (koszt czytelnika > koszt pisarza):
   a bramka tego nie łapie (POKER-24: 20 607→20 971 infosetów).
 - Frozen dataclass ≠ izolacja: testy INV-P3/P4 dowodzą szczelności
   API, nie bezpieczeństwa — niezaufany agent za granicę procesu.
-- Asercja pod `if` w teście deterministycznym to uśpiona ochrona
-  (POKER-7).
-- Artefakt-moduł Pythona: sufit ~5 MB; koszt bramki dominuje
-  `ast.parse` w testach architektury, nie mypy (POKER-24).
 - ARCHITEKT: kryterium ilościowe po oszacowaniu budżetu z repo (19/24;
   wzorzec 47: zmierz krzywą, potem próg); acceptance to checklista
   asercji (5); cel-pomiar bez asercji = liczby bez dowodu (42/43).
 - Moduł w allowed_paths ≠ pusty: policz konsumentów grepem; konsument
-  poza allowed_paths = OBJECTION, nie zadanie (POKER-42 skasował
-  arenę POKER-13).
-- Ręcznie budowane stany $EV gubią żetony, a „suma = pula" na
-  wektorach ICM to tożsamość — niezmiennikiem jest suma żetonów
-  terminala (POKER-30–33).
+  poza allowed_paths = OBJECTION, nie zadanie (POKER-42).
+- Ręcznie budowane stany $EV gubią żetony, a „suma = pula" na wektorach
+  ICM to tożsamość — niezmiennik to suma żetonów terminala (30–33).
 - Asercja werdyktu produkcyjnego, mianownik na replice modelu
   i monotoniczność z jednej pary punktów nie chronią zachowania
   (POKER-35/37/40; naprawy w POKER-45).
@@ -74,6 +68,12 @@ Protokół (koszt czytelnika > koszt pisarza):
   transpozycjach (inwolucje) — psują się dopiero 3-cykle; kotwicz
   każdą oś osobno (POKER-46: najsilniejsza ręka brała wypłatę
   najsłabszej przy self-ε 7e-5).
+- ε ex-post warstwy DAG-u to suma długów warstw za nią (stan startowy
+  97,5% odziedziczonego) — „najgorszy stan" to miejsce akumulacji, nie
+  przyczyna; rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
+  (POKER-47: tolerancja, nie sufit iteracji — wbrew diagnozie arch.).
+- Pomiar kosztu po drabince parametrów w jednym biegu wymaga zegara
+  zerowanego na restart (POKER-47).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

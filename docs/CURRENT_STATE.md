@@ -788,6 +788,35 @@ cykli z deltą 0,00209 > `--tail-tol`; to błąd warunku brzegowego, a nie
 solvera, i w ex-post ε się nie pojawia (ogon jest zamrożony dla obu
 stron) — osobna sprawa do kwalifikacji.
 
+**Rozstrzygnięcie architekta (weryfikacja niezależna 2026-08-29).**
+Bramka, zakres i raporty commitów sprawdzone; czerwień ośmiu nowych
+testów odtworzona na worktree z `d7239e5`; ε odczytane z artefaktu
+`grid5c` (maks 4,3216e−4, mediana 8,376e−5 na tych samych 8 654
+stanach). Zadanie **zdane**, a jego wynik koryguje werdykt architekta
+z POKER-46: rozpoznanie „24 iteracje PI-FP nie wystarczają w trybie
+`deep`" **było błędne**. Progiem wiążącym była tolerancja zbieżności
+1e−3, na której kończył `jamfold` (79% siatki), a 76,2% ex-post ε
+stanu to dług odziedziczony z warstw za nim — dla stanu startowego
+97,5%. Diagnoza koder-vs-architekt rozstrzygnięta pomiarem na korzyść
+kodera; utrwalone w PUŁAPKACH.
+
+Uznaję też sprzeciw kodera wobec punktu 4 mojego uzupełnienia do
+kontraktu (ε ważone częstością odwiedzin): przy indukcji wstecznej
+best response waży stany sam, więc ε ex-post stanu startowego **jest**
+eksploatowalnością całego blueprintu, a osobne Σ P(s)·ε(s) liczyłoby
+ten sam dług wielokrotnie. Mój model tej metryki był błędny.
+
+Jakość przestaje być wąskim gardłem: maksimum 0,043% puli jest poniżej
+samego punktu odniesienia decyzji 25 (0,05%), nie tylko podwojonego
+progu kontraktu. Wąskim gardłem staje się **koszt** (91 rdzenio-godzin
+wobec ~108 z decyzji 25 — zapas zniknął) oraz **warunek brzegowy
+horyzontu**: delta 0,00209 jest 4,8× większa od naszego zmierzonego
+ε, a ex-post ε jej nie widzi, bo ogon jest zamrożony dla obu stron.
+Nie płacimy 91 rdzenio-godzin za bieg produkcyjny stojący na
+niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
+**POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
+audyt linii blueprintu świeżym kontekstem.
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
@@ -801,9 +830,18 @@ Następne kroki:
    ex-post ε poniżej progu 0,001 puli (bloki wyżej). Następny krok
    linii blueprintu to **bieg produkcyjny siatki 2-żetonowej** pod tym
    budżetem (~91 rdzenio-godzin), wraz z tensorem 15 000 prób
-   i formatem binarnym artefaktu (decyzja 25 pkt 6) — kontrakt do
-   specyfikacji przez architekta; kolejność integracji względem
-   POKER-48 według [indeksu](README.md#taskspeki);
+   i formatem binarnym artefaktu (decyzja 25 pkt 6). **Przed nim
+   obowiązkowo POKER-49** — domknięcie warunku brzegowego horyzontu
+   (delta 0,00209 jest 4,8× większa od zmierzonego ε i niewidoczna
+   w ex-post ε) oraz tolerancji w endgame'ach HU; bieg produkcyjny
+   stojący na niezbieżnym horyzoncie byłby 91 rdzenio-godzin
+   zapłaconych za liczbę, której nie umiemy obronić. Format
+   artefaktu policzony z danych pilota: maska + uint8 (2 z 3) + zlib
+   daje **~38 MB** na całą siatkę produkcyjną (201 B/stan zmierzone
+   na `grid5b`), a nie 0,25–1 GB szacowane w decyzji 25 — 60% komórek
+   to węzły nieosiągalne, a mediana prawdopodobieństwa dominującej
+   akcji to 0,996; kwantyzacja do uint8 daje błąd 0,0039, o rząd
+   wielkości mniejszy od ε;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;

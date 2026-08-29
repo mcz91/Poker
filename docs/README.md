@@ -233,12 +233,17 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   orientacja osi w kontrakcji wypłat pod testem kotwicznym,
   weryfikacja niezależna architekta);
 - [`POKER-47.json`](taskspecs/POKER-47.json) — krzywa ε-vs-iteracje
-  w węzłach `deep` i wybór budżetu iteracji z pomiaru; próg jakości
-  przed biegiem produkcyjnym (zatwierdzony; u kodera);
+  w węzłach `deep` i wybór budżetu iteracji z pomiaru (zamknięty
+  wariantem (i), commit `6d917fa`; budżet: sufit 384, tolerancja
+  5e−5; ex-post ε maks 4,3e−4 — poniżej punktu odniesienia decyzji 25;
+  weryfikacja niezależna architekta, diagnoza z POKER-46 skorygowana);
 - [`POKER-48.json`](taskspecs/POKER-48.json) — rotacja miejsc,
   wspólne seedy i statystyka na blokach w arenie Spin; zmierzona
-  redukcja SD i wynikające z niej N (zatwierdzony, decyzja 26;
-  kolejność integracji: po POKER-47).
+  redukcja SD i wynikające z niej N (zatwierdzony, decyzja 26);
+- [`POKER-49.json`](taskspecs/POKER-49.json) — domknięcie warunku
+  brzegowego blueprintu (zbieżność horyzontu, tolerancja w CFR+)
+  i pomiar propagacji brzegu do ex-post ε; obowiązkowo przed biegiem
+  produkcyjnym (zatwierdzony).
 
 ## Operator
 
