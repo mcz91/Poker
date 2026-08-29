@@ -1,0 +1,36 @@
+{
+  "id": "POKER-48",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Pomiar w arenie Spin przestaje zależeć od tego, na którym miejscu posadzimy hero, a operator dostaje zmierzoną redukcję odchylenia standardowego i wynikającą z niej liczbę turniejów potrzebną do wykrycia różnicy 5 i 10 pp ROI.",
+  "context": "Decyzja 26. Dziś `poker.spin_arena.sample` sadza hero zawsze na miejscu 0 (`books = (hero, villain, villain)`), więc wynik miesza siłę agenta z asymetrią pozycji, a wariancja pozostaje pełna. SD ROI to 145 pp na turniej; do wykrycia 10 pp przy N=320 trzeba 56% redukcji SD, do 5 pp — 78%. Ten kontrakt bierze wyłącznie te redukcje, które nie wymagają funkcji wartości stanu turnieju (AIVAT jest zablokowany na blueprincie — decyzja 26 pkt 2) i nie wprowadzają obciążenia.",
+  "acceptance": [
+    "Rotacja miejsc: ten sam seed turnieju rozgrywany w trzech rotacjach cyklicznych tak, że hero zajmuje kolejno każde z trzech miejsc przy tej samej sekwencji kart; jednostką statystyczną jest blok trzech turniejów, a raportowany ROI to średnia po bloku. Identyczność sekwencji kart między rotacjami tego samego bloku pod testem.",
+    "Wspólne seedy między ramionami porównania: dwa różne zestawy agentów porównywane na tym samym zbiorze seedów bloków; funkcja porównująca przyjmuje oba zestawy i zwraca różnicę ROI z własnym przedziałem — pod testem determinizmu (ten sam wynik przy powtórzeniu).",
+    "Przedziały ufności liczone na blokach, nigdy na pojedynczych turniejach ani rozdaniach; obok przedziału normalnego raportowany bootstrap percentylowy (liczba replikacji parametrem z udokumentowaną domyślną, seed jawny, wynik deterministyczny).",
+    "Zmierzona redukcja odchylenia standardowego: SD na turniej (stan sprzed zmiany) i SD na blok (po zmianie) na tym samym zbiorze seedów, dla co najmniej dwóch par agentów; raport podaje redukcję w procentach oraz wynikające z niej N potrzebne do wykrycia 5 pp i 10 pp ROI przy mocy 80% i alfa 0,05 (wzór jawny w dokumencie).",
+    "Obciążenie pozycyjne udokumentowane liczbą: ROI tego samego agenta zmierzone osobno na każdym z trzech miejsc na wspólnych seedach — różnica między miejscami wpisana do raportu jako wielkość, którą rotacja usuwa.",
+    "`tools/run_arena.py` i wszystkie pomiary w dokumentach przeliczone na nową jednostkę (blok), z komendami; stare liczby zastąpione, nie dopisane obok.",
+    "Determinizm bajt w bajt zachowany; pakiet produktu pozostaje czystym stdlib; pełna bramka (ruff, mypy, pytest) zielona."
+  ],
+  "non_goals": [
+    "AIVAT i jakiekolwiek korekty wymagające funkcji wartości stanu turnieju (zablokowane na blueprincie — decyzja 26 pkt 2).",
+    "Zastępowanie showdownu wartością oczekiwaną w przestrzeni żetonów — obciążone przez nierówność Jensena (decyzja 26, zakaz pierwszy).",
+    "Sekwencyjne testy i przedziały anytime-valid (osobny kontrakt po AIVAT).",
+    "Stratyfikacja po mnożniku Spina (zmierzone ~3% wariancji — nie warto).",
+    "Zmiany w `poker.arena` (HU cash), w blueprincie i w `tools/blueprint/`.",
+    "Zmiany modelu gry, wypłat i abstrakcji akcji."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin_arena.py",
+    "tests/test_spin_arena.py",
+    "tools/run_arena.py",
+    "docs/decisions/22-arena-roi.md",
+    "docs/decisions/23-field-exploit.md",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-48.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T12:30:00Z", "basis": "decyzja 26; research redukcji wariancji 2026-08-29; mandat autonomii 2026-08-09"}
+}

@@ -24,6 +24,17 @@ wygląda na naszej skali.
    blindy). Cykliczny wyjątek: ostatni poziom zegara domykany PI-FP
    do punktu stałego.
 2. **Solver stanu: PI-FP w grze 3-osobowej, CFR+ w endgame'ach HU.**
+   > Korekta 2026-08-29: pierwotne uzasadnienie było za mocne. Wynik
+   > „FP bije CFR poza 2-osobowymi grami o sumie zerowej"
+   > (arXiv:2001.11165) dotyczy wyłącznie gier w **postaci normalnej**,
+   > a przewagi są rzędu 2,5% względnie. W grach ekstensywnych
+   > 3-osobowych to CFR działa w praktyce (Abou Risk & Szafron,
+   > AAMAS 2010 — wygrane wydarzenia 3-osobowe ACPC), a praktycy HRC
+   > przełączają się na CFR+ dokładnie tam, gdzie eksploatowalność nie
+   > schodzi, raportując lepszą zbieżność „przy wielu rozmiarach
+   > zakładów" — czyli w naszym trybie `deep`. Wybór solvera
+   > rozstrzyga pomiar POKER-47, nie ten akapit.
+
    Fictitious play empirycznie bije CFR we wszystkich klasach gier
    poza 2-osobowymi o sumie zerowej (arXiv:2001.11165); nasz stage
    game ma 2 366 infosetów (14 węzłów publicznych × 169 klas), więc

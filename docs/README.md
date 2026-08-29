@@ -79,7 +79,12 @@
     — droga Pluribusa na naszej skali: backward induction po DAG-u
     zegara z ICM na horyzoncie, PI-FP (3-handed) + CFR+ (endgame HU),
     169 klas z łącznymi rozkładami trójek, ex-post ε jako metryka,
-    artefakt binarny poza modułem Pythona.
+    artefakt binarny poza modułem Pythona (pkt 2 z korektą
+    uzasadnienia wyboru solvera, 2026-08-29);
+26. [`26-moc-pomiaru-areny-redukcja-wariancji.md`](decisions/26-moc-pomiaru-areny-redukcja-wariancji.md)
+    — moc pomiaru areny: kolejność redukcji wariancji (rotacje przed
+    AIVAT), AIVAT zablokowany na funkcji wartości blueprintu, zakaz
+    Jensena i zakaz strojenia funkcji wartości po danych.
 
 ## TaskSpeki
 
@@ -229,7 +234,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   weryfikacja niezależna architekta);
 - [`POKER-47.json`](taskspecs/POKER-47.json) — krzywa ε-vs-iteracje
   w węzłach `deep` i wybór budżetu iteracji z pomiaru; próg jakości
-  przed biegiem produkcyjnym (zatwierdzony; u kodera).
+  przed biegiem produkcyjnym (zatwierdzony; u kodera);
+- [`POKER-48.json`](taskspecs/POKER-48.json) — rotacja miejsc,
+  wspólne seedy i statystyka na blokach w arenie Spin; zmierzona
+  redukcja SD i wynikające z niej N (zatwierdzony, decyzja 26;
+  kolejność integracji: po POKER-47).
 
 ## Operator
 
