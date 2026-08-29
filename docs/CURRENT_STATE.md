@@ -941,8 +941,13 @@ Następne kroki:
    daje **~38 MB** na całą siatkę produkcyjną (201 B/stan zmierzone
    na `grid5b`), a nie 0,25–1 GB szacowane w decyzji 25 — 60% komórek
    to węzły nieosiągalne, a mediana prawdopodobieństwa dominującej
-   akcji to 0,996; kwantyzacja do uint8 daje błąd 0,0039, o rząd
-   wielkości mniejszy od ε;
+   akcji to 0,996. Kwantyzacja do uint8 daje maksymalny błąd 0,0039
+   **w przestrzeni prawdopodobieństw akcji** — to inna jednostka niż
+   ε (udział puli) i porównanie tych liczb wprost było błędem
+   (korekta architekta 2026-08-29); ile kwantyzacja kosztuje w ε,
+   jest niezmierzone i stanowi kryterium akceptacji kontraktu formatu:
+   ex-post ε artefaktu skwantowanego minus ε surowego, policzone tym
+   samym narzędziem;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;
