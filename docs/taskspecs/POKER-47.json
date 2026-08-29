@@ -1,0 +1,31 @@
+{
+  "id": "POKER-47",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Operator wie, ile iteracji PI-FP kupuje jaką jakość w pełnym drzewie 14-węzłowym, i czy da się zejść z ex-post ε węzłów deep do progu, na którym warto zapłacić za bieg produkcyjny.",
+  "context": "POKER-46 zmierzył: ex-post ε mediana 0,00092 puli, maksimum 0,00848 — a dziesięć najgorszych stanów to wyłącznie tryb deep (pełne drzewo 14 węzłów, ręce 0-3 przy ~25 bb), gdzie 24 iteracje PI-FP wyczerpują sufit. Stany jam/fold i HU są o rząd wielkości lepsze. Koszt nie jest przeszkodą (pilot ~35 rdzenio-h wobec ~108 oszacowanych), więc budżet iteracji jest realnym pokrętłem. Kryterium ilościowe wchodzi do kontraktu dopiero z pomiaru (PUŁAPKA po POKER-19 i POKER-24) — dlatego ten kontrakt najpierw mierzy krzywą, a próg jest jej konsekwencją, nie założeniem.",
+  "acceptance": [
+    "Krzywa ε-vs-iteracje zmierzona na reprezentatywnej próbce stanów deep: co najmniej dziesięć najgorszych stanów z POKER-46 plus losowa próbka deep (seed jawny), dla geometrycznej drabinki sufitów iteracji PI-FP (co najmniej 24, 48, 96, 192, 384); dla każdego punktu ex-post ε (max i mediana na próbce) oraz zmierzony koszt rdzenio-sekund na stan; wynik jako plik raportu i tabela w CURRENT_STATE z komendą odtwarzającą.",
+    "Rozstrzygnięcie wprost, oparte na tej krzywej, w jednym z dwóch wariantów: albo (i) istnieje budżet iteracji, przy którym ex-post ε max na wszystkich stanach deep siatki 5-żetonowej spada do 0,001 puli (2x punktu odniesienia decyzji 25) — wtedy ten budżet jest domyślny w solverze i pilot jest powtórzony w całości pod nim; albo (ii) krzywa wypłaszcza się powyżej tego progu — wtedy raport podaje poziom plateau, koszt jego osiągnięcia i przyczynę (diagnoza: czy to sufit iteracji, czy oscylacja fictitious play w pełnym drzewie), a rekomendacje alternatyw (CFR+ na deep, restarty z wielu inicjalizacji, redukcja abstrakcji akcji) zostają OPISANE, nie wdrożone — wybór należy do architekta.",
+    "Wariant (i): powtórzony bieg pilota (siatka 5, pełny zegar) pod wybranym budżetem, z nowym ex-post ε (max i mediana), nowym kosztem i nową ekstrapolacją rdzenio-godzin dla siatki 2-żetonowej — liczby w CURRENT_STATE zastępują poprzednie, każda z komendą.",
+    "Wariant (ii): stary bieg pozostaje opisany jako aktualny; raport plateau nie podmienia liczb, tylko je uzupełnia.",
+    "Determinizm zachowany: wybór budżetu iteracji nie może uczynić wyniku zależnym od liczby procesów ani od kolejności stanów — pod testem (ten sam stan liczony przy jobs=1 i jobs=4 daje identyczną strategię).",
+    "Pakiet produktu nietknięty (żadnych zmian w src/poker); pełna bramka (ruff, mypy, pytest) zielona; nowe testy szybkie (małe konfiguracje, nie pełny bieg)."
+  ],
+  "non_goals": [
+    "Bieg produkcyjny siatki 2-żetonowej i tensor 15 000 prób (kontrakt po zamknięciu tego).",
+    "Wdrażanie alternatywnego solvera dla deep w wariancie (ii) — opis i rekomendacja, decyzja architekta.",
+    "Format binarny artefaktu produkcyjnego i jego dystrybucja (decyzja 25 pkt 6, osobny kontrakt).",
+    "Agent blueprint w rejestrze CLI, pomiar w arenie, AIVAT.",
+    "Zmiany modelu gry, abstrakcji akcji i tensora rolloutu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/test_blueprint_pilot.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-47.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-29T10:40:00Z", "basis": "pomiary POKER-46 zweryfikowane niezależnie; decyzja 25 pkt 2 i 7; mandat autonomii 2026-08-09"}
+}

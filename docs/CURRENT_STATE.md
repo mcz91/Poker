@@ -564,6 +564,25 @@ jest 17× powyżej punktu odniesienia decyzji 25 i to tam, nie w koszcie,
 leży kontrakt produkcyjny (więcej iteracji PI-FP albo inny solver dla
 pełnego drzewa 14-węzłowego).
 
+**Rozstrzygnięcie architekta (weryfikacja niezależna 2026-08-29).**
+Czerwień testu kotwicznego na kodzie sprzed poprawki odtworzona
+(worktree na `b1b494b` + nowy plik testów: dwa testy konsumenta
+czerwone, test tensora zielony — zgodnie z raportem); bramka, zakres
+i raporty commitów sprawdzone; ε, delta ICM i sanity odczytane
+z zapisanych artefaktów. Pilot **zdany**: kierunek decyzji 25
+potwierdzony, bo błąd ICM „po ręce" (7,9% puli) jest 2,6× większy niż
+u Ganzfrieda — model turniejowy kupuje realną przewagę, a nie
+kosmetykę. Koszt schodzi z drogi (~35 rdzenio-h wobec ~108
+oszacowanych; oszacowanie decyzji 25 było błędne w obie strony —
+zapisane, nie zamiecione). Jakość jest jedynym wąskim gardłem
+i **nie unieważnia decyzji 25**: mediana ε (0,092% puli) mieści się
+w regule odczytu, a maksimum dotyczy trybu `deep` — 253 z 8 654
+stanów pilota, ~1,6% siatki produkcyjnej. To ograniczony defekt
+budżetu iteracji, nie porażka metody, więc następny krok jest wąski
+(POKER-47), a bieg produkcyjny czeka za nim. Zgodnie z PUŁAPKĄ
+o kryteriach ilościowych POKER-47 najpierw **mierzy krzywą
+ε-vs-iteracje**, a dopiero z niej bierze próg — nie odwrotnie.
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
@@ -571,10 +590,13 @@ Następne kroki:
    blueprint po DAG-u zegara (backward induction, ICM tylko na
    horyzoncie), PI-FP w grze 3-osobowej + CFR+ w endgame'ach HU,
    169 klas z łącznymi rozkładami trójek; metryka: ex-post
-   best-response ε. **Pilot POKER-46 zmierzony** (blok wyżej) —
-   kontrakt produkcyjny czeka na decyzję architekta o budżecie
-   iteracji PI-FP w węzłach `deep`, bo tam ε ex-post nie mieści się
-   w punkcie odniesienia decyzji 25;
+   best-response ε. **Pilot POKER-46 zdany i zweryfikowany
+   niezależnie** (blok wyżej). Następny krok to **POKER-47**
+   (u kodera): krzywa ε-vs-iteracje w węzłach `deep`, wybór budżetu
+   z pomiaru i powtórzony pilot pod nowym budżetem. Bieg produkcyjny
+   siatki 2-żetonowej dopiero po zamknięciu POKER-47 — nie ma sensu
+   płacić ~25 rdzenio-godzin za solver, o którym wiadomo, że
+   w 1,6% stanów nie trzyma jakości;
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;

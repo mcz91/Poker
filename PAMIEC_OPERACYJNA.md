@@ -48,32 +48,32 @@ Protokół (koszt czytelnika > koszt pisarza):
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
 - Zamknięcie zadania i zatwierdzenie TaskSpeca N+1 aktualizuje też
-  „Następny krok" w CURRENT_STATE — dryf przy POKER-2/8/25 i nagłówek
-  przy POKER-31/32/33; numer i opis jednym commitem.
+  „Następny krok" w CURRENT_STATE (dryf: POKER-2/8/25, nagłówek
+  31/32/33) — jednym commitem.
 - Regeneracja artefaktu unieważnia pomiary przy nim w CURRENT_STATE,
   a bramka tego nie łapie (POKER-24: 20 607→20 971 infosetów).
-- Kryterium acceptance wyliczające zakres czytaj jak checklistę
-  asercji — deklaracja ≠ dowód (POKER-5: turn/river bez asercji).
-- Frozen dataclass ≠ izolacja: testy przecieku INV-P3/P4 dowodzą
-  szczelności API, nie bezpieczeństwa — izolację niezaufanego agenta
-  stawiać na granicy procesu (adapter, INV-P7).
-- Asercja pod `if` w teście deterministycznym to uśpiona ochrona —
-  przybijaj wynik bezwarunkowo (POKER-7).
+- Frozen dataclass ≠ izolacja: testy INV-P3/P4 dowodzą szczelności
+  API, nie bezpieczeństwa — niezaufany agent za granicę procesu.
+- Asercja pod `if` w teście deterministycznym to uśpiona ochrona
+  (POKER-7).
 - Artefakt-moduł Pythona: sufit ~5 MB; koszt bramki dominuje
   `ast.parse` w testach architektury, nie mypy (POKER-24).
-- ARCHITEKT: kryterium ilościowe wyłącznie po oszacowaniu budżetu
-  z danych repo (POKER-19, POKER-24); liczba w dokumencie wymaga
-  komendy odtwarzającej i liczby iteracji; kontrakt z celem-pomiarem
-  bez asercji pomiaru produkuje liczby bez dowodu (POKER-42/43).
-- Moduł w allowed_paths ≠ pusty: przed przepisaniem policz konsumentów
-  grepem; konsument poza allowed_paths = OBJECTION: INCOMPLETE, nie
-  zadanie (POKER-42 skasował arenę POKER-13).
-- Ręcznie budowane stany $EV gubią żetony (stacki po blindach jako
-  wkłady, całe stacki wołających), a „suma = pula" na wektorach ICM to
-  tożsamość — niezmiennikiem jest suma żetonów terminala (POKER-30–33).
+- ARCHITEKT: kryterium ilościowe po oszacowaniu budżetu z repo (19/24;
+  wzorzec 47: zmierz krzywą, potem próg); acceptance to checklista
+  asercji (5); cel-pomiar bez asercji = liczby bez dowodu (42/43).
+- Moduł w allowed_paths ≠ pusty: policz konsumentów grepem; konsument
+  poza allowed_paths = OBJECTION, nie zadanie (POKER-42 skasował
+  arenę POKER-13).
+- Ręcznie budowane stany $EV gubią żetony, a „suma = pula" na
+  wektorach ICM to tożsamość — niezmiennikiem jest suma żetonów
+  terminala (POKER-30–33).
 - Asercja werdyktu produkcyjnego, mianownik na replice modelu
   i monotoniczność z jednej pary punktów nie chronią zachowania
   (POKER-35/37/40; naprawy w POKER-45).
+- Tabela permutacji zbudowana w złą stronę przeżywa testy na
+  transpozycjach (inwolucje) — psują się dopiero 3-cykle; kotwicz
+  każdą oś osobno (POKER-46: najsilniejsza ręka brała wypłatę
+  najsłabszej przy self-ε 7e-5).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 

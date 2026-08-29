@@ -224,7 +224,12 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   kodera uznany decyzją 24);
 - [`POKER-46.json`](taskspecs/POKER-46.json) — pilot blueprintu po
   DAG-u zegara: zgrubna siatka, PI-FP + CFR+, ex-post ε, pomiar
-  budżetu produkcji (zatwierdzony, decyzja 25; u kodera).
+  budżetu produkcji (zamknięty, commit `fee5f83`; naprawiona
+  orientacja osi w kontrakcji wypłat pod testem kotwicznym,
+  weryfikacja niezależna architekta);
+- [`POKER-47.json`](taskspecs/POKER-47.json) — krzywa ε-vs-iteracje
+  w węzłach `deep` i wybór budżetu iteracji z pomiaru; próg jakości
+  przed biegiem produkcyjnym (zatwierdzony; u kodera).
 
 ## Operator
 
