@@ -649,12 +649,16 @@ def test_kryteria_stopu_solverow_maja_ten_sam_ksztalt_i_te_same_wartosci_w_cli()
     """Kryteria stopu mają ten sam kształt, a CLI nie rozjeżdża się z konfiguracją.
 
     Tolerancja CFR+ jest ta sama co PI-FP, bo dług obu solverów sumuje się
-    w tym samym DAG-u i mierzy go ta sama metryka ex-post.
+    w tym samym DAG-u i mierzy go ta sama metryka ex-post. Sufity pochodzą
+    z krzywych POKER-49: horyzont 12 cykli przy tolerancji 5e−4 (delta ma
+    podłogę ~2e−4, więc niżej zejść nie może), CFR+ 512 iteracji przy
+    tolerancji 5e−5 (osiąga ją 128, sufit daje zapas).
     """
     sg = _load("solve_grid")
     defaults = sg.GridConfig()
     assert defaults.cfr_tol == defaults.fp_tol
-    assert defaults.cfr_iters > 0 and defaults.tail_max_cycles > 0
+    assert (defaults.tail_max_cycles, defaults.tail_tol) == (12, 5e-4)
+    assert (defaults.cfr_iters, defaults.cfr_check_every) == (512, 32)
     assert defaults.boundary_perturb == 0.0
     parsed = sg.build_parser().parse_args(["--tensor", "t", "--out", "o"])
     assert parsed.tail_cycles == defaults.tail_max_cycles

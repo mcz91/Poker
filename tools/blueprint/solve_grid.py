@@ -147,14 +147,19 @@ class GridConfig:
     fp_restarts: int = 2
     # CFR+ w endgame'ach HU ma to samo kryterium stopu co PI-FP: wiąże tolerancja,
     # sufit jest zabezpieczeniem. Tolerancja jest ta sama co `fp_tol`, bo dług
-    # obu solverów sumuje się w tym samym DAG-u; sufit zostaje z POKER-46.
-    cfr_iters: int = 128
+    # obu solverów sumuje się w tym samym DAG-u i mierzy go ta sama metryka.
+    # Sufit z krzywej ε-vs-iteracje trybu `hu-deep` (POKER-49): tolerancję
+    # osiąga 128 iteracji, 512 daje 11x zapasu za 0,25 rdzenio-s na stan.
+    cfr_iters: int = 512
     cfr_check_every: int = 32
     cfr_tol: float = 5e-5
-    # Horyzont: punkt stały ostatniego poziomu zegara kończy na tolerancji, a nie
-    # na sufcie cykli; wartości zostają z POKER-46.
-    tail_max_cycles: int = 3
-    tail_tol: float = 1e-3
+    # Horyzont: tolerancja z krzywej delta-vs-cykle (POKER-49, siatka 10, 16 cykli).
+    # Iteracja ma podłogę ~2e-4 — od ósmego cyklu delta przestaje spadać, więc
+    # tolerancja poniżej podłogi zamieniłaby kryterium z powrotem na sufit.
+    # 5e-4 jest osiągane w piątym cyklu z zapasem 2,3x nad podłogą; sufit 12 to
+    # 2,4x tego, więc zabezpiecza, a nie wiąże.
+    tail_max_cycles: int = 12
+    tail_tol: float = 5e-4
     # Jawne zaburzenie warunku brzegowego — wyłącznie do pomiaru ślepoty metryki
     # (ex-post ε zamraża ogon dla obu stron, więc błędu horyzontu nie widzi).
     boundary_perturb: float = 0.0

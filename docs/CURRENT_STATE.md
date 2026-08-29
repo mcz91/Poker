@@ -808,7 +808,8 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    `jamfold` (18×) i to on zjadł zapas budżetu produkcyjnego. Czy CFR+
    osiąga w `deep` to samo ε taniej, wymaga zmierzenia jego krzywej —
    tego kontrakt POKER-47 nie robił (non_goal) i żadnej alternatywy nie
-   wdrożono; `eps_curve.py` mierzy dziś wyłącznie PI-FP.
+   wdrożono; `eps_curve.py` mierzył wtedy wyłącznie PI-FP (od POKER-49
+   mierzy też CFR+ w trybach `hu-*` — blok niżej).
 
 Świadomie zostawione: 39 stanów `hu-deep` ma ε etapowe powyżej nowej
 tolerancji (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach —
@@ -816,7 +817,9 @@ nietknięty, skoro jego wkład w ex-post ε jest o rząd wielkości mniejszy
 niż solvera 3-osobowego. Horyzont nadal kończy się na sufcie trzech
 cykli z deltą 0,00209 > `--tail-tol`; to błąd warunku brzegowego, a nie
 solvera, i w ex-post ε się nie pojawia (ogon jest zamrożony dla obu
-stron) — osobna sprawa do kwalifikacji.
+stron) — osobna sprawa do kwalifikacji. **Oba punkty podjęte
+w POKER-49 (blok niżej): CFR+ dostał średnią ważoną reachem i stop na
+tolerancji, horyzont — tolerancję zamiast sufitu.**
 
 **Rozstrzygnięcie architekta (weryfikacja niezależna 2026-08-29).**
 Bramka, zakres i raporty commitów sprawdzone; czerwień ośmiu nowych
@@ -846,6 +849,74 @@ Nie płacimy 91 rdzenio-godzin za bieg produkcyjny stojący na
 niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
+
+**POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) — w toku.**
+Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
+`PILOT` to katalog artefaktów poza repozytorium. Wszystkie komendy
+z `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1`.
+
+```
+O  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/tail10 --grid-step 10 --tail-tol 0 --tail-cycles 16 \
+       --jobs 4 --layers-limit 0
+P  python tools/blueprint/eps_curve.py curve --out PILOT/g25 --mode hu-deep \
+       --ladder 32,64,128,256,512,1024,2048 --worst 5 --extra 5 --seed 47 \
+       --jobs 4 --report eps_curve_hu.json
+```
+
+1. **Horyzont zbiega do podłogi, nie do zera (O).** Krzywa
+   delta-vs-cykle na siatce 10 (133 stany, 3 015 s; tolerancja wyłączona,
+   więc sufit jest jedynym ogranicznikiem):
+
+   | cykl | delta | cykl | delta |
+   |-----:|------:|-----:|------:|
+   | 1 | 0,0573 | 6 | 2,14e−4 |
+   | 2 | 0,0100 | 7 | 1,94e−4 |
+   | 3 | 1,09e−3 | 8 | **1,81e−4** |
+   | 4 | 8,33e−4 | 9–16 | ~2,05e−4 |
+   | 5 | 4,34e−4 | | |
+
+   Cykl 3 odtwarza rząd delty 0,00209 z POKER-47. Od ósmego cyklu delta
+   **przestaje spadać**: ilorazy kolejnych cykli siadają na 0,95–1,05, więc
+   osiem dalszych cykli nie kupuje nic. Podłoga ~2e−4 to szum samego
+   solvera etapowego — tolerancja `--fp-tol` 5e−5 wzmocniona przez
+   trzyrękowy cykl (~4×) — a nie brak cykli. **Dokładność warunku
+   brzegowego jest więc ograniczona od dołu przez tolerancję etapową:**
+   żeby zejść niżej, trzeba zacisnąć `--fp-tol`, a nie podnieść
+   `--tail-cycles`. Stąd domyślne: tolerancja **5e−4** (osiągana w piątym
+   cyklu, z zapasem 2,3× nad podłogą, więc wiąże tolerancja, a nie sufit)
+   i sufit **12 cykli** (2,4× tego — zabezpieczenie, nie kryterium).
+   To 4,2× lepiej niż 0,00209 z POKER-47 za dwa cykle więcej. Konsekwencja
+   przed produkcją: nowa delta brzegu 5e−4 jest **tego samego rzędu** co
+   ex-post ε biegu (4,3e−4), czyli niepewność warunku brzegowego przestała
+   być zaniedbywalna wobec wielkości, którą mierzymy. Brzeg jest **zbieżny
+   do podłogi, a nie domknięty do zera** — to dwie różne rzeczy; ile ta
+   różnica kosztuje w ε i w strategiach, mierzy punkt o ślepocie metryki.
+
+2. **Krzywa CFR+ w endgame'ach HU (P).** Pierwszy pomiar samego CFR+
+   (`eps_curve.py` mierzył dotąd wyłącznie PI-FP — zdanie z bloku POKER-47
+   pkt 9 przestało być prawdziwe). Próbka 10 stanów `hu-deep`, średnia
+   ważona własnym reachem, tolerancja w pomiarze wyłączona:
+
+   | sufit | ε maks | ε mediana | rdzenio-s/stan |
+   |------:|-------:|----------:|---------------:|
+   |    32 | 4,51e−4 | 1,09e−4 | 0,015 |
+   |    64 | 1,45e−4 | 3,26e−5 | 0,030 |
+   |   128 | 4,76e−5 | 8,87e−6 | 0,060 |
+   |   256 | 1,55e−5 | 2,64e−6 | 0,177 |
+   |   512 | 4,35e−6 | 6,48e−7 | 0,247 |
+   |  1024 | 1,16e−6 | 1,94e−7 | 0,492 |
+   |  2048 | 3,13e−7 | 1,53e−7 | 0,963 |
+
+   Nachylenie log ε vs log t: **−1,75**, stałe (iloraz 0,27–0,33 na
+   podwojenie) aż do 2 048 — bez plateau. **Cena średniej nieważonej jest
+   tu widoczna wprost:** przy tym samym sufcie 128, którego POKER-47 nie
+   ruszał, średnia nieważona dawała ε etapowe maks 7,1e−5 i 39 stanów
+   powyżej tolerancji, a ważona własnym reachem daje 4,76e−5 — poniżej
+   tolerancji 5e−5. Stąd budżet: tolerancja **5e−5** (ta sama co PI-FP,
+   bo dług obu sumuje się w tym samym DAG-u) i sufit **512** iteracji —
+   tolerancję osiąga już 128, więc sufit jest zabezpieczeniem z zapasem
+   11× za 0,25 rdzenio-s na stan, a nie kryterium.
 
 Następne kroki:
 
