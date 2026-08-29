@@ -153,7 +153,7 @@ def axis_tensor(tmp_path_factory: pytest.TempPathFactory) -> Path:
     rt = _load("rollout_tensor")
     out_dir = tmp_path_factory.mktemp("axes") / "tensor"
     rt.generate_artifacts(
-        out_dir, trials=600, hu_trials=60, master_seed=23,
+        out_dir, trials=600, hu_trials=300, master_seed=23,
         classes=_axis_classes(), jobs=1, backend="direct",
     )
     return out_dir
@@ -293,6 +293,24 @@ def test_konsument_wt13_ma_te_sama_orientacje_osi_co_tensor(axis_tensor: Path) -
         else:
             assert float(np.max(np.abs(in_base - base_probs))) < 1e-6, (ordered, in_base)
         assert abs(float(weighted.sum()) - float(tensors.deal3[flat])) < 1e-3
+
+
+def test_konsument_wt2_endgame_nie_zamienia_rol_hu(axis_tensor: Path) -> None:
+    """Ta sama kotwica dla endgame'u HU: rola trzymająca AA ma equity AA, nie 72o."""
+    sg = _load("solve_grid")
+    rt = _load("rollout_tensor")
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    slot = {index: position for position, index in enumerate(classes)}
+    split = rt.OUTCOMES_2.index((0, 0))
+    better_a = rt.OUTCOMES_2.index((0, 1))  # rola 0 lepsza: nikt nie jest od niej lepszy
+    aa, junk = _cls("AA"), _cls("72o")
+    for first, second, expected_high in ((aa, junk, True), (junk, aa, False)):
+        weighted = tensors.wt2_endgame[slot[first] * tensors.count + slot[second]]
+        total = float(weighted.sum())
+        assert total > 0.0
+        equity_first = (float(weighted[better_a]) + 0.5 * float(weighted[split])) / total
+        assert (equity_first > 0.7) if expected_high else (equity_first < 0.3), equity_first
 
 
 def test_kontrakcja_wyplat_sadza_aa_na_wlasciwej_roli(axis_tensor: Path) -> None:
