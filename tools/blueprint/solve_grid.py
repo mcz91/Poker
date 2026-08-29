@@ -516,17 +516,24 @@ def _multiset_rows(count: int) -> np.ndarray:
 
 
 def _outcome_permutations() -> dict[tuple[int, ...], np.ndarray]:
+    """Tabele gather: wiersz[o_uporządkowane] = indeks zdarzenia w przestrzeni multizbioru.
+
+    Wektor zdarzeń multizbioru u_m przechodzi na osie uporządkowane przez
+    u_o[perm[m]] = u_m[m]; indeksowanie `probs[wiersz, tabela]` wymaga mapy
+    ODWROTNEJ (o_o → o_m). Transpozycje są inwolucjami, więc pomyłkę kierunku
+    widać dopiero na 3-cyklach — stąd test kotwiczny AA na każdej osi.
+    """
     outcomes = rollout_tensor.OUTCOMES_3
     index = {ranks: position for position, ranks in enumerate(outcomes)}
     table: dict[tuple[int, ...], np.ndarray] = {}
     for perm in itertools.permutations(range(3)):
-        mapped = np.zeros(len(outcomes), dtype=np.int64)
+        gather = np.zeros(len(outcomes), dtype=np.int64)
         for position, ranks in enumerate(outcomes):
             ordered = [0, 0, 0]
             for multiset_pos in range(3):
                 ordered[perm[multiset_pos]] = ranks[multiset_pos]
-            mapped[position] = index[tuple(ordered)]
-        table[perm] = mapped
+            gather[index[tuple(ordered)]] = position
+        table[perm] = gather
     return table
 
 

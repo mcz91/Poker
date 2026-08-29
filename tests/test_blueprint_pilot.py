@@ -54,9 +54,38 @@ def _cls(name: str) -> int:
 
 TEST_CLASSES = ("AA", "KK", "Q7s", "72o")
 
+# Trójka o trzech różnych, mocno rozstrzelonych sile klasach: permutacje ról
+# obejmują wtedy 3-cykle, na których widać złą orientację osi (transpozycje są
+# inwolucjami, więc odwrócona tabela permutacji przechodzi je niezauważona).
+AXIS_CLASSES = ("AA", "72o", "J8o")
+
 
 def _toy_classes() -> tuple[int, ...]:
     return tuple(sorted(_cls(name) for name in TEST_CLASSES))
+
+
+def _axis_classes() -> tuple[int, ...]:
+    return tuple(sorted(_cls(name) for name in AXIS_CLASSES))
+
+
+def _outright_by_axis(rt: Any, probs: Any) -> Any:
+    """Prawdopodobieństwo wygranej bez remisu dla gracza na każdej z trzech osi."""
+    np = rt.np
+    return np.array(
+        [
+            sum(float(probs[out]) for out, ranks in enumerate(rt.OUTCOMES_3) if ranks[axis] == 0)
+            for axis in range(3)
+        ]
+    )
+
+
+def _to_base_axes(rt: Any, source: tuple[int, ...]) -> Any:
+    """Mapa zdarzeń z osi permutowanych (oś a trzyma klasę bazową source[a]) na osie bazowe."""
+    np = rt.np
+    position = {ranks: index for index, ranks in enumerate(rt.OUTCOMES_3)}
+    return np.array(
+        [position[tuple(ranks[source.index(base)] for base in range(3))] for ranks in rt.OUTCOMES_3]
+    )
 
 
 def _synthetic_artifacts(tmp: Path, classes: tuple[int, ...], trials: int = 64) -> Path:
@@ -119,6 +148,18 @@ def _toy_config(sg: Any, **overrides: Any) -> Any:
 
 
 @pytest.fixture(scope="module")
+def axis_tensor(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Prawdziwy (nie syntetyczny) tensor trzech klas — kotwica orientacji osi."""
+    rt = _load("rollout_tensor")
+    out_dir = tmp_path_factory.mktemp("axes") / "tensor"
+    rt.generate_artifacts(
+        out_dir, trials=600, hu_trials=60, master_seed=23,
+        classes=_axis_classes(), jobs=1, backend="direct",
+    )
+    return out_dir
+
+
+@pytest.fixture(scope="module")
 def toy_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     """Jeden pełny bieg toy-solvera współdzielony przez testy raportów."""
     sg = _load("solve_grid")
@@ -178,6 +219,124 @@ def test_symulacja_trojki_deterministyczna_i_zliczenia() -> None:
         if ranks[positions[_cls("72o")]] == 0 and sorted(ranks) == [0, 1, 2]
     )
     assert aa_solo > junk_solo
+
+
+def test_tensor_aa_wygrywa_na_swojej_osi_niezaleznie_od_kolejnosci() -> None:
+    """Kotwica orientacji osi w tensorze: AA wygrywa tam, gdzie ją posadzono.
+
+    Sześć kolejności tej samej trójki klas (w tym oba 3-cykle) musi dać po
+    przeniesieniu na osie bazowe zgodne prawdopodobieństwa wygranej.
+    """
+    rt = _load("rollout_tensor")
+    np = rt.np
+    aa = _cls("AA")
+    base_triple = tuple(_cls(name) for name in AXIS_CLASSES)
+    trials = 600
+    base_outright = None
+    for source in itertools.permutations(range(3)):
+        ordered = tuple(base_triple[source[axis]] for axis in range(3))
+        seed = rt.triple_seed(23, *ordered)
+        counts = rt.simulate_triple(
+            ordered, trials, np.random.Generator(np.random.PCG64(seed)), None
+        )
+        assert int(counts.sum()) == trials
+        outright = _outright_by_axis(rt, counts / counts.sum())
+        aa_axis = ordered.index(aa)
+        assert outright[aa_axis] > 0.55, (ordered, outright)
+        for axis in range(3):
+            if axis != aa_axis:
+                assert outright[aa_axis] > 2.0 * outright[axis], (ordered, outright)
+        in_base = np.zeros(3)
+        for axis in range(3):
+            in_base[source[axis]] = outright[axis]
+        if base_outright is None:
+            base_outright = in_base
+        else:
+            # Strumienie RNG różnią się kolejnością klas, więc porównanie jest
+            # statystyczne: szum przy 600 próbach to ~0,03, pomyłka osi ~0,5.
+            assert float(np.max(np.abs(in_base - base_outright))) < 0.15, (ordered, in_base)
+
+
+def test_konsument_wt13_ma_te_sama_orientacje_osi_co_tensor(axis_tensor: Path) -> None:
+    """Kotwica orientacji osi w `load_tensors`: wt13 indeksowane rolą, nie multizbiorem.
+
+    Wszystkie sześć kolejności czyta ten sam wiersz multizbioru, więc zgodność
+    po przeniesieniu na osie bazowe musi być dokładna, nie statystyczna.
+    """
+    sg = _load("solve_grid")
+    rt = _load("rollout_tensor")
+    np = sg.np
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    slot = {index: position for position, index in enumerate(classes)}
+    aa = _cls("AA")
+    base_triple = tuple(_cls(name) for name in AXIS_CLASSES)
+    base_probs = None
+    for source in itertools.permutations(range(3)):
+        ordered = tuple(base_triple[source[axis]] for axis in range(3))
+        flat = (slot[ordered[0]] * tensors.count + slot[ordered[1]]) * tensors.count + slot[
+            ordered[2]
+        ]
+        weighted = tensors.wt13[flat]
+        assert float(weighted.sum()) > 0.0
+        probs = weighted / weighted.sum()
+        outright = _outright_by_axis(rt, probs)
+        aa_axis = ordered.index(aa)
+        assert outright[aa_axis] > 0.55, (ordered, outright)
+        for axis in range(3):
+            if axis != aa_axis:
+                assert outright[aa_axis] > 2.0 * outright[axis], (ordered, outright)
+        in_base = np.zeros(len(rt.OUTCOMES_3), dtype=np.float64)
+        in_base[_to_base_axes(rt, source)] = probs
+        if base_probs is None:
+            base_probs = in_base
+        else:
+            assert float(np.max(np.abs(in_base - base_probs))) < 1e-6, (ordered, in_base)
+        assert abs(float(weighted.sum()) - float(tensors.deal3[flat])) < 1e-3
+
+
+def test_kontrakcja_wyplat_sadza_aa_na_wlasciwej_roli(axis_tensor: Path) -> None:
+    """Kotwica orientacji osi u konsumenta wypłat: tensor liścia showdownu 3-way.
+
+    Przy równych stackach wypłaty są symetryczne względem ról, więc rola z AA
+    ma najwyższe EV w każdej kolejności, a jej EV nie zależy od kolejności.
+    """
+    sg = _load("solve_grid")
+    np = sg.np
+    classes = _axis_classes()
+    tensors = sg.load_tensors(axis_tensor, classes)
+    config = _toy_config(sg, classes=classes)
+    stacks = (50, 50, 50)
+
+    def icm_lookup(state: tuple[int, int, int]) -> Any:
+        return np.asarray(icm_equities(state, PRIZES), dtype=np.float64)
+
+    problem, _, mode = sg.build_stage_problem(
+        tensors, config, stacks, 0, 1, 2, icm_lookup
+    )
+    assert mode == "deep"
+    leaf = 16  # U jam, T call, B call — jedyny liść z showdownem całej trójki
+    assert problem.leaf_kind[leaf] == "sd"
+    payload = problem.leaf_payload[leaf]
+    slot = {index: position for position, index in enumerate(classes)}
+    aa = _cls("AA")
+    base_triple = tuple(_cls(name) for name in AXIS_CLASSES)
+    aa_values: list[float] = []
+    for source in itertools.permutations(range(3)):
+        ordered = tuple(base_triple[source[axis]] for axis in range(3))
+        flat = (slot[ordered[0]] * tensors.count + slot[ordered[1]]) * tensors.count + slot[
+            ordered[2]
+        ]
+        weight = float(tensors.deal3[flat])
+        assert weight > 0.0
+        values = [float(payload[role][flat]) / weight for role in range(3)]
+        aa_role = ordered.index(aa)
+        assert values[aa_role] == max(values), (ordered, values)
+        for role in range(3):
+            if role != aa_role:
+                assert values[aa_role] > values[role] + 1e-3, (ordered, values)
+        aa_values.append(values[aa_role])
+    assert max(aa_values) - min(aa_values) < 1e-5, aa_values
 
 
 def test_artefakt_tensora_reprodukcja_podzbioru(tmp_path: Path) -> None:
