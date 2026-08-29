@@ -765,6 +765,19 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
           --per-mode 10 --seed 47 --jobs 1
    ```
 
+9. **Wybór solvera — odpowiedź na korektę decyzji 25 pkt 2.** Korekta
+   zostawiła rozstrzygnięcie „PI-FP czy CFR+ w trybie `deep`" pomiarowi
+   POKER-47. Pomiar mówi: PI-FP **wystarcza do jakości** — schodzi
+   w `deep` poniżej punktu odniesienia (0,05% puli) bez plateau
+   i bez oscylacji, nachyleniem −1,35 w log-log, a w `jamfold` −2,00.
+   Argument „przełącz na CFR+, bo eksploatowalność nie schodzi" nie ma
+   tu podstawy faktycznej, bo schodzi. Otwarta zostaje **cena**, nie
+   jakość: stan `deep` kosztuje 38,56 rdzenio-s wobec 2,10 dla
+   `jamfold` (18×) i to on zjadł zapas budżetu produkcyjnego. Czy CFR+
+   osiąga w `deep` to samo ε taniej, wymaga zmierzenia jego krzywej —
+   tego kontrakt POKER-47 nie robił (non_goal) i żadnej alternatywy nie
+   wdrożono; `eps_curve.py` mierzy dziś wyłącznie PI-FP.
+
 Świadomie zostawione: 39 stanów `hu-deep` ma ε etapowe powyżej nowej
 tolerancji (maks 7,1e−5), bo CFR+ chodzi na stałych 128 iteracjach —
 nie dotykaliśmy go, skoro jego wkład w ex-post ε jest o rząd wielkości
@@ -783,10 +796,12 @@ Następne kroki:
    best-response ε. **Pilot POKER-46 zdany i zweryfikowany
    niezależnie**, **POKER-47 zamknięty wariantem (i)**: budżet PI-FP
    wybrany z krzywej (sufit 384, tolerancja 5e−5), pilot powtórzony,
-   ex-post ε poniżej progu 0,001 puli (bloki wyżej). Następny krok to
-   **bieg produkcyjny siatki 2-żetonowej** pod tym budżetem, wraz
-   z tensorem 15 000 prób i formatem binarnym artefaktu (decyzja 25
-   pkt 6) — kontrakt do specyfikacji przez architekta;
+   ex-post ε poniżej progu 0,001 puli (bloki wyżej). Następny krok
+   linii blueprintu to **bieg produkcyjny siatki 2-żetonowej** pod tym
+   budżetem (~91 rdzenio-godzin), wraz z tensorem 15 000 prób
+   i formatem binarnym artefaktu (decyzja 25 pkt 6) — kontrakt do
+   specyfikacji przez architekta; kolejność integracji względem
+   POKER-48 według [indeksu](README.md#taskspeki);
 2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;
