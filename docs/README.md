@@ -256,8 +256,12 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   weryfikacja niezależna architekta);
 - [`POKER-50.json`](taskspecs/POKER-50.json) — bieg produkcyjny
   siatki 2-żetonowej pod zmierzonymi budżetami, z bezpiecznikiem
-  kosztu 140 rdzenio-h i progiem ε ≤ 1e-3 (zatwierdzony; kolejność
-  integracji: po POKER-48).
+  kosztu 140 rdzenio-h i progiem ε ≤ 1e-3 (w realizacji: kod i łańcuch
+  kontrolny scalone commitem `afc2a12`, bieg w toku);
+- [`POKER-51.json`](taskspecs/POKER-51.json) — format binarny
+  artefaktu z czytnikiem w czystym stdlib; koszt kwantyzacji mierzony
+  w ε z progiem ≤ 10% wartości surowej (zatwierdzony; kolejność
+  integracji: po POKER-50).
 
 ## Operator
 

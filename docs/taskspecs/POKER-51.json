@@ -1,0 +1,33 @@
+{
+  "id": "POKER-51",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Blueprint jako artefakt produktu: wersjonowany format binarny z dostępem swobodnym per stan, czytany w czystym stdlib, ze zmierzonym w ε kosztem kwantyzacji — fundament pod agenta (POKER-52) i pod AIVAT (decyzja 26 pkt 2).",
+  "context": "Pomiary architekta na grid5b: maska osiągalności + uint8 (2 z 3, trzecia z dopełnienia) + zlib = 201 B/stan, ~38 MB dla siatki produkcyjnej; 60% komórek to węzły nieosiągalne; mediana prawdopodobieństwa dominującej akcji 0,996. KOREKTA JEDNOSTKOWA (2026-08-29, w CURRENT_STATE): maksymalny błąd kwantyzacji 0,0039 jest w przestrzeni prawdopodobieństw akcji — to inna jednostka niż ε (udział puli); dlatego koszt kwantyzacji mierzy się w ε, tym samym narzędziem expost, a nie deklaruje z błędu prawdopodobieństw. Wejściem jest artefakt produkcyjny POKER-50 (warstwy npz + manifest, poza repo); format musi przenosić pełny przepis pochodzenia z manifestu.",
+  "acceptance": [
+    "Specyfikacja formatu w dokumencie z dokładnością do bajtów: nagłówek (magia, wersja formatu, hash i kopia przepisu pochodzenia z manifestu biegu), indeks stanów z offsetami (odczyt jednego stanu bez ładowania i dekompresji całości), bloki per stan (maska osiągalności + skwantowane rozkłady akcji), tablica V per (stan, gracz) w pełnej precyzji (float64 — megabajty, potrzebne AIVAT i trenerowi).",
+    "Konwerter npz→format w tools/blueprint (numpy dozwolony), deterministyczny: ten sam artefakt wejściowy daje bajt w bajt ten sam plik — pod testem na artefakcie kontrolnym z repo.",
+    "Czytnik w pakiecie produktu: czysty stdlib (struct/zlib/array), bez numpy; odczyt pojedynczego stanu i pojedynczej wartości V; round-trip konwerter→czytnik pod testem (rozkłady po dekwantyzacji zgodne z wejściem w granicach kroku kwantyzacji); czas odczytu stanu zmierzony i wpisany do dokumentu z komendą (raportowany, nie progowany — próg ustali konsument w POKER-52).",
+    "KOSZT KWANTYZACJI ZMIERZONY W ε: ex-post ε artefaktu skwantowanego (po round-tripie przez format) minus ε artefaktu surowego, tym samym narzędziem expost, na pilocie grid5d; kryterium blokujące: przyrost ε maks ≤ 10% wartości surowej; przy przekroczeniu — podniesienie precyzji (uint16) i ponowny pomiar zamiast poluzowania progu.",
+    "Nieosiągalność honorowana jawnie: odczyt stanu/węzła spoza maski zwraca rozróżnialny wynik (nie cichy rozkład zerowy) — pod testem; to jest kontrakt dla fallbacku agenta w POKER-52.",
+    "Test architektury ogranicza importy czytnika (karty/klasy i stdlib; bez silnika, adapterów i tools) i pilnuje, że pakiet produktu nadal nie importuje numpy.",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do nowego modułu czytnika."
+  ],
+  "non_goals": [
+    "Agent blueprint i rejestr CLI (POKER-52).",
+    "Dystrybucja pełnego artefaktu (git-LFS/release) — osobna decyzja operatora, gdy artefakt produkcyjny istnieje; do repo wchodzi wyłącznie mały artefakt kontrolny w formacie.",
+    "AIVAT (osobny kontrakt).",
+    "Zmiany solverów, tensora i modelu gry."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "src/poker/blueprint_reader.py",
+    "tests/test_blueprint_pilot.py",
+    "tests/test_architecture.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-51.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-30T09:20:00Z", "basis": "pomiary formatu 2026-08-29 (grid5b) i korekta jednostkowa; decyzja 25 pkt 6, decyzja 26 pkt 2; kolejność integracji: po POKER-50"}
+}
