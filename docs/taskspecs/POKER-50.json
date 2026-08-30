@@ -1,0 +1,32 @@
+{
+  "id": "POKER-50",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Blueprint produkcyjny: siatka 2-żetonowa pełnego zegara policzona pod zmierzonymi budżetami, z ex-post ε i kompletnym pochodzeniem — artefakt gotowy do konwersji na format produktu.",
+  "context": "Wszystkie parametry z pomiarów, nie z założeń. Budżety: PI-FP 384/5e-5 (krzywa POKER-47), CFR+ 512/5e-5 (krzywa POKER-49), horyzont 5e-4/12 cykli (krzywa POKER-49; podłoga ~2e-4 z tolerancji etapowej). Wrażliwość brzegu zmierzona: zaburzenie 0,002 przesuwa ex-post ε o ~1e-5, tłumienie ~10x przez DAG, tilt=szum — warunek startu SPEŁNIONY. Pilot grid5d pod tymi budżetami: ε maks 4,664e-4, mediana 1,077e-4; koszt deep mediana 29,45 / maks 63,53 rdzenio-s. Ekstrapolacja produkcji: 76 072 solve'y, ~82 rdzenio-h po medianach, do ~114 przy maksimach — przyjęte werdyktem architekta 2026-08-30. RYZYKO ZAPISANE: zapas ε do punktu odniesienia 5e-4 wynosi tylko 6,7% na pilocie, a maksimum po 76 tys. stanów może być wyżej niż po 8,6 tys.; opcja podniesienia sufitu deep do 1536 jest wyceniona (~+4x na trybie deep) i wykonywana OSOBNYM kontraktem tylko przy przekroczeniu 5e-4.",
+  "acceptance": [
+    "Tensor produkcyjny: trójki 15 000 prób/multizbiór (pary HU proporcjonalnie, co najmniej 32 000), seed jawny; reprodukcja podzbioru pod testem z progiem wyprowadzonym z liczby prób; zmierzony koszt wpisany do dokumentu (szacunek z pilota: ~9,7 rdzenio-h).",
+    "Bieg siatki 2-żetonowej, pełny zegar, budżety domyślne z POKER-47/49 bez zmian; sharding po warstwach z manifestem (warstwa = jednostka wznowienia); przerwanie i wznowienie daje wynik bajt w bajt — pod testem na wycinku przed startem pełnego biegu.",
+    "Bezpiecznik kosztu: bieg raportuje postęp per warstwa (czas, stany); jeśli po pierwszych trzech warstwach ekstrapolowany koszt całości przekracza 140 rdzenio-godzin, bieg jest przerywany, a raport podaje zmierzone tempo i przyczynę — zamiast palić budżet na przekroczonym założeniu.",
+    "Ex-post ε na pełnej siatce produkcyjnej: kryterium blokujące maks ≤ 1e-3 puli; raport porównuje z punktem odniesienia 5e-4 i mówi wprost, czy opcja sufitu 1536 (kontekst) się uruchamia; mediana i rozkład per warstwa w dokumencie.",
+    "Manifest pochodzenia kompletny (seedy tensora i biegu, budżety, wersje, hash konfiguracji, model CPU); dwustopniowy dowód odtwarzalności wg decyzji 06: mały łańcuch kontrolny w bramce, pełna regeneracja komendami z dokumentu poza bramką.",
+    "Artefakt (warstwy npz + manifest) NIE wchodzi do gita (decyzja 25 pkt 6): żyje w katalogu poza repo, dokument podaje komendy pełnej regeneracji; w repo wchodzi wyłącznie mały artefakt kontrolny do testu łańcucha.",
+    "V vs ICM na pełnej siatce: raport per warstwa, stany krótkiego BB osobno — to liczba uzasadniająca kierunek (pilot: do 7,9% puli); wpisana z komendą.",
+    "Pełna bramka zielona; src/poker nietknięte."
+  ],
+  "non_goals": [
+    "Format binarny produktu i czytnik stdlib (POKER-51).",
+    "Agent blueprint w rejestrze i pomiar w arenie (POKER-52).",
+    "Podnoszenie budżetów solverów ponad domyślne (opcja 1536 to osobny kontrakt, warunkowy).",
+    "Zmiany solverów i modelu gry."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/test_blueprint_pilot.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-50.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-08-30T01:20:00Z", "basis": "pomiary POKER-46/47/49 zweryfikowane niezależnie; werdykt kosztowy 2026-08-30; kolejność integracji: po POKER-48"}
+}

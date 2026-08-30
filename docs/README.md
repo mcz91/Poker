@@ -250,7 +250,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   mutacjami), CFR+ ważony reachem, zbieżny horyzont z podłogą
   wyjaśnioną tolerancją etapową, wrażliwość brzegu zmierzona
   (zamknięty, commity `ded087e`…`3ab4ec3`, wersja 3 kontraktu;
-  weryfikacja niezależna architekta).
+  weryfikacja niezależna architekta);
+- [`POKER-50.json`](taskspecs/POKER-50.json) — bieg produkcyjny
+  siatki 2-żetonowej pod zmierzonymi budżetami, z bezpiecznikiem
+  kosztu 140 rdzenio-h i progiem ε ≤ 1e-3 (zatwierdzony; kolejność
+  integracji: po POKER-48).
 
 ## Operator
 
