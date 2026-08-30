@@ -243,8 +243,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   5e−5; ex-post ε maks 4,3e−4 — poniżej punktu odniesienia decyzji 25;
   weryfikacja niezależna architekta, diagnoza z POKER-46 skorygowana);
 - [`POKER-48.json`](taskspecs/POKER-48.json) — rotacja miejsc,
-  wspólne seedy i statystyka na blokach w arenie Spin; zmierzona
-  redukcja SD i wynikające z niej N (zatwierdzony, decyzja 26);
+  wspólne seedy i statystyka na blokach w arenie Spin (zamknięty,
+  commity `33cbc96`, `005f85b`; obciążenie pozycyjne ~3–3,6 pp
+  zmierzone i usunięte, redukcja SD 38–59% per para, a stary RNG
+  sprzęgał karty z decyzjami agentów — naprawione seedami per ręka;
+  weryfikacja niezależna architekta);
 - [`POKER-49.json`](taskspecs/POKER-49.json) — kotwice puli 2-way
   (finding blokujący audytu domknięty z czerwienią pod obiema
   mutacjami), CFR+ ważony reachem, zbieżny horyzont z podłogą
