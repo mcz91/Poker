@@ -1,6 +1,10 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-49 (kotwice
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-48 (arena
+Spin liczy na blokach trzech rotacji: hero gra każde miejsce raz przy
+tej samej sekwencji kart, ramiona porównań na wspólnych seedach,
+CI na blokach z bootstrapem; redukcja SD i obciążenie pozycyjne
+zmierzone); POKER-49 (kotwice
 orientacji osi puli 2-way, horyzont zbieżny do tolerancji zamiast do
 sufitu cykli, CFR+ ważony własnym reachem, ślepota metryki na warunek
 brzegowy skwantyfikowana, `tools/blueprint` pod `mypy --strict`; pakiet
@@ -477,16 +481,18 @@ na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 55%: BTN 10.4% na 3× 25 bb (12 iteracji; zakres z kodu —
 [decyzja 21](decisions/21-threebet-spot.md)). Nie 35% z no-flat Nash.
 
-**POKER-42 (arena ROI) zamknięty.** Pomiar POKER-45
-(`tools/run_arena.py 360 3x`): tight vs always-jam −46.7% ROI.
-Exploit call vs random: +18.3%, CI (+3.2, +33.5) > 0. Play woła jam
+**POKER-42 (arena ROI) zamknięty.** Pomiar POKER-48
+(`python tools/run_arena.py 320 3x`, jednostka: blok trzech rotacji):
+tight vs always-jam −40.0% ROI (CI −48.5..−31.5).
+Exploit call vs random: +18.4%, CI (+10.0, +26.9) > 0. Play woła jam
 na głębokim stole exploitem.
 
 **POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
 z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
-Pomiar POKER-45 (`tools/run_arena.py 320 3x`): vs always-jam +16.3%
-(CI +0.2..+32.3); vs $1-ish fish +4.1% (CI −11.6..+19.7) — CI obejmuje
-zero, oczekiwanie „bije $1-ish fisha" **nieosiągnięte** na N=320
+Pomiar POKER-48 (`python tools/run_arena.py 320 3x`, jednostka: blok
+trzech rotacji): vs always-jam +15.9% (CI +7.6..+24.3) — rozstrzygnięte
+całym przedziałem; vs $1-ish fish −2.5% (CI −8.9..+3.9) — CI obejmuje
+zero, oczekiwanie „bije $1-ish fisha" **nieosiągnięte** na 320 blokach
 ([decyzja 23](decisions/23-field-exploit.md)).
 
 **POKER-44 (arena HU przywrócona, spin_arena wydzielona) zamknięty.**
@@ -1121,6 +1127,84 @@ przekroczy 5e−4 (twardy próg kontraktu produkcyjnego pozostaje
 1e−3, raport zawsze porównuje z 5e−4). Cienki zapas jest zapisany
 jako ryzyko biegu produkcyjnego, nie przemilczany.
 
+**POKER-48 (moc pomiaru areny Spin: rotacja miejsc, wspólne seedy,
+statystyka na blokach) zamknięty.** Realizacja decyzji 26 pkt 1.
+Dotychczasowy pomiar `poker.spin_arena` miał dwie wady naraz: hero
+siedział zawsze na miejscu 0 (obciążenie pozycyjne) i jeden RNG
+prowadził cały turniej, więc talia ręki `i+1` zależała od liczby losowań
+akcji ręki `i` — każda różnica decyzji przesuwała wszystkie późniejsze
+karty i „wspólny seed" nie znaczył „wspólne karty". Po zmianie talia
+i losowość akcji ręki pochodzą wyłącznie od pary (seed turnieju, indeks
+ręki) — wzorzec `poker.table` — a jednostką statystyczną jest blok:
+ten sam seed w trzech rotacjach cyklicznych, hero kolejno na każdym
+miejscu przy identycznej sekwencji kart (pod testem). CI wyłącznie na
+blokach; obok normalnego bootstrap percentylowy (replikacje parametrem,
+domyślnie 1000, seed jawny, deterministyczny — pod testem).
+`compare_blocks` porównuje dwa zestawy (hero, villain) na wspólnych
+seedach bloków statystyką na różnicach sparowanych; identyczne ramiona
+znoszą się do dokładnie zera — pod testem. Komendy:
+
+```
+Z  python tools/run_arena.py 320 3x
+AA python tools/run_arena.py sd 320 3x
+AB python tools/run_arena.py seats 20000 3x
+```
+
+1. **Zmierzona redukcja SD (AA):** SD ROI na turniej (estymator sprzed
+   zmiany: miejsce 0, jednostka turniej) i SD na blok, te same seedy
+   21…340, trzy pary agentów. N z jawnego wzoru
+   N = ((z₀.₉₇₅ + z₀.₈₀) · SD / Δ)² = ((1,96 + 0,8416) · SD / Δ)²
+   (moc 80%, α = 0,05, dwustronnie):
+
+   | para | SD/turniej | SD/blok | redukcja | N turniejów 5/10 pp (sprzed) | N bloków 5/10 pp (po) |
+   |---|---:|---:|---:|---:|---:|
+   | field vs always-jam | 148,8 pp | 76,5 pp | 48,6% | 6 953 / 1 739 | 1 840 / 460 |
+   | field vs $1 fish | 140,0 pp | 58,1 pp | 58,5% | 6 156 / 1 539 | 1 061 / 266 |
+   | tight vs always-jam | 124,8 pp | 77,7 pp | 37,7% | 4 894 / 1 224 | 1 898 / 475 |
+
+   Uczciwy rozkład tej redukcji: samo uśrednienie trzech niezależnych
+   turniejów dałoby 1 − 1/√3 = 42,3%, więc rotacja realnie pomaga tam,
+   gdzie wynik pary ma komponent pozycyjny (field vs $1 fish: 58,5%,
+   SD bloku 58,1 pp wobec 80,8 pp przy niezależnych rotacjach), a na
+   parze tight vs always-jam rotacje są dodatnio skorelowane przez
+   wspólne karty (37,7% < 42,3%). W koszcie turniejowym (blok = 3
+   turnieje) wykrycie 10 pp to odpowiednio 1 380 / 798 / 1 425
+   turniejów wobec 1 739 / 1 539 / 1 224 sprzed zmiany. Cel decyzji 26
+   (56% dla 10 pp przy N = 320) osiąga na blokach tylko para
+   field vs $1 fish; do twierdzeń „bijemy X" służy jednak
+   `compare_blocks` na wspólnych seedach (różnice sparowane), a dalsza
+   redukcja bez obciążenia czeka na AIVAT po blueprincie
+   (decyzja 26 pkt 2).
+
+2. **Obciążenie pozycyjne zmierzone (AB):** ROI tego samego agenta
+   osobno na każdym miejscu, wspólne seedy 21…20020, bez rotacji
+   (SE pojedynczego miejsca ≤ 1,04 pp — `se_seat_max` w wyjściu):
+
+   | para | miejsce 0 | miejsce 1 | miejsce 2 | rozstęp |
+   |---|---:|---:|---:|---:|
+   | field vs always-jam | +20,7% | +20,5% | +17,6% | 3,15 pp |
+   | field vs $1 fish | +2,6% | −0,9% | +0,2% | 3,55 pp |
+
+   Rozstęp ~3–3,6 pp (≈ 2 SE różnicy miejsc) to wielkość, którą
+   rotacja usuwa z konstrukcji — a stary pomiar w całości wliczał do
+   ROI hero; w obu parach miejsce 0, na którym hero siedział na
+   stałe, jest najkorzystniejsze z trzech.
+
+3. **Liczby przeliczone na blok (Z):** decyzje 22/23 i bloki POKER-42/43
+   wyżej — stare liczby zastąpione. Punkty się przesunęły (np. field vs
+   $1 fish z +4,1% na −2,5%), bo stary strumień kart był sprzężony
+   z decyzjami agentów; przedziały zwęziły się (field vs $1 fish
+   ±15,7 pp → ±6,4 pp przy tych samych 320 seedach; field vs
+   always-jam ±16,1 pp → ±8,4 pp). Werdykty
+   decyzji bez zmian: „bije $1-ish fisha" nadal nieosiągnięte (CI
+   obejmuje zero), przewaga nad always-jam teraz rozstrzygnięta całym
+   przedziałem.
+
+Świadomie zostawione: kotwica krzyżowa rozgrywacza z silnikiem
+(decyzja 27 pkt 4) jawnie poza tym kontraktem — wchodzi z następnym
+kontraktem dotykającym rozgrywacza; AIVAT zablokowany na blueprincie
+(decyzja 26 pkt 2).
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
@@ -1140,8 +1224,7 @@ Następne kroki:
    kosztu, do ~114 przy maksimach** — blok POKER-49 pkt 6; górny koniec
    przekracza ~108 z decyzji 25, więc koszt wymaga decyzji), wraz
    z tensorem 15 000 prób i formatem binarnym artefaktu (decyzja 25
-   pkt 6). Kolejka przed nim: **POKER-48** (moc pomiaru areny, punkt 2
-   niżej), potem **POKER-50**. Otwarte i wycenione: 105 z 253 stanów
+   pkt 6). Kolejka przed nim: **POKER-50**. Otwarte i wycenione: 105 z 253 stanów
    `deep` nadal kończy powyżej tolerancji etapowej, a domknięcie ich do
    5e−5 to sufit 1 536 iteracji, ~4× drożej na najdroższym trybie —
    ta sama tolerancja etapowa wyznacza podłogę horyzontu, więc to jedna
@@ -1157,9 +1240,11 @@ Następne kroki:
    jest niezmierzone i stanowi kryterium akceptacji kontraktu formatu:
    ex-post ε artefaktu skwantowanego minus ε surowego, policzone tym
    samym narzędziem;
-2. **moc pomiaru areny (POKER-48)** — różnice rzędu +5–15% ROI wymagają większego
-   N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
-   twierdzenie „bije X" wróci do dokumentów;
+2. **moc pomiaru areny: POKER-48 zamknięty** (blok wyżej) — rotacja
+   miejsc, wspólne seedy i CI na blokach z bootstrapem; twierdzenie
+   „bije X" wymaga `compare_blocks` na wspólnych seedach, a dalsza
+   redukcja wariancji bez obciążenia czeka na AIVAT po blueprincie
+   (decyzja 26 pkt 2, kolejność HU → Spin z decyzji 26 pkt 3);
 3. kwalifikacja duplikacji rozgrywacza `poker.spin_arena` względem
    silnika zdarzeniowego (wątek z audytu POKER-42);
 4. POKER-26 (informacja zwrotna przy stole LAN) — szkic czeka na
