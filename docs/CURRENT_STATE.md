@@ -1,8 +1,12 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-47 (krzywa
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-49 (kotwice
+orientacji osi puli 2-way, horyzont zbieżny do tolerancji zamiast do
+sufitu cykli, CFR+ ważony własnym reachem, ślepota metryki na warunek
+brzegowy skwantyfikowana, `tools/blueprint` pod `mypy --strict`; pakiet
+`poker` nietknięty); POKER-47 (krzywa
 ex-post ε vs budżet iteracji PI-FP zmierzona, budżet solvera wybrany
-z pomiaru, pilot powtórzony; pakiet `poker` nietknięty); POKER-46 (pilot
+z pomiaru, pilot powtórzony); POKER-46 (pilot
 blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
 i różnica względem ICM zmierzone);
 POKER-45 (rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady
@@ -600,8 +604,9 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    Oszacowanie decyzji 25 (48,6 tys. solve'ów, ~108 rdzenio-godzin)
    było **za wysokie ~4,4× w koszcie i za niskie 1,6× w liczbie
    stanów**; budżet klasy Colab wystarcza z zapasem. **Ta ekstrapolacja
-   dotyczyła budżetu 24/1e−3, który nie trzymał jakości; obowiązuje
-   liczba z bloku POKER-47 (~91 rdzenio-godzin) i zapasu już nie ma.**
+   dotyczyła budżetu 24/1e−3, który nie trzymał jakości; obowiązują
+   liczby z bloku POKER-49 (~82 rdzenio-h po medianach kosztu, do ~114
+   przy maksimach) i zapasu już nie ma.**
 
 Wniosek pilota do rozstrzygnięcia przez architekta: koszt nie jest
 przeszkodą, a jakość jest — ε ex-post w węzłach `deep` (0,85% puli)
@@ -747,6 +752,8 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    jest miejscem, w którym mediana `deep` tę tolerancję osiąga
    (a `jamfold` osiąga ją już przy 48–96).
 7. **Powtórzony pilot (K, L, M) — kryterium wariantu (i) spełnione.**
+   *(Liczby biegu `grid5n`; zastąpione przez pilota POKER-49 pod
+   domkniętym brzegiem i nowym CFR+ — blok niżej, pkt 5.)*
    Cały bieg 11 587,3 s (3,22 h) wobec 3 408,1 s poprzednio (**3,40×**).
    Horyzont 2 342,0 s, 3 cykle, delta 0,00209. 21 warstw: 8 654 stany
    w 9 242,1 s → **1,068 s/stan przy 4 procesach, 4,272
@@ -775,7 +782,9 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    własność modelu, nie dokładności solvera", było **fałszywe** (audyt
    2026-08-29): V zależy od dokładności solvera, więc |V − ICM| też —
    na warstwie 0 `max_abs_delta` urosło z 0,003116 na 0,005017, o 61%.
-8. **Nowa ekstrapolacja siatki 2-żetonowej.** Koszt stanu pod
+8. **Ekstrapolacja siatki 2-żetonowej.** *(Zastąpiona przez blok
+   POKER-49 pkt 6: mediany kosztu spadły, doszedł rozrzut i pełny
+   koszt zbieżnego horyzontu.)* Koszt stanu pod
    budżetem produkcyjnym (`cost`, jobs=1, mediana z 10 stanów na tryb,
    seed 47): `deep` **38,56** rdzenio-s (było 3,99), `jamfold` **2,10**
    (0,87), `hu-deep` 0,056, `hu-jamfold` 0,027 (CFR+ nietknięty).
@@ -850,7 +859,7 @@ niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
 
-**POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) — w toku.**
+**POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) zamknięty.**
 Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
 `PILOT` to katalog artefaktów poza repozytorium. Wszystkie komendy
 z `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1`.
@@ -862,11 +871,58 @@ O  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
 P  python tools/blueprint/eps_curve.py curve --out PILOT/g25 --mode hu-deep \
        --ladder 32,64,128,256,512,1024,2048 --worst 5 --extra 5 --seed 47 \
        --jobs 4 --report eps_curve_hu.json
+R  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/ref10 --grid-step 10 --jobs 4
+   python tools/blueprint/expost.py expost --out PILOT/ref10 --jobs 4
+S  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/p10_KSZTALT --grid-step 10 --jobs 4 \
+       --perturb 0.002 --perturb-kind KSZTALT --boundary-from PILOT/ref10
+   python tools/blueprint/expost.py expost --out PILOT/p10_KSZTALT --jobs 4
+T  python tools/blueprint/boundary_sensitivity.py \
+       --reference PILOT/ref10 --perturbed PILOT/p10_KSZTALT
+U  python tools/blueprint/solve_grid.py --tensor PILOT/tensor \
+       --out PILOT/grid5d --grid-step 5 --jobs 4
+W  python tools/blueprint/expost.py expost --out PILOT/grid5d --jobs 4
+   python tools/blueprint/expost.py icm --out PILOT/grid5d
+X  python tools/blueprint/eps_curve.py decompose --out PILOT/grid5d \
+       --worst 10 --jobs 4
+Y  python tools/blueprint/eps_curve.py cost --out PILOT/grid5d \
+       --per-mode 10 --seed 47 --jobs 1
 ```
 
-1. **Horyzont zbiega do podłogi, nie do zera (O).** Krzywa
-   delta-vs-cykle na siatce 10 (133 stany, 3 015 s; tolerancja wyłączona,
-   więc sufit jest jedynym ogranicznikiem):
+1. **Kotwice `wt2_fold` — finding blokujący zamknięty.** Tensor puli 2-way
+   przy trzech żywych zasila 7 z 17 liści (3, 5, 8, 10, 11, 14, 15), czyli
+   6 798 z 8 654 stanów pilota i 68 859 z 76 072 solve'ów siatki
+   produkcyjnej, a nie miał żadnej kotwicy orientacji osi. Trzy nowe testy
+   przechodzą wszystkie trzy pary osi — po jednym liściu 2-way na parę —
+   i wszystkie sześć kolejności klas, jednocześnie w tensorze i u
+   konsumenta. Czerwień odtworzona osobno dla obu mutacji z audytu, na
+   prawdziwym tensorze (nie syntetycznym):
+
+   | mutacja | czerwone testy | zmierzona wartość |
+   |---|---|---:|
+   | odwrócenie osi w kolapsie | orientacja, wypłaty, equity | 0,134 |
+   | podmiana klucza pary | orientacja, wypłaty | 0,147 |
+
+   Mutacja pierwsza to `first, second = ranks[axis_b], ranks[axis_a]`
+   w `load_tensors`: equity roli posadzonej na AA spada do **0,134** wobec
+   progu 0,75, a zmarginalizowane equity daje **0,195** przy 0,827
+   z macierzy produktu i progu Monte Carlo 0,069. Mutacja druga to
+   `base = tensors.wt2_fold[_AXIS_PAIRS[0]]` u konsumenta: na liściu 5
+   tensor mówi 0,316 tam, gdzie konsument liczy 0,866, a rola z AA bierze
+   **0,147** puli zamiast ponad 0,85. Żadna z nich nie ruszała pozostałych
+   353 testów.
+
+   Próg testu equity jest wyprowadzony z liczb prób obu artefaktów (tensor
+   600 prób na multizbiór, macierz `poker.preflop_equity` 2 048 na parę;
+   wariancja próby ≤ 1/4, próby efektywne marginalizacji (Σw)²/Σw²), a nie
+   dobrany do wyniku — i sam test sprawdza, że próg jest ciaśniejszy niż
+   różnica equity AA-72o od AA-J8o, więc odróżnia klasy, a nie tylko
+   przepuszcza.
+
+2. **Horyzont zbiega do podłogi, nie do zera (O).** Krzywa delta-vs-cykle
+   na siatce 10 (133 stany, 3 015 s; tolerancja wyłączona, więc sufit jest
+   jedynym ogranicznikiem):
 
    | cykl | delta | cykl | delta |
    |-----:|------:|-----:|------:|
@@ -886,17 +942,16 @@ P  python tools/blueprint/eps_curve.py curve --out PILOT/g25 --mode hu-deep \
    `--tail-cycles`. Stąd domyślne: tolerancja **5e−4** (osiągana w piątym
    cyklu, z zapasem 2,3× nad podłogą, więc wiąże tolerancja, a nie sufit)
    i sufit **12 cykli** (2,4× tego — zabezpieczenie, nie kryterium).
-   To 4,2× lepiej niż 0,00209 z POKER-47 za dwa cykle więcej. Konsekwencja
-   przed produkcją: nowa delta brzegu 5e−4 jest **tego samego rzędu** co
-   ex-post ε biegu (4,3e−4), czyli niepewność warunku brzegowego przestała
-   być zaniedbywalna wobec wielkości, którą mierzymy. Brzeg jest **zbieżny
-   do podłogi, a nie domknięty do zera** — to dwie różne rzeczy; ile ta
-   różnica kosztuje w ε i w strategiach, mierzy punkt o ślepocie metryki.
+   Konsekwencja przed produkcją: nowa delta brzegu jest **tego samego
+   rzędu** co ex-post ε biegu, czyli niepewność warunku brzegowego
+   przestała być zaniedbywalna wobec wielkości, którą mierzymy. Brzeg jest
+   **zbieżny do podłogi, a nie domknięty do zera** — to dwie różne rzeczy;
+   ile ta różnica kosztuje, mierzy punkt 4.
 
-2. **Krzywa CFR+ w endgame'ach HU (P).** Pierwszy pomiar samego CFR+
-   (`eps_curve.py` mierzył dotąd wyłącznie PI-FP — zdanie z bloku POKER-47
-   pkt 9 przestało być prawdziwe). Próbka 10 stanów `hu-deep`, średnia
-   ważona własnym reachem, tolerancja w pomiarze wyłączona:
+3. **Krzywa CFR+ w endgame'ach HU (P).** Pierwszy pomiar samego CFR+
+   (`eps_curve.py` mierzył dotąd wyłącznie PI-FP). Próbka 10 stanów
+   `hu-deep`, średnia ważona własnym reachem, tolerancja w pomiarze
+   wyłączona:
 
    | sufit | ε maks | ε mediana | rdzenio-s/stan |
    |------:|-------:|----------:|---------------:|
@@ -913,10 +968,141 @@ P  python tools/blueprint/eps_curve.py curve --out PILOT/g25 --mode hu-deep \
    tu widoczna wprost:** przy tym samym sufcie 128, którego POKER-47 nie
    ruszał, średnia nieważona dawała ε etapowe maks 7,1e−5 i 39 stanów
    powyżej tolerancji, a ważona własnym reachem daje 4,76e−5 — poniżej
-   tolerancji 5e−5. Stąd budżet: tolerancja **5e−5** (ta sama co PI-FP,
-   bo dług obu sumuje się w tym samym DAG-u) i sufit **512** iteracji —
+   tolerancji 5e−5. Stąd budżet: tolerancja **5e−5** (ta sama co PI-FP, bo
+   dług obu sumuje się w tym samym DAG-u) i sufit **512** iteracji —
    tolerancję osiąga już 128, więc sufit jest zabezpieczeniem z zapasem
    11× za 0,25 rdzenio-s na stan, a nie kryterium.
+
+4. **Ślepota metryki skwantyfikowana (R, S, T).** Bieg odniesienia na
+   siatce 10 (2 347 stanów, horyzont zbiegł w 5 cyklach do delty 2,746e−4;
+   671 s, cały bieg 2 076 s) i dwa biegi o brzegu zaburzonym o **0,002** —
+   amplituda rzędu delty POKER-47 — w dwóch kształtach przybitych przed
+   pomiarem: `tilt` (systematyczny: najniższe żywe miejsce w górę,
+   najwyższe w dół) i `noise` (deterministyczny szum o tej samej
+   amplitudzie). Oba importują punkt stały odniesienia (`--boundary-from`),
+   więc jedyną różnicą jest zaburzenie; oba zaburzenia zachowują sumę
+   nagród w stanie i zerową wartość miejsc wybitych.
+
+   | wielkość | odniesienie | tilt 0,002 | noise 0,002 |
+   |---|---:|---:|---:|
+   | ex-post ε maks | 6,173e−4 | 6,068e−4 | 6,066e−4 |
+   | ex-post ε mediana | 1,199e−4 | 1,198e−4 | 1,199e−4 |
+   | ε stanu startowego | 6,173e−4 | 6,068e−4 | 5,971e−4 |
+   | zmiana ε stanu startowego | — | −1,05e−5 | −2,01e−5 |
+   | największa zmiana V | — | 2,383e−3 | 2,559e−3 |
+   | największa zmiana σ na infosecie | — | 0,9994 | 0,9994 |
+   | średnia zmiana σ | — | 2,04e−3 | 1,89e−3 |
+   | zmiany dominującej akcji (z 2 012 959) | — | 2 154 (0,107%) | 2 039 (0,101%) |
+
+   Trzy odczyty. (a) **Zaburzenie brzegu o 0,002 przesuwa ex-post ε o ~1e−5**
+   — o 1,7% jego wartości i o dwa rzędy mniej niż samo zaburzenie; metryka
+   jest na błąd brzegu ślepa, ale i sam błąd jest tłumiony. (b) **Tłumienie
+   wzdłuż DAG-u jest ~10×**: największa zmiana V spada z 2,1–2,6e−3 przy
+   ręce 20 (tuż przy horyzoncie) do 1,7–2,0e−4 przy ręce 0. (c) **Kształt
+   zaburzenia nie ma znaczenia — liczy się amplituda:** tilt daje 5,6%
+   więcej zmian akcji niż szum (2 154 wobec 2 039), a przy samym horyzoncie
+   jest odwrotnie (289 wobec 616 w ręce 20), więc zaburzenie systematyczne
+   **nie** propaguje się mocniej niż losowe o tej samej amplitudzie.
+   **Werdykt: brzeg opanowany** — przy delcie 5e−4, czterokrotnie mniejszej
+   od zaburzenia, wpływ na ε jest poniżej 3e−6.
+
+   Zastrzeżenie, którego nie wolno zgubić: największa zmiana σ ≈ 1,0 przy
+   horyzoncie znaczy, że **pojedyncze komórki bliskie obojętności
+   przełączają akcję całkowicie** przy pomijalnej zmianie ε. Bajty
+   artefaktu zależą więc od konfiguracji brzegu, a jakość nie —
+   odtwarzalność bajt w bajt obowiązuje **przy ustalonej konfiguracji**
+   i tylko tyle twierdzimy.
+
+5. **Powtórzony pilot siatki 5 (U, W, X, Y).** Cały bieg **8 976,7 s
+   (2,49 h)** wobec 11 587,3 s POKER-47 — **1,29× szybciej mimo zbieżnego
+   horyzontu**, bo CFR+ kończy teraz na tolerancji zamiast chodzić stałe
+   128 iteracji. Horyzont: **5 cykli, delta 1,285e−4, zbieżny** (2 815,4 s;
+   7 395 solve'ów, 1,523 rdzenio-s/solve). Ciąg delt 0,0751 → 0,0104 →
+   **0,002092** → 5,61e−4 → 1,285e−4: trzeci cykl odtwarza co do trzeciej
+   cyfry deltę 0,00209 z POKER-47, więc zbieżność jest **16× lepsza** od
+   punktu, w którym poprzedni bieg się zatrzymywał. Wartość 1,285e−4 leży
+   poniżej podłogi ~2,05e−4 zmierzonej na siatce 10 przy starym CFR+ — obie
+   siatki nie są wprost porównywalne, ale kierunek zgadza się z diagnozą,
+   że podłoga jest szumem solvera etapowego, więc jego poprawa ją obniża.
+   21 warstw: 8 654 stany w 6 159,0 s → 0,712 s/stan przy 4 procesach,
+   **2,847 rdzenio-s/stan** (POKER-47: 1,068 / 4,272).
+
+   **Ex-post ε (W): maks 4,664e−4, mediana 1,077e−4**, min −8,7e−8 (szum
+   f32) na tych samych 8 654 stanach. Wobec POKER-47 (4,322e−4 / 8,376e−5)
+   to **7,9% wyżej na maksimum i 28,6% wyżej na medianie** — liczby idą
+   w złą stronę i tak trzeba je zapisać. Wyjaśnienie jest zmierzone, nie
+   domniemane: to inny warunek brzegowy (zbieżny zamiast zamrożonego na
+   trzecim cyklu, różnica rzędu 0,002) i inna średnia CFR+, a pomiar
+   wrażliwości z punktu 4 mówi, że zmiana brzegu o 0,002 rusza ε o ~1e−5;
+   reszta mieści się w zmianie profilu HU i szumie f32. **Maksimum 0,0466%
+   puli nadal jest poniżej punktu odniesienia decyzji 25 (0,05%)** i 2,1×
+   poniżej progu 0,001 z POKER-47, ale zapas do punktu odniesienia stopniał
+   z 14% do 6,7%.
+
+   ε **etapowe** po trybach na komplecie stanów (X, nie na próbce): `deep`
+   maks 1,74e−4, mediana 4,92e−5, **105 z 253 stanów powyżej tolerancji,
+   110 na sufcie 384**; `jamfold` maks 5,00e−5, mediana 4,17e−5, **zero
+   z 6 798 powyżej tolerancji**; `hu-deep` maks **4,998e−5**, mediana
+   3,86e−5, **zero z 397 stanów powyżej tolerancji i zero na sufcie**,
+   mediana 96 iteracji z 512; `hu-jamfold` maks 4,94e−5, mediana 2,14e−5,
+   zero z 1 206 powyżej tolerancji. Kryterium „żaden stan `hu-deep` powyżej
+   tolerancji" jest więc **spełnione na komplecie 397 stanów**, a nie na
+   próbce — bezpośredni skutek średniej ważonej reachem i stopu na
+   tolerancji (POKER-47: 39 stanów powyżej). Udział długu odziedziczonego
+   dla dziesięciu najgorszych stanów: mediana **90,1%**.
+
+   V vs ICM (W): 4 327 stanów krótkiego BB, maks **0,0788**, średnia
+   0,0200, najgorszy nadal ręka 15, stan 125/20/5 — bez zmian względem
+   POKER-47.
+
+6. **Nowa ekstrapolacja siatki 2-żetonowej (Y).** Koszt stanu per tryb
+   (jobs 1, 10 stanów na tryb, seed 47) **z rozrzutem**, bo cena produkcji
+   stała dotąd na samej medianie:
+
+   | tryb | mediana | maksimum | rozrzut | stanów siatki 5 |
+   |---|---:|---:|---:|---:|
+   | `deep` | 29,45 | 63,53 | 2,16× | 253 |
+   | `jamfold` | 1,497 | 2,089 | 1,40× | 6 798 |
+   | `hu-deep` | 0,0463 | 0,0593 | 1,28× | 397 |
+   | `hu-jamfold` | 0,0060 | 0,0123 | 2,05× | 1 206 |
+
+   (POKER-47 podawał `deep` 38,56 przy maksimum 90,62 — ta sama procedura,
+   inny bieg i inna próbka stanów, bo próbkę wybiera ranking ex-post.)
+   Mieszanka siatki 5 po medianach daje 17 656 rdzenio-s czystego solvera
+   wobec 24 636 zmierzonych w biegu, czyli narzut forka i zbiórki cykli to
+   **1,395×** (POKER-47: 1,537×). Siatka 2-żetonowa to 2 923 stany: 49 765
+   solve'ów warstw o mieszance `deep` 1 198, `jamfold` 68 859, `hu-deep`
+   932, `hu-jamfold` 5 083, oraz horyzont 2 923 × 3 ręce × **5 cykli** =
+   43 845 solve'ów (obie zmierzone siatki potrzebowały pięciu cykli).
+
+   - warstwy: 138 467 rdzenio-s po medianach → po narzucie **53,7
+     rdzenio-h**; po maksimach 220 070 → **85,3 rdzenio-h**;
+   - horyzont: 43 845 × 1,523 rdzenio-s (stawka zmierzona w biegu, więc już
+     z narzutem) = **18,5 rdzenio-h**;
+   - solver razem **72,2 … 103,8 rdzenio-h**; z tensorem 15 000 prób
+     (9,7 rdzenio-h, POKER-46) **~82 … ~114 rdzenio-godzin**.
+
+   Wobec ~91 rdzenio-h z POKER-47 (liczby wyłącznie medianowe) mediana
+   spadła do ~82, ale **górny koniec rozrzutu, ~114, przekracza ~108
+   rdzenio-godzin z decyzji 25**. Zapasu nie ma po żadnej stronie: sam
+   zbieżny horyzont kosztuje 18,5 rdzenio-h (przy trzech cyklach byłoby
+   11,1), a rozrzut kosztu trybu `deep` 2,16× decyduje o tym, czy bieg
+   zamknie się w budżecie. To jest liczba do decyzji o koszcie, nie do
+   przemilczenia.
+
+Świadomie zostawione: **105 z 253 stanów `deep` ma ε etapowe powyżej
+tolerancji 5e−5 (maks 1,74e−4), a 110 kończy na sufcie 384 iteracji** — ten
+sam nierozwiązany punkt co w POKER-47, i to on rządzi ex-post ε (dług
+odziedziczony 90,1%). Krzywa POKER-47 mówi, ile kosztuje jego domknięcie:
+żeby najgorszy stan `deep` zszedł do 5e−5, potrzeba sufitu 1 536 iteracji,
+czyli ~4× drożej na trybie, który już teraz decyduje o rozrzucie budżetu.
+Podłoga horyzontu ~2e−4 jest pochodną tej samej tolerancji etapowej, więc
+obie sprawy są **jedną decyzją o cenie, nie dwiema** — i należą do
+kontraktu produkcyjnego. Pomiar wrażliwości brzegu zrobiony jest na siatce
+10 (2 347 stanów), nie 5: mechanizm propagacji jest ten sam (te same
+21 warstw, ten sam zegar, ta sama gra etapowa), różni się rozdzielczość
+stacków, a trzy biegi siatki 5 kosztowałyby ~7,5 rdzenio-godziny zamiast
+1,4 bez zmiany wniosku.
 
 Następne kroki:
 
@@ -926,17 +1112,23 @@ Następne kroki:
    horyzoncie), PI-FP w grze 3-osobowej + CFR+ w endgame'ach HU,
    169 klas z łącznymi rozkładami trójek; metryka: ex-post
    best-response ε. **Pilot POKER-46 zdany i zweryfikowany
-   niezależnie**, **POKER-47 zamknięty wariantem (i)**: budżet PI-FP
-   wybrany z krzywej (sufit 384, tolerancja 5e−5), pilot powtórzony,
-   ex-post ε poniżej progu 0,001 puli (bloki wyżej). Następny krok
-   linii blueprintu to **bieg produkcyjny siatki 2-żetonowej** pod tym
-   budżetem (~91 rdzenio-godzin), wraz z tensorem 15 000 prób
-   i formatem binarnym artefaktu (decyzja 25 pkt 6). **Przed nim
-   obowiązkowo POKER-49** — domknięcie warunku brzegowego horyzontu
-   (delta 0,00209 jest 4,8× większa od zmierzonego ε i niewidoczna
-   w ex-post ε) oraz tolerancji w endgame'ach HU; bieg produkcyjny
-   stojący na niezbieżnym horyzoncie byłby 91 rdzenio-godzin
-   zapłaconych za liczbę, której nie umiemy obronić. Format
+   niezależnie**, **POKER-47 zamknięty wariantem (i)** (budżet PI-FP
+   z krzywej: sufit 384, tolerancja 5e−5), **POKER-49 zamknięty**:
+   kotwice `wt2_fold`, horyzont zbieżny do tolerancji (delta 1,285e−4
+   w pięciu cyklach wobec 0,00209 na sufcie), CFR+ ważony własnym
+   reachem ze stopem na tolerancji (zero z 397 stanów `hu-deep` powyżej
+   niej), ślepota metryki na brzeg zmierzona (zaburzenie 0,002 przesuwa
+   ex-post ε o ~1e−5). Następny krok linii blueprintu to **bieg
+   produkcyjny siatki 2-żetonowej** (**~82 rdzenio-h po medianach
+   kosztu, do ~114 przy maksimach** — blok POKER-49 pkt 6; górny koniec
+   przekracza ~108 z decyzji 25, więc koszt wymaga decyzji), wraz
+   z tensorem 15 000 prób i formatem binarnym artefaktu (decyzja 25
+   pkt 6). Kolejka przed nim: **POKER-48** (moc pomiaru areny, punkt 2
+   niżej), potem **POKER-50**. Otwarte i wycenione: 105 z 253 stanów
+   `deep` nadal kończy powyżej tolerancji etapowej, a domknięcie ich do
+   5e−5 to sufit 1 536 iteracji, ~4× drożej na najdroższym trybie —
+   ta sama tolerancja etapowa wyznacza podłogę horyzontu, więc to jedna
+   decyzja o cenie, nie dwie. Format
    artefaktu policzony z danych pilota: maska + uint8 (2 z 3) + zlib
    daje **~38 MB** na całą siatkę produkcyjną (201 B/stan zmierzone
    na `grid5b`), a nie 0,25–1 GB szacowane w decyzji 25 — 60% komórek
@@ -948,7 +1140,7 @@ Następne kroki:
    jest niezmierzone i stanowi kryterium akceptacji kontraktu formatu:
    ex-post ε artefaktu skwantowanego minus ε surowego, policzone tym
    samym narzędziem;
-2. **moc pomiaru areny** — różnice rzędu +5–15% ROI wymagają większego
+2. **moc pomiaru areny (POKER-48)** — różnice rzędu +5–15% ROI wymagają większego
    N albo redukcji wariancji (AIVAT/duplicate), zanim jakiekolwiek
    twierdzenie „bije X" wróci do dokumentów;
 3. kwalifikacja duplikacji rozgrywacza `poker.spin_arena` względem
