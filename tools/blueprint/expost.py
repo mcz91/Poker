@@ -62,6 +62,13 @@ def _sibling(name: str) -> ModuleType:
 artifacts = _sibling("artifacts")
 solve_grid = _sibling("solve_grid")
 
+# Kryterium blokujące kontraktu produkcyjnego POKER-50 (próg z POKER-47)
+# i punkt odniesienia decyzji 25; przekroczenie odniesienia uruchamia opcję
+# podniesienia sufitu `deep` do 1536 iteracji OSOBNYM kontraktem
+# (werdykt architekta POKER-49).
+BLOCKING_EPS = 1e-3
+REFERENCE_EPS = 5e-4
+
 _RANK_SYMBOLS = {14: "A", 13: "K", 12: "Q", 11: "J", 10: "T"}
 
 
@@ -128,6 +135,7 @@ def run_expost(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
     eps_arrays: dict[str, np.ndarray] = {}
     pool_prize = float(sum(config.prizes))
     samples: list[tuple[float, int, tuple[int, int, int], int]] = []
+    per_layer: dict[int, dict[str, Any]] = {}
     for hand in range(total - 1, -1, -1):
         layer = layers[hand]
         states = tuple((int(a), int(b), int(c)) for a, b, c in layer["states"].tolist())
@@ -146,19 +154,39 @@ def run_expost(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
         v_br = np.stack([row for _, row in rows], axis=0)
         eps = (v_br - layer["v"]) / pool_prize
         eps_arrays[f"eps_{hand:02d}"] = eps
+        layer_values: list[float] = []
         for position, state in enumerate(states):
             for seat in range(3):
                 if state[seat] > 0:
                     samples.append((float(eps[position, seat]), hand, state, seat))
+                    layer_values.append(float(eps[position, seat]))
+        per_layer[hand] = {
+            "hand": hand,
+            "n_states": len(states),
+            "epsilon_max": max(layer_values),
+            "epsilon_median": float(statistics.median(layer_values)),
+        }
         v_br_states, v_br_next = states, v_br
     values = [value for value, _, _, _ in samples]
     worst = sorted(samples, key=lambda item: -item[0])[:10]
+    epsilon_max = max(values)
     report: dict[str, Any] = {
         "pool": pool_prize,
         "states": sum(layer["states"].shape[0] for layer in layers.values()),
-        "epsilon_max": max(values),
+        "epsilon_max": epsilon_max,
         "epsilon_median": float(statistics.median(values)),
         "epsilon_min": min(values),
+        # Werdykt kontraktu produkcyjnego: kryterium blokujące i punkt
+        # odniesienia z jawnym stwierdzeniem, czy opcja sufitu 1536 się
+        # uruchamia (kontekst POKER-50, werdykt architekta POKER-49).
+        "criteria": {
+            "blocking_max": BLOCKING_EPS,
+            "blocking_ok": epsilon_max <= BLOCKING_EPS,
+            "reference": REFERENCE_EPS,
+            "reference_exceeded": epsilon_max > REFERENCE_EPS,
+            "ceiling_1536_option_triggers": epsilon_max > REFERENCE_EPS,
+        },
+        "layers": [per_layer[hand] for hand in sorted(per_layer)],
         "worst": [
             {"hand": hand, "state": list(state), "seat": seat, "epsilon": value}
             for value, hand, state, seat in worst

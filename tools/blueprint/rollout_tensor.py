@@ -41,6 +41,7 @@ import argparse
 import importlib.util
 import itertools
 import json
+import platform
 import sys
 import time
 from collections.abc import Sequence
@@ -404,12 +405,19 @@ def generate_artifacts(
     classes: Sequence[int] | None = None,
     jobs: int = 1,
     backend: str = "table",
+    table: np.ndarray | None = None,
 ) -> dict[str, Any]:
+    """Pełny artefakt tensora; `table` pozwala podać zbudowaną tablicę wartości
+    (łańcuch kontrolny buduje ją raz i dzieli między testy) — wynik identyczny,
+    bo tablica jest czystą funkcją `poker.evaluation`."""
     if backend not in ("table", "direct"):
         raise ValueError(f"nieznany backend oceny: {backend}")
+    if backend == "direct" and table is not None:
+        raise ValueError("backend direct nie używa tablicy wartości")
     chosen = tuple(sorted(classes)) if classes is not None else tuple(range(N_CLASSES))
     started = time.perf_counter()
-    table = build_value_table() if backend == "table" else None
+    if backend == "table" and table is None:
+        table = build_value_table()
     table_seconds = time.perf_counter() - started
     multisets = multisets_for(chosen)
     pairs = pairs_for(chosen)
@@ -435,6 +443,8 @@ def generate_artifacts(
             "trials": trials,
             "hu_trials": hu_trials,
             "jobs": jobs,
+            "python": platform.python_version(),
+            "cpu_model": artifacts.cpu_model(),
             "seconds": {
                 "value_table": round(table_seconds, 3),
                 "triples": round(triples_seconds, 3),

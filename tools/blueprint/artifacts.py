@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import os
+import platform
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,17 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"manifest nie jest obiektem JSON: {path}")
     return payload
+
+
+def cpu_model() -> str:
+    """Model CPU do manifestu pochodzenia: /proc/cpuinfo (Linux), inaczej platform."""
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.lower().startswith("model name"):
+                return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or platform.machine()
 
 
 def sha256_file(path: Path) -> str:

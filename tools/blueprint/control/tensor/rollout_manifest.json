@@ -1,0 +1,108 @@
+{
+  "artifact": "rollout-tensor-pilot",
+  "backend": "table",
+  "classes": [
+    0,
+    25,
+    75,
+    143
+  ],
+  "cpu_model": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "hu_trials": 300,
+  "jobs": 1,
+  "master_seed": 50,
+  "method": "monte-carlo-all-in-preflop",
+  "numpy": "2.5.2",
+  "outcomes2": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      0
+    ]
+  ],
+  "outcomes3": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      2
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      2,
+      0
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      1,
+      0,
+      1
+    ],
+    [
+      1,
+      0,
+      2
+    ],
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      1,
+      2,
+      0
+    ],
+    [
+      2,
+      0,
+      0
+    ],
+    [
+      2,
+      0,
+      1
+    ],
+    [
+      2,
+      1,
+      0
+    ]
+  ],
+  "python": "3.13.12",
+  "seconds": {
+    "pairs": 0.011,
+    "triples": 0.045,
+    "value_table": 0.0
+  },
+  "sha256": {
+    "rollout3.npz": "42a9891be37f6a30530ea2bd99b5f358aa9a88d80dce32da45cf1f88a9459c86",
+    "rollout_hu.npz": "8c0bf55e473effb2ca9b924b045ccf58fb3954c9399bbfc48c8b3d22180d2daf"
+  },
+  "trials": 400
+}

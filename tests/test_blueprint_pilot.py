@@ -1,4 +1,4 @@
-"""Testy pilota blueprintu (POKER-46/47/49): tensor rolloutu 3-way, solver siatki, ex-post.
+"""Testy pilota blueprintu (POKER-46/47/49/50): tensor rolloutu 3-way, solver siatki, ex-post.
 
 Narzędzia żyją w tools/blueprint/ (zależności extras train) i są ładowane
 przez importlib jak w testach reprodukcji treningu (test_mccfr, test_mlp).
@@ -1096,6 +1096,230 @@ def test_dekompozycja_oddziela_epsilon_etapowe_od_odziedziczonego(
     for row in report["modes"]:
         assert row["eps_stage_max"] >= row["eps_stage_median"] >= 0.0, row
         assert row["above_tolerance"] <= row["n_states"], row
+
+
+# --- POKER-50: bieg produkcyjny — bezpiecznik kosztu, wycinek, łańcuch kontrolny ---
+
+CONTROL_DIR = BLUEPRINT / "control"
+
+
+@pytest.fixture(scope="module")
+def value_table() -> Any:
+    """Tablica wartości C(52,5) — backend `table` produkcji, budowana raz na moduł."""
+    rt = _load("rollout_tensor")
+    return rt.build_value_table()
+
+
+def test_ekstrapolacja_bezpiecznika_kalibruje_priory_trybow() -> None:
+    """Ekstrapolacja kosztu: tryb zmierzony liczy się własnym tempem, niezmierzony
+    priorytetem POKER-49 przeskalowanym kalibracją tej maszyny, a narzut forka
+    ilorazem kosztu ściennego do sumy czasów stanów."""
+    sg = _load("solve_grid")
+    assert set(sg.MODE_COST_PRIORS) == set(sg.MODE_NAMES)
+    measured = {"jamfold": {"n_states": 10.0, "core_seconds": 30.0}}
+    spent = 45.0  # narzut 1,5x nad zmierzonymi 30 s czasu stanów
+    plan = [{"deep": 2, "jamfold": 4}]
+    report = sg.extrapolate_cost(plan, measured, spent)
+    calibration = 30.0 / (10.0 * sg.MODE_COST_PRIORS["jamfold"])
+    assert report["calibration"] == pytest.approx(calibration)
+    assert report["overhead"] == pytest.approx(1.5)
+    rates = report["rates"]
+    assert rates["jamfold"]["measured"] is True
+    assert rates["jamfold"]["core_seconds_per_state"] == pytest.approx(3.0)
+    assert rates["deep"]["measured"] is False
+    assert rates["deep"]["core_seconds_per_state"] == pytest.approx(
+        sg.MODE_COST_PRIORS["deep"] * calibration
+    )
+    remaining = 1.5 * (2 * sg.MODE_COST_PRIORS["deep"] * calibration + 4 * 3.0)
+    assert report["remaining_core_hours"] == pytest.approx(remaining / 3600.0)
+    assert report["extrapolated_core_hours"] == pytest.approx((45.0 + remaining) / 3600.0)
+    assert report["spent_core_hours"] == pytest.approx(45.0 / 3600.0)
+
+
+def test_bezpiecznik_kosztu_przerywa_po_trzech_warstwach_i_wznawia_bajt_w_bajt(
+    tmp_path: Path,
+) -> None:
+    """Przekroczony limit przerywa bieg po trzeciej warstwie z raportem tempa;
+    wznowienie z innym limitem (limit nie wchodzi do hasha konfiguracji) kończy
+    bieg bajt w bajt identyczny z biegiem ciągłym."""
+    sg = _load("solve_grid")
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    levels = ((1, 2), (1, 2), (1, 2), (1, 2))
+    tight = _toy_config(sg, levels=levels, cost_limit_core_hours=1e-9)
+    with pytest.raises(sg.CostFuseExceeded) as caught:
+        sg.solve(tight, tensor_dir, tmp_path / "fused")
+    report = caught.value.report
+    assert report["verdict"] == "exceeded"
+    assert report["limit_core_hours"] == tight.cost_limit_core_hours
+    assert report["extrapolated_core_hours"] > tight.cost_limit_core_hours
+    assert report["spent_core_hours"] > 0.0
+    assert any(row["measured"] for row in report["rates"].values())
+    manifest = json.loads((tmp_path / "fused" / "solve_manifest.json").read_text())
+    assert manifest["status"] == "aborted-cost-fuse"
+    assert len(manifest["layers"]) == 3
+    assert manifest["cost_fuse"]["verdict"] == "exceeded"
+    resumed = _toy_config(sg, levels=levels, cost_limit_core_hours=0.0)
+    sg.solve(resumed, tensor_dir, tmp_path / "fused")
+    sg.solve(_toy_config(sg, levels=levels), tensor_dir, tmp_path / "full")
+    names = sorted(path.name for path in (tmp_path / "full").glob("*.npz"))
+    assert names == sorted(path.name for path in (tmp_path / "fused").glob("*.npz"))
+    for name in names:
+        assert (tmp_path / "full" / name).read_bytes() == (
+            tmp_path / "fused" / name
+        ).read_bytes(), name
+
+
+def test_bezpiecznik_domyslnie_140_w_cli_i_poza_hashem_konfiguracji() -> None:
+    """Limit 140 rdzenio-h z kontraktu jest domyślny; nie wpływa na wynik, więc
+    nie wchodzi do hasha konfiguracji (wznowienie może go zmienić)."""
+    sg = _load("solve_grid")
+    defaults = sg.GridConfig()
+    assert defaults.cost_limit_core_hours == 140.0
+    parsed = sg.build_parser().parse_args(["--tensor", "t", "--out", "o"])
+    assert parsed.cost_limit == defaults.cost_limit_core_hours
+    stub = {"sha256": {"rollout3.npz": "x", "rollout_hu.npz": "y"}}
+    base = sg.config_hash(defaults, stub)
+    assert sg.config_hash(
+        dataclasses.replace(defaults, cost_limit_core_hours=1.0), stub
+    ) == base
+    assert sg.config_hash(dataclasses.replace(defaults, fp_tol=1.0), stub) != base
+
+
+def test_wznowienie_bajt_w_bajt_na_wycinku_produkcyjnym(tmp_path: Path) -> None:
+    """Wycinek konfiguracji produkcyjnej: siatka 2 żetony, prawdziwy tensor kontrolny,
+    wszystkie cztery tryby solvera; przerwanie po warstwie i wznowienie daje pliki
+    bajt w bajt, a manifest raportuje postęp per warstwa (czas, stany, tryby)."""
+    sg = _load("solve_grid")
+    cc = _load("control_chain")
+    config = cc.control_config()
+    assert config.grid_step == cc.PROD_GRID_STEP == 2
+    tensor_dir = CONTROL_DIR / "tensor"
+    full_dir = tmp_path / "full"
+    sg.solve(config, tensor_dir, full_dir)
+    resumed_dir = tmp_path / "resumed"
+    sg.solve(config, tensor_dir, resumed_dir, layers_limit=1)
+    sg.solve(config, tensor_dir, resumed_dir)
+    names = sorted(path.name for path in full_dir.glob("*.npz"))
+    assert names == sorted(path.name for path in resumed_dir.glob("*.npz")) and names
+    for name in names:
+        assert (full_dir / name).read_bytes() == (resumed_dir / name).read_bytes(), name
+    manifest = json.loads((full_dir / "solve_manifest.json").read_text())
+    seen_modes = set(manifest["boundary"]["modes"])
+    for entry in manifest["layers"].values():
+        assert entry["n_states"] >= 1
+        assert entry["seconds"] >= 0.0
+        assert entry["core_seconds_wall"] > 0.0
+        assert entry["modes"]
+        for stats in entry["modes"].values():
+            assert stats["n_states"] >= 1 and stats["core_seconds"] >= 0.0
+        seen_modes |= set(entry["modes"])
+    assert seen_modes == set(sg.MODE_NAMES)  # wycinek pokrywa wszystkie tryby produkcji
+
+
+def test_manifest_pochodzenia_kompletny(toy_run: dict[str, Any]) -> None:
+    """Manifest biegu niesie pochodzenie: wersje, model CPU, seed i próby tensora."""
+    manifest = toy_run["manifest"]
+    provenance = manifest["provenance"]
+    assert provenance["numpy"] and provenance["python"]
+    assert provenance["cpu_model"]
+    assert provenance["tensor"]["master_seed"] == 0  # syntetyczny artefakt testowy
+    assert provenance["tensor"]["trials"] == 64
+    assert provenance["tensor"]["hu_trials"] == 64
+    assert manifest["config_hash"]
+
+
+def test_lancuch_kontrolny_zgodny_z_artefaktem_w_repo(
+    tmp_path: Path, value_table: Any
+) -> None:
+    """Dwustopniowy dowód odtwarzalności (decyzja 06): mały łańcuch kontrolny w bramce.
+
+    Tensor kontrolny regenerowany z przybitych parametrów musi być identyczny
+    z artefaktem w repo (tablice całkowite — porównanie dokładne), a łańcuch
+    solver→ex-post na artefakcie z repo musi odtworzyć liczby z
+    `chain_control.json` (tolerancja CONTROL_ABS_TOL na arytmetykę f32).
+    Zmiana kodu, która przesuwa wynik, zapala tę bramkę zamiast po cichu
+    unieważnić artefakt produkcyjny (PUŁAPKA regeneracji artefaktu).
+    """
+    cc = _load("control_chain")
+    af = _load("artifacts")
+    rt = _load("rollout_tensor")
+    np = rt.np
+    expected = json.loads((CONTROL_DIR / "chain_control.json").read_text())
+    fresh = tmp_path / "tensor"
+    cc.generate_control_tensor(fresh, table=value_table)
+    for name in ("rollout3.npz", "rollout_hu.npz"):
+        committed = af.read_npz(CONTROL_DIR / "tensor" / name)
+        regenerated = af.read_npz(fresh / name)
+        assert sorted(committed) == sorted(regenerated), name
+        for key in committed:
+            assert bool(np.array_equal(committed[key], regenerated[key])), (name, key)
+    committed_manifest = json.loads((CONTROL_DIR / "tensor" / "rollout_manifest.json").read_text())
+    assert committed_manifest["master_seed"] == cc.CONTROL_SEED
+    assert committed_manifest["cpu_model"] and committed_manifest["python"]
+    summary = cc.run_control_chain(CONTROL_DIR / "tensor", tmp_path / "solve", jobs=1)
+    control = expected["control"]
+    assert summary["config_hash"] == control["config_hash"]
+    assert summary["boundary_cycles"] == control["boundary_cycles"]
+    for key in ("boundary_delta", "epsilon_max", "epsilon_median"):
+        assert summary[key] == pytest.approx(control[key], abs=cc.CONTROL_ABS_TOL), key
+    assert summary["start_v"] == pytest.approx(control["start_v"], abs=cc.CONTROL_ABS_TOL)
+
+
+def test_reprodukcja_podzbioru_tensora_produkcyjnego(value_table: Any) -> None:
+    """Podzbiór tensora produkcyjnego (seed jawny, 15 000 / 60 000 prób) odtwarza się
+    co do zliczenia, a equity pary HU zgadza się z macierzą produktu w progu
+    wyprowadzonym z liczby prób obu artefaktów."""
+    cc = _load("control_chain")
+    rt = _load("rollout_tensor")
+    np = rt.np
+    assert cc.PROD_TRIALS == 15_000
+    assert cc.PROD_HU_TRIALS == 60_000  # proporcjonalnie do pilota (x7,5 z 8 000)
+    assert cc.PROD_HU_TRIALS >= 32_000  # podłoga kontraktu POKER-50
+    assert cc.PROD_GRID_STEP == 2
+    expected = json.loads((CONTROL_DIR / "chain_control.json").read_text())["production"]
+    assert expected["trials"] == cc.PROD_TRIALS
+    assert expected["hu_trials"] == cc.PROD_HU_TRIALS
+    assert expected["master_seed"] == cc.PROD_SEED
+    assert expected["grid_step"] == cc.PROD_GRID_STEP
+    subset = cc.production_subset(value_table)
+    assert subset["triple"] == expected["triple"]
+    assert subset["pair"] == expected["pair"]
+    pair = tuple(subset["pair"]["classes"])
+    counts = subset["pair"]["counts"]
+    assert sum(counts) == cc.PROD_HU_TRIALS
+    aa_axis = pair.index(_cls("AA"))
+    row = np.asarray(counts, dtype=float)
+    # Zamiana osi pary permutuje zdarzenia (0,1)<->(1,0); remis (0,0) zostaje.
+    equity = _pair_equity(rt, row if aa_axis == 0 else row[[0, 2, 1]])
+    expected_equity = class_equity(ALL_CLASSES[_cls("AA")], ALL_CLASSES[_cls("72o")])
+    assert abs(equity - expected_equity) <= _mc_tolerance(cc.PROD_HU_TRIALS)
+
+
+def test_raport_expost_ma_kryteria_progow_i_rozklad_per_warstwa(
+    toy_run: dict[str, Any],
+) -> None:
+    """Raport ex-post niesie kryterium blokujące 1e-3, punkt odniesienia 5e-4
+    z werdyktem o opcji sufitu 1536 oraz rozkład ε per warstwa."""
+    ep = _load("expost")
+    assert ep.BLOCKING_EPS == 1e-3
+    assert ep.REFERENCE_EPS == 5e-4
+    report = ep.run_expost(toy_run["out_dir"])
+    criteria = report["criteria"]
+    assert criteria["blocking_max"] == ep.BLOCKING_EPS
+    assert criteria["blocking_ok"] == (report["epsilon_max"] <= ep.BLOCKING_EPS)
+    assert criteria["reference"] == ep.REFERENCE_EPS
+    assert criteria["reference_exceeded"] == (report["epsilon_max"] > ep.REFERENCE_EPS)
+    assert criteria["ceiling_1536_option_triggers"] == criteria["reference_exceeded"]
+    layers = report["layers"]
+    assert [row["hand"] for row in layers] == sorted(row["hand"] for row in layers)
+    assert sum(row["n_states"] for row in layers) == report["states"]
+    for row in layers:
+        assert row["epsilon_max"] >= row["epsilon_median"]
+    assert max(row["epsilon_max"] for row in layers) == pytest.approx(
+        report["epsilon_max"]
+    )
+    written = json.loads((toy_run["out_dir"] / "expost_report.json").read_text())
+    assert written["criteria"] == criteria
 
 
 def test_raport_icm_struktura(toy_run: dict[str, Any]) -> None:

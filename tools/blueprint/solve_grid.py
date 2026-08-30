@@ -49,6 +49,7 @@ import itertools
 import json
 import os
 import pickle
+import platform
 import statistics
 import sys
 import tempfile
@@ -164,6 +165,11 @@ class GridConfig:
     # (ex-post ε zamraża ogon dla obu stron, więc błędu horyzontu nie widzi).
     boundary_perturb: float = 0.0
     boundary_perturb_kind: str = "tilt"
+    # Bezpiecznik kosztu (POKER-50): po co najmniej trzech policzonych warstwach
+    # ekstrapolowany koszt całości biegu ponad ten limit przerywa bieg z raportem
+    # zmierzonego tempa — zamiast palić budżet na przekroczonym założeniu.
+    # 0 wyłącza. Nie wpływa na wynik, więc nie wchodzi do hasha konfiguracji.
+    cost_limit_core_hours: float = 140.0
     jobs: int = 1
 
 
@@ -189,6 +195,7 @@ def config_from_dict(payload: dict[str, Any]) -> GridConfig:
         tail_tol=payload["tail_tol"],
         boundary_perturb=payload["boundary_perturb"],
         boundary_perturb_kind=payload["boundary_perturb_kind"],
+        cost_limit_core_hours=payload["cost_limit_core_hours"],
         jobs=payload["jobs"],
     )
 
@@ -210,6 +217,7 @@ def n_hands(config: GridConfig) -> int:
 def config_hash(config: GridConfig, tensor_manifest: dict[str, Any]) -> str:
     fields = asdict(config)
     del fields["jobs"]  # liczba procesów nie wpływa na wynik — wznowienie jej nie pilnuje
+    del fields["cost_limit_core_hours"]  # bezpiecznik przerywa, nie zmienia wyniku
     payload = {
         "config": fields,
         "tensor_sha256": tensor_manifest["sha256"],
@@ -1316,7 +1324,10 @@ def _transition_tensors() -> Tensors:
 _WORK: dict[str, Any] = {}
 
 
-def _solve_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray, float, int, int]:
+def _solve_state_job(
+    index: int,
+) -> tuple[int, np.ndarray, np.ndarray, float, int, int, float]:
+    started = time.perf_counter()
     tensors: Tensors = _WORK["tensors"]
     config: GridConfig = _WORK["config"]
     hand: int = _WORK["hand"]
@@ -1346,7 +1357,10 @@ def _solve_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray, float, in
     # stanu (setki MB) do pełnego gc — wymuszamy zbiórkę po każdym stanie.
     del problem
     gc.collect()
-    return index, values, sigma_out, eps, iterations, MODE_NAMES.index(mode)
+    # Czas stanu mierzony w jednowątkowym dziecku — to rdzenio-sekundy tempa
+    # dla bezpiecznika kosztu; nie wchodzi do plików warstw (niedeterministyczny).
+    seconds = time.perf_counter() - started
+    return index, values, sigma_out, eps, iterations, MODE_NAMES.index(mode), seconds
 
 
 def _solve_layer(
@@ -1357,7 +1371,12 @@ def _solve_layer(
     blinds: tuple[int, int],
     v_next_states: tuple[tuple[int, int, int], ...],
     v_next: np.ndarray,
-) -> dict[str, np.ndarray]:
+) -> tuple[dict[str, np.ndarray], dict[str, dict[str, float]]]:
+    """Warstwa solvera: tablice do zapisu oraz zmierzone tempo per tryb.
+
+    Tempo (liczba stanów, suma rdzenio-sekund dzieci) żyje wyłącznie
+    w manifeście — pliki warstw pozostają deterministyczne bajt w bajt.
+    """
     _WORK.update(
         tensors=tensors,
         config=config,
@@ -1374,7 +1393,14 @@ def _solve_layer(
     eps = np.array([row[3] for row in rows], dtype=np.float32)
     iters = np.array([row[4] for row in rows], dtype=np.int32)
     modes = np.array([row[5] for row in rows], dtype=np.uint8)
-    return {
+    stats: dict[str, dict[str, float]] = {}
+    for row in rows:
+        entry = stats.setdefault(
+            MODE_NAMES[row[5]], {"n_states": 0.0, "core_seconds": 0.0}
+        )
+        entry["n_states"] += 1.0
+        entry["core_seconds"] += row[6]
+    arrays = {
         "states": np.array(states, dtype=np.int16),
         "v": values,
         "sigma": sigma,
@@ -1382,6 +1408,7 @@ def _solve_layer(
         "iters": iters,
         "mode": modes,
     }
+    return arrays, stats
 
 
 def _reachable_sets(config: GridConfig) -> list[tuple[tuple[int, int, int], ...]]:
@@ -1398,13 +1425,23 @@ def _reachable_sets(config: GridConfig) -> list[tuple[tuple[int, int, int], ...]
     return layers
 
 
+def _merge_mode_stats(
+    total: dict[str, dict[str, float]], part: dict[str, dict[str, float]]
+) -> None:
+    for mode, stats in part.items():
+        entry = total.setdefault(mode, {"n_states": 0.0, "core_seconds": 0.0})
+        entry["n_states"] += stats["n_states"]
+        entry["core_seconds"] += stats["core_seconds"]
+
+
 def _boundary(
     tensors: Tensors, config: GridConfig, states: tuple[tuple[int, int, int], ...]
-) -> tuple[np.ndarray, list[float]]:
+) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]]]:
     """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
 
     Zwraca deltę każdego cyklu, nie samą ostatnią — z tego ciągu bierze się
-    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol`.
+    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol` —
+    oraz tempo per tryb dla bezpiecznika kosztu.
     """
     total = n_hands(config)
     sb, bb_amt = level_blinds(config, total)
@@ -1412,18 +1449,34 @@ def _boundary(
         [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
     )
     deltas: list[float] = []
+    stats: dict[str, dict[str, float]] = {}
     for _ in range(config.tail_max_cycles):
+        cycle_started = time.perf_counter()
         next_v = current
         for offset in (2, 1, 0):
-            layer = _solve_layer(
+            layer, layer_stats = _solve_layer(
                 tensors, config, states, total + offset, (sb, bb_amt), states, next_v
             )
+            _merge_mode_stats(stats, layer_stats)
             next_v = layer["v"]
         deltas.append(float(np.max(np.abs(next_v - current))))
         current = next_v
+        print(
+            json.dumps(
+                {
+                    "stage": "boundary",
+                    "cycle": len(deltas),
+                    "n_states": len(states),
+                    "delta": deltas[-1],
+                    "seconds": round(time.perf_counter() - cycle_started, 3),
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
         if deltas[-1] <= config.tail_tol:
             break
-    return current, deltas
+    return current, deltas, stats
 
 
 PERTURB_KINDS = ("tilt", "noise")
@@ -1464,6 +1517,126 @@ def perturb_boundary(
     return out
 
 
+# --- bezpiecznik kosztu (POKER-50) ---------------------------------------
+
+# Mediany kosztu stanu per tryb z pilota POKER-49 (rdzenio-s, siatka 5, jobs 1)
+# — wyłącznie PRIOR ekstrapolacji dla trybów jeszcze niezmierzonych w biegu,
+# przeskalowany kalibracją zmierzoną na trybach już policzonych. Tryby
+# zmierzone liczą się własnym tempem, więc prior nie zastępuje pomiaru.
+MODE_COST_PRIORS: dict[str, float] = {
+    "deep": 29.45,
+    "jamfold": 1.497,
+    "hu-deep": 0.0463,
+    "hu-jamfold": 0.0060,
+}
+
+
+class CostFuseExceeded(RuntimeError):
+    """Bieg przerwany bezpiecznikiem kosztu; `report` niesie zmierzone tempo."""
+
+    def __init__(self, report: dict[str, Any]) -> None:
+        super().__init__(
+            "bezpiecznik kosztu: ekstrapolowany koszt "
+            f"{report['extrapolated_core_hours']:.1f} rdzenio-h przekracza limit "
+            f"{report['limit_core_hours']:.1f}"
+        )
+        self.report = report
+
+
+def state_mode(stacks: tuple[int, int, int], bb_amt: int) -> str:
+    """Tryb solvera stanu bez rozwiązywania — ta sama reguła co build_stage_problem."""
+    alive = sum(1 for value in stacks if value > 0)
+    jamfold = is_jam_fold_depth(stacks, bb_amt)
+    if alive == 3:
+        return "jamfold" if jamfold else "deep"
+    return "hu-jamfold" if jamfold else "hu-deep"
+
+
+def extrapolate_cost(
+    plan: Sequence[dict[str, int]],
+    measured: dict[str, dict[str, float]],
+    spent_core_seconds: float,
+) -> dict[str, Any]:
+    """Ekstrapolacja kosztu całości biegu ze zmierzonego tempa.
+
+    Tryb zmierzony liczy się własnym tempem (rdzenio-s/stan z dzieci); tryb
+    jeszcze niezmierzony priorytetem POKER-49 przeskalowanym wspólną kalibracją
+    tej maszyny. Narzut forka i zbiórki mierzy iloraz kosztu ściennego
+    (`spent_core_seconds`, ściana × procesy) do sumy czasów stanów.
+    """
+    live = {mode: row for mode, row in measured.items() if row["n_states"] > 0}
+    measured_core = sum(row["core_seconds"] for row in live.values())
+    prior_core = sum(row["n_states"] * MODE_COST_PRIORS[mode] for mode, row in live.items())
+    calibration = measured_core / prior_core if prior_core > 0.0 else 1.0
+    overhead = spent_core_seconds / measured_core if measured_core > 0.0 else 1.0
+    rates: dict[str, dict[str, Any]] = {}
+    for mode in MODE_NAMES:
+        row = live.get(mode)
+        if row is not None:
+            rates[mode] = {
+                "measured": True,
+                "n_states": int(row["n_states"]),
+                "core_seconds_per_state": row["core_seconds"] / row["n_states"],
+            }
+        else:
+            rates[mode] = {
+                "measured": False,
+                "n_states": 0,
+                "core_seconds_per_state": MODE_COST_PRIORS[mode] * calibration,
+            }
+    remaining_core = overhead * sum(
+        count * rates[mode]["core_seconds_per_state"]
+        for counts in plan
+        for mode, count in counts.items()
+    )
+    return {
+        "spent_core_hours": spent_core_seconds / 3600.0,
+        "remaining_core_hours": remaining_core / 3600.0,
+        "extrapolated_core_hours": (spent_core_seconds + remaining_core) / 3600.0,
+        "remaining_states": sum(count for counts in plan for count in counts.values()),
+        "calibration": calibration,
+        "overhead": overhead,
+        "rates": rates,
+    }
+
+
+def _cost_fuse_report(
+    config: GridConfig,
+    manifest: dict[str, Any],
+    reachable: list[tuple[tuple[int, int, int], ...]],
+) -> dict[str, Any]:
+    """Raport bezpiecznika z danych manifestu (odporny na wznowienia)."""
+    plan: list[dict[str, int]] = []
+    for hand in range(n_hands(config)):
+        if str(hand) in manifest["layers"]:
+            continue
+        _, bb_amt = level_blinds(config, hand)
+        counts: dict[str, int] = {}
+        for state in reachable[hand]:
+            mode = state_mode(state, bb_amt)
+            counts[mode] = counts.get(mode, 0) + 1
+        plan.append(counts)
+    measured: dict[str, dict[str, float]] = {}
+    _merge_mode_stats(measured, manifest["boundary"]["modes"])
+    spent = float(manifest["boundary"]["core_seconds_wall"])
+    for entry in manifest["layers"].values():
+        _merge_mode_stats(measured, entry["modes"])
+        spent += float(entry["core_seconds_wall"])
+    report = extrapolate_cost(plan, measured, spent)
+    report["limit_core_hours"] = config.cost_limit_core_hours
+    if config.cost_limit_core_hours <= 0:
+        report["verdict"] = "disabled"
+        return report
+    exceeded = report["extrapolated_core_hours"] > config.cost_limit_core_hours
+    report["verdict"] = "exceeded" if exceeded else "ok"
+    if exceeded:
+        report["reason"] = (
+            "ekstrapolowany koszt całości przekracza limit — bieg przerwany po "
+            f"{len(manifest['layers'])} warstwach zamiast palić budżet"
+        )
+    return report
+
+
 def solve(
     config: GridConfig,
     tensor_dir: Path,
@@ -1487,6 +1660,18 @@ def solve(
             "config_hash": digest,
             "tensor_dir": str(tensor_dir.resolve()),
             "tensor_sha256": tensors.manifest["sha256"],
+            "provenance": {
+                "python": platform.python_version(),
+                "numpy": np.__version__,
+                "cpu_model": artifacts.cpu_model(),
+                "tensor": {
+                    "master_seed": tensors.manifest["master_seed"],
+                    "trials": tensors.manifest["trials"],
+                    "hu_trials": tensors.manifest["hu_trials"],
+                    "backend": tensors.manifest["backend"],
+                    "method": tensors.manifest["method"],
+                },
+            },
             "boundary": None,
             "layers": {},
             "status": "partial",
@@ -1497,8 +1682,9 @@ def solve(
     boundary_path = out_dir / "boundary.npz"
     if manifest["boundary"] is None or not boundary_path.exists():
         boundary_started = time.perf_counter()
+        boundary_stats: dict[str, dict[str, float]] = {}
         if boundary_from is None:
-            fixed_point, deltas = _boundary(tensors, config, full_states)
+            fixed_point, deltas, boundary_stats = _boundary(tensors, config, full_states)
             source: dict[str, Any] = {"kind": "computed"}
         else:
             # Pomiar wrażliwości na brzeg ma zmieniać wyłącznie brzeg: punkt stały
@@ -1522,6 +1708,7 @@ def solve(
             boundary_path,
             {"states": np.array(full_states, dtype=np.int16), "v": boundary_v},
         )
+        boundary_seconds = time.perf_counter() - boundary_started
         manifest["boundary"] = {
             "file": "boundary.npz",
             "sha256": artifacts.sha256_file(boundary_path),
@@ -1533,7 +1720,19 @@ def solve(
             "perturb": config.boundary_perturb,
             "perturb_kind": config.boundary_perturb_kind,
             "perturb_max_abs": float(np.max(np.abs(boundary_v - fixed_point))),
-            "seconds": round(time.perf_counter() - boundary_started, 3),
+            "seconds": round(boundary_seconds, 3),
+            "modes": {
+                mode: {
+                    "n_states": stats["n_states"],
+                    "core_seconds": round(stats["core_seconds"], 3),
+                }
+                for mode, stats in sorted(boundary_stats.items())
+            },
+            # Koszt ścienny × procesy — zmierzone „ile już wydano" bezpiecznika;
+            # brzeg importowany nic nie liczył, więc nie wnosi kosztu.
+            "core_seconds_wall": round(
+                boundary_seconds * config.jobs if boundary_from is None else 0.0, 3
+            ),
         }
         artifacts.write_json(manifest_path, manifest)
     else:
@@ -1560,7 +1759,7 @@ def solve(
         layer_started = time.perf_counter()
         states_here = reachable[hand]
         sb, bb_amt = level_blinds(config, hand)
-        layer = _solve_layer(
+        layer, layer_stats = _solve_layer(
             tensors, config, states_here, hand, (sb, bb_amt), v_next_states, v_next
         )
         artifacts.write_npz(layer_path, layer)
@@ -1573,8 +1772,33 @@ def solve(
             "seconds_per_state": round(seconds / max(len(states_here), 1), 4),
             "fp_iters_median": float(statistics.median(layer["iters"].tolist())),
             "eps_internal_max": float(layer["eps"].max()),
+            "modes": {
+                mode: {
+                    "n_states": stats["n_states"],
+                    "core_seconds": round(stats["core_seconds"], 3),
+                }
+                for mode, stats in sorted(layer_stats.items())
+            },
+            "core_seconds_wall": round(seconds * config.jobs, 3),
         }
+        progress: dict[str, Any] = {
+            "stage": "layer",
+            "hand": hand,
+            "n_states": len(states_here),
+            "seconds": round(seconds, 3),
+            "modes": {mode: int(stats["n_states"]) for mode, stats in sorted(layer_stats.items())},
+        }
+        if len(manifest["layers"]) >= 3:
+            fuse = _cost_fuse_report(config, manifest, reachable)
+            manifest["cost_fuse"] = fuse
+            progress["extrapolated_core_hours"] = round(fuse["extrapolated_core_hours"], 3)
+            if fuse["verdict"] == "exceeded":
+                manifest["status"] = "aborted-cost-fuse"
+                artifacts.write_json(manifest_path, manifest)
+                print(json.dumps(progress, ensure_ascii=False), flush=True)
+                raise CostFuseExceeded(fuse)
         artifacts.write_json(manifest_path, manifest)
+        print(json.dumps(progress, ensure_ascii=False), flush=True)
         v_next_states, v_next = states_here, layer["v"]
         computed += 1
     manifest["status"] = "done"
@@ -1612,6 +1836,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--perturb-kind", choices=PERTURB_KINDS,
                         default=defaults.boundary_perturb_kind)
     parser.add_argument("--boundary-from", type=Path, default=None)
+    parser.add_argument("--cost-limit", type=float, default=defaults.cost_limit_core_hours,
+                        help="limit bezpiecznika kosztu w rdzenio-godzinach; 0 wyłącza")
     parser.add_argument("--jobs", type=int, default=defaults.jobs)
     parser.add_argument("--layers-limit", type=int, default=None)
     return parser
@@ -1636,10 +1862,16 @@ def main(argv: Any = None) -> int:
         tail_tol=args.tail_tol,
         boundary_perturb=args.perturb,
         boundary_perturb_kind=args.perturb_kind,
+        cost_limit_core_hours=args.cost_limit,
         jobs=args.jobs,
     )
-    manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit,
-                     boundary_from=args.boundary_from)
+    try:
+        manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit,
+                         boundary_from=args.boundary_from)
+    except CostFuseExceeded as fuse:
+        print(json.dumps({"status": "aborted-cost-fuse", "cost_fuse": fuse.report},
+                         ensure_ascii=False))
+        return 3
     boundary = manifest["boundary"]
     print(json.dumps({
         "status": manifest["status"],

@@ -1,0 +1,54 @@
+{
+  "control": {
+    "boundary_cycles": 1,
+    "boundary_delta": 0.0381663120360865,
+    "config_hash": "b30a17552edc0a23f4b9f7b19ee3c13bd1e37179b8e481dd6fb2bc2ed37aec61",
+    "epsilon_max": 0.0038313577514045294,
+    "epsilon_median": 0.0001363298719952999,
+    "start_v": [
+      0.40760829100946655,
+      0.2769404751098034,
+      0.31545126064125945
+    ]
+  },
+  "production": {
+    "grid_step": 2,
+    "hu_trials": 60000,
+    "master_seed": 50,
+    "pair": {
+      "classes": [
+        0,
+        143
+      ],
+      "counts": [
+        275,
+        52776,
+        6949
+      ]
+    },
+    "trials": 15000,
+    "triple": {
+      "classes": [
+        0,
+        25,
+        143
+      ],
+      "counts": [
+        55,
+        0,
+        14,
+        10291,
+        0,
+        316,
+        19,
+        2417,
+        11,
+        1567,
+        0,
+        271,
+        39
+      ]
+    }
+  },
+  "tolerance_abs": 1e-05
+}
