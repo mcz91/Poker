@@ -245,10 +245,12 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-48.json`](taskspecs/POKER-48.json) — rotacja miejsc,
   wspólne seedy i statystyka na blokach w arenie Spin; zmierzona
   redukcja SD i wynikające z niej N (zatwierdzony, decyzja 26);
-- [`POKER-49.json`](taskspecs/POKER-49.json) — domknięcie warunku
-  brzegowego blueprintu (zbieżność horyzontu, tolerancja w CFR+)
-  i pomiar propagacji brzegu do ex-post ε; obowiązkowo przed biegiem
-  produkcyjnym (zatwierdzony).
+- [`POKER-49.json`](taskspecs/POKER-49.json) — kotwice puli 2-way
+  (finding blokujący audytu domknięty z czerwienią pod obiema
+  mutacjami), CFR+ ważony reachem, zbieżny horyzont z podłogą
+  wyjaśnioną tolerancją etapową, wrażliwość brzegu zmierzona
+  (zamknięty, commity `ded087e`…`3ab4ec3`, wersja 3 kontraktu;
+  weryfikacja niezależna architekta).
 
 ## Operator
 

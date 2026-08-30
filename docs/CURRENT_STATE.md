@@ -1104,6 +1104,23 @@ kontraktu produkcyjnego. Pomiar wrażliwości brzegu zrobiony jest na siatce
 stacków, a trzy biegi siatki 5 kosztowałyby ~7,5 rdzenio-godziny zamiast
 1,4 bez zmiany wniosku.
 
+**Rozstrzygnięcie architekta (weryfikacja niezależna 2026-08-30).**
+Zakres, bramka i raporty commitów sprawdzone; liczby ε, kosztów
+i czasu biegu odczytane z artefaktów `grid5d` i zgodne co do cyfry;
+zakres finalnego commita to wyłącznie ten dokument. POKER-49
+**zamknięty**. Dwie zostawione decyzje cenowe rozstrzygam tak:
+(1) **koszt produkcji 82–114 rdzenio-godzin przyjęty** — ~108
+z decyzji 25 było oszacowaniem (już dwukrotnie korygowanym), a miarą
+jest wykonalność: górny koniec to ~29 h zegarowych na 4 rdzeniach
+albo kilka szardowanych sesji, w klasie budżetu wybranej przez
+operatora; (2) **podniesienia sufitu `deep` do 1 536 nie kupuję
+teraz** — metryką celu jest ex-post ε, a ono siedzi pod punktem
+odniesienia 5e−4 (zapas 6,7%); opcja pozostaje wyceniona i zostanie
+wykonana osobnym kontraktem wyłącznie wtedy, gdy ε produkcji
+przekroczy 5e−4 (twardy próg kontraktu produkcyjnego pozostaje
+1e−3, raport zawsze porównuje z 5e−4). Cienki zapas jest zapisany
+jako ryzyko biegu produkcyjnego, nie przemilczany.
+
 Następne kroki:
 
 1. **Kierunek treningu rozstrzygnięty
