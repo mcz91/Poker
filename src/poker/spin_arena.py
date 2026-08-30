@@ -1,8 +1,18 @@
-"""Spin ROI arena. Hero vs scripted fish. Unit is buy-in, not BB/100."""
+"""Spin ROI arena. Hero vs scripted fish. Unit is buy-in, not BB/100.
+
+Jednostką statystyczną jest blok: ten sam seed turnieju rozegrany
+w trzech rotacjach cyklicznych (hero kolejno na każdym miejscu) przy tej
+samej sekwencji kart. Talia i losowość akcji ręki `i` pochodzą wyłącznie
+od pary (seed turnieju, `i`), więc przebieg licytacji jednej rotacji nie
+zmienia kart żadnej innej. CI liczone są na blokach (decyzja 26 zakazuje
+CI na turniejach i rozdaniach), obok normalnego raportowany jest
+bootstrap percentylowy o jawnym seedzie.
+"""
 
 from __future__ import annotations
 
 import random
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from poker.cards import Card
@@ -22,6 +32,9 @@ from poker.spin import (
 N_HANDS = 169
 ZERO = [0.0] * N_HANDS
 ONE = [1.0] * N_HANDS
+HAND_GUARD = 80
+ROTATIONS = 3
+BOOTSTRAP_REPLICATIONS = 1000
 
 
 @dataclass(frozen=True)
@@ -120,23 +133,43 @@ def pick(
     return "fold"
 
 
+def _hand_seeds(seed: int) -> tuple[tuple[int, int], ...]:
+    """(seed talii, seed akcji) ręki `i` — funkcja wyłącznie seeda turnieju.
+
+    Wzorzec `poker.table`: seedy rąk pochodne od seeda meczu. Jeden RNG na
+    cały turniej wiązałby karty ręki `i+1` z liczbą losowań akcji ręki `i`,
+    więc rotacja miejsc zmieniałaby sekwencję kart.
+    """
+    rng = random.Random(seed)
+    return tuple((rng.getrandbits(64), rng.getrandbits(64)) for _ in range(HAND_GUARD))
+
+
 def run_spin(
     books: tuple[SeatBook, SeatBook, SeatBook],
     seed: int,
+    *,
+    on_deck: Callable[[int, tuple[Card, ...]], None] | None = None,
 ) -> tuple[tuple[int, int, int], str]:
-    """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk)."""
-    rng = random.Random(seed)
+    """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk).
+
+    `on_deck` to czysta obserwacja talii każdej ręki (indeks, talia) —
+    bez wpływu na przebieg gry; z niej test dowodzi identyczności kart
+    między rotacjami bloku.
+    """
+    seeds = _hand_seeds(seed)
     stacks = [STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS]
     button = 1
     hand_i = 0
     first = True
-    guard = 0
-    while len(_alive(stacks)) >= 2 and guard < 80:
-        guard += 1
+    while len(_alive(stacks)) >= 2 and hand_i < HAND_GUARD:
         sb, bb, _ = blinds_for_hand(hand_i)
         button = _next_button(stacks, button, first)
         first = False
-        stacks = _play_hand(stacks, button, sb, bb, books, rng)
+        deck_seed, act_seed = seeds[hand_i]
+        deck = shuffled_deck(random.Random(deck_seed))
+        if on_deck is not None:
+            on_deck(hand_i, deck)
+        stacks = _play_hand(stacks, button, sb, bb, books, deck, random.Random(act_seed))
         hand_i += 1
     reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
     return (stacks[0], stacks[1], stacks[2]), reason
@@ -161,6 +194,7 @@ def _play_hand(
     sb: int,
     bb: int,
     books: tuple[SeatBook, SeatBook, SeatBook],
+    deck: Sequence[Card],
     rng: random.Random,
 ) -> list[int]:
     live = _alive(stacks)
@@ -176,7 +210,6 @@ def _play_hand(
     acted = list(folded)
     contrib[button] = min(stacks[button], sb)
     contrib[bb_seat] = min(stacks[bb_seat], bb)
-    deck = shuffled_deck(rng)
     holes: list[tuple[Card, Card] | None] = [None, None, None]
     n = 0
     for owner in range(3):
@@ -264,26 +297,163 @@ def _play_hand(
     ]
 
 
-def sample(
+def _books_with_hero(
+    hero: SeatBook, villain: SeatBook, seat: int
+) -> tuple[SeatBook, SeatBook, SeatBook]:
+    if seat not in (0, 1, 2):
+        raise ValueError(f"miejsce poza 3-max: {seat}")
+    books = [villain, villain, villain]
+    books[seat] = hero
+    return (books[0], books[1], books[2])
+
+
+def play_block(
+    hero: SeatBook,
+    villain: SeatBook,
+    prizes: tuple[float, float, float],
+    seed: int,
+) -> float:
+    """Wypłata hero w buy-inach uśredniona po trzech rotacjach jednego seeda."""
+    total = 0.0
+    for seat in range(ROTATIONS):
+        total += play_spin(_books_with_hero(hero, villain, seat), prizes, seed)[seat]
+    return total / ROTATIONS
+
+
+def _percentile(ordered: Sequence[float], q: float) -> float:
+    pos = q * (len(ordered) - 1)
+    lo = int(pos)
+    hi = min(lo + 1, len(ordered) - 1)
+    frac = pos - lo
+    return ordered[lo] * (1.0 - frac) + ordered[hi] * frac
+
+
+def bootstrap_ci(
+    xs: Sequence[float],
+    *,
+    replications: int = BOOTSTRAP_REPLICATIONS,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> tuple[float, float]:
+    """Percentylowy CI średniej: resampling jednostek statystycznych (bloków)."""
+    if len(xs) < 2:
+        raise ValueError(f"bootstrap wymaga co najmniej 2 obserwacji: {len(xs)}")
+    if replications < 1:
+        raise ValueError(f"liczba replikacji musi być dodatnia: {replications}")
+    rng = random.Random(seed)
+    n = len(xs)
+    means = sorted(sum(rng.choices(xs, k=n)) / n for _ in range(replications))
+    return _percentile(means, alpha / 2.0), _percentile(means, 1.0 - alpha / 2.0)
+
+
+def _summary(
+    xs: Sequence[float],
+    *,
+    bootstrap_replications: int,
+    bootstrap_seed: int,
+) -> dict[str, float]:
+    n = len(xs)
+    mean = sum(xs) / n
+    var = sum((x - mean) ** 2 for x in xs) / (n - 1)
+    sd = var**0.5
+    se = sd / n**0.5
+    roi = mean - 1.0
+    boot_lo, boot_hi = bootstrap_ci(xs, replications=bootstrap_replications, seed=bootstrap_seed)
+    return {
+        "n": float(n),
+        "mean_bi": mean,
+        "roi": roi,
+        "sd": sd,
+        "se": se,
+        "ci_lo": roi - 1.96 * se,
+        "ci_hi": roi + 1.96 * se,
+        "boot_lo": boot_lo - 1.0,
+        "boot_hi": boot_hi - 1.0,
+    }
+
+
+def sample_blocks(
     hero: SeatBook,
     villain: SeatBook,
     prizes: tuple[float, float, float],
     n: int,
     seed: int = 1,
+    *,
+    bootstrap_replications: int = BOOTSTRAP_REPLICATIONS,
+    bootstrap_seed: int = 0,
 ) -> dict[str, float]:
+    """ROI hero na `n` blokach (seedy seed..seed+n-1); CI normalny i bootstrap."""
     if n < 2:
         raise ValueError("n")
-    books = (hero, villain, villain)
-    xs = [play_spin(books, prizes, seed + i)[0] for i in range(n)]
-    mean = sum(xs) / n
-    var = sum((x - mean) ** 2 for x in xs) / (n - 1)
-    se = (var / n) ** 0.5
-    roi = mean - 1.0
+    xs = [play_block(hero, villain, prizes, seed + i) for i in range(n)]
+    return _summary(
+        xs, bootstrap_replications=bootstrap_replications, bootstrap_seed=bootstrap_seed
+    )
+
+
+def compare_blocks(
+    a: tuple[SeatBook, SeatBook],
+    b: tuple[SeatBook, SeatBook],
+    prizes: tuple[float, float, float],
+    n: int,
+    seed: int = 1,
+    *,
+    bootstrap_replications: int = BOOTSTRAP_REPLICATIONS,
+    bootstrap_seed: int = 0,
+) -> dict[str, float]:
+    """Różnica ROI dwóch zestawów (hero, villain) na wspólnych seedach bloków.
+
+    Oba ramiona grają te same seedy, więc statystyka (CI normalny
+    i bootstrap) liczona jest na różnicach sparowanych po bloku.
+    """
+    if n < 2:
+        raise ValueError("n")
+    xa = [play_block(a[0], a[1], prizes, seed + i) for i in range(n)]
+    xb = [play_block(b[0], b[1], prizes, seed + i) for i in range(n)]
+    diffs = [va - vb for va, vb in zip(xa, xb, strict=True)]
+    mean = sum(diffs) / n
+    var = sum((d - mean) ** 2 for d in diffs) / (n - 1)
+    sd = var**0.5
+    se = sd / n**0.5
+    boot_lo, boot_hi = bootstrap_ci(
+        diffs, replications=bootstrap_replications, seed=bootstrap_seed
+    )
     return {
         "n": float(n),
-        "mean_bi": mean,
-        "roi": roi,
+        "roi_a": sum(xa) / n - 1.0,
+        "roi_b": sum(xb) / n - 1.0,
+        "diff": mean,
+        "sd": sd,
         "se": se,
-        "ci_lo": roi - 1.96 * se,
-        "ci_hi": roi + 1.96 * se,
+        "ci_lo": mean - 1.96 * se,
+        "ci_hi": mean + 1.96 * se,
+        "boot_lo": boot_lo,
+        "boot_hi": boot_hi,
     }
+
+
+def sample_seat(
+    hero: SeatBook,
+    villain: SeatBook,
+    prizes: tuple[float, float, float],
+    n: int,
+    seed: int = 1,
+    *,
+    hero_seat: int = 0,
+    bootstrap_replications: int = BOOTSTRAP_REPLICATIONS,
+    bootstrap_seed: int = 0,
+) -> dict[str, float]:
+    """ROI hero na jednym miejscu, turniej po turnieju — diagnostyka.
+
+    To jest estymator sprzed rotacji (obciążenie pozycyjne, pełna
+    wariancja); do porównań agentów służą `sample_blocks`/`compare_blocks`.
+    """
+    if n < 2:
+        raise ValueError("n")
+    books = _books_with_hero(hero, villain, hero_seat)
+    xs = [play_spin(books, prizes, seed + i)[hero_seat] for i in range(n)]
+    out = _summary(
+        xs, bootstrap_replications=bootstrap_replications, bootstrap_seed=bootstrap_seed
+    )
+    out["hero_seat"] = float(hero_seat)
+    return out

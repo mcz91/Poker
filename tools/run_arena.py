@@ -1,4 +1,14 @@
-"""Hero book vs fish. Prints ROI in buy-ins."""
+"""Hero book vs fish. Prints ROI in buy-ins; unit = blok trzech rotacji.
+
+Tryby:
+- `python tools/run_arena.py [N_BLOKOW] [pay]` — porównania książek na blokach;
+- `python tools/run_arena.py sd [N_BLOKOW] [pay]` — SD na turniej (estymator
+  sprzed rotacji, miejsce 0) vs SD na blok na tych samych seedach oraz
+  wynikające N dla różnic 5 i 10 pp ROI (moc 80%, alfa 0,05);
+- `python tools/run_arena.py seats [N_TURNIEJOW] [pay]` — ROI tego samego
+  agenta na każdym z trzech miejsc osobno na wspólnych seedach
+  (obciążenie pozycyjne, które rotacja usuwa).
+"""
 
 from __future__ import annotations
 
@@ -15,9 +25,16 @@ from poker.spin_arena import (
     call_vs_random,
     dollar_fish,
     field_exploit,
-    sample,
+    play_block,
+    play_spin,
+    sample_blocks,
+    sample_seat,
     wide_call,
 )
+
+# Moc 80% i alfa 0,05 (dwustronnie): N = ((z_{0,975} + z_{0,80}) * SD / delta)^2.
+Z_ALPHA = 1.96
+Z_POWER = 0.8416
 
 
 def hero_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
@@ -67,24 +84,102 @@ def exploit_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
     )
 
 
-def main() -> None:
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 200
-    pay = sys.argv[2] if len(sys.argv) > 2 else "3x"
+def n_needed(sd: float, delta: float) -> int:
+    """Jednostki potrzebne do wykrycia `delta` ROI przy mocy 80% i alfa 0,05."""
+    units = ((Z_ALPHA + Z_POWER) * sd / delta) ** 2
+    return int(units) + (0 if units == int(units) else 1)
+
+
+def _sd(xs: list[float]) -> float:
+    mean = sum(xs) / len(xs)
+    return (sum((x - mean) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+
+
+def sd_reduction(n: int, pay: str) -> dict[str, object]:
+    """SD na turniej (miejsce 0, sprzed rotacji) vs SD na blok, wspólne seedy."""
+    prizes = PAYOUTS[pay].prizes
+    pairs: dict[str, tuple[SeatBook, SeatBook]] = {
+        "field_vs_always_jam": (field_exploit(), always_jam()),
+        "field_vs_dollar": (field_exploit(), dollar_fish()),
+        "tight_vs_always_jam": (hero_book(pay), always_jam()),
+    }
+    out: dict[str, object] = {"pay": pay, "n_seeds": n, "seed": 21}
+    for name, (hero, villain) in pairs.items():
+        books = (hero, villain, villain)
+        per_tournament = [play_spin(books, prizes, 21 + i)[0] for i in range(n)]
+        per_block = [play_block(hero, villain, prizes, 21 + i) for i in range(n)]
+        sd_t = _sd(per_tournament)
+        sd_b = _sd(per_block)
+        out[name] = {
+            "sd_tournament": sd_t,
+            "sd_block": sd_b,
+            "reduction_pct": 100.0 * (1.0 - sd_b / sd_t),
+            "n_tournaments_5pp": n_needed(sd_t, 0.05),
+            "n_tournaments_10pp": n_needed(sd_t, 0.10),
+            "n_blocks_5pp": n_needed(sd_b, 0.05),
+            "n_blocks_10pp": n_needed(sd_b, 0.10),
+        }
+    return out
+
+
+def seat_bias(n: int, pay: str) -> dict[str, object]:
+    """ROI tego samego agenta na każdym miejscu osobno, wspólne seedy."""
+    prizes = PAYOUTS[pay].prizes
+    pairs: dict[str, tuple[SeatBook, SeatBook]] = {
+        "field_vs_always_jam": (field_exploit(), always_jam()),
+        "field_vs_dollar": (field_exploit(), dollar_fish()),
+    }
+    out: dict[str, object] = {"pay": pay, "n_tournaments": n, "seed": 21}
+    for name, (hero, villain) in pairs.items():
+        per_seat = [
+            sample_seat(hero, villain, prizes, n, seed=21, hero_seat=seat)
+            for seat in range(3)
+        ]
+        rois = [hit["roi"] for hit in per_seat]
+        out[name] = {
+            "roi_seat0": rois[0],
+            "roi_seat1": rois[1],
+            "roi_seat2": rois[2],
+            "se_seat_max": max(hit["se"] for hit in per_seat),
+            "spread_pp": 100.0 * (max(rois) - min(rois)),
+        }
+    return out
+
+
+def compare_books(n: int, pay: str) -> dict[str, object]:
     hero = hero_book(pay)
     expl = exploit_book(pay)
     field = field_exploit()
     fish = dollar_fish()
     prizes = PAYOUTS[pay].prizes
-    out = {
+    return {
         "pay": pay,
-        "tight_vs_always_jam": sample(hero, always_jam(), prizes, n, seed=21),
-        "exploit_vs_always_jam": sample(expl, always_jam(), prizes, n, seed=21),
-        "exploit_vs_wide": sample(expl, wide_call(0.45), prizes, n, seed=22),
-        "field_vs_always_jam": sample(field, always_jam(), prizes, n, seed=21),
-        "tight_vs_dollar": sample(hero, fish, prizes, n, seed=24),
-        "field_vs_dollar": sample(field, fish, prizes, n, seed=24),
-        "field_vs_wide": sample(field, wide_call(0.45), prizes, n, seed=22),
+        "unit": "blok = 3 rotacje jednego seeda",
+        "tight_vs_always_jam": sample_blocks(hero, always_jam(), prizes, n, seed=21),
+        "exploit_vs_always_jam": sample_blocks(expl, always_jam(), prizes, n, seed=21),
+        "exploit_vs_wide": sample_blocks(expl, wide_call(0.45), prizes, n, seed=22),
+        "field_vs_always_jam": sample_blocks(field, always_jam(), prizes, n, seed=21),
+        "tight_vs_dollar": sample_blocks(hero, fish, prizes, n, seed=24),
+        "field_vs_dollar": sample_blocks(field, fish, prizes, n, seed=24),
+        "field_vs_wide": sample_blocks(field, wide_call(0.45), prizes, n, seed=22),
     }
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    mode = "compare"
+    if args and args[0] in ("sd", "seats"):
+        mode = args[0]
+        args = args[1:]
+    default_n = {"compare": 200, "sd": 320, "seats": 2000}[mode]
+    n = int(args[0]) if args else default_n
+    pay = args[1] if len(args) > 1 else "3x"
+    if mode == "sd":
+        out = sd_reduction(n, pay)
+    elif mode == "seats":
+        out = seat_bias(n, pay)
+    else:
+        out = compare_books(n, pay)
     print(json.dumps(out, indent=2))
 
 
