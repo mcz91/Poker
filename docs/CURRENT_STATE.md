@@ -1,6 +1,11 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-48 (arena
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-50 (bieg
+produkcyjny blueprintu: siatka 2 żetonów pełnego zegara pod budżetami
+z POKER-47/49 — ex-post ε maks 4,720e−4 poniżej punktu odniesienia
+5e−4, opcja sufitu 1536 nieuruchomiona; koszt regeneracji artefaktu
+76,6 rdzenio-h; artefakt poza repozytorium, w repo artefakt kontrolny
+łańcucha i bezpiecznik kosztu pod testami); POKER-48 (arena
 Spin liczy na blokach trzech rotacji: hero gra każde miejsce raz przy
 tej samej sekwencji kart, ramiona porównań na wspólnych seedach,
 CI na blokach z bootstrapem; redukcja SD i obciążenie pozycyjne
@@ -352,7 +357,25 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   a nie na sufcie; jeden bieg obsługuje całą drabinkę przez bierny hak
   obserwatora w `_fp_solve` (hak nie zmienia profilu — pod testem,
   a punkt drabinki równa się co do bitu profilowi z osobnego biegu
-  `_fp_solve` z tym sufitem — też pod testem). Testy
+  `_fp_solve` z tym sufitem — też pod testem). Od POKER-50 bieg ma
+  **bezpiecznik kosztu** (po ≥3 policzonych warstwach ekstrapolacja
+  kosztu całości ze zmierzonego tempa per tryb — tryb niezmierzony
+  liczy się priorem POKER-49 przeskalowanym kalibracją maszyny; limit
+  domyślnie 140 rdzenio-h, przekroczenie przerywa bieg z raportem
+  tempa; limit nie wchodzi do hasha konfiguracji, a przerwanie
+  i wznowienie jest bajt w bajt — pod testem), postęp per warstwa
+  (czas, stany, tryby — w manifeście i na stdout; czasy nigdy
+  w plikach warstw), manifest pochodzenia (wersje, model CPU, seed
+  i próby tensora) oraz raport ex-post z kryterium blokującym 1e−3,
+  punktem odniesienia 5e−4 i rozkładem ε per warstwa.
+  `control_chain.py` przybija parametry produkcji (15 000 / 60 000 /
+  seed 50 / krok 2) i utrzymuje **artefakt kontrolny łańcucha**
+  w `tools/blueprint/control/` (24 KB, jedyny artefakt blueprintu
+  w repo — decyzja 25 pkt 6): regeneracja tensora kontrolnego,
+  łańcuch solver→ex-post na kroku 2 pokrywający wszystkie cztery
+  tryby i reprodukcja podzbioru tensora produkcyjnego — wszystko pod
+  testami bramki, więc zmiana kodu przesuwająca wynik zapala bramkę
+  zamiast po cichu unieważnić artefakt produkcyjny. Testy
   `tests/test_blueprint_pilot.py`, w tym
   **kotwice orientacji osi**: AA wygrywa dokładnie na tej osi, na
   której ją posadzono — osobno w tensorze, w `load_tensors` (wszystkie
@@ -410,10 +433,11 @@ all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
 po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
 ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
 jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
-od POKER-33. Pełna siatka stanów istnieje wyłącznie jako pilot
-w `tools/blueprint/` (krok 5 żetonów, artefakt poza repozytorium,
-POKER-46/47) — w pakiecie `poker` jej nie ma i żaden agent z niej nie
-korzysta. Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
+od POKER-33. Pełna siatka stanów istnieje wyłącznie jako artefakty
+`tools/blueprint/` poza repozytorium (pilot kroku 5, POKER-46/47/49,
+i bieg produkcyjny kroku 2, POKER-50) — w pakiecie `poker` jej nie ma
+i żaden agent z niej nie korzysta (format binarny i czytnik stdlib to
+POKER-51, agent w rejestrze to POKER-52). Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
 się agent spoza repozytorium.
 
 ## Następny krok
@@ -865,6 +889,156 @@ niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
 
+**POKER-50 (bieg produkcyjny blueprintu: siatka 2 żetonów pełnego
+zegara) zamknięty.** Liczby zmierzone na 4 rdzeniach (Intel Xeon
+@ 2.80GHz, Python 3.13.12, numpy 2.5.2, venv z extras `train`);
+`PROD` to katalog artefaktu produkcyjnego poza repozytorium (decyzja
+25 pkt 6) — w repo żyje wyłącznie artefakt kontrolny łańcucha
+(`tools/blueprint/control/`, 24 KB) i jego test w bramce. Komendy
+pełnej regeneracji (dwustopniowy dowód odtwarzalności decyzji 06;
+wszystkie z `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+MKL_NUM_THREADS=1`):
+
+```
+AC python tools/blueprint/rollout_tensor.py --out PROD/tensor \
+       --trials 15000 --hu-trials 60000 --seed 50 --jobs 4
+AD python -m pytest tests/test_blueprint_pilot.py -q \
+       -k "bezpiecznik or wycinku_produkcyjnym or lancuch_kontrolny \
+or podzbioru_tensora"
+AE python tools/blueprint/solve_grid.py --tensor PROD/tensor \
+       --out PROD/grid2 --grid-step 2 --jobs 4
+AF python tools/blueprint/expost.py expost --out PROD/grid2 --jobs 4
+AG python tools/blueprint/expost.py icm --out PROD/grid2
+AH python tools/blueprint/eps_curve.py decompose --out PROD/grid2 \
+       --worst 10 --jobs 4
+```
+
+AD to bramka wycinka uruchamiana na maszynie biegu PRZED spaleniem
+budżetu (wznowienie bajt w bajt na kroku 2, łańcuch kontrolny,
+bezpiecznik); AE jest wznawialne (warstwa = jednostka; brakujące
+warstwy dolicza z manifestu) i ma bezpiecznik kosztu 140 rdzenio-h
+aktywny domyślnie (`--cost-limit`, 0 wyłącza; przekroczenie = exit 3
+i status `aborted-cost-fuse` w manifeście).
+
+1. **Tensor produkcyjny (AC).** 15 000 prób/multizbiór dla 818 805
+   multizbiorów trójek (325 nierozdawalnych, waga 0), pary HU 60 000
+   prób (14 365 par; proporcjonalnie do pilota 8 000 × 7,5, ponad
+   podłogą kontraktu 32 000), seed 50, backend `table`. Zmierzony
+   koszt: trójki 9 458,2 s ścienne przy 4 procesach (**10,5
+   rdzenio-h**; ekstrapolacja POKER-46 mówiła 9,7 — niedoszacowanie
+   8,4%), pary 609,4 s (0,68 rdzenio-h), tablica wartości 26,4 s —
+   razem **11,2 rdzenio-h**. Reprodukcja podzbioru pod testem
+   (`test_reprodukcja_podzbioru_tensora_produkcyjnego`): zaliczki
+   trójki AA/KK/72o (indeksy 0/25/143) i pary AA/72o przybite
+   w `tools/blueprint/control/chain_control.json` przy zamknięciu
+   tury kodu; artefakt produkcyjny policzony później zgadza się
+   z nimi **co do zliczenia** (zweryfikowane wprost na
+   `PROD/tensor/rollout3.npz` i `rollout_hu.npz`), a próg equity
+   testu jest wyprowadzony z liczb prób obu artefaktów.
+2. **Bieg siatki 2 (AE): status `done`.** 2 923 stany siatki,
+   21 warstw, 49 765 stanów-warstw o zmierzonej mieszance trybów
+   `deep` 1 198, `jamfold` 44 550, `hu-deep` 932, `hu-jamfold` 3 085
+   (warstwy rąk 0–4 są mniejsze od pełnej siatki — osiągalność tnie
+   je do 1/18/147/691/2 143 stanów). Horyzont **zbiegł w 6 cyklach do
+   delty 3,820e−4** (ciąg 0,0899 → 0,0123 → 6,57e−3 → 2,76e−3 →
+   7,16e−4 → 3,82e−4) — o jeden cykl wolniej niż pilot siatki 5
+   (5 cykli, 1,285e−4); tolerancja 5e−4 wiąże, sufit 12 ma zapas.
+   Manifest niesie postęp per warstwa (czas, stany, tryby,
+   rdzenio-sekundy dzieci) i pochodzenie (wersje, model CPU, seed
+   i próby tensora, hash konfiguracji
+   `4aecf64eccccd6de39ecd017ebf80f89a834f01fddcf888b10f22220e0fe41d8`).
+3. **Bezpiecznik kosztu: nie zadziałał i słusznie, a prognoza była
+   dobra.** Trajektoria ekstrapolacji całości (solve.log): pierwszy
+   odczyt po trzech warstwach **60,55 rdzenio-h**, plateau ~60,4 na
+   warstwach czysto `jamfold`, skok do maksimum **69,12** przy wejściu
+   trybu `deep` (ręka 6), finał **65,41** — dokładnie zmierzony koszt
+   solvera, więc błąd prognozy mieścił się w **−7,7%…+5,7%** (skrajne
+   odczyty 60,36 i 69,12 wobec finału 65,41). Tempa
+   zmierzone w biegu (średnie): `deep` 50,8 rdzenio-s/stan (pilot:
+   mediana 29,45, maks 63,5 — średnia produkcji mieści się
+   w rozrzucie pilota), `jamfold` 1,83, `hu-deep` 0,054, `hu-jamfold`
+   0,018; kalibracja priorów 1,32, narzut forka 1,018.
+4. **Koszt — dwie liczby, każda z definicją.** (a) **Koszt
+   regeneracji artefaktu** (sumy czasów z manifestów; tyle płaci
+   każdy, kto odtwarza artefakt komendami AC+AE): tensor 11,2 +
+   horyzont 25,2 (22 723,6 s ściennych × 4) + warstwy 40,2
+   (36 146,4 s × 4) = **76,6 rdzenio-h** — 6,6% poniżej dolnego końca
+   przyjętego okna 82–114 z POKER-49 (horyzont droższy: 6 cykli,
+   25,2 wobec 18,5 przy pięciu; warstwy tańsze od ekstrapolacji).
+   (b) **Koszt faktyczny przedsięwzięcia**: bieg był dwukrotnie
+   przerwany restartami kontenera; pierwszy zabił horyzont
+   w 4. cyklu — horyzont nie ma checkpointu per cykl, więc przepadło
+   14 552 s ściennych × 4 = **16,2 rdzenio-h**; drugi kosztował jedną
+   częściową warstwę (≤2,8 rdzenio-h: między końcem warstwy 6
+   a restartem minęły 42,5 min ścienne, śmierć kontenera nie zostawia
+   znacznika) — razem **92,8–95,6 rdzenio-h**. Zegarowo całość
+   2026-08-30T02:26Z → 2026-08-31T03:44Z (25,3 h z przerwami).
+   Pomiary poza artefaktem: ex-post (AF) 4 122 s ścienne × 4 =
+   **4,6 rdzenio-h**; icm 7 s, decompose 16 s.
+5. **Ex-post ε (AF): maks 4,720e−4, mediana 1,075e−4**, min −1,19e−7
+   (szum f32) na 49 765 stanach. **Kryterium blokujące ≤ 1e−3:
+   spełnione** z zapasem 2,1×. **Punkt odniesienia 5e−4: NIE
+   przekroczony** — zapas 5,6% (pilot: 6,7%; maksimum po 49 765
+   stanach wyszło 1,2% wyżej niż po 8 654, więc ryzyko z kontraktu
+   się nie zmaterializowało, ale zapas stopniał zgodnie
+   z przewidywaniem). **Opcja sufitu 1536 się NIE uruchamia**
+   (`expost_report.json` → `criteria.ceiling_1536_option_triggers:
+   false`); pozostaje wyceniona (~4× na trybie `deep`) i warunkowa.
+   Najgorszy stan to stan startowy 50/50/50 (ręka 0, miejsce 1) —
+   spójnie z tym, że ε DAG-u akumuluje dług warstw za nim: dług
+   odziedziczony 10 najgorszych stanów ma medianę **89,1%** (AH),
+   a ε etapowe: `deep` maks 1,95e−4, **697 z 1 198 stanów powyżej
+   tolerancji 5e−5, 739 na sufcie 384** (produkcyjne potwierdzenie
+   wzorca pilota: 105/253); `jamfold`, `hu-deep`, `hu-jamfold` —
+   zero stanów powyżej tolerancji (maksima 5,00e−5 / 4,99e−5 /
+   4,98e−5).
+6. **V vs ICM (AG) i rozkład per warstwa.** Stany krótkiego BB
+   (< 5 bb): **27 078**, |V−ICM| maks **0,0948 puli** (ręka 20, stan
+   22/2/126), średnia 0,0206 — na pełnej siatce błąd ICM sięga ~9,5%
+   puli (pilot siatki 5: 7,9%). Maksimum warstwy idzie w górę wzdłuż
+   zegara od 0,0105 (ręka 0) do 0,0948 (ręka 20) jako trend,
+   z lokalnymi spadkami między poziomami blindów (np. 0,0586 → 0,0578
+   w rękach 3–5) — to liczba uzasadniająca kierunek decyzji 25
+   (ICM tylko na horyzoncie).
+   Rozkład per warstwa (ε w jednostkach puli; ICM = |V−ICM| maks /
+   średnia warstwy):
+
+   | ręka | stany | ε maks | ε mediana | ICM maks | ICM śr. |
+   |-----:|------:|-------:|----------:|---------:|--------:|
+   | 0 | 1 | 4,72e−4 | 4,67e−4 | 0,0105 | 0,0105 |
+   | 1 | 18 | 4,64e−4 | 2,73e−4 | 0,0094 | 0,0065 |
+   | 2 | 147 | 4,50e−4 | 2,59e−4 | 0,0463 | 0,0066 |
+   | 3 | 691 | 4,55e−4 | 2,34e−4 | 0,0586 | 0,0089 |
+   | 4 | 2 143 | 3,89e−4 | 2,35e−4 | 0,0585 | 0,0111 |
+   | 5 | 2 920 | 3,89e−4 | 2,15e−4 | 0,0578 | 0,0085 |
+   | 6 | 2 923 | 3,88e−4 | 1,98e−4 | 0,0719 | 0,0125 |
+   | 7 | 2 923 | 3,47e−4 | 1,85e−4 | 0,0689 | 0,0124 |
+   | 8 | 2 923 | 3,52e−4 | 1,69e−4 | 0,0683 | 0,0109 |
+   | 9 | 2 923 | 2,14e−4 | 1,58e−4 | 0,0775 | 0,0145 |
+   | 10 | 2 923 | 2,02e−4 | 1,48e−4 | 0,0771 | 0,0143 |
+   | 11 | 2 923 | 1,91e−4 | 1,37e−4 | 0,0763 | 0,0135 |
+   | 12 | 2 923 | 1,73e−4 | 1,26e−4 | 0,0861 | 0,0172 |
+   | 13 | 2 923 | 1,58e−4 | 1,14e−4 | 0,0824 | 0,0159 |
+   | 14 | 2 923 | 1,49e−4 | 1,02e−4 | 0,0838 | 0,0182 |
+   | 15 | 2 923 | 1,35e−4 | 8,88e−5 | 0,0915 | 0,0219 |
+   | 16 | 2 923 | 1,30e−4 | 8,39e−5 | 0,0911 | 0,0211 |
+   | 17 | 2 923 | 1,20e−4 | 7,47e−5 | 0,0929 | 0,0227 |
+   | 18 | 2 923 | 1,07e−4 | 6,30e−5 | 0,0939 | 0,0246 |
+   | 19 | 2 923 | 9,02e−5 | 4,75e−5 | 0,0938 | 0,0243 |
+   | 20 | 2 923 | 5,00e−5 | 2,72e−5 | 0,0948 | 0,0246 |
+
+7. **Wznowienia w praktyce (zmierzone zachowanie, nie deklaracja).**
+   `boundary.npz` + warstwy wznowiły się po obu restartach zgodnie
+   z projektem: bieg sklejony z trzech sesji zakończył się statusem
+   `done` bez rozjazdu manifestu, a identyczność bajt w bajt wznowień
+   na kroku 2 trzyma test wycinka (AD). Świadomie zostawione:
+   **horyzont nie ma checkpointu per cykl** — restart w trakcie
+   horyzontu kosztuje cały dotychczasowy postęp cykli (zmierzone:
+   16,2 rdzenio-h; przy dzisiejszej stabilności kontenera to ryzyko
+   ~4–6 h ściennych na bieg). Wycena domknięcia: zapis `boundary
+   partial` per cykl tym samym mechanizmem co warstwy — osobny,
+   mały kontrakt, jeśli planowane są kolejne pełne biegi.
+
 **POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) zamknięty.**
 Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
 `PILOT` to katalog artefaktów poza repozytorium. Wszystkie komendy
@@ -1219,16 +1393,23 @@ Następne kroki:
    w pięciu cyklach wobec 0,00209 na sufcie), CFR+ ważony własnym
    reachem ze stopem na tolerancji (zero z 397 stanów `hu-deep` powyżej
    niej), ślepota metryki na brzeg zmierzona (zaburzenie 0,002 przesuwa
-   ex-post ε o ~1e−5). Następny krok linii blueprintu to **bieg
-   produkcyjny siatki 2-żetonowej** (**~82 rdzenio-h po medianach
-   kosztu, do ~114 przy maksimach** — blok POKER-49 pkt 6; górny koniec
-   przekracza ~108 z decyzji 25, więc koszt wymaga decyzji), wraz
-   z tensorem 15 000 prób i formatem binarnym artefaktu (decyzja 25
-   pkt 6). Kolejka przed nim: **POKER-50**. Otwarte i wycenione: 105 z 253 stanów
-   `deep` nadal kończy powyżej tolerancji etapowej, a domknięcie ich do
-   5e−5 to sufit 1 536 iteracji, ~4× drożej na najdroższym trybie —
-   ta sama tolerancja etapowa wyznacza podłogę horyzontu, więc to jedna
-   decyzja o cenie, nie dwie. Format
+   ex-post ε o ~1e−5). **POKER-50 zamknięty** (blok wyżej): bieg
+   produkcyjny siatki 2-żetonowej pod tymi budżetami — ex-post ε maks
+   4,720e−4 **poniżej punktu odniesienia 5e−4** (zapas 5,6%), kryterium
+   blokujące 1e−3 z zapasem 2,1×, **opcja sufitu 1536 się nie
+   uruchamia**; koszt regeneracji artefaktu 76,6 rdzenio-h (faktyczny
+   z restartami 92,8–95,6); artefakt poza repozytorium, w repo artefakt
+   kontrolny łańcucha pod testem bramki. Następny krok linii:
+   **POKER-51** (format binarny artefaktu, zatwierdzony — kryterium:
+   przyrost ex-post ε po round-tripie przez format ≤ 10% wartości
+   surowej), potem **POKER-52** (agent blueprint w rejestrze i pomiar
+   w arenie). Otwarte i wycenione: **697 z 1 198 stanów `deep`
+   produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
+   — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to
+   sufit 1 536 iteracji, ~4× drożej na najdroższym trybie — ta sama
+   tolerancja etapowa wyznacza podłogę horyzontu, więc to jedna
+   decyzja o cenie, nie dwie, i uruchamia się wyłącznie przy ε > 5e−4
+   (werdykt architekta 2026-08-30). Format
    artefaktu policzony z danych pilota: maska + uint8 (2 z 3) + zlib
    daje **~38 MB** na całą siatkę produkcyjną (201 B/stan zmierzone
    na `grid5b`), a nie 0,25–1 GB szacowane w decyzji 25 — 60% komórek
