@@ -255,9 +255,11 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   (zamknięty, commity `ded087e`…`3ab4ec3`, wersja 3 kontraktu;
   weryfikacja niezależna architekta);
 - [`POKER-50.json`](taskspecs/POKER-50.json) — bieg produkcyjny
-  siatki 2-żetonowej pod zmierzonymi budżetami, z bezpiecznikiem
-  kosztu 140 rdzenio-h i progiem ε ≤ 1e-3 (w realizacji: kod i łańcuch
-  kontrolny scalone commitem `afc2a12`, bieg w toku);
+  siatki 2-żetonowej (zamknięty, commity `afc2a12`, `d6db0f1`;
+  ε maks 4,72e-4 na 49 765 stanach — pod progiem i pod odniesieniem
+  5e-4, opcja 1536 nieuruchomiona; koszt regeneracji 76,6 rdzenio-h,
+  faktyczny z restartami ~93-96; V vs ICM do 9,5% puli; weryfikacja
+  niezależna architekta);
 - [`POKER-51.json`](taskspecs/POKER-51.json) — format binarny
   artefaktu z czytnikiem w czystym stdlib; koszt kwantyzacji mierzony
   w ε z progiem ≤ 10% wartości surowej (zatwierdzony; kolejność

@@ -16,13 +16,15 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: tylko tu: F2 POKER-1 — odstępstwo decyzją operatora;
+- 2026-08-08 arch: F2 POKER-1 — odstępstwo decyzją operatora;
   regeneracja equity ≈40 min/4 rdzenie (POKER-12).
 - 2026-08-28 arch: gałąź integracyjna =
-  `claude/poker-project-architecture-jw6ukd` (dfmo3y nieaktywna);
-  weryfikacja niezależna (czysty venv 3.13) przed scaleniem. Gałęzi
-  koderów POKER-26/27/28 brak na zdalnym. Raporty researchu drogi
-  Pluribusa żyją w transkrypcie sesji architekta (decyzja 25 streszcza).
+  `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
+  przed scaleniem; gałęzi koderów 26/27/28 brak; raporty researchu
+  w transkrypcie sesji architekta (decyzja 25 streszcza).
+- 2026-08-31 arch: artefakt produkcyjny POKER-50 (tensor + grid2) żyje
+  w scratchpadzie sesji `…/scratchpad/prod/` — wejście dla POKER-51;
+  regeneracja = komendy AC–AH z bloku POKER-50 w CURRENT_STATE.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -46,9 +48,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - Zamknięcie zadania aktualizuje też „Następny krok" w CURRENT_STATE
   (dryf: POKER-2/8/25, nagłówek 31/32/33) — jednym commitem.
-- Regeneracja artefaktu unieważnia pomiary przy nim, a bramka tego nie
-  łapie (POKER-24: 20 607→20 971 infosetów).
-- Frozen dataclass ≠ izolacja — niezaufany agent za granicę procesu.
+- Regeneracja artefaktu unieważnia pomiary przy nim, a bramka tego
+  nie łapie (POKER-24).
 - ARCHITEKT: kryterium ilościowe po oszacowaniu budżetu z repo (19/24;
   wzorzec 47: zmierz krzywą, potem próg); cel-pomiar bez asercji =
   liczby bez dowodu (42/43); acceptance to checklista (5).
@@ -63,15 +64,16 @@ Protokół (koszt czytelnika > koszt pisarza):
 - ε ex-post warstwy DAG-u to suma długów warstw za nią (stan startowy
   97,5%) — rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
   (POKER-47: tolerancja, nie sufit iteracji — wbrew diagnozie arch.).
-- Koszt po drabince w jednym biegu: zeruj zegar na restart (POKER-47).
+- Horyzont nie ma checkpointu per cykl — restart w trakcie kosztuje
+  wszystkie policzone cykle (POKER-50: 16,2 rdzenio-h); jednostką
+  wznowienia jest dopiero warstwa.
 - Dowód skryptem w scratchpadzie nie chroni następnego biegu: liczba
   w dokumencie = niezmiennik w teście.
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
-- mypy widzi tylko `files` z pyproject (od POKER-49: src, tests,
-  tools/blueprint) — kod w pozostałych `tools/` przechodzi tylko ruff
-  i pytest; „bramka zielona" ≠ „typy sprawdzone" poza tym zbiorem.
+- mypy widzi tylko `files` z pyproject (src, tests, tools/blueprint)
+  — „bramka zielona" ≠ „typy sprawdzone" poza tym zbiorem (49).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
