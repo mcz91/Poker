@@ -72,8 +72,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
-- mypy widzi tylko `files` z pyproject (src, tests, tools/blueprint)
-  — „bramka zielona" ≠ „typy sprawdzone" poza tym zbiorem (49).
+- Komenda regeneracji z dokumentu musi działać jak napisana — pomiar
+  POKER-51 szedł na łatanej kopii biegu, BC/BD dają KeyError (audyt).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
