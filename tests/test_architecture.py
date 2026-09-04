@@ -292,9 +292,42 @@ def test_czytnik_blueprintu_czyta_w_stdlib_i_nie_zna_silnika() -> None:
     packer = SRC_POKER.parent.parent / "tools" / "blueprint" / "pack_blueprint.py"
     assert packer.is_file()
     assert "poker.blueprint_reader" in _imports(packer)
-    for module in SRC_POKER.rglob("*.py"):
-        if module.name == "blueprint_reader.py":
-            continue
-        assert "poker.blueprint_reader" not in _imports(module), (
-            f"{module.name} importuje czytnik blueprintu — konsument przyjdzie z POKER-52"
-        )
+    consumers = {
+        module.name
+        for module in SRC_POKER.rglob("*.py")
+        if "poker.blueprint_reader" in _imports(module)
+    }
+    assert consumers == {"blueprint_agent.py"}, (
+        f"czytnik blueprintu ma czytać wyłącznie agent (POKER-52), a czyta: {sorted(consumers)}"
+    )
+
+
+def test_agent_blueprintu_ma_ograniczone_importy_a_plik_otwiera_narzedzie() -> None:
+    """Agent blueprintu (POKER-52) zna czytnik, prymitywy Spina i model stanu areny.
+
+    Zbiór jest wypisany, nie odsiany regułą: silnik zdarzeniowy, adaptery,
+    `tools` i numpy mają zostać poza agentem, a `json` i otwarcie pliku należą
+    do narzędzia (INV-P7), więc agent nie widzi ani jednego, ani drugiego.
+    """
+    agent = SRC_POKER / "blueprint_agent.py"
+    assert agent.is_file()
+    imported = _imports(agent)
+    allowed = {
+        "__future__",
+        "random",
+        "collections.abc",
+        "dataclasses",
+        "typing",
+        "poker.blueprint_reader",
+        "poker.spin",
+        "poker.spin_arena",
+    }
+    poza = imported - allowed
+    assert not poza, f"blueprint_agent.py importuje poza dozwolonym zbiorem: {sorted(poza)}"
+    assert {"poker.blueprint_reader", "poker.spin_arena"} <= imported
+    assert not imported & IO_FORBIDDEN_IN_ENGINE
+    # Kierunek portu: arena definiuje port i nic nie wie o agencie blueprintu.
+    assert "poker.blueprint_agent" not in _imports(SRC_POKER / "spin_arena.py")
+    tool = SRC_POKER.parent.parent / "tools" / "run_arena.py"
+    assert tool.is_file()
+    assert {"poker.blueprint_agent", "poker.blueprint_reader", "json"} <= _imports(tool)

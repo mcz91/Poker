@@ -9,11 +9,15 @@ import sys
 
 import pytest
 
+from poker.betting import HeadsUpHand
 from poker.cards import Card
-from poker.dealing import shuffled_deck
+from poker.dealing import DealtHand, deal_hand, shuffled_deck
+from poker.events import ActionType, HandConfig
 from poker.openfold import _mass, threebet_vs_range
-from poker.spin import PAYOUTS, STARTING_CHIPS
+from poker.spin import PAYOUTS, STARTING_CHIPS, is_jam_fold_depth, open_amount
 from poker.spin_arena import (
+    Seat,
+    SeatView,
     _play_hand,
     always_fold,
     always_jam,
@@ -159,7 +163,7 @@ def test_kazda_reka_areny_zachowuje_sume_zetonow() -> None:
             for button in range(3):
                 if stacks[button] <= 0:
                     continue
-                out = _play_hand(list(stacks), button, 2, 4, books, deck, rng)
+                out = _play_hand(list(stacks), 3, button, 2, 4, books, deck, rng)
                 assert sum(out) == sum(stacks), (seed, stacks, button, out)
                 assert all(s >= 0 for s in out)
 
@@ -220,7 +224,7 @@ def test_reka_hu_po_wybiciu_bb_obaj_zywi_jamuja_dla_kazdego_buttona() -> None:
         stacks[busted] = 0
         # Seed 0: rozdania rozstrzygające (bez split potu) dla każdej pozycji buttona.
         deck = shuffled_deck(random.Random(0))
-        out = _play_hand(stacks, button, 1, 2, books, deck, random.Random(0))
+        out = _play_hand(stacks, 0, button, 1, 2, books, deck, random.Random(0))
         assert sorted(out) == [0, 0, 20], (button, out)
         assert out[busted] == 0
 
@@ -234,7 +238,120 @@ def test_reka_hu_po_wybiciu_bb_blindy_pobierane_z_zywych_miejsc() -> None:
         stacks = [10, 10, 10]
         stacks[busted] = 0
         deck = shuffled_deck(random.Random(4))
-        out = _play_hand(stacks, button, 1, 2, books, deck, random.Random(4))
+        out = _play_hand(stacks, 0, button, 1, 2, books, deck, random.Random(4))
         assert out[button] == 9, (button, out)
         assert out[other] == 11, (button, out)
         assert out[busted] == 0
+
+
+class _Script:
+    """Miejsce grające zadaną listę akcji — stanowy port areny w roli skryptu."""
+
+    def __init__(self, *actions: str) -> None:
+        self.actions = list(actions)
+
+    def act(self, view: SeatView, rng: random.Random) -> str:
+        rng.random()
+        return self.actions.pop(0)
+
+
+def _arena_deck(dealt: DealtHand, seat_of_hu: dict[int, int]) -> tuple[Card, ...]:
+    """Talia areny niosąca DOKŁADNIE karty rozdania silnika.
+
+    Silnik rozdaje na przemian (`deal_hand`), arena blokami po dwie karty
+    kolejnym żywym miejscom — kotwica porównuje rozliczenia, nie sposób
+    rozdawania, więc talia jest tu przekładem, a nie założeniem.
+    """
+    hole = {event.seat: event.cards for event in dealt.hole_cards}
+    board = (*dealt.flop.cards, dealt.turn.card, dealt.river.card)
+    ordered = sorted(seat_of_hu.items(), key=lambda pair: pair[1])
+    cards = [card for hu_seat, _ in ordered for card in hole[hu_seat]]
+    cards.extend(board)
+    used = set(cards)
+    cards.extend(card for card in shuffled_deck(random.Random(0)) if card not in used)
+    return tuple(cards)
+
+
+# Linia licytacji w zamrożonym drzewie: (akcje guzika, akcje BB) oraz przekład
+# na akcje silnika zdarzeniowego. `open` to podbicie do `open_amount(bb)`,
+# `jam` to wejście za cały stack, `call` sprawdzenie all-inu.
+ANCHOR_LINES = (
+    (("fold",), ()),
+    (("jam",), ("fold",)),
+    (("jam",), ("jam",)),
+    (("open",), ("fold",)),
+    (("open", "fold"), ("jam",)),
+    (("open", "jam"), ("jam",)),
+)
+
+
+def _drive_engine(
+    hand: HeadsUpHand,
+    button: int,
+    line: tuple[tuple[str, ...], tuple[str, ...]],
+    bb: int,
+    stacks: tuple[int, int],
+) -> None:
+    """Ta sama linia w silniku zdarzeniowym: fold / podbicie do 2.2x / all-in / call."""
+    queues = {button: list(line[0]), 1 - button: list(line[1])}
+    while (legal := hand.legal_actions()) is not None:
+        seat = legal.seat
+        action = queues[seat].pop(0)
+        state = hand.state()
+        if action == "fold":
+            hand.act(seat, ActionType.FOLD)
+        elif action == "open":
+            target = open_amount(bb)
+            hand.act(seat, ActionType.RAISE, target - (stacks[seat] - state.stacks[seat]))
+        elif legal.raise_range is not None:
+            hand.act(seat, ActionType.RAISE, legal.raise_range.maximum)
+        else:
+            hand.act(seat, ActionType.CALL)
+
+
+def test_kotwica_krzyzowa_rozgrywacz_areny_zgadza_sie_z_silnikiem() -> None:
+    """Decyzja 27 pkt 4: rozliczenie ręki HU takie samo w arenie i w `HeadsUpHand`.
+
+    Dług wymagalny z POKER-48: pierwszy kontrakt dotykający rozgrywacza spłaca
+    kotwicę. Porównywane są wszystkie linie zamrożonego drzewa (fold, open 2.2x,
+    3bet-jam, call) przy IDENTYCZNYCH kartach i identycznych decyzjach — łącznie
+    z showdownem, bo talia areny jest przekładem rozdania silnika.
+    """
+    for seed in range(25):
+        dealt = deal_hand(shuffled_deck(random.Random(seed)), seat_count=2)
+        for sb, bb in ((1, 2), (5, 10)):
+            for stacks in ((50, 50), (40, 60), (30, 21)):
+                for button in range(3):
+                    busted = (button + 2) % 3
+                    other = next(s for s in range(3) if s not in (button, busted))
+                    # Przy ≤7 bb efektywnych drzewo areny nie ma open (jam/fold),
+                    # więc linie z podbiciem 2.2x wchodzą tylko na głębokich stackach.
+                    jamfold = is_jam_fold_depth((stacks[0], stacks[1], 0), bb)
+                    for line in (ANCHOR_LINES[:3] if jamfold else ANCHOR_LINES):
+                        arena = [0, 0, 0]
+                        arena[button], arena[other] = stacks
+                        hu_button = 0
+                        seat_of_hu = {hu_button: button, 1 - hu_button: other}
+                        config = HandConfig(
+                            small_blind=sb, big_blind=bb, stacks=stacks, button=hu_button
+                        )
+                        engine = HeadsUpHand(config, seed)
+                        _drive_engine(engine, hu_button, line, bb, stacks)
+                        books: list[Seat] = [always_fold(), always_fold(), always_fold()]
+                        books[button] = _Script(*line[0])
+                        books[other] = _Script(*line[1])
+                        out = _play_hand(
+                            list(arena),
+                            0,
+                            button,
+                            sb,
+                            bb,
+                            (books[0], books[1], books[2]),
+                            _arena_deck(dealt, seat_of_hu),
+                            random.Random(seed),
+                        )
+                        expected = engine.state().stacks
+                        assert out[busted] == 0
+                        assert (out[button], out[other]) == expected, (
+                            seed, sb, bb, stacks, button, line, out, expected,
+                        )

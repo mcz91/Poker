@@ -7,6 +7,12 @@ od pary (seed turnieju, `i`), więc przebieg licytacji jednej rotacji nie
 zmienia kart żadnej innej. CI liczone są na blokach (decyzja 26 zakazuje
 CI na turniejach i rozdaniach), obok normalnego raportowany jest
 bootstrap percentylowy o jawnym seedzie.
+
+Miejsce obsadza `SeatBook` (statyczne częstotliwości per klasa ręki) albo
+stanowy `SeatAgent`, który dostaje pełny widok miejsca (`SeatView`) i rng
+akcji ręki. Oba źródła decyzji chodzą po tym samym, zamrożonym drzewie
+(decyzja 27): zbiór legalnych akcji liczy `legal_actions`, a rozgrywacz
+odrzuca akcję spoza niego.
 """
 
 from __future__ import annotations
@@ -14,6 +20,7 @@ from __future__ import annotations
 import random
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from poker.cards import Card
 from poker.dealing import shuffled_deck
@@ -45,6 +52,51 @@ class SeatBook:
     vs_jam: list[float]
     jf_first: list[float]
     jf_vs_jam: list[float]
+
+
+@dataclass(frozen=True)
+class SeatView:
+    """Stan ręki widziany przez jedno miejsce w chwili decyzji.
+
+    `SeatBook` konsumuje trzy flagi kontekstu i klasę ręki, bo nic więcej nie
+    umie użyć; agent czytający blueprint potrzebuje zegara (numer ręki),
+    wektora stacków i historii licytacji, żeby trafić w warstwę, stan i węzeł
+    artefaktu. `stacks` to stan sprzed postawienia blindów, `contrib` —
+    wkłady już w puli, `actions` — akcje ręki w kolejności podjęcia
+    (miejsce, akcja); miejsce all-in z samego blinda nie ma w nich wpisu, bo
+    rozgrywacz go nie pyta.
+    """
+
+    hand: int
+    seat: int
+    button: int
+    stacks: tuple[int, int, int]
+    contrib: tuple[int, int, int]
+    actions: tuple[tuple[int, str], ...]
+    klass: int
+    jamfold: bool
+    opened: bool
+    jammed: bool
+
+
+class SeatAgent(Protocol):
+    """Stanowy port decyzji: widok miejsca i rng ręki → akcja legalna."""
+
+    def act(self, view: SeatView, rng: random.Random) -> str: ...
+
+
+Seat = SeatBook | SeatAgent
+
+
+def legal_actions(view: SeatView) -> tuple[str, ...]:
+    """Akcje zamrożonego drzewa w tym kontekście — dokładnie zbiór wyjść `pick`.
+
+    Jedno źródło prawdy o legalności: rozgrywacz sprawdza nim decyzję agenta,
+    a agent nim przycina rozkład z artefaktu.
+    """
+    if view.jammed or view.opened or view.jamfold:
+        return ("fold", "jam")
+    return ("fold", "open", "jam")
 
 
 def always_jam() -> SeatBook:
@@ -145,7 +197,7 @@ def _hand_seeds(seed: int) -> tuple[tuple[int, int], ...]:
 
 
 def run_spin(
-    books: tuple[SeatBook, SeatBook, SeatBook],
+    books: tuple[Seat, Seat, Seat],
     seed: int,
     *,
     on_deck: Callable[[int, tuple[Card, ...]], None] | None = None,
@@ -169,14 +221,16 @@ def run_spin(
         deck = shuffled_deck(random.Random(deck_seed))
         if on_deck is not None:
             on_deck(hand_i, deck)
-        stacks = _play_hand(stacks, button, sb, bb, books, deck, random.Random(act_seed))
+        stacks = _play_hand(
+            stacks, hand_i, button, sb, bb, books, deck, random.Random(act_seed)
+        )
         hand_i += 1
     reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
     return (stacks[0], stacks[1], stacks[2]), reason
 
 
 def play_spin(
-    books: tuple[SeatBook, SeatBook, SeatBook],
+    books: tuple[Seat, Seat, Seat],
     prizes: tuple[float, float, float],
     seed: int,
 ) -> tuple[float, float, float]:
@@ -190,10 +244,11 @@ def play_spin(
 
 def _play_hand(
     stacks: list[int],
+    hand: int,
     button: int,
     sb: int,
     bb: int,
-    books: tuple[SeatBook, SeatBook, SeatBook],
+    books: tuple[Seat, Seat, Seat],
     deck: Sequence[Card],
     rng: random.Random,
 ) -> list[int]:
@@ -239,6 +294,8 @@ def _play_hand(
         return None
 
     steps = 0
+    actions: list[tuple[int, str]] = []
+    start = (stacks[0], stacks[1], stacks[2])
     while steps < 12:
         steps += 1
         seat = to_act()
@@ -250,14 +307,35 @@ def _play_hand(
             acted[seat] = True
             continue
         idx = CLASS_INDEX[classify(hole[0], hole[1])]
-        act = pick(
-            books[seat],
-            idx,
-            jamfold=jamfold,
-            opened=opened,
-            jammed=jammed,
-            rng=rng,
-        )
+        book = books[seat]
+        if isinstance(book, SeatBook):
+            act = pick(
+                book,
+                idx,
+                jamfold=jamfold,
+                opened=opened,
+                jammed=jammed,
+                rng=rng,
+            )
+        else:
+            view = SeatView(
+                hand=hand,
+                seat=seat,
+                button=button,
+                stacks=start,
+                contrib=(contrib[0], contrib[1], contrib[2]),
+                actions=tuple(actions),
+                klass=idx,
+                jamfold=jamfold,
+                opened=opened,
+                jammed=jammed,
+            )
+            act = book.act(view, rng)
+            if act not in legal_actions(view):
+                raise ValueError(
+                    f"agent miejsca {seat} zwrócił akcję {act!r} spoza zamrożonego drzewa"
+                )
+        actions.append((seat, act))
         acted[seat] = True
         if act == "fold":
             folded[seat] = True
@@ -297,9 +375,7 @@ def _play_hand(
     ]
 
 
-def _books_with_hero(
-    hero: SeatBook, villain: SeatBook, seat: int
-) -> tuple[SeatBook, SeatBook, SeatBook]:
+def _books_with_hero(hero: Seat, villain: Seat, seat: int) -> tuple[Seat, Seat, Seat]:
     if seat not in (0, 1, 2):
         raise ValueError(f"miejsce poza 3-max: {seat}")
     books = [villain, villain, villain]
@@ -308,8 +384,8 @@ def _books_with_hero(
 
 
 def play_block(
-    hero: SeatBook,
-    villain: SeatBook,
+    hero: Seat,
+    villain: Seat,
     prizes: tuple[float, float, float],
     seed: int,
 ) -> float:
@@ -373,8 +449,8 @@ def _summary(
 
 
 def sample_blocks(
-    hero: SeatBook,
-    villain: SeatBook,
+    hero: Seat,
+    villain: Seat,
     prizes: tuple[float, float, float],
     n: int,
     seed: int = 1,
@@ -392,8 +468,8 @@ def sample_blocks(
 
 
 def compare_blocks(
-    a: tuple[SeatBook, SeatBook],
-    b: tuple[SeatBook, SeatBook],
+    a: tuple[Seat, Seat],
+    b: tuple[Seat, Seat],
     prizes: tuple[float, float, float],
     n: int,
     seed: int = 1,
@@ -433,8 +509,8 @@ def compare_blocks(
 
 
 def sample_seat(
-    hero: SeatBook,
-    villain: SeatBook,
+    hero: Seat,
+    villain: Seat,
     prizes: tuple[float, float, float],
     n: int,
     seed: int = 1,

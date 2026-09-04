@@ -2,6 +2,9 @@
 
 Tryby:
 - `python tools/run_arena.py [N_BLOKOW] [pay]` — porównania książek na blokach;
+- `python tools/run_arena.py blueprint ARTEFAKT.bpk [N_BLOKOW] [pay]` — agent
+  grający z artefaktu blueprintu przeciw field_exploit, dollar_fish
+  i always_jam; obok ROI z CI wychodzą liczniki fallbacków agenta;
 - `python tools/run_arena.py sd [N_BLOKOW] [pay]` — SD na turniej (estymator
   sprzed rotacji, miejsce 0) vs SD na blok na tych samych seedach oraz
   wynikające N dla różnic 5 i 10 pp ROI (moc 80%, alfa 0,05);
@@ -14,7 +17,10 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import BinaryIO
 
+from poker.blueprint_agent import BlueprintAgent
+from poker.blueprint_reader import BlueprintReader
 from poker.jamfold import solve as solve_jf
 from poker.openfold import _threebet_from_open, threebet_vs_range
 from poker.openfold import solve as solve_open
@@ -23,6 +29,7 @@ from poker.spin_arena import (
     SeatBook,
     always_jam,
     call_vs_random,
+    compare_blocks,
     dollar_fish,
     field_exploit,
     play_block,
@@ -165,12 +172,68 @@ def compare_books(n: int, pay: str) -> dict[str, object]:
     }
 
 
+def blueprint_agent(stream: BinaryIO) -> BlueprintAgent:
+    """Agent blueprintu z otwartego strumienia artefaktu.
+
+    Otwarcie pliku i JSON metadanych należą do narzędzia: czytnik dostaje
+    strumień (INV-P7), a `json` jest w silniku importem zabronionym. Krok
+    siatki i zestaw klas biegu czyta się z metadanych, nie z założenia —
+    artefakt o innej siatce ma być odrzucony przez odczyt, nie przemilczany.
+    """
+    reader = BlueprintReader(stream)
+    config = json.loads(reader.meta_bytes())["run_manifest"]["config"]
+    return BlueprintAgent(reader, grid_step=config["grid_step"], classes=config["classes"])
+
+
+def blueprint_arena(path: str, n: int, pay: str) -> dict[str, object]:
+    """ROI agenta blueprintu na blokach przeciw trzem przeciwnikom areny."""
+    prizes = PAYOUTS[pay].prizes
+    with open(path, "rb") as stream:
+        hero = blueprint_agent(stream)
+        out: dict[str, object] = {
+            "pay": pay,
+            "artifact": path,
+            "unit": "blok = 3 rotacje jednego seeda",
+            "config_hash": hero.reader.config_hash,
+        }
+        field = field_exploit()
+        for name, villain in (
+            ("blueprint_vs_field", field_exploit()),
+            ("blueprint_vs_dollar", dollar_fish()),
+            ("blueprint_vs_always_jam", always_jam()),
+        ):
+            before = hero.counters()
+            summary = sample_blocks(hero, villain, prizes, n, seed=21)
+            # Ten sam przeciwnik, te same seedy bloków, inny hero: różnica
+            # sparowana mówi, czy blueprint jest lepszym hero od field_exploit —
+            # a nie tylko, ile wyciąga w oderwaniu (decyzja 26).
+            paired = compare_blocks((hero, villain), (field, villain), prizes, n, seed=21)
+            after = hero.counters()
+            out[name] = {
+                **summary,
+                "n_blocks_5pp": n_needed(summary["sd"], 0.05),
+                "n_blocks_10pp": n_needed(summary["sd"], 0.10),
+                "vs_field_exploit_paired": paired,
+                "fallbacks": {key: after[key] - before[key] for key in after},
+            }
+        out["fallbacks_total"] = hero.counters()
+    return out
+
+
 def main() -> None:
     args = sys.argv[1:]
     mode = "compare"
-    if args and args[0] in ("sd", "seats"):
+    if args and args[0] in ("sd", "seats", "blueprint"):
         mode = args[0]
         args = args[1:]
+    if mode == "blueprint":
+        if not args:
+            raise SystemExit("użycie: run_arena.py blueprint ARTEFAKT.bpk [N_BLOKOW] [pay]")
+        path = args[0]
+        n = int(args[1]) if len(args) > 1 else 200
+        pay = args[2] if len(args) > 2 else "3x"
+        print(json.dumps(blueprint_arena(path, n, pay), indent=2))
+        return
     default_n = {"compare": 200, "sd": 320, "seats": 2000}[mode]
     n = int(args[0]) if args else default_n
     pay = args[1] if len(args) > 1 else "3x"
