@@ -922,12 +922,27 @@ artefaktów poza repozytorium.
 BA python tools/blueprint/pack_blueprint.py pack \
        --run PROD/grid2 --out PROD/blueprint.bpk
 BB python tools/blueprint/pack_blueprint.py bench \
-       --file PROD/blueprint.bpk --samples 2000
-BC python tools/blueprint/pack_blueprint.py requantize \
-       --run PILOT/grid5d --out PILOT/grid5d_q8 --packed PILOT/grid5d.bpk
-BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
+       --file PROD/blueprint.bpk --samples 2000 --sweep
+BC mkdir -p PILOT/grid5d_raw
+   cp PILOT/grid5d/layer_*.npz PILOT/grid5d/boundary.npz \
+      PILOT/grid5d/solve_manifest.json PILOT/grid5d_raw/
+   python -c 'import json,sys;from pathlib import Path;p=Path(sys.argv[1]);\
+m=json.loads(p.read_text());m["config"].setdefault("cost_limit_core_hours",140.0);\
+p.write_text(json.dumps(m,indent=2,sort_keys=True,ensure_ascii=False)+"\n")' \
+       PILOT/grid5d_raw/solve_manifest.json
+BD python tools/blueprint/pack_blueprint.py requantize \
+       --run PILOT/grid5d_raw --out PILOT/grid5d_q8 --packed PILOT/grid5d.bpk
+BE python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    python tools/blueprint/expost.py expost --out PILOT/grid5d_q8  --jobs 3
 ```
+
+BC nie jest ozdobnikiem: manifest biegu `grid5d` powstał przed POKER-50
+i nie ma pola `cost_limit_core_hours`, więc `expost` na oryginale pada
+`KeyError` w `config_from_dict`. Pole jest bezpiecznikiem kosztu solvera
+i do ex-post nie wchodzi; uzupełnia się je **w kopii roboczej**, a `BD`
+przenosi ten sam manifest na stronę skwantowaną — więc obie strony
+porównania mają identyczną konfigurację, a oryginał (razem ze swoim
+raportem ex-post z POKER-49) zostaje nietknięty.
 
 1. **Specyfikacja z dokładnością do bajtów.** Wszystko little-endian,
    sekcje wyrównane do 8 bajtów, bez znaczników czasu. Układ pliku:
@@ -1007,7 +1022,10 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    od implementacji sortowania). Suma jest zachowana **dokładnie**,
    więc trzeci slot naprawdę wynika z dopełnienia, a błąd pojedynczego
    prawdopodobieństwa jest **mniejszy niż jeden krok** (uint8:
-   1/255 = 0,00392; zmierzone maksimum na próbce produkcji 0,00241).
+   1/255 = 0,00392). Zmierzone maksimum na **wszystkich 21 warstwach
+   artefaktu produkcyjnego** to **0,002610**, a na pilocie `grid5d`
+   0,002607 — sama warstwa 0 produkcji daje 0,002410, więc to nie jest
+   liczba, którą wolno czytać z jednej warstwy.
    Akcja o prawdopodobieństwie zero nigdy nie dostaje reszty — w tym
    artefakcie zero znaczy „akcja poza maską drzewa", a nie „mało
    prawdopodobna". **KOREKTA JEDNOSTKOWA (2026-08-29) obowiązuje:**
@@ -1037,7 +1055,13 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    `StateNotFound` (wektor stacków spoza siatki warstwy),
    `NodeUnreachable` (węzeł spoza maski osiągalności),
    `PolicyMissing` (warstwa brzegowa niesie samo V) — wszystkie
-   podtypy `LookupError`. Round-trip konwerter→czytnik na artefakcie
+   podtypy `LookupError`. Rozróżnienie niesie **wyjątek, nie
+   predykat**: `has_state` zwraca `False` tak samo dla stanu spoza
+   siatki, jak i dla ręki spoza horyzontu, więc fallback POKER-52
+   („poza siatką" vs „poza horyzontem" vs „poza maską") pyta przez
+   `value`/`state` i czyta typ błędu.
+
+   Round-trip konwerter→czytnik na artefakcie
    kontrolnym sprawdza **wszystkie** węzły maski i **wszystkie** klasy:
    rozkłady wracają w granicach kroku kwantyzacji i sumują się do
    jedności, a V wraca **bajtowo dokładnie** (float64).
@@ -1047,8 +1071,10 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    brzegowego, 169 klas, 22 warstwy) pakuje się w **19 016 752 B
    (18,1 MiB)** wobec **38 619 677 B (36,8 MiB)** warstw i warunku
    brzegowego w `.npz` — **2,03× mniej**; zapis trwa 24,1 s.
-   Rozkład bajtów: bloki strategii 16 634 705 B (**334,3 B na stan
-   z polityką**), tablice V 1 264 512 B, indeks bloków 796 240 B,
+   Rozkład bajtów: obszar bloków strategii 16 634 705 B, z czego same
+   skompresowane bloki to 16 634 518 B (**334,3 B na stan
+   z polityką**), a 187 B to dopełnienia wyrównania sekcji do ośmiu
+   bajtów; tablice V 1 264 512 B, indeks bloków 796 240 B,
    klucze stanów 316 128 B, metadane 3 983 B, nagłówek i katalog
    1 184 B. Maska osiągalności zarabia na siebie: w warstwach
    produkcji żywe jest **~39–40% z 14 slotów węzłów** na stan
@@ -1068,9 +1094,15 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    strumienia**. Na artefakcie kontrolnym (8 328 B) najgorszy odczyt
    stanu to **116 B**, a wartości V **56 B**; asercje stoją na 160
    i 72 B — zapas jest na inną wersję `zlib`, nie na inny sposób
-   odczytu (test podstawia strumień liczący). Na artefakcie
-   produkcyjnym (19 MB, 169 klas) ten sam odczyt to 1 550 B na stan
-   i 80 B na wartość V.
+   odczytu (test podstawia strumień liczący).
+
+   Na artefakcie produkcyjnym mierzy to `bench --sweep` (przemiał
+   **wszystkich** stanów, nie próbka — stany różnią się liczbą żywych
+   węzłów i stopniem kompresji bloku, więc percentyl próbki nie zna
+   maksimum): odczyt stanu **maksimum 1 804 B, mediana 394 B, p95
+   664 B** na 49 765 odczytów; odczyt wartości V **maksimum 80 B,
+   mediana 74 B** na 52 688 odczytów. Najgorszy odczyt stanu to
+   0,0095% pliku.
 
 6. **Koszt kwantyzacji ZMIERZONY W ε — kryterium blokujące.** Mierzy go
    `expost`, to samo narzędzie i ta sama definicja ε co w POKER-46/50:
@@ -1094,10 +1126,15 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    `test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym`.
 
    **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas) —
-   KRYTERIUM BLOKUJĄCE SPEŁNIONE.** Dwa przebiegi ex-post po
-   14,6 min ściennych przy 3 procesach (BC, BD; skrypt
-   `p49/quant_cost.sh` w scratchpadzie sesji powtarza pomiar na
-   uint16, gdyby przyrost przekroczył próg — nie było potrzeby).
+   KRYTERIUM BLOKUJĄCE SPEŁNIONE.** Sekwencja BC→BE; dwa przebiegi
+   ex-post po ~14,6 min ściennych przy 3 procesach. Ten sam przepis
+   wykonuje skrypt `p49/quant_cost.sh` w scratchpadzie sesji: robi
+   CAŁY pomiar (kopie robocze, round-trip, oba ex-post, werdykt),
+   a kwantyzacja uint16 jest w nim gałęzią awaryjną, uruchamianą
+   dopiero po przekroczeniu progu — tu nie weszła. Sekwencja BC→BE
+   została odtworzona dosłownie, w świeżych katalogach roboczych,
+   i dała te same cyfry co pomiar zamknięcia (4,664108132224065e−4 /
+   3,838025721973892e−4).
 
    | wielkość | surowe | po round-tripie | zmiana |
    |---|---:|---:|---:|
@@ -1651,10 +1688,13 @@ Następne kroki:
    blokujące 1e−3 z zapasem 2,1×, **opcja sufitu 1536 się nie
    uruchamia**; koszt regeneracji artefaktu 76,6 rdzenio-h (faktyczny
    z restartami 92,8–95,6); artefakt poza repozytorium, w repo artefakt
-   kontrolny łańcucha pod testem bramki. Następny krok linii:
-   **POKER-51** (format binarny artefaktu, zatwierdzony — kryterium:
-   przyrost ex-post ε po round-tripie przez format ≤ 10% wartości
-   surowej), potem **POKER-52** (agent blueprint w rejestrze i pomiar
+   kontrolny łańcucha pod testem bramki. **POKER-51 dostarczony**
+   (blok wyżej): format binarny `.bpk` z dostępem swobodnym per stan
+   i czytnik stdlib w pakiecie, kryterium kontraktu ZMIERZONE
+   I SPEŁNIONE — przyrost ex-post ε po round-tripie −17,7% na pilocie
+   i −3,7% na artefakcie kontrolnym wobec dopuszczalnego +10%
+   (zamknięcie w indeksie po weryfikacji niezależnej). Następny krok
+   linii: **POKER-52** (agent blueprint w rejestrze i pomiar
    w arenie). Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
    — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to
@@ -1662,17 +1702,16 @@ Następne kroki:
    tolerancja etapowa wyznacza podłogę horyzontu, więc to jedna
    decyzja o cenie, nie dwie, i uruchamia się wyłącznie przy ε > 5e−4
    (werdykt architekta 2026-08-30). Format
-   artefaktu policzony z danych pilota: maska + uint8 (2 z 3) + zlib
-   daje **~38 MB** na całą siatkę produkcyjną (201 B/stan zmierzone
-   na `grid5b`), a nie 0,25–1 GB szacowane w decyzji 25 — 60% komórek
-   to węzły nieosiągalne, a mediana prawdopodobieństwa dominującej
-   akcji to 0,996. Kwantyzacja do uint8 daje maksymalny błąd 0,0039
-   **w przestrzeni prawdopodobieństw akcji** — to inna jednostka niż
-   ε (udział puli) i porównanie tych liczb wprost było błędem
-   (korekta architekta 2026-08-29); ile kwantyzacja kosztuje w ε,
-   jest niezmierzone i stanowi kryterium akceptacji kontraktu formatu:
-   ex-post ε artefaktu skwantowanego minus ε surowego, policzone tym
-   samym narzędziem;
+   artefaktu przestał być szacunkiem: napisany i zmierzony w POKER-51
+   plik produkcyjny ma **19 016 752 B** (szacunek z danych `grid5b`
+   mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB), bo 60% komórek to
+   węzły nieosiągalne i nie trafiają do pliku wcale. Kwantyzacja do
+   uint8 daje maksymalny błąd 0,0026 **w przestrzeni
+   prawdopodobieństw akcji** — to inna jednostka niż ε (udział puli)
+   i porównanie tych liczb wprost było błędem (korekta architekta
+   2026-08-29); koszt w ε jest **zmierzony** tym samym narzędziem
+   ex-post (−17,7% na pilocie, −3,7% na artefakcie kontrolnym), więc
+   kryterium akceptacji kontraktu formatu jest spełnione;
 2. **moc pomiaru areny: POKER-48 zamknięty** (blok wyżej) — rotacja
    miejsc, wspólne seedy i CI na blokach z bootstrapem; twierdzenie
    „bije X" wymaga `compare_blocks` na wspólnych seedach, a dalsza

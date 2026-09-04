@@ -21,7 +21,7 @@ API:
 import struct
 import zlib
 from dataclasses import dataclass
-from typing import BinaryIO
+from typing import Protocol
 
 MAGIC = b"POKERBP1"
 FORMAT_VERSION = 1
@@ -45,6 +45,19 @@ BLOCK_INDEX_STRUCT = struct.Struct("<QII")
 STATE_KEY_STRUCT = struct.Struct("<3h")
 VALUE_ROW_STRUCT = struct.Struct("<3d")
 VALUE_ONE_STRUCT = struct.Struct("<d")
+
+
+class ByteSource(Protocol):
+    """Czego czytnik naprawdę potrzebuje od strumienia: skoku i odczytu.
+
+    Węższe niż `BinaryIO`, bo dzięki temu legalnym wejściem jest też otoczka
+    licząca bajty albo bufor w pamięci — a właśnie na otoczce liczącej stoi
+    dowód, że odczyt jednego stanu nie czyta całego pliku.
+    """
+
+    def seek(self, offset: int, whence: int = 0, /) -> int: ...
+
+    def read(self, size: int = -1, /) -> bytes: ...
 
 
 class BlueprintError(Exception):
@@ -164,7 +177,7 @@ class StateBlock:
 class BlueprintReader:
     """Odczyt swobodny artefaktu blueprintu z otwartego strumienia binarnego."""
 
-    def __init__(self, stream: BinaryIO) -> None:
+    def __init__(self, stream: ByteSource) -> None:
         self._stream = stream
         stream.seek(0)
         raw = stream.read(HEADER_SIZE)
@@ -270,7 +283,14 @@ class BlueprintReader:
         return (key[0], key[1], key[2])
 
     def has_state(self, hand: int, stacks: tuple[int, int, int]) -> bool:
-        """Czy stan jest osiągalny w tej warstwie — sprawdzenie bez wyjątku."""
+        """Czy artefakt ma ten stan — predykat ZGRUBNY, bez rozróżniania przyczyny.
+
+        Zwraca `False` tak samo dla stanu spoza siatki warstwy, jak i dla ręki
+        spoza horyzontu artefaktu. Fallback agenta (POKER-52), który musi te
+        przypadki rozdzielić, pyta przez `value`/`state` i czyta wyjątek:
+        `StateNotFound` to co innego niż `LayerNotFound`, a `NodeUnreachable`
+        i `PolicyMissing` to jeszcze co innego.
+        """
         try:
             self._position(self._layer(hand), stacks)
         except BlueprintLookupError:

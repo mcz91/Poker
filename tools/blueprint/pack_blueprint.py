@@ -22,7 +22,7 @@ Uruchomienie (venv z extras train):
 
     python tools/blueprint/pack_blueprint.py pack --run KATALOG --out plik.bpk
     python tools/blueprint/pack_blueprint.py requantize --run KATALOG --out KATALOG2
-    python tools/blueprint/pack_blueprint.py bench --file plik.bpk
+    python tools/blueprint/pack_blueprint.py bench --file plik.bpk [--sweep]
 """
 
 import argparse
@@ -371,12 +371,69 @@ def quantization_cost(raw: dict[str, Any], quantized: dict[str, Any]) -> dict[st
     }
 
 
-def bench(path: Path, samples: int = 2000, seed: int = 51) -> dict[str, Any]:
+class _CountingStream:
+    """Strumień liczący przeczytane bajty — miara „ile odczyt naprawdę bierze z pliku"."""
+
+    def __init__(self, handle: Any) -> None:
+        self._handle = handle
+        self.read_bytes = 0
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return int(self._handle.seek(offset, whence))
+
+    def read(self, size: int = -1) -> bytes:
+        chunk: bytes = self._handle.read(size)
+        self.read_bytes += len(chunk)
+        return chunk
+
+
+def sweep_read_bytes(path: Path) -> dict[str, Any]:
+    """Bajty przeczytane na jeden odczyt, przemiał po WSZYSTKICH stanach artefaktu.
+
+    Czas zależy od obciążenia maszyny, liczba bajtów nie — więc to ona jest
+    powtarzalną miarą dostępu swobodnego. Próbka losowa daje percentyle,
+    ale maksimum zna wyłącznie pełny przemiał (stany różnią się liczbą
+    żywych węzłów, a bloki kompresują się różnie).
+    """
+    state_bytes: list[int] = []
+    value_bytes: list[int] = []
+    with path.open("rb") as handle:
+        counting = _CountingStream(handle)
+        reader = BlueprintReader(counting)
+        for info in reader.layers:
+            for position in range(info.n_states):
+                key = reader.state_key(info.hand, position)
+                counting.read_bytes = 0
+                reader.seat_value(info.hand, key, 0)
+                value_bytes.append(counting.read_bytes)
+                if not info.has_policy:
+                    continue
+                counting.read_bytes = 0
+                block = reader.state(info.hand, key)
+                block.policy(min(block.nodes()), 0)
+                state_bytes.append(counting.read_bytes)
+    state_bytes.sort()
+    value_bytes.sort()
+    return {
+        "state_reads": len(state_bytes),
+        "state_bytes_max": state_bytes[-1],
+        "state_bytes_median": state_bytes[len(state_bytes) // 2],
+        "state_bytes_p95": state_bytes[int(len(state_bytes) * 0.95)],
+        "value_reads": len(value_bytes),
+        "value_bytes_max": value_bytes[-1],
+        "value_bytes_median": value_bytes[len(value_bytes) // 2],
+    }
+
+
+def bench(path: Path, samples: int = 2000, seed: int = 51,
+          sweep: bool = False) -> dict[str, Any]:
     """Czas odczytu jednego stanu i jednej wartości V — liczba raportowana, nie progowana.
 
     Próg ustali konsument w POKER-52; tu mierzymy, ile kosztuje dostęp swobodny
     do gotowego pliku. Losowanie jest deterministyczne (stały seed), więc dwa
-    uruchomienia biorą te same stany i różnią się wyłącznie zegarem.
+    uruchomienia biorą te same stany i różnią się wyłącznie zegarem. `sweep`
+    dokłada pełny przemiał bajtów po wszystkich stanach — wolniejszy, ale
+    powtarzalny co do liczby i znający maksimum, a nie tylko percentyl próbki.
     """
     rng = random.Random(seed)
     state_times: list[float] = []
@@ -400,7 +457,7 @@ def bench(path: Path, samples: int = 2000, seed: int = 51) -> dict[str, Any]:
         file_bytes = reader.file_length
     state_times.sort()
     value_times.sort()
-    return {
+    report = {
         "file": str(path),
         "bytes": file_bytes,
         "samples": samples,
@@ -409,6 +466,9 @@ def bench(path: Path, samples: int = 2000, seed: int = 51) -> dict[str, Any]:
         "value_median_us": round(value_times[len(value_times) // 2] * 1e6, 1),
         "value_p95_us": round(value_times[int(len(value_times) * 0.95)] * 1e6, 1),
     }
+    if sweep:
+        report["sweep"] = sweep_read_bytes(path)
+    return report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -427,6 +487,8 @@ def build_parser() -> argparse.ArgumentParser:
     timing.add_argument("--file", type=Path, required=True)
     timing.add_argument("--samples", type=int, default=2000)
     timing.add_argument("--seed", type=int, default=51)
+    timing.add_argument("--sweep", action="store_true",
+                        help="przemiał bajtów po wszystkich stanach (maksimum, nie percentyl)")
     return parser
 
 
@@ -435,7 +497,8 @@ def main(argv: Any = None) -> int:
     if args.command == "pack":
         summary = pack(args.run, args.out, quant_bits=args.bits)
     elif args.command == "bench":
-        summary = bench(args.file, samples=args.samples, seed=args.seed)
+        summary = bench(args.file, samples=args.samples, seed=args.seed,
+                        sweep=args.sweep)
     else:
         packed = args.packed if args.packed is not None else args.out / "blueprint.bpk"
         packed.parent.mkdir(parents=True, exist_ok=True)

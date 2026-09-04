@@ -1500,6 +1500,91 @@ def test_round_trip_rozkladow_miesci_sie_w_kroku_kwantyzacji(
     assert worst <= QUANT_STEP_U8
 
 
+def _shuffled_run(source: Path, target: Path, seed: int) -> None:
+    """Kopia biegu z przetasowanymi wierszami każdej warstwy (manifest zgodny z plikami)."""
+    af = _load("artifacts")
+    sg = _load("solve_grid")
+    np = sg.np
+    manifest = json.loads((source / "solve_manifest.json").read_text())
+    target.mkdir(parents=True, exist_ok=True)
+    files = [manifest["layers"][key]["file"] for key in sorted(manifest["layers"], key=int)]
+    files.append(manifest["boundary"]["file"])
+    rng = np.random.Generator(np.random.PCG64(seed))
+    for name in files:
+        arrays = af.read_npz(source / name)
+        order = rng.permutation(arrays["states"].shape[0])
+        af.write_npz(target / name, {key: value[order] for key, value in arrays.items()})
+    for key in manifest["layers"]:
+        manifest["layers"][key]["sha256"] = af.sha256_file(
+            target / manifest["layers"][key]["file"]
+        )
+    manifest["boundary"]["sha256"] = af.sha256_file(target / manifest["boundary"]["file"])
+    af.write_json(target / "solve_manifest.json", manifest)
+
+
+def test_konwerter_sortuje_stany_niezaleznie_od_porzadku_wejscia(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """Wyszukiwanie binarne czytnika stoi na posortowanej tablicy kluczy warstwy.
+
+    Solver dzisiaj emituje stany posortowane, więc pominięcie sortowania
+    w konwerterze niczego by nie zepsuło — do pierwszego artefaktu z innym
+    porządkiem, gdzie czytnik po cichu przestałby znajdować połowę stanów.
+    Dlatego niezmiennik jest sprawdzany wprost: po przetasowaniu wierszy
+    warstw tablice kluczy w pliku nadal są rosnące, czytnik znajduje każdy
+    stan z jego własnym V i rozkładem, a bloki są co do bajtu te same co przy
+    wejściu posortowanym (różnią się wyłącznie metadane, bo sha256 plików
+    źródłowych są inne).
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    af = _load("artifacts")
+    shuffled_dir = tmp_path / "shuffled"
+    _shuffled_run(control_run["out_dir"], shuffled_dir, seed=51)
+    reference = tmp_path / "reference.bpk"
+    packed = tmp_path / "shuffled.bpk"
+    pk.pack(control_run["out_dir"], reference)
+    pk.pack(shuffled_dir, packed)
+
+    manifest = json.loads((shuffled_dir / "solve_manifest.json").read_text())
+    names = {int(key): manifest["layers"][key]["file"] for key in manifest["layers"]}
+    horizon = max(names) + 1
+    names[horizon] = manifest["boundary"]["file"]
+    seen = shuffled_layers = 0
+    with packed.open("rb") as handle, reference.open("rb") as origin:
+        reader = br.BlueprintReader(handle)
+        sorted_reader = br.BlueprintReader(origin)
+        for hand, name in sorted(names.items()):
+            arrays = af.read_npz(shuffled_dir / name)
+            keys = [(int(a), int(b), int(c)) for a, b, c in arrays["states"].tolist()]
+            if keys != sorted(keys):
+                shuffled_layers += 1
+            in_file = [reader.state_key(hand, index) for index in range(len(keys))]
+            assert in_file == sorted(keys), f"warstwa {hand} zapisana bez sortowania"
+            for position, stacks in enumerate(keys):
+                assert reader.value(hand, stacks) == tuple(arrays["v"][position].tolist())
+                assert reader.value(hand, stacks) == sorted_reader.value(hand, stacks)
+                seen += 1
+                if "sigma" not in arrays:
+                    continue
+                block = reader.state(hand, stacks)
+                assert block.node_mask == sorted_reader.state(hand, stacks).node_mask
+                assert block.payload == sorted_reader.state(hand, stacks).payload
+                live = [
+                    node
+                    for node in range(reader.n_nodes)
+                    if arrays["sigma"][position, node].sum() > 0.0
+                ]
+                assert list(block.nodes()) == live
+                for node in live:
+                    for klass, got in enumerate(block.policy_table(node)):
+                        expected = arrays["sigma"][position, node, klass]
+                        for slot in range(3):
+                            assert abs(got[slot] - float(expected[slot])) <= QUANT_STEP_U8
+        assert seen == reader.n_states_total
+    assert shuffled_layers >= 2, "tasowanie nie zmieniło porządku — test nic nie sprawdza"
+
+
 def test_v_wraca_z_formatu_bajtowo_dokladnie(control_run: dict[str, Any],
                                              tmp_path: Path) -> None:
     """Tablica V jedzie w float64 bez straty — AIVAT i trener dostają pełną precyzję."""
