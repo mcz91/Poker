@@ -1359,8 +1359,10 @@ CONTROL_QUANT_DELTA_SHARE = -0.0366
 # Odczyt jednego stanu i jednej wartości V z artefaktu kontrolnego (190 stanów,
 # 4 klasy, 8 328 B): sufity bajtów przeczytanych ze strumienia. Wyszukiwanie
 # binarne to ceil(log2 n) kluczy po 6 B, blok stanu jest jeden i skompresowany.
-CONTROL_STATE_READ_MAX_BYTES = 512
-CONTROL_VALUE_READ_MAX_BYTES = 96
+# Zmierzone najgorsze przypadki na całym artefakcie: 116 B na stan, 56 B na V;
+# sufity mają zapas na inną wersję zlib, a nie na inny sposób odczytu.
+CONTROL_STATE_READ_MAX_BYTES = 160
+CONTROL_VALUE_READ_MAX_BYTES = 72
 
 
 class _CountingStream:

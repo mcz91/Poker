@@ -1045,7 +1045,8 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
 5. **Liczby na artefakcie produkcyjnym (BA, BB).** Bieg
    `PROD/grid2` (49 765 stanów-warstw + 2 923 stany warunku
    brzegowego, 169 klas, 22 warstwy) pakuje się w **19 016 752 B
-   (18,1 MiB)** wobec 38 MB warstw `.npz` — zapis trwa 24,1 s.
+   (18,1 MiB)** wobec **38 619 677 B (36,8 MiB)** warstw i warunku
+   brzegowego w `.npz` — **2,03× mniej**; zapis trwa 24,1 s.
    Rozkład bajtów: bloki strategii 16 634 705 B (**334,3 B na stan
    z polityką**), tablice V 1 264 512 B, indeks bloków 796 240 B,
    klucze stanów 316 128 B, metadane 3 983 B, nagłówek i katalog
@@ -1064,9 +1065,12 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    nie ma dla niej asercji czasu w bramce. Zamiast czasu bramka
    trzyma niezmiennik deterministyczny i mocniejszy dla twierdzenia
    „bez ładowania całości": **liczbę bajtów przeczytanych ze
-   strumienia** — na artefakcie kontrolnym odczyt jednego stanu
-   mieści się w 512 B, a jednej wartości V w 96 B (test podstawia
-   strumień liczący).
+   strumienia**. Na artefakcie kontrolnym (8 328 B) najgorszy odczyt
+   stanu to **116 B**, a wartości V **56 B**; asercje stoją na 160
+   i 72 B — zapas jest na inną wersję `zlib`, nie na inny sposób
+   odczytu (test podstawia strumień liczący). Na artefakcie
+   produkcyjnym (19 MB, 169 klas) ten sam odczyt to 1 550 B na stan
+   i 80 B na wartość V.
 
 6. **Koszt kwantyzacji ZMIERZONY W ε — kryterium blokujące.** Mierzy go
    `expost`, to samo narzędzie i ta sama definicja ε co w POKER-46/50:
