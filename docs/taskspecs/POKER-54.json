@@ -1,0 +1,40 @@
+{
+  "id": "POKER-54",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Rozgrywacz areny Spin zgodny z regułą pokera i modelem treningu: akcja po przebiciu idzie od agresora, darmowy call nie jest pytaniem — przyrząd pomiarowy przestaje generować infosety, których nie ma w żadnym poprawnym modelu.",
+  "context": "SZKIC — zatwierdzenie po zamknięciu POKER-52. Decyzja 28 pkt 2a/2b Z KOREKTĄ (audyt POKER-52 F1): `to_act` w spin_arena pyta UTG przed BB po jamie BTN na open UTG — rozjazd ma trzy twarze o łącznym zasięgu 40 806 decyzji (2,579%) w biegu BF, w tym kolaps dwóch infosetów areny (BB po odpowiedzi UTG na 3bet) do jednego węzła artefaktu o niezgodnej puli, a gracza z zerowym dołożeniem (jam nie przewyższa wkładu) arena pyta i pozwala mu spasować za darmo (1 092 wejścia), gdzie trening wymusza call maską. Drzewo gry BEZ ZMIAN (jam/fold/open preflop, rozliczenia przez poker.spin — decyzja 27). UWAGA na rozkłady: kolejność od agresora jest dystrybucyjnie neutralna dla SeatBooków (decyzje warunkowane tylko (jammed/opened/jamfold, klasa) — zamiana kolejności permutuje pobory rng, nie rozkład łączny), ale wymuszenie darmowego calla ZMIENIA rozkłady wyników tam, gdzie occurruje — skala wpływu na liczby POKER-42/43/48 musi być zmierzona, zanim się je unieważni albo utrzyma.",
+  "acceptance": [
+    "Po przebiciu (jam) akcja idzie od pierwszego gracza na lewo od agresora spośród niedopasowanych — pod testem jednostkowym na konkretnej sekwencji (UTG open, BTN jam → pyta BB przed UTG) i pod testem zgodności z kolejnością modelu treningu: WSZYSTKIE liczniki rozjazdu kolejności agenta blueprint (out_of_order oraz licznik kolapsu z audytu POKER-52 F1) = 0 na artefakcie bramki, blokująco, z asercjami.",
+    "Gracz, którego dołożenie do najwyższego wkładu wynosi zero, nie jest pytany — wchodzi automatycznie (call za darmo), jak maska treningu; licznik forced_action_misses agenta = 0 na artefakcie bramki (blokująco, asercja).",
+    "Neutralność dystrybucyjna kolejności dla SeatBooków wykazana testem: te same częstotliwości, N bloków, agregaty (średnia/SD) przed i po zmianie kolejności zgodne w granicach CI na wspólnej liczbie bloków — plus argument w dokumencie (decyzje SeatBooka nie widzą kolejności).",
+    "Skala wpływu wymuszenia darmowego calla na liczby POKER-42/43/48 ZMIERZONA: przebieg referencyjnych par SeatBooków przed/po zmianie na wspólnych seedach, różnice z CI wpisane do CURRENT_STATE z komendą; werdykt w dokumencie: które zamknięte liczby pozostają ważne, a które wymagają adnotacji (adnotacja przy blokach POKER-42/43/48, nie ciche nadpisanie).",
+    "Testy per-seed w repo, które zmieniła naprawa, zaktualizowane z uzasadnieniem w treści commita (zmiana trajektorii per seed jest oczekiwana; zmiana agregatów poza CI = STOP i raport).",
+    "Kotwica krzyżowa spin_arena vs HeadsUpHand (decyzja 27) nadal zielona; identyczność kart między rotacjami bloku nienaruszona.",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do spin_arena.py (rozgrywacz), bez zmian w blueprint_agent.py poza ewentualnym usunięciem gałęzi out_of_order, jeśli stanie się martwa (wtedy licznik zostaje z asercją = 0)."
+  ],
+  "non_goals": [
+    "Odwzorowanie trybu jam/fold i odczyt cykliczny horyzontu (POKER-55).",
+    "Warstwy 1-5 na pełnej siatce (decyzja po ponownym pomiarze).",
+    "Ponowny pomiar BF/BG/BH artefaktu produkcyjnego (POKER-55 — po komplecie napraw).",
+    "Zmiany drzewa gry, rozliczeń, zegara, seedowania."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin_arena.py",
+    "src/poker/blueprint_agent.py",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-54.json"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-05T00:30:00Z",
+    "basis": "decyzja 28 pkt 2a (z korektą F1) i 2b; POKER-52 zamknięty (liczniki rozjazdu istnieją z asercjami); mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-52"
+  }
+}
