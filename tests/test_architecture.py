@@ -268,3 +268,33 @@ def test_renderer_przyjmuje_wylacznie_playerview() -> None:
     parameters = list(inspect.signature(render_view).parameters.values())
     assert len(parameters) == 1
     assert parameters[0].annotation is PlayerView
+
+
+def test_czytnik_blueprintu_czyta_w_stdlib_i_nie_zna_silnika() -> None:
+    """Czytnik artefaktu blueprintu (POKER-51) żyje w pakiecie na czystym stdlib.
+
+    Konsumentem formatu jest agent (POKER-52) i AIVAT, więc czytnik nie może
+    wciągać ani silnika, ani adapterów, ani narzędzi z tools/ — a numpy pilnuje
+    osobno `test_zadna_czesc_pakietu_nie_importuje_numpy`. Zbiór modułów jest
+    wypisany, nie odsiany regułą: nowy import ma być decyzją, nie skutkiem.
+    """
+    reader = SRC_POKER / "blueprint_reader.py"
+    assert reader.is_file()
+    allowed = {"struct", "zlib", "array", "dataclasses", "typing", "collections.abc"}
+    imported = _imports(reader)
+    poza = imported - allowed
+    assert not poza, f"blueprint_reader.py importuje poza dozwolonym zbiorem: {sorted(poza)}"
+    assert {"struct", "zlib"} <= imported
+    assert not any(name.startswith("poker.") for name in imported)
+    assert not imported & IO_FORBIDDEN_IN_ENGINE  # czytnik dostaje strumień, nie ścieżkę
+    # Konwerter (numpy) mieszka poza pakietem i to on zależy od czytnika,
+    # a nie odwrotnie — jedno źródło układu bajtowego formatu.
+    packer = SRC_POKER.parent.parent / "tools" / "blueprint" / "pack_blueprint.py"
+    assert packer.is_file()
+    assert "poker.blueprint_reader" in _imports(packer)
+    for module in SRC_POKER.rglob("*.py"):
+        if module.name == "blueprint_reader.py":
+            continue
+        assert "poker.blueprint_reader" not in _imports(module), (
+            f"{module.name} importuje czytnik blueprintu — konsument przyjdzie z POKER-52"
+        )

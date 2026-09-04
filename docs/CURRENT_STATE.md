@@ -395,6 +395,22 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   (`files = ["src", "tests", "tools/blueprint"]` w pyproject, wraz
   z asercją w `tests/test_repo_gate.py` — oba pliki zmieniają się
   razem, bo ten test istnieje po to, by łapać ich dryf).
+- `poker.blueprint_reader` + `tools/blueprint/pack_blueprint.py` —
+  **wersjonowany format binarny artefaktu blueprintu (`.bpk`) i jego
+  czytnik** (POKER-51): zapis po stronie narzędzi (numpy), odczyt po
+  stronie produktu w czystym stdlib (`struct`, `zlib`) — bez numpy
+  i bez I/O, czytnik dostaje otwarty strumień binarny, nie ścieżkę
+  (INV-P7; z tego samego powodu blok metadanych wraca jako bajty,
+  bo `json` jest w silniku importem zabronionym). Dostęp swobodny:
+  jeden stan to wyszukiwanie binarne klucza plus jeden blok zlib tego
+  stanu, jedna wartość V to `seek` i osiem bajtów — bez ładowania
+  i dekompresji całości. Węzeł spoza maski osiągalności podnosi
+  `NodeUnreachable`, stan spoza siatki `StateNotFound`, warstwa
+  brzegowa (samo V) `PolicyMissing` — nigdy cichy rozkład zerowy,
+  bo to jest kontrakt fallbacku agenta z POKER-52. Konwerter jest
+  deterministyczny (ten sam artefakt wejściowy → bajt w bajt ten sam
+  plik) i sprawdza sha256 pakowanych plików wobec manifestu biegu.
+  Specyfikacja bajtowa, liczby i komendy: blok POKER-51 niżej.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -436,9 +452,13 @@ jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
 od POKER-33. Pełna siatka stanów istnieje wyłącznie jako artefakty
 `tools/blueprint/` poza repozytorium (pilot kroku 5, POKER-46/47/49,
 i bieg produkcyjny kroku 2, POKER-50) — w pakiecie `poker` jej nie ma
-i żaden agent z niej nie korzysta (format binarny i czytnik stdlib to
-POKER-51, agent w rejestrze to POKER-52). Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi
-się agent spoza repozytorium.
+i żaden agent z niej nie korzysta. Od POKER-51 pakiet ma **czytnik**
+tego artefaktu (`poker.blueprint_reader`) i jest wersjonowany format
+binarny, ale samego artefaktu w repozytorium nadal nie ma (do repo
+wchodzi wyłącznie artefakt kontrolny łańcucha; dystrybucja pełnego
+pliku to osobna decyzja operatora), a agent w rejestrze to POKER-52.
+Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi się agent
+spoza repozytorium.
 
 ## Następny krok
 
@@ -888,6 +908,208 @@ Nie płacimy 91 rdzenio-godzin za bieg produkcyjny stojący na
 niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
+
+**POKER-51 (format binarny blueprintu i czytnik stdlib).** Artefakt
+solvera (warstwy `.npz` + `solve_manifest.json`) dostaje wersjonowany
+format `.bpk` z dostępem swobodnym per stan i czytnik w pakiecie
+produktu. Konwerter: `tools/blueprint/pack_blueprint.py` (numpy);
+czytnik: `src/poker/blueprint_reader.py` (czysty stdlib). Liczby
+zmierzone na 4 rdzeniach (Intel Xeon @ 2.80GHz, Python 3.13.12,
+numpy 2.5.2, venv z extras `train`); `PROD` i `PILOT` to katalogi
+artefaktów poza repozytorium.
+
+```
+BA python tools/blueprint/pack_blueprint.py pack \
+       --run PROD/grid2 --out PROD/blueprint.bpk
+BB python tools/blueprint/pack_blueprint.py bench \
+       --file PROD/blueprint.bpk --samples 2000
+BC python tools/blueprint/pack_blueprint.py requantize \
+       --run PILOT/grid5d --out PILOT/grid5d_q8 --packed PILOT/grid5d.bpk
+BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
+   python tools/blueprint/expost.py expost --out PILOT/grid5d_q8  --jobs 3
+```
+
+1. **Specyfikacja z dokładnością do bajtów.** Wszystko little-endian,
+   sekcje wyrównane do 8 bajtów, bez znaczników czasu. Układ pliku:
+   nagłówek → metadane → katalog warstw → sekcje warstw rosnąco po
+   ręce. Struktury `struct` żyją w `poker.blueprint_reader`
+   (`HEADER_STRUCT`, `LAYER_STRUCT`, `BLOCK_INDEX_STRUCT`) i konwerter
+   importuje je stamtąd — jedno źródło układu bajtowego, nie dwa.
+
+   **Nagłówek, 128 B od offsetu 0:**
+
+   | ofs | dł | pole |
+   |----:|---:|------|
+   | 0 | 8 | magia `POKERBP1` |
+   | 8 | 2 | wersja formatu, uint16 (dziś **1**) |
+   | 10 | 2 | bity kwantyzacji, uint16 (8 albo 16) |
+   | 12 | 4 | liczba klas preflop, uint32 (produkcja: 169) |
+   | 16 | 4 | liczba warstw, uint32 |
+   | 20 | 4 | liczba slotów węzłów, uint32 (14) |
+   | 24 | 8 | offset metadanych, uint64 |
+   | 32 | 8 | długość metadanych po kompresji, uint64 |
+   | 40 | 8 | długość metadanych przed kompresją, uint64 |
+   | 48 | 8 | offset katalogu warstw, uint64 |
+   | 56 | 8 | liczba stanów w pliku, uint64 |
+   | 64 | 8 | długość pliku, uint64 |
+   | 72 | 32 | **sha256 konfiguracji biegu**, surowe bajty |
+   | 104 | 24 | rezerwa (zera) |
+
+   **Metadane** — `zlib(JSON UTF-8)`, JSON kanoniczny (`sort_keys`, bez
+   spacji). Niosą **kopię całego manifestu biegu** (`run_manifest`:
+   konfiguracja, `config_hash`, `tensor_sha256`, pochodzenie —
+   wersja Pythona i numpy, model CPU, seed i liczby prób tensora,
+   opis warunku brzegowego, postęp per warstwa), opis kwantyzacji
+   (`format`: wersja, bity, skala, zapisane sloty `[0, 1]`, slot
+   z dopełnienia `2`, metoda `largest-remainder`) oraz `source_sha256`
+   — sumy plików faktycznie spakowanych, policzone przez konwerter
+   i skonfrontowane z manifestem (rozjazd = błąd zapisu, nie cichy
+   artefakt). Czytnik oddaje ten blok jako bajty; parsowanie należy do
+   konsumenta, bo silnik nie importuje `json`.
+
+   **Katalog warstw** — po jednym rekordzie 48 B na warstwę, rosnąco
+   po numerze ręki:
+
+   | ofs | dł | pole |
+   |----:|---:|------|
+   | 0 | 4 | numer ręki, uint32 |
+   | 4 | 4 | liczba stanów warstwy, uint32 |
+   | 8 | 1 | `has_sigma`: 1 = warstwa niesie strategię, 0 = samo V |
+   | 9 | 1 | liczba miejsc, uint8 (3) |
+   | 10 | 6 | rezerwa (zera) |
+   | 16 | 8 | offset tablicy kluczy stanów, uint64 |
+   | 24 | 8 | offset tablicy V, uint64 |
+   | 32 | 8 | offset indeksu bloków, uint64 (0 gdy `has_sigma`=0) |
+   | 40 | 8 | offset obszaru bloków, uint64 (0 gdy `has_sigma`=0) |
+
+   Warunek brzegowy biegu (`boundary.npz`) wchodzi jako warstwa
+   o numerze `n_hands` z `has_sigma`=0 — niesie samo V horyzontu,
+   którego potrzebują AIVAT i trener.
+
+   **Sekcja warstwy** (w tej kolejności): tablica kluczy stanów —
+   `n × 3 × int16` (6 B na stan), posortowana leksykalnie, po niej
+   **tablica V — `n × 3 × float64`** (24 B na stan, pełna precyzja,
+   nieskompresowana, ten sam porządek co klucze; decyzja 26 pkt 2),
+   po niej indeks bloków — `n × 16 B` (offset w pliku uint64, długość
+   po kompresji uint32, długość przed kompresją uint32), po nim same
+   bloki. **Blok stanu** to `zlib` z ładunku: `uint16` maska
+   osiągalności węzłów (bit *i* = węzeł *i* ma w artefakcie rozkład),
+   a dalej — dla każdego ustawionego bitu rosnąco — dwie kolumny po
+   `n_classes` wartości: cały slot 0 (fold), potem cały slot 1
+   (open/call). Kolumnowo, nie przeplotem: sąsiednie klasy jednego
+   slotu są podobne, więc zlib pakuje je ciaśniej. Slot 2 (jam)
+   wynika z dopełnienia do skali.
+
+2. **Kwantyzacja: metoda największych reszt, 2 z 3 akcji.** Rozkład
+   trzech slotów skalowany do sumy `2**bits − 1` (uint8: 255), część
+   całkowita plus reszty rozdane malejąco po części ułamkowej (remis
+   rozstrzyga numer slotu — porządek stabilny, więc wynik nie zależy
+   od implementacji sortowania). Suma jest zachowana **dokładnie**,
+   więc trzeci slot naprawdę wynika z dopełnienia, a błąd pojedynczego
+   prawdopodobieństwa jest **mniejszy niż jeden krok** (uint8:
+   1/255 = 0,00392; zmierzone maksimum na próbce produkcji 0,00241).
+   Akcja o prawdopodobieństwie zero nigdy nie dostaje reszty — w tym
+   artefakcie zero znaczy „akcja poza maską drzewa", a nie „mało
+   prawdopodobna". **KOREKTA JEDNOSTKOWA (2026-08-29) obowiązuje:**
+   0,0039 to błąd w przestrzeni prawdopodobieństw, a **nie** ε (udział
+   puli); koszt kwantyzacji jest zmierzony w ε w punkcie 6, a nie
+   wyprowadzony z tej liczby.
+
+3. **Determinizm zapisu.** Ten sam katalog biegu daje **bajt w bajt
+   ten sam plik** (pod testem na artefakcie kontrolnym z repo): brak
+   znaczników czasu, kanoniczny JSON metadanych, stały poziom `zlib`,
+   stany sortowane leksykalnie przed zapisem, plik powstaje jako
+   `.tmp` obok celu i wchodzi na miejsce przez `os.replace`. Konwerter
+   liczy sha256 każdego pakowanego pliku i odrzuca artefakt, którego
+   manifest o nim kłamie (pod testem: podmieniona warstwa → `ValueError`).
+
+4. **Czytnik: czysty stdlib i jawna nieosiągalność.** `import struct`,
+   `import zlib` — i nic więcej; test architektury trzyma ten zbiór
+   wypisany, pilnuje braku importów `poker.*`, `tools` i modułów I/O,
+   a brak numpy w całym pakiecie pilnuje osobny test od POKER-12.
+   Czytnik przyjmuje otwarty strumień binarny (silnik nie wykonuje
+   I/O — INV-P7), więc otwarcie pliku należy do adaptera albo
+   narzędzia. API: `value` / `seat_value` (V per miejsce i pojedyncza
+   liczba), `state` (blok jednego stanu: maska + rozkłady),
+   `policy` / `policy_table`, `state_key` (wyliczanie siatki),
+   `has_state`, `meta_bytes`. Odczyt spoza artefaktu jest
+   **rozróżnialny**, nie cichy: `LayerNotFound` (ręka spoza warstw),
+   `StateNotFound` (wektor stacków spoza siatki warstwy),
+   `NodeUnreachable` (węzeł spoza maski osiągalności),
+   `PolicyMissing` (warstwa brzegowa niesie samo V) — wszystkie
+   podtypy `LookupError`. Round-trip konwerter→czytnik na artefakcie
+   kontrolnym sprawdza **wszystkie** węzły maski i **wszystkie** klasy:
+   rozkłady wracają w granicach kroku kwantyzacji i sumują się do
+   jedności, a V wraca **bajtowo dokładnie** (float64).
+
+5. **Liczby na artefakcie produkcyjnym (BA, BB).** Bieg
+   `PROD/grid2` (49 765 stanów-warstw + 2 923 stany warunku
+   brzegowego, 169 klas, 22 warstwy) pakuje się w **19 016 752 B
+   (18,1 MiB)** wobec 38 MB warstw `.npz` — zapis trwa 24,1 s.
+   Rozkład bajtów: bloki strategii 16 634 705 B (**334,3 B na stan
+   z polityką**), tablice V 1 264 512 B, indeks bloków 796 240 B,
+   klucze stanów 316 128 B, metadane 3 983 B, nagłówek i katalog
+   1 184 B. Maska osiągalności zarabia na siebie: w warstwach
+   produkcji żywe jest **~39–40% z 14 slotów węzłów** na stan
+   (`layer_10`: 40,25%, `layer_20`: 39,01%), więc 60% komórek nie
+   trafia do pliku w ogóle.
+
+   **Czas odczytu (BB, 2 000 losowań deterministycznych, maszyna
+   obciążona równoległym pomiarem — czyli konserwatywnie):** jeden
+   **stan** (wyszukiwanie binarne + `zlib` bloku + jeden rozkład)
+   **mediana 25,3 µs, p95 42–49 µs**; jedna **wartość V** (`seek` +
+   8 B) **mediana 8,5 µs, p95 ~15 µs**. Dwa przebiegi dały medianę
+   25,3 i 25,4 µs. Liczba jest **raportowana, nie progowana** —
+   próg ustali konsument w POKER-52 (tak stanowi kontrakt), dlatego
+   nie ma dla niej asercji czasu w bramce. Zamiast czasu bramka
+   trzyma niezmiennik deterministyczny i mocniejszy dla twierdzenia
+   „bez ładowania całości": **liczbę bajtów przeczytanych ze
+   strumienia** — na artefakcie kontrolnym odczyt jednego stanu
+   mieści się w 512 B, a jednej wartości V w 96 B (test podstawia
+   strumień liczący).
+
+6. **Koszt kwantyzacji ZMIERZONY W ε — kryterium blokujące.** Mierzy go
+   `expost`, to samo narzędzie i ta sama definicja ε co w POKER-46/50:
+   bieg przepuszczony przez format (`requantize` pakuje artefakt i
+   odczytuje strategie **czytnikiem stdlib**, a nie powtórzeniem
+   kwantyzacji w numpy — mierzymy koszt formatu, nie koszt jego
+   repliki) obok kopii surowej, oba przebiegi na tej samej maszynie
+   i tym samym kodzie. Obie strony mają tę samą tablicę V (format
+   przenosi ją bez straty), więc różnica ε jest czystym przyrostem
+   wartości najlepszej odpowiedzi przeciw skwantowanemu profilowi.
+   Próg kontraktu — przyrost ε maks ≤ **10%** wartości surowej — żyje
+   jako `QUANT_EPS_LIMIT_SHARE` w konwerterze, a nie jako liczba
+   przepisana do skryptu; przekroczenie oznacza kwantyzację uint16
+   i ponowny pomiar (format ma tę ścieżkę w nagłówku i pod testem:
+   błąd spada do ≤ 1/65535), a nie poluzowanie progu.
+
+   **Artefakt kontrolny z repo (w bramce, 190 stanów, 4 klasy):**
+   ε surowe maks 3,8314e−3 → skwantowane **3,6911e−3**, mediana
+   1,3633e−4 → **1,0865e−4**; przyrost **−3,7%** (kwantyzacja tego
+   artefaktu nie kosztuje nic). Liczby mają asercje w
+   `test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym`.
+
+   **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas, ε
+   surowe z POKER-49: maks 4,664e−4, mediana 1,077e−4)** — pomiar
+   komendami BC i BD (skrypt `p49/quant_cost.sh` w scratchpadzie
+   sesji: dwa przebiegi ex-post, ~2 h zegara przy 3 procesach; przy
+   przekroczeniu progu skrypt sam powtarza pomiar na uint16).
+   W chwili tego commita pomiar jest uruchomiony i nierozstrzygnięty;
+   jego wynik wchodzi tutaj osobnym commitem i dopiero on domyka
+   kryterium blokujące kontraktu na pilocie.
+
+7. **Co trzyma bramka (`tests/test_blueprint_pilot.py`,
+   `tests/test_architecture.py`).** Determinizm konwertera bajt
+   w bajt; nagłówek i metadane niosące hash oraz kopię przepisu
+   pochodzenia; odrzucenie artefaktu niezgodnego z manifestem;
+   round-trip rozkładów w granicach kroku kwantyzacji na komplecie
+   węzłów i klas; bajtowa dokładność V (także warstwy brzegowej);
+   jawna nieosiągalność (maska zgodna co do węzła z zerami solvera,
+   cztery rozróżnialne wyjątki); sufity bajtów przeczytanych na jeden
+   stan i jedną wartość V; własności kwantyzacji (suma dokładna, zero
+   zostaje zerem, błąd poniżej kroku, zerowa suma = błąd); ścieżka
+   uint16; koszt kwantyzacji w ε z progiem 10%; ograniczenie importów
+   czytnika i kierunek zależności konwerter → czytnik.
 
 **POKER-50 (bieg produkcyjny blueprintu: siatka 2 żetonów pełnego
 zegara) zamknięty.** Liczby zmierzone na 4 rdzeniach (Intel Xeon

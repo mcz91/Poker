@@ -44,6 +44,13 @@ def _load(name: str) -> Any:
     return module
 
 
+def _import_reader() -> Any:
+    """Czytnik formatu blueprintu jako moduł — jedyny konsument formatu w pakiecie."""
+    from poker import blueprint_reader
+
+    return blueprint_reader
+
+
 def _cls(name: str) -> int:
     """Indeks klasy preflop po nazwie w rodzaju 'AKs', 'QQ', '72o'."""
     symbols = {
@@ -1333,3 +1340,345 @@ def test_raport_icm_struktura(toy_run: dict[str, Any]) -> None:
     state0 = tuple(toy_run["config"].start_stacks)
     icm0 = icm_equities(state0, PRIZES)
     assert abs(sum(icm0) - sum(PRIZES)) < 1e-9
+
+
+# --- POKER-51: format binarny artefaktu i czytnik stdlib ---
+
+# Krok kwantyzacji uint8: jeden poziom skali 255. Metoda największych reszt
+# trzyma sumę dokładnie, więc błąd pojedynczego prawdopodobieństwa jest
+# mniejszy od kroku — to granica round-tripu, nie próg dobrany do wyniku.
+QUANT_STEP_U8 = 1.0 / 255.0
+
+# Koszt kwantyzacji w ε na artefakcie kontrolnym z repo (POKER-51, pomiar
+# w bramce). Kwantyzacja tego artefaktu nie kosztuje — ex-post ε maleje;
+# liczby cytuje blok POKER-51 w docs/CURRENT_STATE.md.
+CONTROL_QUANT_EPS_MAX = 0.003691128770597185
+CONTROL_QUANT_EPS_MEDIAN = 0.00010865383906707993
+CONTROL_QUANT_DELTA_SHARE = -0.0366
+
+# Odczyt jednego stanu i jednej wartości V z artefaktu kontrolnego (190 stanów,
+# 4 klasy, 8 328 B): sufity bajtów przeczytanych ze strumienia. Wyszukiwanie
+# binarne to ceil(log2 n) kluczy po 6 B, blok stanu jest jeden i skompresowany.
+CONTROL_STATE_READ_MAX_BYTES = 512
+CONTROL_VALUE_READ_MAX_BYTES = 96
+
+
+class _CountingStream:
+    """Strumień liczący przeczytane bajty — dowód, że odczyt stanu nie czyta całości."""
+
+    def __init__(self, handle: Any) -> None:
+        self._handle = handle
+        self.read_bytes = 0
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return int(self._handle.seek(offset, whence))
+
+    def read(self, size: int = -1) -> bytes:
+        chunk: bytes = self._handle.read(size)
+        self.read_bytes += len(chunk)
+        return chunk
+
+
+@pytest.fixture(scope="module")
+def control_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    """Bieg solvera na artefakcie kontrolnym z repo — wejście testów formatu.
+
+    Ten sam wycinek produkcyjny co test wznowienia: krok siatki 2, cztery tryby
+    solvera, prawdziwy tensor kontrolny. Format testujemy na artefakcie, który
+    repo umie odtworzyć, a nie na syntetycznej zabawce.
+    """
+    sg = _load("solve_grid")
+    cc = _load("control_chain")
+    out_dir = tmp_path_factory.mktemp("format") / "solve"
+    manifest = sg.solve(cc.control_config(), CONTROL_DIR / "tensor", out_dir)
+    return {"out_dir": out_dir, "manifest": manifest, "sg": sg}
+
+
+def test_konwerter_daje_bajt_w_bajt_ten_sam_plik(control_run: dict[str, Any],
+                                                 tmp_path: Path) -> None:
+    """Ten sam artefakt wejściowy → ten sam plik. Bez znaczników czasu i nazw tymczasowych."""
+    pk = _load("pack_blueprint")
+    first, second = tmp_path / "a.bpk", tmp_path / "b.bpk"
+    summary = pk.pack(control_run["out_dir"], first)
+    pk.pack(control_run["out_dir"], second)
+    assert first.read_bytes() == second.read_bytes()
+    assert summary["bytes"] == first.stat().st_size
+    assert summary["config_hash"] == control_run["manifest"]["config_hash"]
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_naglowek_i_metadane_niosa_hash_oraz_przepis_pochodzenia(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """Nagłówek: magia, wersja, kwantyzacja, hash konfiguracji biegu w surowych bajtach.
+
+    Przepis pochodzenia (kopia manifestu biegu z wersjami, modelem CPU i
+    parametrami tensora) jedzie w bloku metadanych, a sha256 pakowanych plików
+    liczy konwerter — manifest, który skłamał o zawartości, zapala błąd.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    packed = tmp_path / "control.bpk"
+    pk.pack(control_run["out_dir"], packed)
+    head = packed.read_bytes()[: br.HEADER_SIZE]
+    assert head[:8] == br.MAGIC
+    manifest = control_run["manifest"]
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        assert reader.format_version == br.FORMAT_VERSION == 1
+        assert reader.quant_bits == pk.DEFAULT_QUANT_BITS == 8
+        assert reader.config_hash == manifest["config_hash"]
+        assert reader.n_classes == len(manifest["config"]["classes"])
+        assert reader.file_length == packed.stat().st_size
+        meta = json.loads(reader.meta_bytes())
+    provenance = meta["run_manifest"]["provenance"]
+    assert provenance["python"] and provenance["numpy"] and provenance["cpu_model"]
+    assert provenance["tensor"]["master_seed"] == manifest["provenance"]["tensor"]["master_seed"]
+    assert meta["run_manifest"]["tensor_sha256"] == manifest["tensor_sha256"]
+    on_disk = json.loads((control_run["out_dir"] / "solve_manifest.json").read_text())
+    assert meta["run_manifest"] == on_disk
+    for key, entry in manifest["layers"].items():
+        assert meta["source_sha256"][entry["file"]] == entry["sha256"], key
+    assert meta["source_sha256"][manifest["boundary"]["file"]] == manifest["boundary"]["sha256"]
+    assert meta["format"]["stored_slots"] == [0, 1] and meta["format"]["derived_slot"] == 2
+
+
+def test_konwerter_odrzuca_artefakt_niezgodny_z_manifestem(control_run: dict[str, Any],
+                                                           tmp_path: Path) -> None:
+    """Sha256 w manifeście musi opisywać pakowane pliki — inaczej pochodzenie kłamie."""
+    pk = _load("pack_blueprint")
+    sg = control_run["sg"]
+    tampered = tmp_path / "tampered"
+    tampered.mkdir()
+    for path in control_run["out_dir"].iterdir():
+        if path.is_file():
+            (tampered / path.name).write_bytes(path.read_bytes())
+    layers = sg.load_layers(tampered)
+    hand = max(layers)
+    layers[hand]["eps"] = layers[hand]["eps"] + 1.0
+    _load("artifacts").write_npz(tampered / f"layer_{hand:02d}.npz", layers[hand])
+    with pytest.raises(ValueError, match="sha256"):
+        pk.pack(tampered, tmp_path / "tampered.bpk")
+
+
+def test_round_trip_rozkladow_miesci_sie_w_kroku_kwantyzacji(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """Konwerter → czytnik: każdy rozkład wraca w granicach jednego kroku kwantyzacji.
+
+    Sprawdzane są wszystkie węzły maski i wszystkie klasy, a nie próbka: przy
+    czterech klasach artefaktu kontrolnego to pełne pokrycie. Trzeci slot jest
+    dopełnieniem, więc suma wraca dokładnie równa jedności.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = control_run["sg"]
+    packed = tmp_path / "control.bpk"
+    pk.pack(control_run["out_dir"], packed)
+    layers = sg.load_layers(control_run["out_dir"])
+    worst = 0.0
+    checked = 0
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        for hand, layer in sorted(layers.items()):
+            for position, row in enumerate(layer["states"].tolist()):
+                stacks = (int(row[0]), int(row[1]), int(row[2]))
+                block = reader.state(hand, stacks)
+                for node in block.nodes():
+                    for klass in range(reader.n_classes):
+                        got = block.policy(node, klass)
+                        expected = layer["sigma"][position, node, klass]
+                        assert sum(got) == pytest.approx(1.0, abs=1e-12)
+                        assert min(got) >= 0.0
+                        for slot in range(3):
+                            worst = max(worst, abs(got[slot] - float(expected[slot])))
+                        checked += 1
+    assert checked > 0
+    assert worst <= QUANT_STEP_U8
+
+
+def test_v_wraca_z_formatu_bajtowo_dokladnie(control_run: dict[str, Any],
+                                             tmp_path: Path) -> None:
+    """Tablica V jedzie w float64 bez straty — AIVAT i trener dostają pełną precyzję."""
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = control_run["sg"]
+    af = _load("artifacts")
+    packed = tmp_path / "control.bpk"
+    pk.pack(control_run["out_dir"], packed)
+    layers = sg.load_layers(control_run["out_dir"])
+    boundary = af.read_npz(control_run["out_dir"] / "boundary.npz")
+    horizon = max(layers) + 1
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        for hand, arrays in list(layers.items()) + [(horizon, boundary)]:
+            for position, row in enumerate(arrays["states"].tolist()):
+                stacks = (int(row[0]), int(row[1]), int(row[2]))
+                assert reader.value(hand, stacks) == tuple(arrays["v"][position].tolist())
+                for seat in range(3):
+                    assert reader.seat_value(hand, stacks, seat) == arrays["v"][position][seat]
+        assert [info.has_policy for info in reader.layers] == [True] * len(layers) + [False]
+
+
+def test_nieosiagalnosc_jest_jawna_a_nie_cichym_zerem(control_run: dict[str, Any],
+                                                      tmp_path: Path) -> None:
+    """Kontrakt fallbacku agenta (POKER-52): odczyt spoza maski podnosi rozróżnialny błąd.
+
+    Maska osiągalności musi zgadzać się co do węzła z zerami w artefakcie
+    solvera — inaczej czytnik zwracałby rozkład tam, gdzie solver nic nie
+    policzył, albo odmawiał tam, gdzie policzył.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = control_run["sg"]
+    packed = tmp_path / "control.bpk"
+    pk.pack(control_run["out_dir"], packed)
+    layers = sg.load_layers(control_run["out_dir"])
+    hand = max(layers)
+    layer = layers[hand]
+    dead_seen = live_seen = 0
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        for position, row in enumerate(layer["states"].tolist()):
+            stacks = (int(row[0]), int(row[1]), int(row[2]))
+            block = reader.state(hand, stacks)
+            for node in range(reader.n_nodes):
+                alive = bool(layer["sigma"][position, node].sum() > 0.0)
+                assert block.has_node(node) == alive, (stacks, node)
+                if alive:
+                    live_seen += 1
+                    continue
+                dead_seen += 1
+                with pytest.raises(br.NodeUnreachable):
+                    block.policy(node, 0)
+                with pytest.raises(br.NodeUnreachable):
+                    block.policy_table(node)
+        assert dead_seen > 0 and live_seen > 0
+        with pytest.raises(br.StateNotFound):
+            reader.value(hand, (1, 1, 32))
+        with pytest.raises(br.LayerNotFound):
+            reader.value(len(layers) + 5, (12, 10, 12))
+        with pytest.raises(br.PolicyMissing):
+            reader.state(max(layers) + 1, (0, 2, 32))
+        assert not reader.has_state(hand, (1, 1, 32))
+    for error in (br.StateNotFound, br.LayerNotFound, br.NodeUnreachable, br.PolicyMissing):
+        assert issubclass(error, LookupError)
+
+
+def test_odczyt_stanu_nie_czyta_calego_pliku(control_run: dict[str, Any],
+                                             tmp_path: Path) -> None:
+    """Dostęp swobodny: jeden stan i jedna wartość V to kilkaset bajtów, nie cały plik."""
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    packed = tmp_path / "control.bpk"
+    summary = pk.pack(control_run["out_dir"], packed)
+    with packed.open("rb") as handle:
+        counting = _CountingStream(handle)
+        reader = br.BlueprintReader(counting)
+        horizon = max(info.hand for info in reader.layers)
+        target = (0, 2, 32)
+        counting.read_bytes = 0
+        value = reader.seat_value(horizon, target, 0)
+        value_bytes = counting.read_bytes
+        counting.read_bytes = 0
+        block = reader.state(0, tuple(control_run["manifest"]["config"]["start_stacks"]))
+        state_bytes = counting.read_bytes
+    assert isinstance(value, float)
+    assert block.nodes()
+    assert value_bytes <= CONTROL_VALUE_READ_MAX_BYTES
+    assert state_bytes <= CONTROL_STATE_READ_MAX_BYTES
+    assert state_bytes < summary["bytes"] // 4
+
+
+def test_kwantyzacja_zachowuje_sume_i_nie_przenosi_masy_na_akcje_zerowa() -> None:
+    """Największe reszty: suma dokładnie 255, zero zostaje zerem, błąd poniżej kroku.
+
+    Zaokrąglanie slot po slocie potrafi dać sumę 254 albo 256 — wtedy trzeci
+    slot z dopełnienia byłby fałszem. Akcja o prawdopodobieństwie zero nie może
+    dostać reszty, bo w artefakcie oznacza akcję poza maską drzewa.
+    """
+    pk = _load("pack_blueprint")
+    rng = random.Random(51)
+    rows = [
+        (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0),
+        (0.5, 0.5, 0.0), (1 / 3, 1 / 3, 1 / 3), (0.996, 0.004, 0.0),
+    ]
+    rows += [(rng.random(), rng.random(), rng.random()) for _ in range(2000)]
+    normalized = [(row[0] / sum(row), row[1] / sum(row), row[2] / sum(row)) for row in rows]
+    sg = _load("solve_grid")
+    sample = sg.np.asarray(normalized, dtype=sg.np.float32)
+    quantized = pk.quantize_chunk(sample, 255)
+    assert bool((quantized.sum(axis=-1) == 255).all())
+    assert bool((quantized >= 0).all())
+    zeros = sample == 0.0
+    assert bool((quantized[zeros] == 0).all())
+    error = abs(quantized / 255.0 - sample.astype(float))
+    assert float(error.max()) < QUANT_STEP_U8
+    with pytest.raises(ValueError, match="zerową sumę"):
+        pk.quantize_chunk(sg.np.zeros((1, 3), dtype=sg.np.float32), 255)
+
+
+def test_uint16_podnosi_precyzje_dziesieciokrotnie(control_run: dict[str, Any],
+                                                   tmp_path: Path) -> None:
+    """Ścieżka odwrotu kontraktu: gdyby koszt w ε przekroczył próg, precyzja rośnie.
+
+    Ten sam konwerter i ten sam czytnik obsługują 16 bitów — podniesienie
+    precyzji nie wymaga zmiany formatu, tylko flagi w nagłówku.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = control_run["sg"]
+    packed = tmp_path / "control16.bpk"
+    pk.pack(control_run["out_dir"], packed, quant_bits=16)
+    layers = sg.load_layers(control_run["out_dir"])
+    hand = max(layers)
+    layer = layers[hand]
+    worst = 0.0
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        assert reader.quant_bits == 16
+        for position, row in enumerate(layer["states"].tolist()):
+            stacks = (int(row[0]), int(row[1]), int(row[2]))
+            block = reader.state(hand, stacks)
+            assert block.levels == 65535
+            for node in block.nodes():
+                for klass, got in enumerate(block.policy_table(node)):
+                    expected = layer["sigma"][position, node, klass]
+                    assert sum(got) == pytest.approx(1.0, abs=1e-12)
+                    worst = max(worst, max(abs(got[s] - float(expected[s])) for s in range(3)))
+    assert worst <= 1.0 / 65535.0
+    assert worst < QUANT_STEP_U8 / 10.0
+
+
+def test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """KRYTERIUM BLOKUJĄCE POKER-51 na artefakcie z repo: przyrost ε maks ≤ 10% surowego.
+
+    Koszt mierzy TO SAMO narzędzie ex-post na dwóch kopiach biegu: surowej
+    i przepuszczonej przez format czytnikiem stdlib. Nie z błędu
+    prawdopodobieństw — to inna jednostka niż ε (KOREKTA JEDNOSTKOWA,
+    2026-08-29). Pomiar na pilocie żyje poza bramką (blok POKER-51).
+    """
+    pk = _load("pack_blueprint")
+    ep = _load("expost")
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    for path in control_run["out_dir"].iterdir():
+        if path.is_file():
+            (raw_dir / path.name).write_bytes(path.read_bytes())
+    quant_dir = tmp_path / "quant"
+    pk.requantize_run(control_run["out_dir"], quant_dir, tmp_path / "roundtrip.bpk")
+    cost = pk.quantization_cost(ep.run_expost(raw_dir, jobs=1), ep.run_expost(quant_dir, jobs=1))
+    assert pk.QUANT_EPS_LIMIT_SHARE == 0.10
+    assert cost["ok"], cost
+    assert cost["delta_share"] <= pk.QUANT_EPS_LIMIT_SHARE
+    cc = _load("control_chain")
+    expected = json.loads((CONTROL_DIR / "chain_control.json").read_text())["control"]
+    assert cost["raw_epsilon_max"] == pytest.approx(expected["epsilon_max"],
+                                                    abs=cc.CONTROL_ABS_TOL)
+    assert cost["quant_epsilon_max"] == pytest.approx(CONTROL_QUANT_EPS_MAX,
+                                                      abs=cc.CONTROL_ABS_TOL)
+    assert cost["quant_epsilon_median"] == pytest.approx(CONTROL_QUANT_EPS_MEDIAN,
+                                                         abs=cc.CONTROL_ABS_TOL)
+    assert cost["delta_share"] == pytest.approx(CONTROL_QUANT_DELTA_SHARE, abs=0.01)
