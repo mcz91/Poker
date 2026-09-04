@@ -115,12 +115,21 @@ NODES_HU: dict[Key2, int] = {
 }
 
 # Kolejność areny po ponownym otwarciu licytacji rozjeżdża się z modelem
-# treningu (i z regułą „akcja idzie od agresora"): gdy T jamuje na open UTG,
-# `to_act` pyta najpierw UTG, a dopiero potem BB — trening pyta BB (węzeł 8),
-# a UTG dopiero po nim (węzły 9 i 10). Ten jeden infoset areny nie ma
-# odpowiednika w artefakcie. Agent czyta gałąź, w której pula zgadza się ze
-# stanem areny w chwili decyzji (BB jeszcze nic nie dołożył = węzeł 9),
-# i liczy każde takie wejście osobno — patrz OBJECTION w raporcie POKER-52.
+# treningu i z regułą „akcja idzie od agresora" (decyzja 28 pkt 2a, naprawa
+# rozgrywacza w POKER-54). Rozjazd ma DWIE twarze i obie mają osobny licznik:
+#
+# * ORDER_SWAP — gdy T jamuje na open UTG, `to_act` pyta najpierw UTG, choć
+#   trening pyta najpierw BB (węzeł 8). Ten infoset areny nie ma odpowiednika
+#   w artefakcie; agent czyta gałąź, w której BB jeszcze nic nie dołożył
+#   (węzeł 9), bo tam pula modelu zgadza się z pulą areny w chwili decyzji.
+# * ORDER_COLLAPSE — BB pytany PO odpowiedzi UTG na ten sam 3bet. Klucz węzła
+#   opisują pierwsze akcje ról, więc druga akcja UTG do niego nie wchodzi:
+#   dwa różne infosety areny (UTG spasował / UTG sprawdził) czytają ten sam
+#   węzeł 8, a jego pula modelowa jest inna niż pula areny. Wykrywa to
+#   niezużyta historia ręki — akcja, której ścieżka drzewa nie konsumuje.
+ORDER_SWAP = "order_swap"
+ORDER_COLLAPSE = "order_collapse"
+
 NODES_3MAX_OUT_OF_ORDER: dict[Key3, int] = {
     (0, "open", "jam", None): N_U_VS_T_3BET_B_FOLD,
 }
@@ -222,48 +231,65 @@ def taken_actions(view: SeatView, order: tuple[int, ...]) -> tuple[str | None, .
     all-in z samego blinda nie ma wpisu w historii, bo rozgrywacz go nie pyta:
     trening wymusza mu wejście maską akcji, więc jego kolejka liczy się jako
     wejście (`jam`). Wymuszenie dolicza się wyłącznie rolom, których kolejka
-    już minęła — przed pierwszą akcją decydenta późniejsze role jeszcze nie
-    grały, choćby były all-in z blinda.
+    już minęła: przed pierwszą akcją decydenta późniejsze role jeszcze nie
+    grały, a przy DRUGIEJ akcji decydenta wymuszenia nie ma w ogóle — druga
+    akcja istnieje tylko po otwarciu, otwarcie tylko poza trybem jam/fold,
+    a tam każdy żywy stack przekracza 7 bb, więc nikt nie jest all-in z blinda
+    (oba warunki pod testem właściwościowym w bramce).
     """
     first: dict[int, str] = {}
     for seat, action in view.actions:
         first.setdefault(seat, action)
     actor = order.index(view.seat)
-    again = view.seat in first
     out: list[str | None] = []
     for index, seat in enumerate(order):
         if seat in first:
             out.append(first[seat])
-        elif (again or index < actor) and view.contrib[seat] >= view.stacks[seat]:
+        elif index < actor and view.contrib[seat] >= view.stacks[seat]:
             out.append("jam")
         else:
             out.append(None)
     return tuple(out)
 
 
-def node_slot(view: SeatView) -> tuple[int, bool]:
-    """(slot węzła artefaktu, czy infoset areny ma odpowiednik w treningu).
+def stale_history(view: SeatView) -> bool:
+    """Czy w historii ręki jest akcja, której klucz węzła nie konsumuje.
 
-    Druga wartość jest fałszywa wyłącznie dla infosetu, w którym kolejność
-    licytacji areny rozjeżdża się z modelem treningu (`NODES_3MAX_OUT_OF_ORDER`).
+    Klucz opisują PIERWSZE akcje ról, bo w modelu treningu druga akcja roli
+    jest terminalna. W arenie tak nie jest: po jamie BTN na open UTG odpowiada
+    najpierw UTG, a dopiero potem BB — i wtedy druga akcja UTG zostaje poza
+    kluczem, choć w arenie już padła.
+    """
+    seats = [seat for seat, _ in view.actions]
+    return len(seats) > len(set(seats))
+
+
+def node_slot(view: SeatView) -> tuple[int, str | None]:
+    """(slot węzła artefaktu, przyczyna rozjazdu albo `None` przy zgodności).
+
+    Przyczyna jest jedną z `ORDER_SWAP` / `ORDER_COLLAPSE` — obie opisują tę
+    samą usterkę kolejności licytacji areny (decyzja 28 pkt 2a), ale są
+    rozłączne: pierwsza pyta wcześniej niż model, druga czyta węzeł modelu
+    po odpowiedzi, której ten węzeł nie zna.
     """
     order = role_seats(view)
     actor = order.index(view.seat)
     taken = taken_actions(view, order)
+    collapse = ORDER_COLLAPSE if stale_history(view) else None
     if len(order) == 2:
         key2: Key2 = (actor, taken[0], taken[1])
         node = NODES_HU.get(key2)
         if node is None:
             raise ValueError(f"kontekst HU bez slotu w modelu treningu: {key2}")
-        return node, True
+        return node, collapse
     key3: Key3 = (actor, taken[0], taken[1], taken[2])
     node = NODES_3MAX.get(key3)
     if node is not None:
-        return node, True
+        return node, collapse
     node = NODES_3MAX_OUT_OF_ORDER.get(key3)
     if node is None:
         raise ValueError(f"kontekst licytacji bez slotu w modelu treningu: {key3}")
-    return node, False
+    return node, ORDER_SWAP
 
 
 class NoLegalMass(BlueprintLookupError):
@@ -319,6 +345,7 @@ class BlueprintAgent:
         self.mode_flip_misses = 0
         self.mode_mismatches = 0
         self.out_of_order = 0
+        self.order_collapse = 0
 
     def counters(self) -> dict[str, int]:
         return {
@@ -334,6 +361,7 @@ class BlueprintAgent:
             "mode_flip_misses": self.mode_flip_misses,
             "mode_mismatches": self.mode_mismatches,
             "out_of_order": self.out_of_order,
+            "order_collapse": self.order_collapse,
         }
 
     def act(self, view: SeatView, rng: random.Random) -> str:
@@ -413,9 +441,11 @@ class BlueprintAgent:
         próg jam/fold, artefakt może oferować open tam, gdzie arena go nie ma —
         to jest liczone (`mode_mismatches`), a nie przemilczane.
         """
-        node, in_model = node_slot(view)
-        if not in_model:
+        node, divergence = node_slot(view)
+        if divergence == ORDER_SWAP:
             self.out_of_order += 1
+        elif divergence == ORDER_COLLAPSE:
+            self.order_collapse += 1
         # Kolejność ma znaczenie diagnostyczne: najpierw stan i węzeł (tam żyje
         # odwzorowanie), dopiero potem klasa (tam żyje zakres biegu artefaktu).
         block = self.state_block(view)

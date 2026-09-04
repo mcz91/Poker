@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,8 @@ from poker.blueprint_agent import (
     NODES_3MAX,
     NODES_3MAX_OUT_OF_ORDER,
     NODES_HU,
+    ORDER_COLLAPSE,
+    ORDER_SWAP,
     SLOT_FOLD,
     SLOT_JAM,
     SLOT_MID,
@@ -31,11 +34,14 @@ from poker.blueprint_agent import (
     node_slot,
     quantize_stacks,
     role_seats,
+    sample,
+    stale_history,
     state_keys,
 )
-from poker.blueprint_reader import BlueprintReader
-from poker.spin import LEVELS, PAYOUTS, blinds_for_hand, roles
+from poker.blueprint_reader import BlueprintReader, StateBlock
+from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, blinds_for_hand, roles
 from poker.spin_arena import (
+    HAND_GUARD,
     SeatBook,
     SeatView,
     always_jam,
@@ -45,6 +51,7 @@ from poker.spin_arena import (
     pick,
     play_block,
     run_spin,
+    wide_call,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -192,14 +199,20 @@ def test_port_agenta_nie_zmienia_przebiegu_reki() -> None:
 
     To jest granica portu: nowe źródło decyzji, nie nowy przebieg ręki
     (decyzja 27). Test łapie każdą zmianę kolejności poborów z rng i kart.
+
+    Książka MIESZANA jest tu konieczna, nie ozdobna: przy częstotliwościach 0/1
+    wartość poboru nie zmienia decyzji, więc dodatkowy pobór przechodzi
+    niezauważony (PUŁAPKA z audytu POKER-52 — na `wide_call(0.45)` ta sama
+    mutacja zmienia 8 z 30 turniejów).
     """
-    book, villain = field_exploit(), dollar_fish()
-    for seed in range(30):
-        spy = Spy(book)
-        plain, plain_decks = _run_seen((book, villain, villain), seed)
-        ported, ported_decks = _run_seen((spy, villain, villain), seed)
-        assert plain == ported, seed
-        assert plain_decks == ported_decks, seed
+    for book in (field_exploit(), wide_call(0.45)):
+        for villain in (dollar_fish(), wide_call(0.45)):
+            for seed in range(30):
+                spy = Spy(book)
+                plain, plain_decks = _run_seen((book, villain, villain), seed)
+                ported, ported_decks = _run_seen((spy, villain, villain), seed)
+                assert plain == ported, (seed, book is villain)
+                assert plain_decks == ported_decks, seed
 
 
 def test_kwantyzacja_stackow_jest_kopia_reguly_treningu() -> None:
@@ -357,6 +370,14 @@ def _tree_node(problem: Any, view: SeatView, order: tuple[int, ...]) -> tuple[in
         if not queue:
             allowed = problem.allowed[node_id]
             if order[actor] == view.seat or len(allowed) != 1:
+                # Spacer musi ZUŻYĆ całą historię areny: akcja zapisana w ręce,
+                # a nieskonsumowana przez ścieżkę drzewa, znaczy, że model tej
+                # odpowiedzi nie widzi (dwa infosety areny kolapsują do jednego
+                # węzła artefaktu) — to jest rozjazd, nie zgodność.
+                assert not any(queues.values()), (
+                    f"spacer stanął w węźle {node_id} z niezużytą historią "
+                    f"{queues} — model nie widzi tej odpowiedzi"
+                )
                 return int(node_id), order[actor]
             slot = allowed[0]  # wejście wymuszone maską: arena tego miejsca nie pyta
         else:
@@ -378,21 +399,25 @@ def _tensors(config: Any) -> Any:
 def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
     """Każdy kontekst licytacji areny trafia w węzeł, który trening naprawdę ma.
 
-    Wyjątki są dwa i oba są rozjazdem areny z modelem, nie luzem odwzorowania:
-    (1) kolejność po ponownym otwarciu licytacji — arena pyta UTG przed BB
-    (`NODES_3MAX_OUT_OF_ORDER`); (2) arena pyta o akcję, którą trening wymusza
-    maską (call za darmo), więc gałąź nie istnieje w drzewie. Test przybija, że
-    NIE MA rozjazdów innego rodzaju, i że oba te rodzaje naprawdę występują.
+    Wyjątki są trzy i każdy jest rozjazdem areny z modelem, nie luzem
+    odwzorowania: (1) kolejność po ponownym otwarciu — arena pyta UTG przed BB
+    (`ORDER_SWAP`); (2) ta sama usterka widziana od strony BB — pytany PO
+    odpowiedzi UTG, czyta węzeł modelu, który tej odpowiedzi nie zna
+    (`ORDER_COLLAPSE`, wykrywany niezużytą historią w spacerze); (3) arena pyta
+    o akcję, którą trening wymusza maską (call za darmo), więc gałąź nie
+    istnieje w drzewie. Test przybija, że NIE MA rozjazdów innego rodzaju
+    i że wszystkie trzy naprawdę występują.
     """
     config = _mini_config()
     views = _spy_views(range(40), (dollar_fish(), always_jam()))
     assert len(views) > 500
     seen_nodes: set[int] = set()
     out_of_order = 0
+    collapsed = 0
     forced_by_mask = 0
     cache: dict[tuple[Any, int], Any] = {}
     for view in views:
-        node, in_model = node_slot(view)
+        node, divergence = node_slot(view)
         seen_nodes.add(node)
         key = state_keys(view, 1)[0]  # krok 1 = brak kwantyzacji: dokładne stacki areny
         cache_key = (key, view.hand)
@@ -400,9 +425,17 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
             cache[cache_key] = _stage_problem(config, key, view.hand)
         problem = cache[cache_key]
         order = role_seats(view)
-        if not in_model:
+        if divergence == ORDER_SWAP:
             out_of_order += 1
+            # Model pyta w tym miejscu kogo innego — i to jest cały rozjazd.
             assert _tree_node(problem, view, order)[1] != view.seat, view
+            continue
+        if divergence == ORDER_COLLAPSE:
+            collapsed += 1
+            # Spacer zużywający całą historię musi tu paść: model nie zna
+            # odpowiedzi, która w arenie już padła.
+            with pytest.raises(AssertionError, match="niezużytą historią"):
+                _tree_node(problem, view, order)
             continue
         assert _tree_node(problem, view, order) == (node, view.seat), view
         if node in problem.nodes:
@@ -411,6 +444,7 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
         assert slot not in problem.allowed[parent], (view, node)
         forced_by_mask += 1
     assert out_of_order > 0, "kolejność licytacji areny nie rozjechała się ani razu"
+    assert collapsed > 0, "żaden infoset areny nie skolapsował do węzła modelu"
     assert forced_by_mask > 0, "arena nie zapytała o żadną akcję wymuszoną w treningu"
     assert seen_nodes >= {0, 1, 2, 4, 5, 8, 11, 12, 13}, seen_nodes
 
@@ -542,7 +576,7 @@ def test_decyzje_sa_deterministyczne_miedzy_procesami(mini_artifact: Path) -> No
     script = (
         "import json,sys\n"
         "from poker.blueprint_agent import BlueprintAgent\n"
-        "from poker.blueprint_reader import BlueprintReader\n"
+        "from poker.blueprint_reader import BlueprintReader, StateBlock\n"
         "from poker.spin import PAYOUTS\n"
         "from poker.spin_arena import dollar_fish, field_exploit, play_block\n"
         "stream = open(sys.argv[1], 'rb')\n"
@@ -672,3 +706,298 @@ def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path)
     assert agent.mode_flipped(deep) is True
     even = _view(hand=13, seat=2, button=2, stacks=(80, 0, 70), bb=10, jamfold=True)
     assert agent.mode_flipped(even) is False
+
+
+def test_liczniki_rozjazdu_kolejnosci_rosna_kazdy_na_swoim_przypadku() -> None:
+    """Dwie twarze usterki kolejności mają dwa rozłączne liczniki.
+
+    Bez tego testu mutacja „licz kolaps jako swap" przechodzi bramkę, a raport
+    pomiaru pokazuje jedną liczbę zamiast dwóch przyczyn (audyt POKER-52, F1).
+    """
+    swap = _view(
+        hand=6,
+        seat=0,
+        button=1,
+        stacks=(50, 50, 50),
+        contrib=(13, 3, 6),
+        actions=((0, "open"), (1, "jam")),
+        bb=6,
+        klass=0,
+    )
+    node, divergence = node_slot(swap)
+    assert (node, divergence) == (9, ORDER_SWAP)
+    assert stale_history(swap) is False
+
+    collapse = _view(
+        hand=6,
+        seat=2,
+        button=1,
+        stacks=(50, 50, 50),
+        contrib=(13, 50, 6),
+        actions=((0, "open"), (1, "jam"), (0, "fold")),
+        bb=6,
+        klass=0,
+        jammed=True,
+    )
+    assert stale_history(collapse) is True
+    assert node_slot(collapse) == (8, ORDER_COLLAPSE)
+    # Ten sam węzeł 8 czyta też infoset BEZ odpowiedzi UTG — to jest kolaps.
+    fresh = replace(collapse, actions=((0, "open"), (1, "jam")))
+    assert node_slot(fresh) == (8, None)
+
+
+def test_liczniki_rozjazdu_kolejnosci_sa_rozlaczne_w_agencie(mini_artifact: Path) -> None:
+    """Agent zlicza swap i kolaps osobno — każdy licznik rośnie tylko na swoim."""
+    import random
+
+    agent = _agent(mini_artifact)
+    rng = random.Random(0)
+    swap = _view(
+        hand=6, seat=0, button=1, stacks=(50, 50, 50), contrib=(13, 3, 6),
+        actions=((0, "open"), (1, "jam")), bb=6, klass=0, jammed=True,
+    )
+    agent.act(swap, rng)
+    assert (agent.out_of_order, agent.order_collapse) == (1, 0)
+    collapse = replace(swap, seat=2, actions=((0, "open"), (1, "jam"), (0, "fold")))
+    agent.act(collapse, rng)
+    assert (agent.out_of_order, agent.order_collapse) == (1, 1)
+
+
+def test_licznik_pudel_w_warstwie_pelnej_rosnie_przy_zlym_kroku_siatki(
+    mini_artifact: Path,
+) -> None:
+    """Kryterium aneksu: `full_layer_state_misses` = 0 znaczy coś tylko wtedy,
+    gdy licznik potrafi rosnąć. Agent z krokiem siatki innym niż krok artefaktu
+    pyta o stany, których warstwa pełna nie ma — i to jest właśnie błąd
+    odwzorowania, przed którym kryterium chroni."""
+    import random
+
+    stream = mini_artifact.open("rb")
+    reader = BlueprintReader(stream)
+    classes = json.loads(reader.meta_bytes())["run_manifest"]["config"]["classes"]
+    agent = BlueprintAgent(reader, grid_step=2, classes=classes)
+    rng = random.Random(0)
+    agent.act(_view(hand=8, stacks=(48, 52, 50), bb=6, klass=classes[0]), rng)
+    counters = agent.counters()
+    assert counters["state_misses"] == 1
+    assert counters["full_layer_state_misses"] == 1, counters
+    assert agent.layer_is_full(8) is True
+
+
+def test_licznik_przeskoku_trybu_rosnie_gdy_artefakt_oferuje_open(
+    mini_artifact: Path,
+) -> None:
+    """Kryterium aneksu: `mode_mismatches` = 0 z pomiaru wymaga licznika, który
+    umie rosnąć. Przy kroku siatki 50 stan (30, 60, 60) kwantyzuje się do
+    50/50/50: arena przy bb = 6 jest jam/fold (5 bb), a stan artefaktu głęboki
+    (8,33 bb), więc rozkład niesie open, którego arena nie ma."""
+    import random
+
+    agent = _agent(mini_artifact)
+    view = _view(
+        hand=6,
+        seat=0,
+        button=1,
+        stacks=(30, 60, 60),
+        contrib=(0, 3, 6),
+        bb=6,
+        klass=next(iter(agent.column)),
+        jamfold=True,
+    )
+    assert state_keys(view, agent.grid_step)[0] == (50, 50, 50)
+    action = agent.act(view, random.Random(3))
+    assert action in legal_actions(view)
+    assert agent.counters()["mode_mismatches"] == 1, agent.counters()
+    assert agent.counters()["from_artifact"] == 1
+
+
+def test_licznik_rozkladu_bez_legalnej_masy_rosnie(mini_artifact: Path) -> None:
+    """Kryterium aneksu: `mass_misses` = 0 z pomiaru wymaga żywego licznika.
+
+    Artefakt bramki nie ma stanu o rozkładzie „100% open" (sprawdzone), więc
+    blok stanu jest tu zbudowany wprost — to jest dana formatu, nie podmieniona
+    logika agenta: bajty bloku idą przez tę samą dekwantyzację co z pliku.
+    """
+    import random
+
+    agent = _agent(mini_artifact)
+    klass = next(iter(agent.column))
+    width = agent.reader.n_classes
+    payload = bytes(width) + bytes([255] * width)  # slot fold = 0, slot open = pełny
+    block = StateBlock(
+        hand=6,
+        stacks=(50, 50, 50),
+        node_mask=1,  # wyłącznie korzeń UTG
+        n_classes=width,
+        quant_bits=8,
+        payload=payload,
+    )
+    assert block.policy(0, agent.column[klass]) == (0.0, 1.0, 0.0)
+    agent.state_block = lambda view: block  # type: ignore[method-assign]
+    view = _view(hand=6, seat=0, button=1, bb=6, klass=klass, jamfold=True)
+    assert agent.act(view, random.Random(0)) == "fold"
+    counters = agent.counters()
+    assert counters["mass_misses"] == 1, counters
+    assert counters["grid_fallbacks"] == 1
+    assert counters["mode_mismatches"] == 1  # open poza drzewem areny — też liczony
+
+
+def test_klasa_z_artefaktu_nie_zapala_licznika_klas(mini_artifact: Path) -> None:
+    """Kryterium aneksu: `class_misses` = 0 dla klas, które bieg policzył."""
+    import random
+
+    agent = _agent(mini_artifact)
+    rng = random.Random(0)
+    for klass in agent.column:
+        agent.act(_view(hand=6, stacks=(50, 50, 50), bb=6, klass=klass), rng)
+    counters = agent.counters()
+    assert counters["from_artifact"] == len(agent.column) == 4
+    assert counters["class_misses"] == 0, counters
+    agent.act(_view(hand=6, stacks=(50, 50, 50), bb=6, klass=168), rng)
+    assert agent.counters()["class_misses"] == 1
+
+
+def test_drugie_wejscie_roli_wyklucza_wejscie_wymuszone() -> None:
+    """Dlaczego wymuszenie dolicza się tylko rolom PRZED decydentem (F5 audytu).
+
+    Druga akcja roli istnieje wyłącznie po otwarciu, otwarcie wyłącznie poza
+    trybem jam/fold, a poza nim najkrótszy żywy stack przekracza 7 bb — więc
+    żadne miejsce nie jest all-in z samego blinda i nie ma czego doliczać po
+    decydencie. Test trzyma oba ogniwa na widokach z prawdziwych turniejów
+    (bez nich gałąź `again` byłaby martwym kodem bez wyjaśnienia).
+    """
+    views = _spy_views(range(40), (dollar_fish(), always_jam()))
+    second_actions = 0
+    forced_before = 0
+    for view in views:
+        first: dict[int, str] = {}
+        for seat, action in view.actions:
+            first.setdefault(seat, action)
+        order = role_seats(view)
+        actor = order.index(view.seat)
+        pending = [
+            (index, seat)
+            for index, seat in enumerate(order)
+            if seat not in first and view.contrib[seat] >= view.stacks[seat]
+        ]
+        if view.seat in first:
+            second_actions += 1
+            assert not view.jamfold, view  # druga akcja tylko po otwarciu
+            assert not pending, view  # a wtedy nikt nie jest all-in z blinda
+        for index, _ in pending:
+            # Wejście wymuszone zdarza się wyłącznie w trybie jam/fold; role
+            # PO decydencie po prostu jeszcze nie grały i nic im nie liczymy.
+            assert view.jamfold, view
+            if index < actor:
+                forced_before += 1
+    assert second_actions > 0, "próbka bez drugich akcji nie sprawdza niczego"
+    assert forced_before > 0, "próbka bez wejść wymuszonych nie sprawdza niczego"
+
+
+def test_losowanie_normalizuje_rozklad_przycietych_akcji() -> None:
+    """`sample` losuje z masy PO przycięciu, więc waży ją sumą, nie jedynką.
+
+    Bez normalizacji rozkład bez „open" (arena w jam/fold) folduje tym
+    częściej, im więcej masy artefakt trzymał na otwarciu — a to jest cicha
+    zmiana strategii, nie szczegół implementacji.
+    """
+    import random
+
+    mass = {"fold": 0.2, "jam": 0.2}
+    draws = [sample(mass, random.Random(seed)) for seed in range(400)]
+    jams = draws.count("jam")
+    assert 150 < jams < 250, jams  # bez normalizacji byłoby ~80 (0,2 z 1,0)
+    assert all(action in mass for action in draws)
+    assert sample({"jam": 0.4}, random.Random(0)) == "jam"
+
+
+def test_widok_niesie_zegar_rotacje_i_wklady_areny() -> None:
+    """Pola `SeatView` opisują TEN stan areny, nie sąsiedni (F7 audytu).
+
+    `bb` zasila próg jam/fold agenta, `hand` warstwę, `button` role — pomyłka
+    w którymkolwiek przesuwa odczyt artefaktu po cichu, bo każdy z tych stanów
+    w artefakcie istnieje. Test porównuje widoki z zegarem i rotacją areny.
+    """
+    seen: list[tuple[int, SeatView]] = []
+
+    class Watcher(Spy):
+        def act(self, view: SeatView, rng: Any) -> str:
+            seen.append((view.hand, view))
+            return super().act(view, rng)
+
+    for seed in range(25):
+        watcher = Watcher(field_exploit())
+        run_spin((watcher, dollar_fish(), wide_call(0.45)), seed)
+    assert len({view.hand for _, view in seen}) > 3
+    assert len(seen) > 100
+    for hand, view in seen:
+        sb, bb, _ = blinds_for_hand(hand)
+        assert view.bb == bb, view
+        assert view.hand == hand
+        assert view.stacks[view.button] > 0, view
+        assert sum(view.stacks) == 3 * STARTING_CHIPS
+        assert view.hand < HAND_GUARD
+        live = [seat for seat in range(3) if view.stacks[seat] > 0]
+        if len(live) == 3:
+            utg, button, big = role_seats(view)
+            assert {utg, button, big} == {0, 1, 2}
+            acted = {seat for seat, _ in view.actions}
+            # Guzik płaci SB, lewy sąsiad BB — dopóki nie zagrali, wkład widoku
+            # to dokładnie ich blind (potem rośnie o open albo all-in).
+            if button not in acted:
+                assert view.contrib[button] == min(sb, view.stacks[button]), view
+            if big not in acted:
+                assert view.contrib[big] == min(bb, view.stacks[big]), view
+            if utg not in acted:
+                assert view.contrib[utg] == 0, view
+
+
+def test_agent_bierze_dokladnie_jeden_pobor_rng_na_decyzje(mini_artifact: Path) -> None:
+    """Strumień losowań ręki ma być taki sam jak przy `SeatBook` na tym miejscu.
+
+    `pick` bierze jeden pobór w każdej gałęzi; agent musi brać tyle samo —
+    inaczej podmiana książki na agenta przesuwa decyzje PRZECIWNIKÓW w tej
+    samej ręce i porównania na wspólnych seedach przestają być porównaniami.
+    Test liczy pobory na wszystkich ścieżkach: z artefaktu i na każdym
+    fallbacku (horyzont, stan, węzeł, klasa).
+    """
+    import random
+
+    class Counting(random.Random):
+        draws = 0
+
+        def random(self) -> float:
+            type(self).draws += 1
+            return super().random()
+
+    agent = _agent(mini_artifact)
+    rng = Counting(5)
+    views = [
+        _view(hand=6, stacks=(50, 50, 50), bb=6, klass=next(iter(agent.column))),
+        _view(hand=30, bb=20, jammed=True),  # poza horyzontem warstw
+        _view(hand=0, stacks=(0, 50, 100), seat=1, button=1, bb=2),  # stan spoza warstwy
+        _view(hand=6, stacks=(50, 50, 50), bb=6, klass=168),  # klasa spoza artefaktu
+    ]
+    for view in views:
+        agent.act(view, rng)
+    counters = agent.counters()
+    assert counters["decisions"] == len(views) == Counting.draws
+    assert counters["from_artifact"] == 1
+    assert counters["horizon_fallbacks"] == 1
+    assert counters["state_misses"] == 1
+    assert counters["class_misses"] == 1
+
+
+def test_wyplata_nie_wchodzi_do_decyzji_tylko_do_punktacji(mini_artifact: Path) -> None:
+    """Ten sam bieg pod 3x i 10x daje identyczne liczniki — nagrody widzi
+    dopiero punktacja bloku, nie agent i nie książki. Na tym stoi zdanie
+    dokumentu „liczniki BG są identyczne co do sztuki z BF"."""
+    counters = []
+    for pay in ("3x", "10x"):
+        agent = _agent(mini_artifact)
+        for villain in (field_exploit(), dollar_fish()):
+            for seed in range(8):
+                play_block(agent, villain, PAYOUTS[pay].prizes, 40 + seed)
+        counters.append(agent.counters())
+    assert counters[0] == counters[1], counters
+    assert counters[0]["decisions"] > 100
