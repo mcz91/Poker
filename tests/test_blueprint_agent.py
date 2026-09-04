@@ -120,6 +120,7 @@ def _view(**changed: Any) -> SeatView:
         "stacks": (50, 50, 50),
         "contrib": (0, 1, 2),
         "actions": (),
+        "bb": 2,
         "klass": 0,
         "jamfold": False,
         "opened": False,
@@ -485,6 +486,7 @@ def test_liczniki_fallbacku_sa_rozlaczne_i_policzalne(mini_artifact: Path) -> No
         stacks=(50, 50, 50),
         contrib=(4, 10, 20),
         actions=((0, "fold"), (1, "open")),
+        bb=20,
         opened=True,
         jamfold=True,
     )
@@ -493,6 +495,9 @@ def test_liczniki_fallbacku_sa_rozlaczne_i_policzalne(mini_artifact: Path) -> No
     assert agent.counters()["node_misses"] == 1
     assert agent.counters()["grid_fallbacks"] == 2
 
+    # Warstwa 20 jest pełna, a mimo to pudło było w węźle, nie w stanie:
+    # licznik stanu w warstwie pełnej zostaje zerem.
+    assert agent.counters()["full_layer_state_misses"] == 0
     assert agent.act(_view(hand=1, klass=168), rng) == "fold"
     assert agent.counters()["class_misses"] == 1
     assert agent.counters()["grid_fallbacks"] == 2
@@ -602,3 +607,68 @@ def test_cli_rejestruje_agenta_blueprintu(mini_artifact: Path) -> None:
         payload[name]["fallbacks"]["decisions"]
         for name in ("blueprint_vs_field", "blueprint_vs_dollar", "blueprint_vs_always_jam")
     )
+
+
+def test_cli_mierzy_koszt_reguly_fallbacku(mini_artifact: Path) -> None:
+    """Ile ROI robi sama reguła fallbacku: różnica sparowana wobec „zawsze pasuj"."""
+    out = subprocess.run(
+        [sys.executable, str(REPO / "tools" / "run_arena.py"),
+         "fallback", str(mini_artifact), "4", "3x"],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=REPO,
+    ).stdout
+    payload = json.loads(out)
+    assert payload["n_blocks"] == 4
+    for name in ("vs_field", "vs_dollar", "vs_always_jam"):
+        entry = payload[name]
+        assert entry["ci_lo"] <= entry["diff"] <= entry["ci_hi"]
+        assert entry["diff"] == pytest.approx(entry["roi_a"] - entry["roi_b"], abs=1e-9)
+    assert payload["fallbacks_total"]["decisions"] > 0
+
+
+def test_stan_spoza_warstwy_zdarza_sie_tylko_w_warstwie_przycietej(
+    mini_artifact: Path,
+) -> None:
+    """Doostrzone kryterium POKER-52: pudło stanu w warstwie PEŁNEJ = błąd odwzorowania.
+
+    Bieg tnie wczesne warstwy osiągalnością (blok POKER-50), więc stan spoza
+    warstwy przyciętej jest granicą artefaktu — arena idzie łańcuchem dokładnym,
+    trening szedł skwantowanym. W warstwie niosącej pełną siatkę takiego pudła
+    być nie może i ten licznik ma zostać zerem przez cały pomiar.
+    """
+    agent = _agent(mini_artifact)
+    prizes = PAYOUTS["3x"].prizes
+    for villain in (field_exploit(), dollar_fish(), always_jam()):
+        for seed in range(25):
+            play_block(agent, villain, prizes, 300 + seed)
+    counters = agent.counters()
+    assert counters["decisions"] > 500
+    # Odczytów stanu było tyle, ile decyzji poza horyzontem — zero pudeł
+    # w warstwie pełnej jest więc twierdzeniem o czymś, a nie o pustce.
+    reads = counters["from_artifact"] + counters["class_misses"] + counters["node_misses"]
+    assert reads > 1000, counters
+    assert counters["state_misses"] == 0, counters
+    assert counters["full_layer_state_misses"] == 0, counters
+    assert agent.layer_is_full(0) is False  # warstwa startowa: jeden stan
+    assert agent.layer_is_full(20) is True
+
+
+def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path) -> None:
+    """Kwantyzacja potrafi przerzucić stan przez próg jam/fold — i to jest widziane.
+
+    Predykat liczy się z widoku i kroku siatki, więc testuje się go krokiem
+    produkcyjnym (2) na czytniku mini-artefaktu: 71 żetonów przy bb = 10 to
+    7,1 bb (drzewo głębokie), a stan siatki obok ma 70 żetonów, czyli 7,0 bb —
+    jam/fold. Krok 50 mini-artefaktu nie ma takiej pary.
+    """
+    stream = mini_artifact.open("rb")
+    reader = BlueprintReader(stream)
+    classes = json.loads(reader.meta_bytes())["run_manifest"]["config"]["classes"]
+    agent = BlueprintAgent(reader, grid_step=2, classes=classes)
+    deep = _view(hand=13, seat=2, button=2, stacks=(79, 0, 71), bb=10, jamfold=False)
+    assert state_keys(deep, 2)[0] == (80, 0, 70)
+    assert agent.mode_flipped(deep) is True
+    even = _view(hand=13, seat=2, button=2, stacks=(80, 0, 70), bb=10, jamfold=True)
+    assert agent.mode_flipped(even) is False

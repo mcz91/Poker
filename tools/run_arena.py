@@ -5,6 +5,10 @@ Tryby:
 - `python tools/run_arena.py blueprint ARTEFAKT.bpk [N_BLOKOW] [pay]` — agent
   grający z artefaktu blueprintu przeciw field_exploit, dollar_fish
   i always_jam; obok ROI z CI wychodzą liczniki fallbacków agenta;
+- `python tools/run_arena.py fallback ARTEFAKT.bpk [N_BLOKOW] [pay]` — ile
+  z tego ROI robi sama reguła fallbacku: różnica sparowana między agentem
+  grającym check-call → fold poza artefaktem a tym samym agentem pasującym
+  w każdym takim miejscu (wspólne seedy bloków);
 - `python tools/run_arena.py sd [N_BLOKOW] [pay]` — SD na turniej (estymator
   sprzed rotacji, miejsce 0) vs SD na blok na tych samych seedach oraz
   wynikające N dla różnic 5 i 10 pp ROI (moc 80%, alfa 0,05);
@@ -16,6 +20,7 @@ Tryby:
 from __future__ import annotations
 
 import json
+import random
 import sys
 from typing import BinaryIO
 
@@ -27,6 +32,7 @@ from poker.openfold import solve as solve_open
 from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, is_jam_fold_depth
 from poker.spin_arena import (
     SeatBook,
+    SeatView,
     always_jam,
     call_vs_random,
     compare_blocks,
@@ -180,9 +186,44 @@ def blueprint_agent(stream: BinaryIO) -> BlueprintAgent:
     siatki i zestaw klas biegu czyta się z metadanych, nie z założenia —
     artefakt o innej siatce ma być odrzucony przez odczyt, nie przemilczany.
     """
+    return _as_agent(BlueprintAgent, stream)
+
+
+def _as_agent(kind: type[BlueprintAgent], stream: BinaryIO) -> BlueprintAgent:
     reader = BlueprintReader(stream)
     config = json.loads(reader.meta_bytes())["run_manifest"]["config"]
-    return BlueprintAgent(reader, grid_step=config["grid_step"], classes=config["classes"])
+    return kind(reader, grid_step=config["grid_step"], classes=config["classes"])
+
+
+class FoldFallbackAgent(BlueprintAgent):
+    """Ten sam agent, ale każdy fallback pasuje — druga skrajność reguły.
+
+    Wariant istnieje wyłącznie po to, żeby zmierzyć, ile ROI robi reguła
+    fallbacku, a nie strategia z artefaktu; dlatego mieszka w narzędziu
+    pomiarowym, a nie w pakiecie.
+    """
+
+    def act(self, view: SeatView, rng: random.Random) -> str:
+        before = self.from_artifact
+        action = super().act(view, rng)
+        return action if self.from_artifact != before else "fold"
+
+
+def fallback_cost(path: str, n: int, pay: str) -> dict[str, object]:
+    """Różnica sparowana: check-call → fold vs pasowanie na każdym fallbacku."""
+    prizes = PAYOUTS[pay].prizes
+    with open(path, "rb") as first, open(path, "rb") as second:
+        hero = blueprint_agent(first)
+        folding = _as_agent(FoldFallbackAgent, second)
+        out: dict[str, object] = {"pay": pay, "artifact": path, "n_blocks": n}
+        for name, villain in (
+            ("vs_field", field_exploit()),
+            ("vs_dollar", dollar_fish()),
+            ("vs_always_jam", always_jam()),
+        ):
+            out[name] = compare_blocks((hero, villain), (folding, villain), prizes, n, seed=21)
+        out["fallbacks_total"] = hero.counters()
+    return out
 
 
 def blueprint_arena(path: str, n: int, pay: str) -> dict[str, object]:
@@ -223,16 +264,17 @@ def blueprint_arena(path: str, n: int, pay: str) -> dict[str, object]:
 def main() -> None:
     args = sys.argv[1:]
     mode = "compare"
-    if args and args[0] in ("sd", "seats", "blueprint"):
+    if args and args[0] in ("sd", "seats", "blueprint", "fallback"):
         mode = args[0]
         args = args[1:]
-    if mode == "blueprint":
+    if mode in ("blueprint", "fallback"):
         if not args:
-            raise SystemExit("użycie: run_arena.py blueprint ARTEFAKT.bpk [N_BLOKOW] [pay]")
+            raise SystemExit(f"użycie: run_arena.py {mode} ARTEFAKT.bpk [N_BLOKOW] [pay]")
         path = args[0]
         n = int(args[1]) if len(args) > 1 else 200
         pay = args[2] if len(args) > 2 else "3x"
-        print(json.dumps(blueprint_arena(path, n, pay), indent=2))
+        run = blueprint_arena if mode == "blueprint" else fallback_cost
+        print(json.dumps(run(path, n, pay), indent=2))
         return
     default_n = {"compare": 200, "sd": 320, "seats": 2000}[mode]
     n = int(args[0]) if args else default_n

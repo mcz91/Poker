@@ -64,7 +64,9 @@ class SeatView:
     artefaktu. `stacks` to stan sprzed postawienia blindów, `contrib` —
     wkłady już w puli, `actions` — akcje ręki w kolejności podjęcia
     (miejsce, akcja); miejsce all-in z samego blinda nie ma w nich wpisu, bo
-    rozgrywacz go nie pyta.
+    rozgrywacz go nie pyta. `bb` to duży blind tej ręki — z niego i ze
+    stacków liczy się próg jam/fold, więc bez niego agent nie umiałby
+    powiedzieć, czy artefakt opisuje ten sam tryb drzewa co arena.
     """
 
     hand: int
@@ -73,6 +75,7 @@ class SeatView:
     stacks: tuple[int, int, int]
     contrib: tuple[int, int, int]
     actions: tuple[tuple[int, str], ...]
+    bb: int
     klass: int
     jamfold: bool
     opened: bool
@@ -325,6 +328,7 @@ def _play_hand(
                 stacks=start,
                 contrib=(contrib[0], contrib[1], contrib[2]),
                 actions=tuple(actions),
+                bb=bb,
                 klass=idx,
                 jamfold=jamfold,
                 opened=opened,

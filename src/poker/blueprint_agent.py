@@ -33,11 +33,13 @@ spoza zestawu policzonego w biegu — w artefakcie produkcyjnym zawsze zero, bo
 liczy wszystkie 169). Każda ścieżka fallbacku gra check-call → fold: gdy
 jedynym wejściem jest sprawdzenie all-inu, agent sprawdza, inaczej pasuje.
 
-Dwa liczniki diagnostyczne mierzą rozjazd areny z modelem treningu, a nie
-brak w artefakcie: `mode_mismatches` (kwantyzacja stacków przerzuciła stan
-przez próg jam/fold, więc artefakt oferuje open tam, gdzie arena go nie ma)
-i `out_of_order` (kolejność licytacji areny po ponownym otwarciu — patrz
-`NODES_3MAX_OUT_OF_ORDER`).
+Liczniki diagnostyczne rozdzielają rozjazd areny z modelem treningu od braku
+w artefakcie: `full_layer_state_misses` (stan spoza warstwy niosącej PEŁNĄ
+siatkę — dopiero to jest błąd odwzorowania, bo warstwy wczesne bieg tnie
+osiągalnością), `mode_flip_misses` i `mode_mismatches` (kwantyzacja
+przerzuciła stan przez próg jam/fold, więc drzewo stanu w artefakcie jest
+innego trybu niż drzewo areny) oraz `out_of_order` (kolejność licytacji areny
+po ponownym otwarciu — patrz `NODES_3MAX_OUT_OF_ORDER`).
 """
 
 from __future__ import annotations
@@ -54,7 +56,7 @@ from poker.blueprint_reader import (
     StateBlock,
     StateNotFound,
 )
-from poker.spin import roles
+from poker.spin import is_jam_fold_depth, roles
 from poker.spin_arena import SeatView, legal_actions
 
 # Publiczne sloty węzłów drzewa 3-max i endgame'u HU — numeracja artefaktu
@@ -295,6 +297,12 @@ class BlueprintAgent:
         # 169), a kolumna bloku jest pozycją klasy w tym zestawie, nie numerem
         # klasy — mapa jest jedynym miejscem, które o tym wie.
         self.column = {klass: index for index, klass in enumerate(classes)}
+        # Warstwa „pełna" to warstwa o największej liczbie stanów: bieg tnie
+        # wczesne warstwy osiągalnością, więc dopiero pudło w warstwie pełnej
+        # jest sygnałem błędu odwzorowania, a nie granicy artefaktu.
+        self.full_layer_states = max(
+            layer.n_states for layer in reader.layers if layer.has_policy
+        )
         if len(self.column) != reader.n_classes:
             raise ValueError(
                 f"zestaw {len(self.column)} klas nie opisuje {reader.n_classes} kolumn artefaktu"
@@ -307,6 +315,8 @@ class BlueprintAgent:
         self.node_misses = 0
         self.mass_misses = 0
         self.class_misses = 0
+        self.full_layer_state_misses = 0
+        self.mode_flip_misses = 0
         self.mode_mismatches = 0
         self.out_of_order = 0
 
@@ -320,6 +330,8 @@ class BlueprintAgent:
             "node_misses": self.node_misses,
             "mass_misses": self.mass_misses,
             "class_misses": self.class_misses,
+            "full_layer_state_misses": self.full_layer_state_misses,
+            "mode_flip_misses": self.mode_flip_misses,
             "mode_mismatches": self.mode_mismatches,
             "out_of_order": self.out_of_order,
         }
@@ -346,14 +358,40 @@ class BlueprintAgent:
             self.grid_fallbacks += 1
             if isinstance(miss, NodeUnreachable):
                 self.node_misses += 1
+                if self.mode_flipped(view):
+                    self.mode_flip_misses += 1
             elif isinstance(miss, NoLegalMass):
                 self.mass_misses += 1
             else:
                 self.state_misses += 1
+                if self.layer_is_full(view.hand):
+                    self.full_layer_state_misses += 1
             rng.random()
             return passive_action(view)
         self.from_artifact += 1
         return sample(mass, rng)
+
+    def layer_is_full(self, hand: int) -> bool:
+        """Czy warstwa tej ręki niesie pełną siatkę stanów.
+
+        Warstwy wczesne bieg tnie osiągalnością (blok POKER-50), więc stan
+        spoza WARSTWY PEŁNEJ to co innego niż stan spoza warstwy przyciętej:
+        pierwsze jest błędem odwzorowania, drugie granicą artefaktu.
+        """
+        for layer in self.reader.layers:
+            if layer.hand == hand:
+                return layer.n_states >= self.full_layer_states
+        return False
+
+    def mode_flipped(self, view: SeatView) -> bool:
+        """Czy kwantyzacja przerzuciła stan przez próg jam/fold.
+
+        Arena liczy próg z dokładnych stacków, trening ze skwantowanych, więc
+        tuż nad progiem drzewo areny jest głębokie, a drzewo stanu artefaktu —
+        jam/fold (i nie ma węzłów po open).
+        """
+        key = state_keys(view, self.grid_step)[0]
+        return is_jam_fold_depth(key, view.bb) != view.jamfold
 
     def state_block(self, view: SeatView) -> StateBlock:
         """Blok stanu spod pierwszej równoważnej etykiety obecnej w warstwie."""
@@ -378,10 +416,12 @@ class BlueprintAgent:
         node, in_model = node_slot(view)
         if not in_model:
             self.out_of_order += 1
+        # Kolejność ma znaczenie diagnostyczne: najpierw stan i węzeł (tam żyje
+        # odwzorowanie), dopiero potem klasa (tam żyje zakres biegu artefaktu).
+        block = self.state_block(view)
         column = self.column.get(view.klass)
         if column is None:
             raise ClassMissing(f"klasa {view.klass} poza zestawem klas artefaktu")
-        block = self.state_block(view)
         probs = block.policy(node, column)
         live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
         root = node in (ROOTS_3MAX if live == 3 else ROOTS_HU)

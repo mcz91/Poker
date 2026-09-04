@@ -26,11 +26,14 @@ from poker.spin_arena import (
     compare_blocks,
     dollar_fish,
     field_exploit,
+    legal_actions,
+    pick,
     play_block,
     play_spin,
     run_spin,
     sample_blocks,
     sample_seat,
+    wide_call,
 )
 
 
@@ -355,3 +358,44 @@ def test_kotwica_krzyzowa_rozgrywacz_areny_zgadza_sie_z_silnikiem() -> None:
                         assert (out[button], out[other]) == expected, (
                             seed, sb, bb, stacks, button, line, out, expected,
                         )
+
+
+def test_legal_actions_to_dokladnie_zbior_wyjsc_pick() -> None:
+    """Legalność ma jedno źródło prawdy: co potrafi `pick`, to zwraca `legal_actions`.
+
+    Gdyby zbiory się rozjechały, port albo odrzucałby akcję, którą książka gra
+    bez przeszkód, albo przepuszczał akcję spoza zamrożonego drzewa.
+    """
+    books = (always_jam(), always_fold(), field_exploit(), dollar_fish(), wide_call(0.5))
+    for jamfold in (False, True):
+        for opened in (False, True):
+            for jammed in (False, True):
+                view = SeatView(
+                    hand=0,
+                    seat=0,
+                    button=1,
+                    stacks=(50, 50, 50),
+                    contrib=(0, 1, 2),
+                    actions=(),
+                    bb=2,
+                    klass=0,
+                    jamfold=jamfold,
+                    opened=opened,
+                    jammed=jammed,
+                )
+                legal = set(legal_actions(view))
+                seen = set()
+                for book in books:
+                    for klass in range(0, 169, 7):
+                        for seed in range(5):
+                            seen.add(
+                                pick(
+                                    book,
+                                    klass,
+                                    jamfold=jamfold,
+                                    opened=opened,
+                                    jammed=jammed,
+                                    rng=random.Random(seed),
+                                )
+                            )
+                assert seen == legal, (jamfold, opened, jammed, seen, legal)
