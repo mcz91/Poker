@@ -44,6 +44,7 @@ import numpy as np
 from poker.blueprint_reader import (
     BLOCK_INDEX_SIZE,
     BLOCK_INDEX_STRUCT,
+    DERIVED_SLOT,
     FORMAT_VERSION,
     HEADER_SIZE,
     HEADER_STRUCT,
@@ -51,6 +52,7 @@ from poker.blueprint_reader import (
     LAYER_STRUCT,
     MAGIC,
     SEATS,
+    STORED_SLOTS,
     BlueprintReader,
 )
 
@@ -198,8 +200,8 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int = DEFAULT_QUANT_BITS) ->
             "version": FORMAT_VERSION,
             "quant_bits": quant_bits,
             "levels": levels,
-            "stored_slots": [0, 1],
-            "derived_slot": 2,
+            "stored_slots": list(STORED_SLOTS),
+            "derived_slot": DERIVED_SLOT,
             "method": "largest-remainder",
         },
         "run_manifest": manifest,
@@ -245,7 +247,8 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int = DEFAULT_QUANT_BITS) ->
                 quantized = raw.astype(dtype)
                 # (stan, węzeł, slot, klasa) — slot całą kolumną, bo sąsiednie
                 # klasy jednego slotu są podobne i zlib pakuje je ciaśniej.
-                columns = np.ascontiguousarray(quantized[..., :2].transpose(0, 1, 3, 2))
+                stored = quantized[..., list(STORED_SLOTS)]
+                columns = np.ascontiguousarray(stored.transpose(0, 1, 3, 2))
                 flat = columns.reshape(n_states, n_nodes, 2 * n_classes).view(np.uint8)
                 blocks: list[bytes] = []
                 for position in range(n_states):

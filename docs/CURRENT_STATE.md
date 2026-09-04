@@ -1087,20 +1087,46 @@ BD python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
    i ponowny pomiar (format ma tę ścieżkę w nagłówku i pod testem:
    błąd spada do ≤ 1/65535), a nie poluzowanie progu.
 
-   **Artefakt kontrolny z repo (w bramce, 190 stanów, 4 klasy):**
-   ε surowe maks 3,8314e−3 → skwantowane **3,6911e−3**, mediana
-   1,3633e−4 → **1,0865e−4**; przyrost **−3,7%** (kwantyzacja tego
-   artefaktu nie kosztuje nic). Liczby mają asercje w
+   **Artefakt kontrolny z repo (w bramce; 190 stanów w pliku, z tego
+   22 stany-warstwy w ex-post, 4 klasy):** ε surowe maks 3,8314e−3 →
+   skwantowane **3,6911e−3**, mediana 1,3633e−4 → **1,0865e−4**;
+   przyrost **−3,7%**. Liczby mają asercje w
    `test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym`.
 
-   **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas, ε
-   surowe z POKER-49: maks 4,664e−4, mediana 1,077e−4)** — pomiar
-   komendami BC i BD (skrypt `p49/quant_cost.sh` w scratchpadzie
-   sesji: dwa przebiegi ex-post, ~2 h zegara przy 3 procesach; przy
-   przekroczeniu progu skrypt sam powtarza pomiar na uint16).
-   W chwili tego commita pomiar jest uruchomiony i nierozstrzygnięty;
-   jego wynik wchodzi tutaj osobnym commitem i dopiero on domyka
-   kryterium blokujące kontraktu na pilocie.
+   **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas) —
+   KRYTERIUM BLOKUJĄCE SPEŁNIONE.** Dwa przebiegi ex-post po
+   14,6 min ściennych przy 3 procesach (BC, BD; skrypt
+   `p49/quant_cost.sh` w scratchpadzie sesji powtarza pomiar na
+   uint16, gdyby przyrost przekroczył próg — nie było potrzeby).
+
+   | wielkość | surowe | po round-tripie | zmiana |
+   |---|---:|---:|---:|
+   | ex-post ε maks | 4,6641e−4 | **3,8380e−4** | **−17,7%** |
+   | ex-post ε mediana | 1,0771e−4 | 4,6518e−5 | −56,8% |
+
+   Przyrost ε maks wynosi **−8,26e−5 puli**, czyli **−17,7%** wartości
+   surowej wobec dopuszczalnego **+10%**: kwantyzacja uint8 nie
+   kosztuje tu nic, a zmierzone ε **spada**. Bieg surowy odtworzył
+   raport POKER-49 **co do wszystkich cyfr** (4,664108132224065e−4 /
+   1,0770827861122934e−4), więc porównanie stoi na sprawdzonym
+   przewodzie, nie na dwóch różnych pomiarach.
+
+   **Mechanizm i uczciwa granica tej liczby.** Kwantyzacja obcina
+   ogony mieszania: **5 850 198 z 24,2 mln** wartości slotów żywych
+   infosetów (24,2%) miało prawdopodobieństwo mniejsze od jednego
+   kroku kwantyzacji i wyszło zerem, przy maksymalnej zmianie
+   pojedynczego prawdopodobieństwa
+   0,00261 i **24 zmianach dominującej akcji z 8 058 258** (0,0003%).
+   Najlepsza odpowiedź traci na tym drobne przecieki, które
+   eksploatowała w profilu surowym — stąd spadek. **To nie jest
+   twierdzenie, że kwantyzacja poprawia blueprint**: ex-post trzyma
+   tablicę V z biegu surowego (format przenosi ją bez straty), więc
+   mierzy „o ile najlepsza odpowiedź bije wartość, którą artefakt
+   sam deklaruje". Własna wartość profilu skwantowanego mogła się
+   przesunąć i ta metryka tego nie widzi — dokładnie ta sama ślepota,
+   którą POKER-49 zmierzył dla warunku brzegowego. Dla kontraktu to
+   właściwa liczba (artefakt deklaruje V i gra σ skwantowanym), ale
+   nie wolno z niej czytać więcej.
 
 7. **Co trzyma bramka (`tests/test_blueprint_pilot.py`,
    `tests/test_architecture.py`).** Determinizm konwertera bajt

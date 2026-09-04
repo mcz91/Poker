@@ -8,6 +8,7 @@ Testy używają malutkich konfiguracji: podzbiór klas preflop, siatka 25
 
 import dataclasses
 import importlib.util
+import io
 import itertools
 import json
 import math
@@ -1565,6 +1566,30 @@ def test_nieosiagalnosc_jest_jawna_a_nie_cichym_zerem(control_run: dict[str, Any
         assert not reader.has_state(hand, (1, 1, 32))
     for error in (br.StateNotFound, br.LayerNotFound, br.NodeUnreachable, br.PolicyMissing):
         assert issubclass(error, LookupError)
+
+
+def test_czytnik_odrzuca_plik_ktory_nie_jest_tym_formatem(control_run: dict[str, Any],
+                                                          tmp_path: Path) -> None:
+    """Magia, wersja i długość nagłówka rozstrzygają się przy otwarciu, nie przy odczycie.
+
+    Wersjonowanie ma sens tylko wtedy, gdy czytnik odmawia obcej wersji zamiast
+    czytać ją po staremu — konsument POKER-52 dostaje błąd, nie śmieci.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    packed = tmp_path / "control.bpk"
+    pk.pack(control_run["out_dir"], packed)
+    raw = packed.read_bytes()
+    cases = {
+        "magia": b"XXXXXXXX" + raw[8:],
+        "wersja": raw[:8] + (br.FORMAT_VERSION + 1).to_bytes(2, "little") + raw[10:],
+        "kwantyzacja": raw[:10] + (7).to_bytes(2, "little") + raw[12:],
+        "obcięty nagłówek": raw[: br.HEADER_SIZE - 1],
+    }
+    for label, payload in cases.items():
+        with pytest.raises(br.BlueprintFormatError):
+            br.BlueprintReader(io.BytesIO(payload))
+        assert issubclass(br.BlueprintFormatError, ValueError), label
 
 
 def test_odczyt_stanu_nie_czyta_calego_pliku(control_run: dict[str, Any],

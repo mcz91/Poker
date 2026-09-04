@@ -92,7 +92,6 @@ class _LayerRecord:
     states_offset: int
     values_offset: int
     index_offset: int
-    blocks_offset: int
 
 
 @dataclass(frozen=True)
@@ -209,7 +208,7 @@ class BlueprintReader:
                 states_offset,
                 values_offset,
                 index_offset,
-                blocks_offset,
+                _blocks_offset,  # początek obszaru bloków — czytnik idzie indeksem
             ) = LAYER_STRUCT.unpack_from(directory, index * LAYER_RECORD_SIZE)
             if seats != SEATS:
                 raise BlueprintFormatError(f"warstwa {hand} opisuje {seats} miejsc, nie {SEATS}")
@@ -220,7 +219,6 @@ class BlueprintReader:
                 states_offset=states_offset,
                 values_offset=values_offset,
                 index_offset=index_offset,
-                blocks_offset=blocks_offset,
             )
 
     @property
