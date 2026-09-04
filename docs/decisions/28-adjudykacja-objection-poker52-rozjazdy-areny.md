@@ -41,6 +41,17 @@ a) **Kolejność licytacji po ponownym otwarciu** (21 348 wejść, 1,349%
    nie cecha; infoset areny nie istnieje w żadnym poprawnym modelu.
    → naprawa w POKER-54.
 
+   **KOREKTA (2026-09-05, audyt POKER-52, F1):** liczba 21 348 liczy
+   tylko pierwszą twarz rozjazdu (UTG pytany przed BB). Trzecia,
+   pierwotnie nieliczona twarz: BB pytany PO odpowiedzi UTG na 3bet
+   czyta węzeł 8, którego pula modelowa nie zgadza się ze stanem areny
+   (dwa różne infosety areny kolapsują do jednego węzła artefaktu) —
+   19 458 wejść w biegu BF. Realny zasięg rozjazdu (a) to **40 806
+   decyzji (2,579%)**, nie 1,349%. Naprawa kolejności w POKER-54 usuwa
+   wszystkie twarze naraz (poprawna kolejność nie wytwarza tych
+   infosetów); licznik i test spaceru zużywającego całą historię —
+   naprawa w POKER-52 (audyt).
+
 b) **Pytanie o darmowy call** (1 092 wejścia): arena pyta gracza,
    którego dołożenie wynosi zero (jam nie przewyższa jego wkładu),
    i pozwala mu spasować za darmo; trening wymusza wejście maską
