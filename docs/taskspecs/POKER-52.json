@@ -1,0 +1,35 @@
+{
+  "id": "POKER-52",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Agent `blueprint` gra z artefaktu `.bpk` w arenie Spin i w rejestrze CLI areny, a operator dostaje pierwszy uczciwy pomiar jego siły na rotacjach z POKER-48.",
+  "context": "Agent czyta strategię czytnikiem stdlib (POKER-51: `poker.blueprint_reader`); czytnik przyjmuje otwarty strumień (INV-P7), więc otwarcie pliku artefaktu i parsowanie metadanych JSON należy do adaptera/CLI, nie do agenta ani czytnika. RZECZYWISTOŚĆ ARENY: agenci to statyczne `SeatBook` (częstotliwości per klasa) konsumowane przez `pick` bez dostępu do stacków i numeru ręki — agent blueprintu jest stanowy (poziom blindów, ręka w poziomie, wektor stacków, kontekst węzła), więc kontrakt wprowadza do `spin_arena` stanowy port agenta obok SeatBooków. DRZEWO GRY POZOSTAJE ZAMROŻONE (decyzja 27): jam/fold/open preflop, rozliczenia przez `poker.spin`; port zmienia wyłącznie źródło decyzji, nie przestrzeń akcji ani przebieg ręki. Mapowanie stanu areny na artefakt: (numer ręki → warstwa, stacki → klucz siatki przez `state_key` z kwantyzacją krokiem 2 jak w treningu, pozycja+kontekst licytacji → slot węzła zgodnie z modelem gry z `tools/blueprint/solve_grid.py`). Kontrakt fallbacku stoi na czterech wyjątkach czytnika (LayerNotFound/StateNotFound/NodeUnreachable/PolicyMissing, podtypy LookupError; `has_state` jest predykatem zgrubnym — rozróżnienie niosą wyjątki). Losowość decyzji: próbkowanie z rozkładu artefaktu rng-iem akcji ręki (pochodnym pary seed turnieju/numer ręki — wzorzec `_hand_seeds`), więc replay i rotacje bez zmian.",
+  "acceptance": [
+    "Stanowy port agenta w `spin_arena` (obok SeatBooków, bez zmiany drzewa gry i rozliczeń) + agent `blueprint` w nowym module: decyzja wyłącznie z widocznego stanu (numer ręki, stacki, pozycja, kontekst licytacji, klasa własnej ręki) i artefaktu; NIGDY decyzji nielegalnej w zamrożonym drzewie — test właściwościowy na wielu seedach.",
+    "Fallback jawny i policzalny, dwa liczniki osobno: (a) stan W ZASIĘGU siatki (ręka w zegarze warstw, stacki mapowalne krokiem 2) bez strategii w artefakcie → kryterium blokujące: licznik = 0 w pomiarze (mapowanie krokiem 2 jest totalne, a wyjątki czytnika dają rozróżnialny sygnał — trafienie tu to błąd mapowania, nie szczegół); (b) stan POZA horyzontem zegara (LayerNotFound/PolicyMissing) → check-call→fold (jak mccfr), licznik raportowany w wyniku pomiaru z komendą (oczekiwany, próg ustali dopiero pomiar).",
+    "Determinizm: ten sam artefakt, seed i sekwencja widoków → te same decyzje, w procesie i między procesami — pod testem; identyczność kart między rotacjami bloku nienaruszona (test na `on_deck`).",
+    "Kotwica krzyżowa z decyzji 27 (dług wymagalny — pierwszy kontrakt dotykający rozgrywacza areny): test porównuje przebieg preflopowy `spin_arena` z `HeadsUpHand` na wspólnych seedach w zakresie zamrożonego drzewa; rozjazd = OBJECTION, nie ciche dopasowanie.",
+    "Testy bramki na artefakcie zbudowanym konwerterem w teście albo na artefakcie kontrolnym z repo — bramka nie zależy od artefaktu produkcyjnego spoza repo.",
+    "Pomiar w arenie z rotacjami POKER-48 na artefakcie produkcyjnym (poza bramką, komendy w dokumencie): blueprint vs field_exploit, vs dollar_fish, vs always_jam; N z tabeli mocy POKER-48; wynik z CI (normalny + bootstrap na blokach) wpisany do CURRENT_STATE z komendą — bez twierdzeń, których CI nie niesie (decyzja 26); liczniki fallbacków w raporcie.",
+    "Rejestr CLI: `tools/run_arena.py` przyjmuje agenta `blueprint` ze ścieżką artefaktu; otwarcie pliku i metadane po stronie CLI.",
+    "Test architektury: importy agenta ograniczone (klasy/karty, czytnik, model stanu areny; bez silnika zdarzeniowego, adapterów, tools, numpy); pakiet produktu nadal nie importuje numpy.",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do nowego modułu agenta i portu w spin_arena."
+  ],
+  "non_goals": [
+    "AIVAT (POKER-53, osobny kontrakt).",
+    "Gra przez LAN (rejestr LAN osobno, po pomiarze).",
+    "Poprawa jakości blueprintu i zmiany solverów/formatu.",
+    "Rozszerzenie drzewa gry areny (wymaga kwalifikacji multiway — decyzja 27)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/blueprint_agent.py",
+    "src/poker/spin_arena.py",
+    "tests/",
+    "tools/run_arena.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-52.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {"by": "ARCHITEKT", "ts": "2026-09-04T21:30:00Z", "basis": "POKER-51 zamknięty (czytnik i kontrakt wyjątków istnieją); decyzje 25 pkt 6, 26, 27; mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-51"}
+}
