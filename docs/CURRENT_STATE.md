@@ -1688,12 +1688,15 @@ Następne kroki:
    blokujące 1e−3 z zapasem 2,1×, **opcja sufitu 1536 się nie
    uruchamia**; koszt regeneracji artefaktu 76,6 rdzenio-h (faktyczny
    z restartami 92,8–95,6); artefakt poza repozytorium, w repo artefakt
-   kontrolny łańcucha pod testem bramki. **POKER-51 dostarczony**
+   kontrolny łańcucha pod testem bramki. **POKER-51 zamknięty**
    (blok wyżej): format binarny `.bpk` z dostępem swobodnym per stan
    i czytnik stdlib w pakiecie, kryterium kontraktu ZMIERZONE
    I SPEŁNIONE — przyrost ex-post ε po round-tripie −17,7% na pilocie
-   i −3,7% na artefakcie kontrolnym wobec dopuszczalnego +10%
-   (zamknięcie w indeksie po weryfikacji niezależnej). Następny krok
+   i −3,7% na artefakcie kontrolnym wobec dopuszczalnego +10%;
+   weryfikacja niezależna architekta i audyt świeżym kontekstem
+   2026-09-04: trzy findingi blokujące (wszystkie w dokumencie,
+   żaden w kodzie) naprawione z dowodami, sortowanie konwertera
+   pod testem czerwonym na mutacji audytora. Następny krok
    linii: **POKER-52** (agent blueprint w rejestrze i pomiar
    w arenie). Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**

@@ -22,9 +22,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
   przed scaleniem; gałęzi koderów 26/27/28 brak; raporty researchu
   w transkrypcie sesji architekta (decyzja 25 streszcza).
-- 2026-08-31 arch: artefakt produkcyjny POKER-50 (tensor + grid2) żyje
-  w scratchpadzie sesji `…/scratchpad/prod/` — wejście dla POKER-51;
-  regeneracja = komendy AC–AH z bloku POKER-50 w CURRENT_STATE.
+- 2026-09-04 arch: artefakty produkcyjne żyją w scratchpadzie sesji
+  `…/scratchpad/prod/` (tensor + grid2 + blueprint.bpk — ten ostatni
+  to wejście POKER-52); regeneracja = AC–AH i BA z CURRENT_STATE.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
