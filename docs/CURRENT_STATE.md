@@ -1953,8 +1953,12 @@ Następne kroki:
    weryfikacja niezależna architekta i audyt świeżym kontekstem
    2026-09-04: trzy findingi blokujące (wszystkie w dokumencie,
    żaden w kodzie) naprawione z dowodami, sortowanie konwertera
-   pod testem czerwonym na mutacji audytora. **POKER-52 dostarczony**
-   (blok wyżej): agent gra z artefaktu w arenie i w rejestrze CLI, siła
+   pod testem czerwonym na mutacji audytora. **POKER-52 zamknięty**
+   (blok wyżej; weryfikacja niezależna architekta i audyt świeżym
+   kontekstem 2026-09-04/05 — dwa findingi blokujące audytu, w tym
+   trzecia twarz rozjazdu kolejności, naprawione z czerwienią przed
+   poprawką i potwierdzone na ponownym biegu BF): agent gra z artefaktu
+   w arenie i w rejestrze CLI, siła
    zmierzona na rotacjach POKER-48. OBJECTION kodera wobec kryterium
    „licznik fallbacku w zasięgu siatki = 0" rozstrzygnięty
    [decyzją 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md):
