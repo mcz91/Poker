@@ -31,5 +31,8 @@
     "docs/taskspecs/POKER-52.json"
   ],
   "verification": ["ruff check .", "mypy", "pytest"],
+  "amendments": [
+    {"by": "ARCHITEKT", "ts": "2026-09-04T23:05:00Z", "basis": "decyzja 28 (adjudykacja OBJECTION: CONFLICT kodera)", "change": "Kryterium acceptance[1] pkt (a) — 'licznik = 0 w pomiarze' — stało na fałszywym założeniu totalności odwzorowania i zostaje zastąpione niezmiennikami bezpośrednimi: liczniki błędów odwzorowania (full_layer_state_misses, mass_misses, class_misses, mode_mismatches) blokująco = 0 pod testami; liczniki rozjazdów areny z modelem treningu (osiągalność warstw 1-5, akcja wymuszona, przeskok trybu, kolejność licytacji) mierzone i raportowane z przyczyną, progowane dopiero po naprawach POKER-54/55. Pozostałe kryteria bez zmian."}
+  ],
   "approved": {"by": "ARCHITEKT", "ts": "2026-09-04T21:30:00Z", "basis": "POKER-51 zamknięty (czytnik i kontrakt wyjątków istnieją); decyzje 25 pkt 6, 26, 27; mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-51"}
 }

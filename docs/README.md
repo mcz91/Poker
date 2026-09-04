@@ -89,7 +89,14 @@
     — duplikacja rozgrywacza spin_arena uzasadniona (HeadsUpHand jest
     N=2 z INV-P5), zakres zamrożony na drzewo preflopowe, rozliczenia
     wyłącznie przez poker.spin, kotwica krzyżowa z silnikiem na rękach
-    HU; każde rozszerzenie wymaga najpierw kwalifikacji multiway.
+    HU; każde rozszerzenie wymaga najpierw kwalifikacji multiway;
+28. [`28-adjudykacja-objection-poker52-rozjazdy-areny.md`](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)
+    — adjudykacja OBJECTION z POKER-52: kryterium-proxy zastąpione
+    licznikami błędów odwzorowania (blokująco 0), cztery rozjazdy
+    areny z modelem treningu zakwalifikowane (kolejność od agresora
+    i darmowy call → POKER-54; przeskok trybu i odczyt cykliczny
+    horyzontu → POKER-55; warstwy 1–5 → decyzja po ponownym pomiarze);
+    AIVAT przesunięty za naprawy przyrządu.
 
 ## TaskSpeki
 
