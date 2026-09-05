@@ -1,0 +1,39 @@
+{
+  "id": "POKER-55",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Agent blueprint wierny artefaktowi tam, gdzie dziś woła fallback bez potrzeby: rozkład jam/fold przy przeskoku trybu i cykliczny odczyt horyzontu — potem PONOWNY pomiar siły, który mierzy artefakt, a nie parę (artefakt + reguła awaryjna).",
+  "context": "Zatwierdzony po zamknięciu POKER-54 (0e5e9e5). Decyzja 28 pkt 2c i 3. (1) Przeskok trybu (1 098 wejść): stan artefaktu po kwantyzacji jest jam/fold, arena z dokładnych stacków oferuje drzewo głębokie; rozkład jam/fold artefaktu jest legalnym podzbiorem ({jam, fold} ⊂ {jam, open, fold}) — agent gra nim zamiast fallbacku. (2) Horyzont (21 354 wejścia): warunek ZWERYFIKOWANY w decyzji 28 pkt 3 — blindy stałe od ręki 18, brzeg = punkt stały cyklu 3 rąk, więc ręka ≥ 21 czyta warstwę 18 + (ręka − 18) mod 3; błąd ograniczony zmierzoną deltą zbieżności ogona (rząd 1e−4 puli) wobec wpływu reguły awaryjnej mierzonego w pp ROI (pkt 7 bloku POKER-52). Rozróżnialność zostaje: odczyty cykliczne i tryb-jam/fold mają osobne liczniki, fallback zostaje tylko tam, gdzie artefakt naprawdę nic nie ma (osiągalność warstw 1–5).",
+  "acceptance": [
+    "Przeskok trybu: gdy stan artefaktu jest jam/fold a arena oferuje drzewo głębokie, agent gra rozkładem jam/fold stanu artefaktu (nigdy open) — pod testem na artefakcie bramki z asercją licznika mode_flip_reads > 0 i mode_flip_misses = 0 (blokująco); legalność bez zmian (właściwość).",
+    "Horyzont: ręka ≥ 21 czyta warstwę 18 + (ręka − 18) mod 3 — pod testem zgodności guzika (warstwa ≡ ręka mod 3) i testem na artefakcie bramki: licznik cyclic_reads > 0, horizon_fallbacks = 0 dla rąk ≥ 21 w zasięgu siatki (blokująco); stany spoza siatki w warstwach cyklu nadal idą do licznika osiągalności, nie do cichej gry.",
+    "Fallback pozostaje wyłącznie dla granicy artefaktu (osiągalność warstw 1–5) — liczniki rozłączne co do przyczyny jak w POKER-52, z asercjami zer dla przyczyn usuniętych.",
+    "PONOWNY pomiar na artefakcie produkcyjnym (poza bramką): BF/BG/BH z bloku POKER-52 po naprawach 54+55, te same seedy i N; tabela przed/po w CURRENT_STATE z komendami; pomiar BH (wpływ reguły awaryjnej) ponowiony — werdykt w dokumencie: czy przewaga jest już przypisywalna artefaktowi (wpływ reguły < różnica sparowana), bez twierdzeń, których CI nie niesie; liczniki wszystkich przyczyn w raporcie.",
+    "Werdykt o warstwach 1–5 przygotowany dla architekta: pozostały udział fallbacku i jego zmierzony wpływ (BH po naprawach) obok wyceny +17,5% biegu produkcyjnego — jako dane do decyzji, nie decyzja.",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do blueprint_agent.py."
+  ],
+  "non_goals": [
+    "Zmiany rozgrywacza areny (POKER-54, wcześniej).",
+    "Dopoliczenie warstw 1–5 (osobny kontrakt po decyzji architekta).",
+    "AIVAT (POKER-53, po naprawach przyrządu).",
+    "Zmiany formatu, czytnika, solverów."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/blueprint_agent.py",
+    "tests/",
+    "tools/run_arena.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-55.json"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-05T11:40:00Z",
+    "basis": "decyzja 28 pkt 2c i 3 (warunek cyklu zweryfikowany); POKER-54 zamknięty; decyzja 29: ponowny pomiar BF/BG/BH bramkuje pomiary tierowe; mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-54"
+  }
+}
