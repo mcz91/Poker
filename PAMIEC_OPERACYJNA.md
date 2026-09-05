@@ -67,8 +67,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Horyzont nie ma checkpointu per cykl — restart w trakcie kosztuje
   wszystkie policzone cykle (POKER-50: 16,2 rdzenio-h); jednostką
   wznowienia jest dopiero warstwa.
-- Dowód skryptem w scratchpadzie nie chroni następnego biegu: liczba
-  w dokumencie = niezmiennik w teście.
+- `MODE_NAMES` jest formatem, nie nazwą: indeks trybu leży w `layer_*.npz`,
+  `eps_curve` dekoduje nim stare artefakty — przestawienie przeżyje bramkę.
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
