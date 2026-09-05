@@ -1031,6 +1031,10 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    BL python tools/blueprint/mode_census.py table
    ```
 
+   Udział decyzyjny trybów (pkt 5) mierzy komenda BF z bloku POKER-55,
+   niezmieniona: `python tools/run_arena.py blueprint PROD/blueprint.bpk
+   10000 3x`.
+
    | konfiguracja | stany-warstwy | deep | warstwy | horyzont | solver | + tensor |
    |---|---:|---:|---:|---:|---:|---:|
    | bieg produkcyjny 10x (kalibracja) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
@@ -1068,6 +1072,30 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    biegu, a decyzje `deep` — 51,4%, osiem razy więcej; obie liczby z TEGO
    SAMEGO artefaktu, obie pod asercją. Licznik jest bez progu: mierzy,
    nie bramkuje.
+
+   **Pomiar produkcyjny (komenda BF, 1 563 234 decyzje, 9 min 11 s zegara
+   na 4 rdzeniach).** Ten sam bieg co w bloku POKER-55: **wszystkie
+   pozostałe liczniki i wszystkie ROI wychodzą co do sztuki i co do cyfry
+   te same** (from_artifact 1 549 946, cyclic_reads 10 596, mode_flip_reads
+   4 502 z 1 100 przekładami, grid_fallbacks 13 288, state_misses 13 194,
+   node_misses 94, reszta zerami; ROI +5,20 / +6,36 / +8,23 pp z tymi
+   samymi CI) — licznik trybów niczego w grze nie zmienił. Udział komórek
+   zestawiony z udziałem odwiedzin na TYM SAMYM biegu:
+
+   | tryb | decyzje BF | udział decyzji | komórki biegu | udział komórek | udział kosztu warstw | odwiedziny / komórki |
+   |---|---:|---:|---:|---:|---:|---:|
+   | `deep` | 520 332 | 33,29% | 1 198 | 2,41% | 42,7% | 13,8× |
+   | `jamfold` | 164 494 | 10,52% | 44 550 | 89,52% | 57,2% | 0,12× |
+   | `hu-deep` | 611 668 | 39,13% | 932 | 1,87% | 0,035% | 20,9× |
+   | `hu-jamfold` | 266 740 | 17,06% | 3 085 | 6,20% | 0,039% | 2,75× |
+
+   Udział kosztu to wycena per tryb z pkt 4 (39,6 rdzenio-h warstw), a nie
+   osobny pomiar. **Odpowiedź na otwarte pytanie 2 decyzji 29 brzmi: nie,
+   i to o rząd wielkości.** 57,2% budżetu warstw idzie na `jamfold`, który
+   obsługuje 10,5% decyzji; `hu-deep` obsługuje 39,1% decyzji za 0,035%
+   budżetu. Liczby są bez progu i bez wniosku operacyjnego w tym kontrakcie
+   — ale to one, a nie liczba stanów, są wejściem do decyzji o tym, gdzie
+   następny przebieg ma wydać rdzenio-godziny.
 6. **Cztery korekty dokumentacyjne (decyzja 29 pkt 4).** (a) Jednostką ε jest
    SUMA WEKTORA WYPŁAT, nie „pula pota" — poprawione w całym tym dokumencie
    (19 wystąpień) oraz w docstringach `expost.py`, `solve_grid.py`,
