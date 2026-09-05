@@ -1,0 +1,40 @@
+{
+  "id": "POKER-57",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Format .bpk v2 (decyzja 29 P-2): maska osiągalności uint32, cztery sloty akcji (trzy przechowywane + dopełnienie), kwantyzacja uint16, ex-post ε per stan w pliku, marginesy indyferencji i blok fingerprinta — zero rdzenio-godzin, odblokowuje warstwę eksploatacyjną i warunkowo poszerzenie drzewa.",
+  "context": "Zatwierdzony po zamknięciu POKER-56 (fingerprint z POKER-56 istnieje w manifeście i meta v1 — v2 dostaje go jako pole nagłówkowe/blokowe formatu). Decyzja 29 pkt 3 i 5 (P-2). Trzy twarde sufity v1 znalezione w kodzie przez panel: (1) node_mask pisany to_bytes(2,'little') i czytany '<H' — sufit 16 węzłów blokuje każde poszerzenie drzewa (dziś 14+4); (2) STORED_SLOTS=(0,1), DERIVED_SLOT=2 — brak miejsca na czwartą akcję; (3) uint8 zeruje 24,2% wartości slotów żywych infosetów (5 850 198 z 24,2 mln poniżej kroku 1/255), a uint16 zbija maksymalny błąd prawdopodobieństwa z 2,610e-3 do ~1,5e-5 (171×) za darmo obliczeniowo. Ścieżka uint16 istnieje w konwerterze od POKER-51 i jest pod testem. ε per stan (float32, ~199 KB w skali produkcyjnej) staje się bramką wysyłkową profili ograniczonych (DBR, P-13) i wejściem reguł respektujących podłogę wartości. Marginesy indyferencji per infoset (różnica EV dwóch najlepszych akcji, liczone w trakcie solve'a, zapisane zgrubnie) adresują zmierzoną patologię wrażliwości brzegu: przy zaburzeniu 0,002 ε rusza się o 1,7%, ale pojedyncze komórki bliskie obojętności przełączają akcję całkowicie (max zmiana σ 0,9994) — to pole musi znać warstwa eksploatacyjna. ŚWIADOMIE NIE dodajemy wartości kontrfaktycznych per infoset (search w runtime wykluczony architektonicznie — decyzja 29 pkt 4).",
+  "acceptance": [
+    "Specyfikacja v2 w dokumencie z dokładnością do bajtów (wzorzec POKER-51): maska uint32, 4 sloty akcji (3 przechowywane, czwarty z dopełnienia — kolumnowo jak dotąd), bity kwantyzacji 16 domyślnie (8 pozostaje legalne w nagłówku), sekcja ε per stan float32, sekcja marginesów indyferencji, blok fingerprinta z POKER-56 w metadanych; wersja formatu w nagłówku = 2.",
+    "Czytnik czyta v1 i v2; plik v1 bajt w bajt jak dotąd (testy POKER-51 nietknięte i zielone); v2 pod round-tripem na artefakcie kontrolnym (rozkłady w granicach kroku uint16, V bajtowo, ε i marginesy dokładnie); artefakt v1 z inną magią/wersją nadal odrzucany.",
+    "Konwerter deterministyczny dla v2 (bajt w bajt pod testem); repack produkcyjnego biegu do v2 zmierzony: rozmiar i czas wpisane do dokumentu z komendą (szacunek panelu: 18,1 → ~34 MiB; raportowane, nie progowane).",
+    "Koszt kwantyzacji uint16 W ε zmierzony jak w POKER-51 (ten sam expost, pilot grid5d, świeże katalogi, komendy działające jak napisane): przyrost ε maks ≤ 10% wartości surowej — kryterium blokujące; oczekiwanie: ~0 (błąd 171× mniejszy od uint8, który już dawał −17,7%).",
+    "ε per stan w pliku zgodne co do wartości z expost_report biegu (asercja na artefakcie kontrolnym); marginesy indyferencji pod testem konstrukcyjnym (stan o znanej obojętności → margines ~0; stan o dominującej akcji → margines duży).",
+    "Sufity bajtów odczytu i czasy przemierzone dla v2 (bench --sweep; asercje sufitów zaktualizowane z zapasem jak w POKER-51 — na inną wersję zlib, nie na inny sposób odczytu).",
+    "Test architektury bez zmian w regułach (czytnik czysty stdlib, bez numpy w pakiecie); pełna bramka zielona; zmiany w src/poker ograniczone do blueprint_reader.py."
+  ],
+  "non_goals": [
+    "Jakiekolwiek poszerzenie drzewa (maska uint32 tylko ZDEJMUJE sufit formatu; kształt drzewa = rekord decyzyjny z P-14).",
+    "Profile DBR i trzy tablice V hero (P-13 — format ma być na to gotowy przez fingerprint i rozszerzalność, nie implementować).",
+    "Dystrybucja artefaktu (decyzja operatora).",
+    "Zmiany solverów i modelu gry."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/blueprint_reader.py",
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-57.json"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-05T21:00:00Z",
+    "basis": "decyzja 29 pkt 3 i 5 (P-2); trzy sufity v1 znalezione w kodzie (maska <H, STORED_SLOTS=(0,1), uint8 zerujący 24,2% wartości); ścieżka uint16 istnieje od POKER-51; POKER-56 zamknięty; mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-56"
+  }
+}
