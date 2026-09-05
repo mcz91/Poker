@@ -419,9 +419,11 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   i kwantyzacji krokiem siatki — stan, kontekst licytacji — slot węzła;
   losowanie z odczytanego rozkładu idzie rng-iem akcji ręki, więc
   rotacje bloku i replay zostają deterministyczne. Fallback jest jawny
-  i policzalny (cztery rozłączne liczniki plus dwa diagnostyczne),
-  a plik otwiera narzędzie, nie agent (INV-P7). Liczby, liczniki
-  i granice odwzorowania: blok POKER-52 niżej.
+  i policzalny (cztery rozłączne liczniki przyczyn plus liczniki
+  diagnostyczne rozjazdu areny z modelem — po POKER-54 trzy z nich,
+  `out_of_order`, `order_collapse` i `forced_action_misses`, są zerami
+  blokująco), a plik otwiera narzędzie, nie agent (INV-P7). Liczby,
+  liczniki i granice odwzorowania: bloki POKER-52 i POKER-54 niżej.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
   odrzucana po obu stronach); `poker.adapters.lan_server`
@@ -545,6 +547,13 @@ na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
 tight vs always-jam −40.0% ROI (CI −48.5..−31.5).
 Exploit call vs random: +18.4%, CI (+10.0, +26.9) > 0. Play woła jam
 na głębokim stole exploitem.
+**Adnotacja POKER-54:** te liczby zmierzył rozgrywacz sprzed naprawy
+kolejności i wymuszonego wejścia za darmo. Na tych samych seedach po
+naprawie: „exploit call vs random" **+18,4%** — na tych 320 seedach wynik
+wyszedł co do bitu ten sam (żaden blok się nie zmienił),
+tight vs always-jam **−40,3%** (różnica sparowana −0,31 pp, CI
+−1,68..+1,06; nowa wartość w starym CI). Werdykty bez zmian — pomiar,
+tabela i komendy w bloku POKER-54.
 
 **POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
 z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
@@ -553,6 +562,12 @@ trzech rotacji): vs always-jam +15.9% (CI +7.6..+24.3) — rozstrzygnięte
 całym przedziałem; vs $1-ish fish −2.5% (CI −8.9..+3.9) — CI obejmuje
 zero, oczekiwanie „bije $1-ish fisha" **nieosiągnięte** na 320 blokach
 ([decyzja 23](decisions/23-field-exploit.md)).
+**Adnotacja POKER-54:** liczby z rozgrywacza sprzed naprawy. Na tych
+samych seedach po naprawie: vs always-jam **+15,9%** co do bitu ta sama
+liczba (żaden blok się nie zmienił), vs $1-ish fish **−3,1%** (CI
+−9,4..+3,2; różnica sparowana
+−0,63 pp, CI −1,85..+0,60). Oba werdykty trzymają się tak samo, w tym
+„bije $1-ish fisha" nadal nieosiągnięte — blok POKER-54.
 
 **POKER-44 (arena HU przywrócona, spin_arena wydzielona) zamknięty.**
 `poker.arena` (HU, duplicate) wraca z main; arena ROI Spin żyje w
@@ -924,6 +939,184 @@ niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
 
+**POKER-54 (rozgrywacz areny Spin: akcja od agresora i wymuszone wejście
+za darmo) DOSTARCZONY.** Realizacja
+[decyzji 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)
+pkt 2a (z korektą audytu F1) i 2b: przyrząd pomiarowy przestał wytwarzać
+infosety, których nie ma w żadnym poprawnym modelu. Drzewo gry, rozliczenia,
+talia i zegar nietknięte; zmiana siedzi w `poker.spin_arena` (kolejność głosu
+i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
+
+1. **Kolejność licytacji idzie od agresora.** `to_act` skanowało stałą
+   kolejkę ról [UTG, guzik, BB], więc po jamie guzika na open UTG pytało
+   UTG przed BB. `speaking_order` obraca kolejkę ról o pozycję ostatniego
+   grającego: rundę otwiera lewa strona BB (blind jest ostatnim głosem przed
+   pierwszą decyzją), a po przebiciu głos ma **pierwszy niedopasowany gracz
+   na lewo od agresora**. Reguła obejmuje jam z SB i z BB oraz dwa żywe
+   miejsca po wybiciu (kolejka HU to guzik, BB). Czerwień przed poprawką:
+   kolejność pytań `[0, 1, 0, 2]` zamiast `[0, 1, 2, 0]`.
+2. **Dołożenie zerowe nie jest pytaniem.** Gracz, którego dołożenie do
+   najwyższego wkładu wynosi zero (jam nie przewyższa jego blindu), wchodzi
+   do puli automatycznie — z wpisem w historii ręki i **bez poboru z rng**,
+   bo decyzji nie ma (jeden pobór na decyzję dotyczy decyzji; podmiana
+   książki na agenta nadal nie przesuwa strumienia). Warunek „dołożenie = 0"
+   pokrywa się co do przypadku z maskami `(SLOT_MID,)` gry etapowej
+   treningu: poza trybem jam/fold najkrótszy żywy stack przekracza 7 bb, więc
+   open zawsze przewyższa blindy i wymuszenie może zajść wyłącznie po jamie.
+   Obie strony porównane na tym samym stanie pod testem
+   (`test_wejscie_za_darmo_areny_to_akcja_wymuszona_maska_treningu`).
+   Czerwień przed poprawką: BB pytany o dołożenie zerowe (log `[0, 1, 2]`
+   zamiast `[0, 1]`) i widok z prawdziwego turnieju `contrib=(7, 10, 0)`
+   przy jamie za 7 żetonów na blindzie 10.
+3. **Trzy liczniki rozjazdu = 0 blokująco na artefakcie bramki**
+   (`test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem`):
+   `out_of_order` i `order_collapse` — dwie twarze kolejności, w pomiarze BF
+   POKER-52 odpowiednio 21 348 i 19 458 wpisów — oraz nowy
+   `forced_action_misses`, czyli węzeł spoza maski stanu, którego nie
+   tłumaczy przeskok trybu: dokładnie `node_misses` − `mode_flip_misses`
+   z pkt 3 bloku POKER-52 (tam 1 092). Zero nie jest o pustce: ta sama
+   próbka odwiedza węzły 8, 9 i 10 — te, na których rozjazd siedział —
+   a każdy z trzech liczników ma test wzrostu (dwa konstruowane widoki
+   z POKER-52 i nowy blok stanu bez węzła za gałęzią wymuszoną). Spacer po
+   drzewie gry etapowej treningu **zużywający całą historię ręki** nie ma
+   już ani jednego wyjątku na 772 widokach z turniejów (przedtem trzy
+   rodzaje) i odwiedza wszystkie 14 węzłów modelu 3-max oraz 4 węzły
+   endgame'u HU.
+4. **Neutralność dystrybucyjna kolejności — argument i pomiar.** Decyzja
+   `SeatBooka` jest funkcją klasy ręki, trzech flag kontekstu i JEDNEGO
+   poboru z rng; kolejności nie widzi. Po przebiciu każdy niedopasowany żywy
+   gracz jest pytany dokładnie raz i przy tych samych flagach w obu
+   kolejnościach (kto wszedł, ma `contrib = stack` i nie jest pytany
+   ponownie), więc zamiana kolejności permutuje wyłącznie przypisanie
+   poborów do graczy. Pobory są jednakowe i niezależne, więc rozkład łączny
+   decyzji — a przez to rozkład wyników bloku — zostaje ten sam; zmieniają
+   się trajektorie per seed. Pomiar A/B w bramce (300 bloków, wspólne seedy,
+   `wide_call` 0,30 vs 0,55, kontrola = kolejność sprzed POKER-54): **54
+   z 300 bloków zmienia trajektorię**, różnica sparowana **+0,0133 buy-ina
+   (CI −0,0373..+0,0640)**, SD 0,6379 wobec 0,6328 (zgodne w granicach 1%).
+   Każda z tych liczb jest asercją testu. Książki ułamkowe są tu
+   konieczne: przy częstotliwościach 0/1 decyzja nie zależy od wartości
+   poboru, więc permutacja strumienia nie ruszyłaby nawet trajektorii
+   (PUŁAPKA z audytu POKER-52).
+5. **Które pary widzą kolejność, a które nie.** `field_exploit`,
+   `dollar_fish` i `always_jam` mają częstotliwości 0/1 (`range_vs_random`
+   zwraca 0,0 albo 1,0), więc ich decyzja nie zależy od WARTOŚCI poboru
+   i zmiana kolejności jest dla nich **bit w bit niewidoczna** — pod
+   osobnym testem na trzech parach. Nie dotyczy to `hero_book`
+   i `exploit_book` z `tools/run_arena.py` (częstotliwości Nash
+   z `solve_open`/`solve_jf`, ułamkowe) ani `wide_call`: w parach z nimi
+   różnica z pkt 6 sumuje wpływ wymuszonego wejścia i dystrybucyjnie
+   neutralną permutację poborów (pkt 4). Czysto zero-jedynkowe są dwie
+   pary — `field` vs `always_jam` i `field` vs `dollar_fish` — i tylko
+   w nich zmierzona różnica należy w całości do wymuszonego wejścia.
+6. **Skala wpływu wymuszonego wejścia na liczby POKER-42/43/48
+   ZMIERZONA.** Ramię „przed" to rozgrywacz z commita `3978d7c`, ramię „po"
+   to HEAD; oba grają te same książki na tych samych seedach bloków, więc
+   statystyka idzie na różnicach sparowanych (N = 320 bloków, wypłata 3x —
+   dokładnie konfiguracja zamkniętych liczb). Pytanie o dołożenie zerowe
+   dotyczyło **680 z 135 024 decyzji (0,504%)** tych siedmiu par.
+
+   | para | ROI przed | ROI po | różnica sparowana (CI) | bloki inne |
+   |---|---:|---:|---|---:|
+   | `tight` vs `always_jam` | −40,00% | −40,31% | −0,31 pp (−1,68..+1,06) | 5 |
+   | `exploit` vs `always_jam` | +18,44% | +18,44% | **0,00 pp** (bit w bit) | 0 |
+   | `exploit` vs `wide_call` | +11,56% | +11,87% | +0,31 pp (−4,07..+4,69) | 42 |
+   | `field` vs `always_jam` | +15,94% | +15,94% | **0,00 pp** (bit w bit) | 0 |
+   | `tight` vs `dollar_fish` | −38,44% | −36,88% | +1,56 pp (−0,81..+3,93) | 12 |
+   | `field` vs `dollar_fish` | −2,50% | −3,13% | −0,63 pp (−1,85..+0,60) | 4 |
+   | `field` vs `wide_call` | +27,81% | +27,19% | −0,63 pp (−5,38..+4,13) | 54 |
+
+   Pary z książką ułamkową (`wide_call`, `hero_book`, `exploit_book`) mają
+   więcej „innych bloków", bo permutuje je także kolejność —
+   dystrybucyjnie neutralnie (pkt 4 i 5). Każdy przedział obejmuje zero:
+   przy tym N żadna z zamkniętych liczb nie przesuwa się o więcej, niż
+   wynosi jej własna niepewność. Liczby POKER-48
+   przesuwają się tak samo mało: redukcja SD (AA) 48,57% → 48,57%
+   (`field` vs `always_jam`, bit w bit), 58,48% → 58,89% (`field` vs
+   `dollar_fish`, N bloków 5 pp 1 061 → 1 041) i 37,73% → 38,03%
+   (`tight` vs `always_jam`, 1 898 → 1 861); obciążenie pozycyjne (AB,
+   20 000 turniejów, SE ≤ 1,04 pp) rusza się o **≤ 0,17 pp** na każdym
+   z sześciu miejsc, a rozstępy 3,15 pp i 3,55 pp przechodzą w 3,15 pp
+   i 3,42 pp.
+7. **Werdykt dla zamkniętych liczb: wszystkie pozostają ważne, żadna teza
+   się nie zmienia**; bloki POKER-42/43/48 dostają adnotację, nie
+   nadpisanie, bo są pomiarem rozgrywacza sprzed naprawy. „Exploit call vs
+   random +18,4%" i „field vs always-jam +15,9%" wychodzą **co do bitu te
+   same** (w obu parach nie zmienił się ani jeden blok);
+   „tight vs always-jam −40,0%" przechodzi w −40,3% (nowa wartość leży
+   głęboko w starym CI −48,5..−31,5); „vs $1-ish fish −2,5%" przechodzi
+   w −3,1%, a werdykt **„bije $1-ish fisha nieosiągnięte" trzyma się tak
+   samo** (CI po naprawie −9,4..+3,2 nadal obejmuje zero). Decyzja
+   o unieważnieniu albo utrzymaniu liczb należy do architekta; ten blok
+   dostarcza pomiar, którego decyzja 28 pkt 2b wymagała przed nią.
+
+Komendy odtwarzające (z katalogu repozytorium, venv bramki;
+`/tmp/poker-przed` to nieistniejąca jeszcze ścieżka poza repozytorium —
+worktree ramienia „przed"). `PYTHONPATH` jest konieczny: venv ma pakiet
+zainstalowany edytowalnie z `src/` HEAD-a, a ścieżka z `PYTHONPATH` ma
+pierwszeństwo, więc bez niej ramię „przed" grałoby naprawionym
+rozgrywaczem. BI daje ROI i CI każdego ramienia osobno narzędziem
+produktu (≈19 s na wywołanie książek, ≈9 min na `seats 20000`), BJ —
+różnice sparowane na wspólnych seedach i częstość pytań o dołożenie
+zerowe (≈39 s):
+
+```
+BI git worktree add /tmp/poker-przed 3978d7c
+   PYTHONPATH=/tmp/poker-przed/src python /tmp/poker-przed/tools/run_arena.py 320 3x
+   PYTHONPATH=/tmp/poker-przed/src python /tmp/poker-przed/tools/run_arena.py sd 320 3x
+   PYTHONPATH=/tmp/poker-przed/src python /tmp/poker-przed/tools/run_arena.py seats 20000 3x
+   python tools/run_arena.py 320 3x
+   python tools/run_arena.py sd 320 3x
+   python tools/run_arena.py seats 20000 3x
+BJ git show 3978d7c:src/poker/spin_arena.py > /tmp/poker-przed/spin_arena_before.py
+   python - <<'EOF'
+import sys; sys.path[:0] = ["/tmp/poker-przed", "tools"]
+import spin_arena_before as B
+from run_arena import exploit_book, hero_book
+from poker.spin import PAYOUTS
+from poker.spin_arena import always_jam, dollar_fish, field_exploit, play_block, wide_call
+old = lambda b: B.SeatBook(b.open, b.overjam, b.vs_open, b.vs_jam, b.jf_first, b.jf_vs_jam)
+tally = [0, 0]
+class Watch:  # gra dokładnie jak książka, ale liczy pytania o dołożenie zerowe
+    def __init__(self, book): self.book = old(book)
+    def act(self, view, rng):
+        tally[0] += 1
+        tally[1] += (view.jammed or view.opened) and view.contrib[view.seat] >= max(view.contrib)
+        return B.pick(self.book, view.klass, jamfold=view.jamfold,
+                      opened=view.opened, jammed=view.jammed, rng=rng)
+prizes, n = PAYOUTS["3x"].prizes, 320
+pairs = {"tight_vs_always_jam": (hero_book("3x"), always_jam(), 21),
+         "exploit_vs_always_jam": (exploit_book("3x"), always_jam(), 21),
+         "exploit_vs_wide": (exploit_book("3x"), wide_call(0.45), 22),
+         "field_vs_always_jam": (field_exploit(), always_jam(), 21),
+         "tight_vs_dollar": (hero_book("3x"), dollar_fish(), 24),
+         "field_vs_dollar": (field_exploit(), dollar_fish(), 24),
+         "field_vs_wide": (field_exploit(), wide_call(0.45), 22)}
+for name, (h, v, seed) in pairs.items():
+    a = [play_block(h, v, prizes, seed + i) for i in range(n)]
+    b = [B.play_block(Watch(h), Watch(v), prizes, seed + i) for i in range(n)]
+    d = [x - y for x, y in zip(a, b, strict=True)]
+    m = sum(d) / n
+    se = (sum((x - m) ** 2 for x in d) / (n - 1)) ** 0.5 / n**0.5
+    print(f"{name} po {sum(a)/n-1:+.4f} przed {sum(b)/n-1:+.4f} roznica {m:+.4f} "
+          f"CI {m-1.96*se:+.4f}..{m+1.96*se:+.4f} bloki {sum(1 for x,y in zip(a,b) if x!=y)}")
+print(f"pytania o dolozenie zerowe: {tally[1]} z {tally[0]} decyzji "
+      f"({100.0*tally[1]/tally[0]:.3f}%)")
+EOF
+```
+
+Świadomie zostawione: (1) **model treningu ma własny, przeciwny rozjazd
+z regułą pokera** i naprawa rozgrywacza go nie dotyka — maska gry etapowej
+wymusza wejście, gdy jam nie przewyższa wkładu WŁASNEGO gracza
+(`min(s_t, s_u) <= sb_posted`), czyli pozwala „sprawdzić" jam mniejszy niż
+duży blind stojący za plecami; arena liczy dołożenie do NAJWYŻSZEGO wkładu
+i takiego gracza pyta, słusznie. Warunek wymaga stacku nie większego niż mały
+blind, więc na artefakcie bramki nie zachodzi ani razu (spacer po drzewie
+treningu bez wyjątku, pkt 3), a jego naprawa byłaby zmianą drzewa treningu,
+nie rozgrywacza. (2) Ponowny pomiar BF/BG/BH artefaktu produkcyjnego należy do
+POKER-55 (dopiero po komplecie napraw mierzy się artefakt, a nie parę
+artefakt + reguła).
+
 **POKER-52 (agent blueprintu w arenie Spin i w rejestrze CLI)
 DOSTARCZONY; OBJECTION kodera rozstrzygnięty
 [decyzją 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)
@@ -1027,7 +1220,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
       nic nie kosztuje (call za darmo, gdy jamujący ma nie więcej niż
       wkład już wstawiony), a arena o nią pyta — przeciwnik pasuje za
       darmo i wprowadza rękę w gałąź, której w drzewie treningu nie ma.
-      → naprawa rozgrywacza w POKER-54 (decyzja 28 pkt 2b).
+      → NAPRAWIONE w POKER-54 (blok wyżej; licznik tej przyczyny nazywa
+      się teraz `forced_action_misses` i jest zerem blokująco).
    c) **Przeskok trybu na progu 7 bb** (`mode_flip_misses` = 1 098).
       Arena liczy jam/fold z dokładnych stacków, trening ze
       skwantowanych, więc tuż nad progiem (71 żetonów przy bb = 10 to
@@ -1054,7 +1248,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
       **nie 1,349%, jak podawała pierwsza wersja tego bloku**: druga twarz
       była wtedy nieliczona i opisana fałszywym zdaniem o zgodności puli
       (korekta z audytu POKER-52, decyzja 28 pkt 2a KOREKTA).
-      → naprawa rozgrywacza w POKER-54 usuwa obie twarze naraz.
+      → NAPRAWIONE w POKER-54 (blok wyżej): poprawna kolejność nie
+      wytwarza żadnej z tych twarzy, oba liczniki są zerami blokująco.
 
    Bramka trzyma, że rozjazdy są dokładnie tych rodzajów: spacer po
    drzewie gry etapowej z `solve_grid` musi ZUŻYĆ całą historię ręki,
@@ -1920,6 +2115,17 @@ AB python tools/run_arena.py seats 20000 3x
    obejmuje zero), przewaga nad always-jam teraz rozstrzygnięta całym
    przedziałem.
 
+**Adnotacja POKER-54 do obu tabel:** obie zmierzył rozgrywacz sprzed
+naprawy kolejności i wymuszonego wejścia za darmo. Po naprawie, na tych
+samych seedach: w tabeli AA para field vs always-jam jest **bit w bit ta
+sama**, field vs $1 fish ma SD/blok 57,6 pp zamiast 58,1 (redukcja 58,9%,
+N bloków 5 pp **1 041**), a tight vs always-jam SD/turniej 124,2 pp
+i SD/blok 77,0 pp (redukcja 38,0%, N bloków 5 pp **1 861**); w tabeli AB
+żadne z sześciu miejsc nie rusza się o więcej niż **0,16 pp** przy SE
+1,04 pp, a rozstępy 3,15 pp i 3,55 pp przechodzą w 3,15 pp i 3,42 pp.
+Werdykty tego bloku (rotacja usuwa rozstęp pozycyjny, „bijemy X" wymaga
+`compare_blocks`) bez zmian — pomiar i komendy w bloku POKER-54.
+
 Świadomie zostawione: kotwica krzyżowa rozgrywacza z silnikiem
 (decyzja 27 pkt 4) jawnie poza tym kontraktem — wchodzi z następnym
 kontraktem dotykającym rozgrywacza; AIVAT zablokowany na blueprincie
@@ -1967,8 +2173,14 @@ Następne kroki:
    wzrostu), a cztery rozjazdy areny z modelem zakwalifikowane — dwa jako
    usterki rozgrywacza (POKER-54), przeskok trybu i horyzont jako
    odwzorowanie agenta (POKER-55), warstwy 1–5 do decyzji po ponownym
-   pomiarze. Następny krok linii: **POKER-54**, a AIVAT (POKER-53)
-   przesunięty za naprawy przyrządu (decyzja 28 pkt 4). Otwarte i wycenione: **697 z 1 198 stanów `deep`
+   pomiarze. **POKER-54 dostarczony** (blok wyżej): kolejność od agresora
+   i wymuszone wejście za darmo, trzy liczniki rozjazdu zerami blokująco,
+   wpływ na liczby POKER-42/43/48 zmierzony i mieszczący się w ich własnych
+   CI. Następny krok linii: **POKER-55** (odwzorowanie trybu jam/fold przy
+   przeskoku progu, odczyt cykliczny horyzontu i ponowny pomiar BF/BG/BH —
+   dopiero on mierzy artefakt, a nie parę artefakt + reguła), a AIVAT
+   (POKER-53) przesunięty za naprawy przyrządu (decyzja 28 pkt 4).
+   Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
    — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to
    sufit 1 536 iteracji, ~4× drożej na najdroższym trybie — ta sama
@@ -1998,8 +2210,9 @@ Następne kroki:
    ([decyzja 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)):
    kolejność licytacji po ponownym otwarciu (obie twarze: arena pyta UTG
    przed BB, a potem BB po odpowiedzi UTG) i brak wymuszenia call-a za
-   darmo to **usterki rozgrywacza jako przyrządu** — naprawa w POKER-54,
-   z pomiarem wpływu na liczby POKER-42/43/48 zanim się je unieważni;
+   darmo to **usterki rozgrywacza jako przyrządu** — **naprawione
+   w POKER-54** wraz z pomiarem wpływu na liczby POKER-42/43/48
+   (adnotacje przy tamtych blokach; żadna teza się nie zmieniła);
 4. POKER-26 (informacja zwrotna przy stole LAN) — szkic czeka na
    zatwierdzenie; POKER-28 (memoizacja parsowania w testach
    architektury, wiązanie checkpointu) nadal zasadny; POKER-27

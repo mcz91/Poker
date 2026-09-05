@@ -411,7 +411,7 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
     """
     config = _mini_config()
     views = _spy_views(range(40), (dollar_fish(), always_jam()))
-    assert len(views) > 500
+    assert len(views) == 772  # liczba w bloku POKER-54 CURRENT_STATE
     seen_nodes: set[tuple[int, int]] = set()
     cache: dict[tuple[Any, int], Any] = {}
     for view in views:

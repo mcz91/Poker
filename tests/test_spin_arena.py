@@ -422,15 +422,19 @@ def test_kolejnosc_od_agresora_jest_neutralna_dystrybucyjnie_dla_ksiazek(
     monkeypatch.setattr(spin_arena, "speaking_order", _kolejnosc_sprzed_poker_54)
     before = [play_block(hero, villain, prizes, 5000 + i) for i in range(n)]
 
-    assert before != after, "kolejność bez wpływu na żadną trajektorię = brak zmiany"
+    changed = sum(1 for a, b in zip(after, before, strict=True) if a != b)
+    assert changed == 54, changed  # liczba w bloku POKER-54 CURRENT_STATE
     diffs = [a - b for a, b in zip(after, before, strict=True)]
     mean = sum(diffs) / n
     sd = (sum((d - mean) ** 2 for d in diffs) / (n - 1)) ** 0.5
     se = sd / n**0.5
     assert mean - 1.96 * se <= 0.0 <= mean + 1.96 * se, (mean, se)
+    assert mean == pytest.approx(0.0133, abs=5e-4), mean
+    assert (mean - 1.96 * se, mean + 1.96 * se) == pytest.approx((-0.0373, 0.0640), abs=5e-4)
     sd_after = (sum((x - sum(after) / n) ** 2 for x in after) / (n - 1)) ** 0.5
     sd_before = (sum((x - sum(before) / n) ** 2 for x in before) / (n - 1)) ** 0.5
-    assert abs(sd_after - sd_before) < 0.05 * sd_before, (sd_after, sd_before)
+    assert abs(sd_after - sd_before) < 0.01 * sd_before, (sd_after, sd_before)
+    assert (sd_after, sd_before) == pytest.approx((0.6379, 0.6328), abs=5e-4)
 
 
 def test_ksiazki_referencyjne_nie_widza_kolejnosci_wcale(
