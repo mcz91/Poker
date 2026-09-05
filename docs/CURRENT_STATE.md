@@ -2540,7 +2540,11 @@ Następne kroki:
    zerowane): kolejność od agresora
    i wymuszone wejście za darmo, trzy liczniki rozjazdu zerami blokująco,
    wpływ na liczby POKER-42/43/48 zmierzony i mieszczący się w ich własnych
-   CI. **POKER-55 DOSTARCZONY** (blok wyżej): agent czyta artefakt tam,
+   CI. **POKER-55 zamknięty** (blok wyżej; audyt świeżym kontekstem
+   2026-09-05 bez findingów blokujących — cykl i przemapowanie ról
+   zweryfikowane na artefakcie produkcyjnym, trzy informacyjne domknięte:
+   licznik przekładu bliźniaka, zmierzona cena cyklu, semantyka
+   liczników): agent czyta artefakt tam,
    gdzie dotąd wołał regułę awaryjną — warstwa cyklu punktu stałego dla rąk
    za horyzontem i bliźniaczy węzeł jam/fold przy przeskoku progu 7 bb;
    fallback spadł z 2,299% do **0,850% decyzji** i jest wyłącznie granicą
@@ -2549,11 +2553,15 @@ Następne kroki:
    jest nieodróżnialny od zera (CI −0,39..+0,19 pp vs `field_exploit`) przy
    przewadze sparowanej +5,20 pp (CI +3,74..+6,66), więc przewaga jest
    przypisywalna artefaktowi — nadal wyłącznie wobec trzech skryptów areny,
-   bez twierdzeń o polu $1. Następny krok linii: **decyzja architekta
-   o warstwach 1–5** (dane: blok POKER-55 pkt 10 — 0,844% decyzji, wpływ
-   reguły w granicach CI, cena +17,5% biegu produkcyjnego), a po niej AIVAT
-   (POKER-53), który ma teraz naprawiony przyrząd (decyzja 28 pkt 4);
-   decyzja 29 bramkowała pomiary tierowe tym pomiarem — jest wykonany.
+   bez twierdzeń o polu $1. Decyzja o warstwach 1–5 podjęta
+   w [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
+   (P-3/POKER-58: domknięcie przez osiągalność łańcucha dokładnego,
+   2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
+   decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
+   decyzji 29: **POKER-56** (P-1 higiena tierowa) → POKER-57 (`.bpk` v2)
+   → POKER-58 → POKER-59 (checkpoint horyzontu) → POKER-53 (AIVAT na
+   naprawionym przyrządzie) → sondy i przebiegi tierowe; bramka decyzji 29
+   „pomiar przed tierami" — wykonana w POKER-55.
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
    — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to
