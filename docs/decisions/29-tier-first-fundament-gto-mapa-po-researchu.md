@@ -140,6 +140,29 @@ pokaże błąd siatki nad tolerancją → krok 1 (na T-MODAL mnożnik 1,43×);
 tolerancję; (3) CI areny po 55+AIVAT istotnie węższe od budżetowanych →
 dopiero wtedy tolerancja wraca do rozważenia. Bez wyzwalacza następny
 kontrakt należy do drzewa albo eksploatacji, nie do kolejnego solve'a.
+**KOREKTA (2026-09-05, POKER-56 — fixture wyceny per-mode, potwierdzony
+niezależnie audytem co do cyfry):** koszty panelu były szacunkami
+mnożnikiem liczby stanów; fixture `tools/blueprint/mode_census.py`
+(skalibrowany na biegu produkcyjnym: 64,3 wobec 65,4 zmierzonych — różnica
+to narzut forka, kalibracja dowodzi rachunkowości, nie przenośności temp)
+daje: WTA@25bb 64,3 · T-MODAL **17,8** (nie ~30) · T-MID **36,4** (nie ~71)
+· pełny DBR **53,5** (nie ~96) · krok 1 na 150 żetonach 252,1 solvera /
+263,3 z tensorem (nie ~444/555 — tensor jest kartowy i nie skaluje się
+z siatką) · warstwy 1–5 do PEŁNEJ siatki **+47,9** (górne ograniczenie;
+P-3 rozwiązuje różnicę łańcucha dokładnego za 2–10). Cztery wiersze WTA
+i ich suma (~172 rdzenio-h zamiast ~262) są **DOLNYMI oszacowaniami**:
+stoją na trzech jawnie nazwanych założeniach — (a) 6 cykli horyzontu jak
+w biegu 80/20, (b) przenośność tempa per stan między wektorami wypłat
+(OBALONA co do kierunku na łańcuchu kontrolnym: WTA wymaga więcej iteracji
+PI-FP/CFR+ — jamfold 1,39×, hu-deep 1,12×, hu-jamfold 1,91× w iteracjach;
+mnożnika z 34 żetonów/4 klas NIE przenosimy na produkcję — wyceni go
+pierwszy przebieg WTA), (c) niezależność tempa od kroku siatki
+(niezweryfikowana). Spis trybów (pomiar BF): `deep` + `hu-deep` obsługują
+**72% decyzji** przy 4,3% komórek siatki, a `jamfold` zjada 57% budżetu
+warstw za 10,5% decyzji — odpowiedź na otwarte pytanie 2: udział komórek
+≠ udział odwiedzin o rząd wielkości, więc jakość trybu `deep` waży
+w produkcie ~14× więcej, niż sugeruje jego udział w siatce.
+
 Suma mapy ~325–375 rdzenio-h; wszystko mieści się w Colab (największy
 przebieg ~96 < bezpiecznik 140; P-4 przed każdym przebiegiem > 12 h
 ściennych; budżetujemy w rdzenio-h, nie w CU).

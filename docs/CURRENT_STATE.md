@@ -966,7 +966,7 @@ niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
 
-**POKER-56 (higiena tierowa przed rodziną blueprintów) DOSTARCZONY.**
+**POKER-56 (higiena tierowa przed rodziną blueprintów) ZAMKNIĘTY** (audyt świeżym kontekstem 2026-09-05: fixture wyceny przeliczony niezależnie co do cyfry; dwa findingi blokujące — fałszywa neutralność kosztowa A/B wypłat i sprzeczne ceny P-3 — naprawione z pomiarem BM).
 Realizacja [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
 pkt 1, 3A, 4 i 5 (P-1). Zero rdzenio-godzin solvera: kontrakt nie liczy
 żadnego przebiegu, tylko odbiera cichym pomyłkom możliwość zaistnienia
@@ -2836,7 +2836,7 @@ Następne kroki:
    (P-3/POKER-58: domknięcie przez osiągalność łańcucha dokładnego,
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
-   decyzji 29: **POKER-56** (P-1 higiena tierowa) → POKER-57 (`.bpk` v2)
+   decyzji 29: POKER-56 (P-1) zamknięty → **POKER-57** (`.bpk` v2)
    → POKER-58 → POKER-59 (checkpoint horyzontu) → POKER-53 (AIVAT na
    naprawionym przyrządzie) → sondy i przebiegi tierowe; bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55.
