@@ -21,6 +21,9 @@ from typing import Any
 import pytest
 
 from poker.blueprint_agent import (
+    N_B_VS_U_JAM_T_FOLD,
+    N_T_VS_U_JAM,
+    N_U_ROOT,
     NODES_3MAX,
     NODES_3MAX_OUT_OF_ORDER,
     NODES_HU,
@@ -39,11 +42,13 @@ from poker.blueprint_agent import (
     state_keys,
 )
 from poker.blueprint_reader import BlueprintReader, StateBlock
+from poker.dealing import shuffled_deck
 from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, blinds_for_hand, roles
 from poker.spin_arena import (
     HAND_GUARD,
     SeatBook,
     SeatView,
+    _play_hand,
     always_jam,
     dollar_fish,
     field_exploit,
@@ -56,15 +61,6 @@ from poker.spin_arena import (
 
 REPO = Path(__file__).resolve().parent.parent
 BLUEPRINT = REPO / "tools" / "blueprint"
-
-# Rodzic slotu węzła w drzewie gry etapowej: węzeł → (rodzic, slot dojścia).
-PARENT_3MAX = {
-    1: (0, SLOT_FOLD), 2: (1, SLOT_MID), 3: (2, SLOT_MID), 4: (1, SLOT_JAM),
-    5: (0, SLOT_MID), 6: (5, SLOT_FOLD), 7: (6, SLOT_MID), 8: (5, SLOT_MID),
-    9: (8, SLOT_FOLD), 10: (8, SLOT_MID), 11: (0, SLOT_JAM), 12: (11, SLOT_FOLD),
-    13: (11, SLOT_MID),
-}
-PARENT_HU = {1: (0, SLOT_MID), 2: (1, SLOT_MID), 3: (0, SLOT_JAM)}
 
 
 def _load(name: str) -> Any:
@@ -397,56 +393,62 @@ def _tensors(config: Any) -> Any:
 
 
 def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
-    """Każdy kontekst licytacji areny trafia w węzeł, który trening naprawdę ma.
+    """Kontekst licytacji areny trafia w węzeł treningu — po POKER-54 BEZ WYJĄTKÓW.
 
-    Wyjątki są trzy i każdy jest rozjazdem areny z modelem, nie luzem
-    odwzorowania: (1) kolejność po ponownym otwarciu — arena pyta UTG przed BB
-    (`ORDER_SWAP`); (2) ta sama usterka widziana od strony BB — pytany PO
-    odpowiedzi UTG, czyta węzeł modelu, który tej odpowiedzi nie zna
-    (`ORDER_COLLAPSE`, wykrywany niezużytą historią w spacerze); (3) arena pyta
-    o akcję, którą trening wymusza maską (call za darmo), więc gałąź nie
-    istnieje w drzewie. Test przybija, że NIE MA rozjazdów innego rodzaju
-    i że wszystkie trzy naprawdę występują.
+    Przed POKER-54 rozjazd miał trzy twarze (decyzja 28 pkt 2a z korektą i 2b):
+    arena pytała UTG przed BB (`ORDER_SWAP`), pytała BB po odpowiedzi UTG na
+    3bet (`ORDER_COLLAPSE` — dwa infosety areny na jeden węzeł modelu) i pytała
+    o akcję, którą trening wymusza maską (call za darmo), więc wchodziła
+    w gałąź, której w drzewie nie ma. Naprawiony rozgrywacz nie wytwarza
+    żadnej z nich: spacer zużywający CAŁĄ historię ręki staje w tym samym
+    węźle i na tym samym miejscu co odwzorowanie agenta, a węzeł jest
+    osiągalny przy maskach tego stanu.
+
+    Zero nie jest tu o pustce: próbka odwiedza wszystkie 14 węzłów modelu
+    3-max i wszystkie 4 endgame'u HU — w tym węzeł 8 (BB wobec 3betu) oraz 9
+    i 10 (odpowiedź UTG na 3bet), czyli dokładnie te, na których stara
+    kolejność się rozjeżdżała.
     """
     config = _mini_config()
     views = _spy_views(range(40), (dollar_fish(), always_jam()))
     assert len(views) > 500
-    seen_nodes: set[int] = set()
-    out_of_order = 0
-    collapsed = 0
-    forced_by_mask = 0
+    seen_nodes: set[tuple[int, int]] = set()
     cache: dict[tuple[Any, int], Any] = {}
     for view in views:
         node, divergence = node_slot(view)
-        seen_nodes.add(node)
+        assert divergence is None, (view, node)
         key = state_keys(view, 1)[0]  # krok 1 = brak kwantyzacji: dokładne stacki areny
         cache_key = (key, view.hand)
         if cache_key not in cache:
             cache[cache_key] = _stage_problem(config, key, view.hand)
         problem = cache[cache_key]
         order = role_seats(view)
-        if divergence == ORDER_SWAP:
-            out_of_order += 1
-            # Model pyta w tym miejscu kogo innego — i to jest cały rozjazd.
-            assert _tree_node(problem, view, order)[1] != view.seat, view
-            continue
-        if divergence == ORDER_COLLAPSE:
-            collapsed += 1
-            # Spacer zużywający całą historię musi tu paść: model nie zna
-            # odpowiedzi, która w arenie już padła.
-            with pytest.raises(AssertionError, match="niezużytą historią"):
-                _tree_node(problem, view, order)
-            continue
+        seen_nodes.add((len(order), node))
         assert _tree_node(problem, view, order) == (node, view.seat), view
-        if node in problem.nodes:
-            continue
-        parent, slot = (PARENT_3MAX if len(order) == 3 else PARENT_HU)[node]
-        assert slot not in problem.allowed[parent], (view, node)
-        forced_by_mask += 1
-    assert out_of_order > 0, "kolejność licytacji areny nie rozjechała się ani razu"
-    assert collapsed > 0, "żaden infoset areny nie skolapsował do węzła modelu"
-    assert forced_by_mask > 0, "arena nie zapytała o żadną akcję wymuszoną w treningu"
-    assert seen_nodes >= {0, 1, 2, 4, 5, 8, 11, 12, 13}, seen_nodes
+        assert node in problem.nodes, (view, node)
+    assert {node for live, node in seen_nodes if live == 3} == set(range(14))
+    assert {node for live, node in seen_nodes if live == 2} == set(range(4))
+
+
+def test_wejscie_za_darmo_areny_to_akcja_wymuszona_maska_treningu() -> None:
+    """Rozgrywacz nie pyta dokładnie tam, gdzie trening ma jedną dozwoloną akcję.
+
+    Ręka 4 sadza guzik na miejscu 1 w obu światach (arena: `button`, trening:
+    `ręka % 3`), blindy 2/4. UTG ma 3 żetony, więc jego jam nie przewyższa
+    blindu BB: maska modelu w węźle „BB po foldzie guzika" zostawia sam slot
+    środkowy (call), a arena wpuszcza BB bez pytania — ten sam wybór po obu
+    stronach, na tym samym stanie (decyzja 28 pkt 2b).
+    """
+    import random
+
+    problem = _stage_problem(_mini_config(), (3, 50, 50), 4)
+    assert problem.allowed[N_B_VS_U_JAM_T_FOLD] == (SLOT_MID,)
+    bb_seat = Script(("fold",))
+    books = (Script(("jam",)), Script(("fold",)), bb_seat)
+    deck = shuffled_deck(random.Random(6))
+    out = _play_hand([3, 50, 50], 4, 1, 2, 4, books, deck, random.Random(0))
+    assert bb_seat.actions == ["fold"], "rozgrywacz zapytał o darmowy call"
+    assert out[0] == 0 and out[2] == 55  # BB dograł do showdownu i wygrał pulę
 
 
 def test_tablica_wezlow_pokrywa_caly_model_i_nic_ponadto() -> None:
@@ -689,6 +691,36 @@ def test_stan_spoza_warstwy_zdarza_sie_tylko_w_warstwie_przycietej(
     assert agent.layer_is_full(20) is True
 
 
+def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
+    mini_artifact: Path,
+) -> None:
+    """Kryterium POKER-54, blokująco: trzy liczniki rozjazdu = 0 na artefakcie bramki.
+
+    `out_of_order` i `order_collapse` to dwie twarze kolejności licytacji,
+    `forced_action_misses` to wejście w gałąź za akcją wymuszoną maską (pytanie
+    o darmowy call). Pomiar POKER-52 miał tu odpowiednio 21 348, 19 458
+    i 1 092 wpisów na 1 582 048 decyzji; naprawiony rozgrywacz nie wytwarza
+    żadnego z tych infosetów.
+
+    Zero nie jest o pustce: ta sama próbka odwiedza węzły, na których rozjazd
+    siedział — odpowiedź UTG na 3bet (węzły 9 i 10) i decyzję BB wobec 3betu
+    (węzeł 8) — a każdy z trzech liczników ma osobny test wzrostu.
+    """
+    agent = _agent(mini_artifact)
+    prizes = PAYOUTS["3x"].prizes
+    for villain in (field_exploit(), dollar_fish(), always_jam()):
+        for seed in range(25):
+            play_block(agent, villain, prizes, 300 + seed)
+    counters = agent.counters()
+    assert counters["decisions"] > 500, counters
+    assert counters["out_of_order"] == 0, counters
+    assert counters["order_collapse"] == 0, counters
+    assert counters["forced_action_misses"] == 0, counters
+    assert counters["node_misses"] == counters["mode_flip_misses"], counters
+    nodes = [node_slot(view)[0] for view in _spy_views(range(25), (field_exploit(), always_jam()))]
+    assert {8, 9, 10} <= set(nodes), sorted(set(nodes))
+
+
 def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path) -> None:
     """Kwantyzacja potrafi przerzucić stan przez próg jam/fold — i to jest widziane.
 
@@ -840,6 +872,52 @@ def test_licznik_rozkladu_bez_legalnej_masy_rosnie(mini_artifact: Path) -> None:
     assert counters["mass_misses"] == 1, counters
     assert counters["grid_fallbacks"] == 1
     assert counters["mode_mismatches"] == 1  # open poza drzewem areny — też liczony
+
+
+def test_licznik_wejscia_wymuszonego_rosnie_za_galezia_spoza_maski(
+    mini_artifact: Path,
+) -> None:
+    """Kryterium POKER-54: `forced_action_misses` = 0 wymaga licznika, który umie rosnąć.
+
+    Gdy jam nie przewyższa blinda guzika, maska treningu wymusza guzikowi
+    wejście i gałąź „guzik spasował" nie ma w artefakcie węzła — pytanie
+    o darmowy call wprowadzało arenę dokładnie tam. Artefakt bramki takiego
+    stanu nie ma (krok siatki 50 nie schodzi poniżej blinda), więc maska bez
+    węzła 12 jest tu daną formatu, a nie podmienioną logiką agenta: bajty
+    bloku idą przez tę samą dekwantyzację co z pliku.
+    """
+    import random
+
+    agent = _agent(mini_artifact)
+    width = agent.reader.n_classes
+    block = StateBlock(
+        hand=20,
+        stacks=(50, 50, 50),
+        node_mask=(1 << N_U_ROOT) | (1 << N_T_VS_U_JAM),
+        n_classes=width,
+        quant_bits=8,
+        payload=bytes(4 * width),
+    )
+    assert block.has_node(N_B_VS_U_JAM_T_FOLD) is False
+    agent.state_block = lambda view: block  # type: ignore[method-assign]
+    view = _view(
+        hand=20,
+        seat=2,
+        button=1,
+        stacks=(50, 50, 50),
+        contrib=(50, 10, 20),
+        actions=((0, "jam"), (1, "fold")),
+        bb=20,
+        klass=next(iter(agent.column)),
+        jamfold=True,
+        jammed=True,
+    )
+    assert node_slot(view) == (N_B_VS_U_JAM_T_FOLD, None)
+    assert agent.act(view, random.Random(0)) == "jam"  # fallback: sprawdza all-in
+    counters = agent.counters()
+    assert counters["node_misses"] == 1, counters
+    assert counters["forced_action_misses"] == 1, counters
+    assert counters["mode_flip_misses"] == 0, counters
 
 
 def test_klasa_z_artefaktu_nie_zapala_licznika_klas(mini_artifact: Path) -> None:

@@ -13,6 +13,12 @@ stanowy `SeatAgent`, który dostaje pełny widok miejsca (`SeatView`) i rng
 akcji ręki. Oba źródła decyzji chodzą po tym samym, zamrożonym drzewie
 (decyzja 27): zbiór legalnych akcji liczy `legal_actions`, a rozgrywacz
 odrzuca akcję spoza niego.
+
+Kolejność głosu jest regułą pokera, nie kolejką ról: akcja idzie na lewo od
+tego, kto właśnie zagrał, więc po przebiciu pyta się pierwszego
+niedopasowanego gracza na lewo od agresora (`speaking_order`). Gracz, którego
+dołożenie do najwyższego wkładu wynosi zero, nie jest pytany — wchodzi do puli
+za darmo, bo fold nic by mu nie oszczędził (POKER-54, decyzja 28 pkt 2a i 2b).
 """
 
 from __future__ import annotations
@@ -64,7 +70,8 @@ class SeatView:
     artefaktu. `stacks` to stan sprzed postawienia blindów, `contrib` —
     wkłady już w puli, `actions` — akcje ręki w kolejności podjęcia
     (miejsce, akcja); miejsce all-in z samego blinda nie ma w nich wpisu, bo
-    rozgrywacz go nie pyta. `bb` to duży blind tej ręki — z niego i ze
+    nie ma czym zagrać, ale wejście za darmo ma — rozgrywacz o nie nie pyta,
+    a mimo to jest akcją ręki. `bb` to duży blind tej ręki — z niego i ze
     stacków liczy się próg jam/fold, więc bez niego agent nie umiałby
     powiedzieć, czy artefakt opisuje ten sam tryb drzewa co arena.
     """
@@ -89,6 +96,20 @@ class SeatAgent(Protocol):
 
 
 Seat = SeatBook | SeatAgent
+
+
+def speaking_order(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
+    """Kolejka głosu po `last_actor`: `order` obrócone tak, by zaczynać na jego lewej.
+
+    Jedyne źródło prawdy o kolejności licytacji. `order` to miejsca ręki
+    w kolejności ról (UTG, guzik, BB — a po wybiciu guzik, BB), więc obrót
+    o pozycję ostatniego grającego daje regułę pokera „akcja idzie w lewo":
+    rundę otwiera lewa strona BB (blind jest ostatnim głosem przed pierwszą
+    decyzją), a po przebiciu głos ma pierwszy niedopasowany gracz na lewo od
+    agresora — nie stała kolejka od UTG (decyzja 28 pkt 2a).
+    """
+    index = order.index(last_actor)
+    return (*order[index + 1 :], *order[: index + 1])
 
 
 def legal_actions(view: SeatView) -> tuple[str, ...]:
@@ -279,12 +300,19 @@ def _play_hand(
     opened = False
     jamfold = is_jam_fold_depth((stacks[0], stacks[1], stacks[2]), bb)
 
+    # Blindy są ostatnim głosem przed pierwszą decyzją, więc rundę otwiera
+    # lewa strona BB; dalej głos idzie na lewo od tego, kto właśnie zagrał.
+    speaker = bb_seat
+
+    def facing_raise() -> bool:
+        return jammed or opened or max(contrib) > bb
+
     def to_act() -> int | None:
         remaining = [s for s in range(3) if not folded[s] and stacks[s] > 0]
         if len(remaining) <= 1:
             return None
-        raised = jammed or opened or max(contrib) > bb
-        for candidate in order:
+        raised = facing_raise()
+        for candidate in speaking_order(order, speaker):
             if folded[candidate] or stacks[candidate] <= 0:
                 continue
             if acted[candidate]:
@@ -304,11 +332,16 @@ def _play_hand(
         seat = to_act()
         if seat is None:
             break
-        hole = holes[seat]
-        if hole is None:
-            folded[seat] = True
+        if facing_raise() and contrib[seat] >= max(contrib):
+            # Przebicie nie przewyższa wkładu tego miejsca: wejście kosztuje
+            # zero i dominuje folda, więc trening wymusza je maską akcji,
+            # a rozgrywacz nie pyta (decyzja 28 pkt 2b).
+            actions.append((seat, "jam"))
             acted[seat] = True
+            speaker = seat
             continue
+        hole = holes[seat]
+        assert hole is not None, "rozgrywacz pyta wyłącznie miejsca z kartami"
         idx = CLASS_INDEX[classify(hole[0], hole[1])]
         book = books[seat]
         if isinstance(book, SeatBook):
@@ -341,6 +374,7 @@ def _play_hand(
                 )
         actions.append((seat, act))
         acted[seat] = True
+        speaker = seat
         if act == "fold":
             folded[seat] = True
         elif act == "open":

@@ -6,9 +6,11 @@ import os
 import random
 import subprocess
 import sys
+from collections.abc import Sequence
 
 import pytest
 
+from poker import spin_arena
 from poker.betting import HeadsUpHand
 from poker.cards import Card
 from poker.dealing import DealtHand, deal_hand, shuffled_deck
@@ -17,6 +19,7 @@ from poker.openfold import _mass, threebet_vs_range
 from poker.spin import PAYOUTS, STARTING_CHIPS, is_jam_fold_depth, open_amount
 from poker.spin_arena import (
     Seat,
+    SeatBook,
     SeatView,
     _play_hand,
     always_fold,
@@ -248,14 +251,212 @@ def test_reka_hu_po_wybiciu_bb_blindy_pobierane_z_zywych_miejsc() -> None:
 
 
 class _Script:
-    """Miejsce grające zadaną listę akcji — stanowy port areny w roli skryptu."""
+    """Miejsce grające zadaną listę akcji — stanowy port areny w roli skryptu.
 
-    def __init__(self, *actions: str) -> None:
+    `log` zapisuje, kogo i w jakiej kolejności pytał rozgrywacz: miejsce
+    wpuszczone do puli za darmo nie jest pytane, więc nie zostawia w nim śladu.
+    """
+
+    def __init__(self, *actions: str, log: list[int] | None = None) -> None:
         self.actions = list(actions)
+        self.log = log
 
     def act(self, view: SeatView, rng: random.Random) -> str:
         rng.random()
+        if self.log is not None:
+            self.log.append(view.seat)
         return self.actions.pop(0)
+
+
+def test_po_jamie_pyta_pierwszego_niedopasowanego_na_lewo_od_agresora() -> None:
+    """POKER-54: po przebiciu akcja idzie od agresora, nie stałą kolejką od UTG.
+
+    Guzik 1 sadza UTG na miejscu 0, guzik (SB) na 1, BB na 2. Po jamie guzika
+    na open UTG pierwszym niedopasowanym graczem na lewo od agresora jest BB —
+    tak pyta reguła pokera i tak wygląda drzewo gry etapowej treningu (węzeł
+    „B wobec open UTG i jamu guzika" jest rodzicem węzła UTG).
+    """
+    log: list[int] = []
+    books: tuple[Seat, Seat, Seat] = (
+        _Script("open", "fold", log=log),
+        _Script("jam", log=log),
+        _Script("fold", log=log),
+    )
+    deck = shuffled_deck(random.Random(0))
+    _play_hand([50, 50, 50], 0, 1, 2, 4, books, deck, random.Random(0))
+    assert log == [0, 1, 2, 0]
+
+
+def test_kolejnosc_od_agresora_obejmuje_jam_z_bb_i_hu_po_wybiciu() -> None:
+    """Ta sama reguła dla agresora na BB i dla dwóch żywych miejsc po wybiciu."""
+    log: list[int] = []
+    books: tuple[Seat, Seat, Seat] = (
+        _Script("open", "fold", log=log),
+        _Script("fold", log=log),
+        _Script("jam", log=log),
+    )
+    deck = shuffled_deck(random.Random(0))
+    _play_hand([50, 50, 50], 0, 1, 2, 4, books, deck, random.Random(0))
+    assert log == [0, 1, 2, 0]
+
+    hu: list[int] = []
+    hu_books: tuple[Seat, Seat, Seat] = (
+        _Script("open", "fold", log=hu),
+        always_fold(),
+        _Script("jam", log=hu),
+    )
+    _play_hand([50, 0, 50], 0, 0, 2, 4, hu_books, deck, random.Random(0))
+    assert hu == [0, 2, 0]
+
+
+def test_darmowy_call_nie_jest_pytaniem_tylko_wejsciem() -> None:
+    """POKER-54: dołożenie zerowe wchodzi automatycznie, bo fold za darmo nie istnieje.
+
+    UTG jamuje cały stack 3 żetonów, a BB ma w puli blind 4 — jam nie
+    przewyższa jego wkładu, więc trening wymusza mu wejście maską akcji
+    (decyzja 28 pkt 2b). Rozgrywacz nie pyta: BB idzie do showdownu, a jego
+    nadpłata (1 żeton ponad jam) wraca. Karty seeda 6 daje BB zwycięstwo.
+    """
+    log: list[int] = []
+    books: tuple[Seat, Seat, Seat] = (
+        _Script("jam", log=log),
+        _Script("fold", log=log),
+        _Script("fold", log=log),
+    )
+    deck = shuffled_deck(random.Random(6))
+    out = _play_hand([3, 50, 50], 0, 1, 2, 4, books, deck, random.Random(0))
+    assert log == [0, 1]
+    assert out == [0, 48, 55]
+    assert sum(out) == 103
+
+
+def _asked_views(seeds: range, books: tuple[Seat, Seat, Seat]) -> list[SeatView]:
+    """Widoki WSZYSTKICH decyzji, o które rozgrywacz zapytał w tych turniejach."""
+    seen: list[SeatView] = []
+
+    class Watch:
+        def __init__(self, book: SeatBook) -> None:
+            self.book = book
+
+        def act(self, view: SeatView, rng: random.Random) -> str:
+            seen.append(view)
+            return pick(
+                self.book,
+                view.klass,
+                jamfold=view.jamfold,
+                opened=view.opened,
+                jammed=view.jammed,
+                rng=rng,
+            )
+
+    watched = tuple(Watch(book) for book in books if isinstance(book, SeatBook))
+    for seed in seeds:
+        run_spin((watched[0], watched[1], watched[2]), seed)
+    return seen
+
+
+def _zero_due_pending(view: SeatView) -> list[int]:
+    """Miejsca (poza decydentem), których dołożenie do najwyższego wkładu to zero."""
+    top = max(view.contrib)
+    spoke = {seat for seat, _ in view.actions}
+    return [
+        seat
+        for seat in range(3)
+        if seat != view.seat
+        and seat not in spoke
+        and 0 < view.stacks[seat]
+        and view.contrib[seat] >= top
+        and view.contrib[seat] < view.stacks[seat]
+    ]
+
+
+def test_zadne_miejsce_nie_jest_pytane_o_dolozenie_zerowe() -> None:
+    """Właściwość na turniejach: pytanie pada tylko tam, gdzie wejście kosztuje.
+
+    Druga asercja pilnuje, żeby pierwsza nie była o pustce: w tej samej próbce
+    sytuacja „ktoś ma dołożenie zerowe" naprawdę występuje (widzi ją miejsce
+    pytane wcześniej w tej samej rundzie).
+    """
+    books = (field_exploit(), dollar_fish(), always_jam())
+    views = _asked_views(range(60), books)
+    assert len(views) > 500
+    pending = 0
+    for view in views:
+        if view.jammed or view.opened:
+            assert view.contrib[view.seat] < max(view.contrib), view
+        pending += len(_zero_due_pending(view))
+    assert pending > 0, "próbka bez dołożeń zerowych nie sprawdza niczego"
+
+
+def _kolejnosc_sprzed_poker_54(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
+    """Kolejność areny SPRZED POKER-54: stała kolejka ról, ślepa na agresora.
+
+    To jest kontrola eksperymentu do tezy o neutralności dystrybucyjnej, a nie
+    atrapa testowanego zachowania: teza mówi o RÓŻNICY między dwiema
+    kolejnościami, więc druga kolejność musi być czymś, co da się uruchomić.
+    """
+    return tuple(order)
+
+
+def test_kolejnosc_od_agresora_jest_neutralna_dystrybucyjnie_dla_ksiazek(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zmiana kolejności permutuje pobory rng, nie rozkład łączny decyzji.
+
+    Decyzja `SeatBooka` jest funkcją klasy ręki, trzech flag kontekstu i JEDNEGO
+    poboru z rng — kolejności nie widzi. Po przebiciu każdy niedopasowany żywy
+    gracz jest pytany dokładnie raz przy tych samych flagach w obu
+    kolejnościach, więc zamiana kolejności podmienia tylko, który gracz dostaje
+    który pobór ze wspólnego strumienia ręki. Pobory są jednakowe i niezależne,
+    więc rozkład łączny decyzji się nie zmienia — zmieniają się trajektorie
+    per seed, co test też przybija.
+
+    Książki muszą mieć częstotliwości UŁAMKOWE: przy książce 0/1 decyzja nie
+    zależy od poboru, więc permutacja strumienia nie ruszyłaby nawet
+    trajektorii i test nie sprawdzałby niczego (PUŁAPKA z audytu POKER-52).
+    """
+    hero, villain = wide_call(0.3), wide_call(0.55)
+    prizes = PAYOUTS["3x"].prizes
+    n = 300
+    after = [play_block(hero, villain, prizes, 5000 + i) for i in range(n)]
+    monkeypatch.setattr(spin_arena, "speaking_order", _kolejnosc_sprzed_poker_54)
+    before = [play_block(hero, villain, prizes, 5000 + i) for i in range(n)]
+
+    assert before != after, "kolejność bez wpływu na żadną trajektorię = brak zmiany"
+    diffs = [a - b for a, b in zip(after, before, strict=True)]
+    mean = sum(diffs) / n
+    sd = (sum((d - mean) ** 2 for d in diffs) / (n - 1)) ** 0.5
+    se = sd / n**0.5
+    assert mean - 1.96 * se <= 0.0 <= mean + 1.96 * se, (mean, se)
+    sd_after = (sum((x - sum(after) / n) ** 2 for x in after) / (n - 1)) ** 0.5
+    sd_before = (sum((x - sum(before) / n) ** 2 for x in before) / (n - 1)) ** 0.5
+    assert abs(sd_after - sd_before) < 0.05 * sd_before, (sd_after, sd_before)
+
+
+def test_ksiazki_referencyjne_nie_widza_kolejnosci_wcale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Przy książkach POKER-42/43/48 kolejność nie rusza nawet trajektorii.
+
+    Ich częstotliwości są zero-jedynkowe, więc decyzja nie zależy od poboru
+    z rng, a permutacja strumienia nie zmienia niczego. Stąd werdykt dla
+    zamkniętych liczb: cała różnica zmierzona na tych parach należy do
+    wymuszonego darmowego calla, a nie do kolejności licytacji.
+    """
+    prizes = PAYOUTS["3x"].prizes
+    pairs = (
+        (field_exploit(), dollar_fish()),
+        (field_exploit(), always_jam()),
+        (dollar_fish(), always_jam()),
+    )
+    for hero, villain in pairs:
+        for book in (hero, villain):
+            for freq in (book.open, book.overjam, book.vs_open, book.vs_jam):
+                assert set(freq) <= {0.0, 1.0}, book
+    after = [[play_block(h, v, prizes, 6000 + i) for i in range(40)] for h, v in pairs]
+    monkeypatch.setattr(spin_arena, "speaking_order", _kolejnosc_sprzed_poker_54)
+    before = [[play_block(h, v, prizes, 6000 + i) for i in range(40)] for h, v in pairs]
+    assert after == before
 
 
 def _arena_deck(dealt: DealtHand, seat_of_hu: dict[int, int]) -> tuple[Card, ...]:

@@ -38,8 +38,12 @@ w artefakcie: `full_layer_state_misses` (stan spoza warstwy niosącej PEŁNĄ
 siatkę — dopiero to jest błąd odwzorowania, bo warstwy wczesne bieg tnie
 osiągalnością), `mode_flip_misses` i `mode_mismatches` (kwantyzacja
 przerzuciła stan przez próg jam/fold, więc drzewo stanu w artefakcie jest
-innego trybu niż drzewo areny) oraz `out_of_order` (kolejność licytacji areny
-po ponownym otwarciu — patrz `NODES_3MAX_OUT_OF_ORDER`).
+innego trybu niż drzewo areny) oraz trzy liczniki rozjazdu, który POKER-54
+naprawił w rozgrywaczu: `out_of_order`, `order_collapse` (kolejność licytacji
+po ponownym otwarciu — patrz `NODES_3MAX_OUT_OF_ORDER`) i
+`forced_action_misses` (gałąź za akcją, którą trening wymusza maską). Na
+naprawionym rozgrywaczu wszystkie trzy są zerami i bramka trzyma je zerami;
+zostają, bo mierzą wejście areny w infoset, którego model nie ma.
 """
 
 from __future__ import annotations
@@ -114,9 +118,12 @@ NODES_HU: dict[Key2, int] = {
     (1, "jam", None): H_B_VS_JAM,
 }
 
-# Kolejność areny po ponownym otwarciu licytacji rozjeżdża się z modelem
-# treningu i z regułą „akcja idzie od agresora" (decyzja 28 pkt 2a, naprawa
-# rozgrywacza w POKER-54). Rozjazd ma DWIE twarze i obie mają osobny licznik:
+# Kolejność areny po ponownym otwarciu licytacji rozjeżdżała się z modelem
+# treningu i z regułą „akcja idzie od agresora" (decyzja 28 pkt 2a); rozgrywacz
+# jest naprawiony (POKER-54, `spin_arena.speaking_order`), więc oba poniższe
+# rozjazdy są w bramce zerami — tablica i liczniki zostają jako niezmiennik,
+# bo to one świadczą, że kolejność areny nadal zgadza się z modelem.
+# Rozjazd ma DWIE twarze i obie mają osobny licznik:
 #
 # * ORDER_SWAP — gdy T jamuje na open UTG, `to_act` pyta najpierw UTG, choć
 #   trening pyta najpierw BB (węzeł 8). Ten infoset areny nie ma odpowiednika
@@ -228,9 +235,11 @@ def taken_actions(view: SeatView, order: tuple[int, ...]) -> tuple[str | None, .
 
     Ścieżkę drzewa wyznaczają pierwsze akcje ról — druga akcja roli jest
     w modelu treningu zawsze terminalna, więc nie ma czego opisywać. Miejsce
-    all-in z samego blinda nie ma wpisu w historii, bo rozgrywacz go nie pyta:
+    all-in z samego blinda nie ma wpisu w historii, bo nie ma czym zagrać:
     trening wymusza mu wejście maską akcji, więc jego kolejka liczy się jako
-    wejście (`jam`). Wymuszenie dolicza się wyłącznie rolom, których kolejka
+    wejście (`jam`). Miejsce wpuszczone za darmo (dołożenie zero) wpis MA —
+    rozgrywacz o nie nie pyta, ale zapisuje mu wejście, więc niczego nie
+    trzeba doliczać. Wymuszenie dolicza się wyłącznie rolom, których kolejka
     już minęła: przed pierwszą akcją decydenta późniejsze role jeszcze nie
     grały, a przy DRUGIEJ akcji decydenta wymuszenia nie ma w ogóle — druga
     akcja istnieje tylko po otwarciu, otwarcie tylko poza trybem jam/fold,
@@ -256,9 +265,11 @@ def stale_history(view: SeatView) -> bool:
     """Czy w historii ręki jest akcja, której klucz węzła nie konsumuje.
 
     Klucz opisują PIERWSZE akcje ról, bo w modelu treningu druga akcja roli
-    jest terminalna. W arenie tak nie jest: po jamie BTN na open UTG odpowiada
-    najpierw UTG, a dopiero potem BB — i wtedy druga akcja UTG zostaje poza
-    kluczem, choć w arenie już padła.
+    jest terminalna. Rozgrywacz sprzed POKER-54 pytał po jamie BTN najpierw
+    UTG, a dopiero potem BB — i wtedy druga akcja UTG zostawała poza kluczem,
+    choć w arenie już padła. Naprawiona kolejność takich historii nie
+    wytwarza, więc predykat jest tu strażnikiem: gdyby kolejność areny znów
+    się rozjechała, kolaps infosetów byłby policzony, a nie przemilczany.
     """
     seats = [seat for seat, _ in view.actions]
     return len(seats) > len(set(seats))
@@ -270,7 +281,8 @@ def node_slot(view: SeatView) -> tuple[int, str | None]:
     Przyczyna jest jedną z `ORDER_SWAP` / `ORDER_COLLAPSE` — obie opisują tę
     samą usterkę kolejności licytacji areny (decyzja 28 pkt 2a), ale są
     rozłączne: pierwsza pyta wcześniej niż model, druga czyta węzeł modelu
-    po odpowiedzi, której ten węzeł nie zna.
+    po odpowiedzi, której ten węzeł nie zna. Na rozgrywaczu po POKER-54 obie
+    są nieosiągalne i bramka trzyma je zerami.
     """
     order = role_seats(view)
     actor = order.index(view.seat)
@@ -343,6 +355,7 @@ class BlueprintAgent:
         self.class_misses = 0
         self.full_layer_state_misses = 0
         self.mode_flip_misses = 0
+        self.forced_action_misses = 0
         self.mode_mismatches = 0
         self.out_of_order = 0
         self.order_collapse = 0
@@ -359,6 +372,7 @@ class BlueprintAgent:
             "class_misses": self.class_misses,
             "full_layer_state_misses": self.full_layer_state_misses,
             "mode_flip_misses": self.mode_flip_misses,
+            "forced_action_misses": self.forced_action_misses,
             "mode_mismatches": self.mode_mismatches,
             "out_of_order": self.out_of_order,
             "order_collapse": self.order_collapse,
@@ -386,8 +400,14 @@ class BlueprintAgent:
             self.grid_fallbacks += 1
             if isinstance(miss, NodeUnreachable):
                 self.node_misses += 1
+                # Węzeł spoza maski stanu ma dwie rozłączne przyczyny: przeskok
+                # trybu przy kwantyzacji (POKER-55) albo wejście areny w gałąź
+                # za akcją, którą maska treningu wymusza — to drugie znikło
+                # razem z pytaniem o darmowy call (POKER-54).
                 if self.mode_flipped(view):
                     self.mode_flip_misses += 1
+                else:
+                    self.forced_action_misses += 1
             elif isinstance(miss, NoLegalMass):
                 self.mass_misses += 1
             else:
