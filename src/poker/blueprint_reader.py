@@ -16,12 +16,19 @@ API:
 3. **Nieosiągalność jest jawna.** Węzeł spoza maski osiągalności nie ma
    rozkładu — odczyt podnosi `NodeUnreachable`, nigdy nie zwraca cichego
    rozkładu zerowego ani równego. To jest kontrakt dla fallbacku agenta.
+4. **Fingerprint przebiegu sprawdza się jawnie** (POKER-56). Artefakt nie
+   mówi sam z siebie, JAKĄ grę policzył: kształt wypłat, żetony, zegar i krok
+   siatki żyją w metadanych, a konsument ma własne oczekiwania. Rodzina
+   blueprintów per tier (decyzja 29) sprawia, że pomyłka o jeden plik jest
+   cicha — te same warstwy, ta sama siatka, inna gra. `check_fingerprint`
+   RZUCA przy pierwszej różnicy, zamiast pozwolić grać dalej.
 """
 
 import struct
 import zlib
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 MAGIC = b"POKERBP1"
 FORMAT_VERSION = 1
@@ -86,6 +93,80 @@ class NodeUnreachable(BlueprintLookupError):
 
 class PolicyMissing(BlueprintLookupError):
     """Warstwa niesie wyłącznie V (warunek brzegowy) — nie ma w niej strategii."""
+
+
+class FingerprintMismatch(BlueprintError, ValueError):
+    """Artefakt opisuje inny przebieg niż ten, którego oczekuje konsument."""
+
+
+# Rodzaj profilu w artefakcie: równowagowy blueprint tieru albo profil
+# ograniczony miejscem (Data-Biased Response, decyzja 29 pkt 3B) — te dwa
+# nigdy nie są wymienne, bo V z DBR nie zasila AIVAT.
+PROFILE_BLUEPRINT = "blueprint"
+PROFILE_DBR = "dbr"
+
+# Konwencja hero: jedna tablica V wspólna dla wszystkich miejsc (blueprint)
+# albo trzy tablice indeksowane miejscem hero (DBR, nigdy zmiksowana).
+HERO_SYMMETRIC = "symmetric"
+HERO_SEAT_RESTRICTED = "seat-restricted"
+
+
+def _canonical(value: Any) -> Any:
+    """Porównywalna postać wartości: listy JSON-a i krotki Pythona to to samo."""
+    if isinstance(value, (list, tuple)):
+        return tuple(_canonical(item) for item in value)
+    return value
+
+
+def run_fingerprint(
+    *,
+    prizes: object,
+    total_chips: int,
+    levels: object,
+    hands_per_level: int,
+    grid_step: int,
+    profile: str = PROFILE_BLUEPRINT,
+    hero: str = HERO_SYMMETRIC,
+    **extra: object,
+) -> dict[str, Any]:
+    """Odcisk przebiegu: co trzeba wiedzieć, żeby NIE pomylić artefaktów.
+
+    Słownik jest rozszerzalny (`extra`) — kolejne kontrakty dokładają pola,
+    a `check_fingerprint` porównuje tylko to, o co pyta konsument, więc nowe
+    pole nie unieważnia starych oczekiwań. `levels` to ROZWINIĘTE poziomy
+    blindów, nigdy `None`: dwa biegi o tej samej siatce i innym zegarze to dwie
+    różne gry.
+    """
+    out: dict[str, Any] = {
+        "prizes": _canonical(prizes),
+        "total_chips": total_chips,
+        "levels": _canonical(levels),
+        "hands_per_level": hands_per_level,
+        "grid_step": grid_step,
+        "profile": profile,
+        "hero": hero,
+    }
+    out.update({key: _canonical(value) for key, value in extra.items()})
+    return out
+
+
+def check_fingerprint(actual: Mapping[str, Any], expected: Mapping[str, Any]) -> None:
+    """Fingerprint artefaktu wobec oczekiwań konsumenta — wyjątek przy pierwszej różnicy.
+
+    Klucz, którego artefakt nie niesie, jest różnicą tak samo jak wartość inna:
+    „nie wiem, jaką grę czytam" nie może kończyć się cichym graniem.
+    """
+    for key in sorted(expected):
+        want = _canonical(expected[key])
+        if key not in actual:
+            raise FingerprintMismatch(
+                f"fingerprint artefaktu nie niesie pola {key!r}, a konsument oczekuje {want!r}"
+            )
+        have = _canonical(actual[key])
+        if have != want:
+            raise FingerprintMismatch(
+                f"fingerprint artefaktu: {key} = {have!r}, konsument oczekuje {want!r}"
+            )
 
 
 @dataclass(frozen=True)

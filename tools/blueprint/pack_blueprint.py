@@ -15,7 +15,7 @@ sumy `2**bits - 1`. Suma jest zachowana dokładnie, więc trzeci slot wynika
 z dopełnienia i nie trzeba go zapisywać; błąd pojedynczego prawdopodobieństwa
 jest mniejszy niż jeden krok kwantyzacji. KOREKTA JEDNOSTKOWA (decyzja
 z 2026-08-29): ten błąd żyje w przestrzeni prawdopodobieństw, a nie w ε
-(udziale puli) — koszt kwantyzacji mierzy `expost` na artefakcie przepuszczonym
+(udziale sumy wypłat) — koszt kwantyzacji mierzy `expost` na artefakcie przepuszczonym
 przez `requantize`, nie ten szacunek.
 
 Uruchomienie (venv z extras train):
@@ -54,6 +54,7 @@ from poker.blueprint_reader import (
     SEATS,
     STORED_SLOTS,
     BlueprintReader,
+    check_fingerprint,
 )
 
 
@@ -73,6 +74,7 @@ def _sibling(name: str) -> ModuleType:
 
 
 artifacts = _sibling("artifacts")
+solve_grid = _sibling("solve_grid")
 
 DEFAULT_QUANT_BITS = 8
 ZLIB_LEVEL = 9
@@ -194,8 +196,15 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int = DEFAULT_QUANT_BITS) ->
     dtype = np.uint8 if quant_bits == 8 else np.dtype("<u2")
     n_classes = len(manifest["config"]["classes"])
 
+    # Odcisk przebiegu jedzie w metadanych osobnym blokiem, a nie tylko w kopii
+    # manifestu: konsument ma pytać o „jaką grę opisuje ten plik" jednym polem.
+    # Manifest, który skłamał o odcisku, zapala błąd tu, a nie u konsumenta.
+    fingerprint = solve_grid.config_fingerprint(solve_grid.config_from_dict(manifest["config"]))
+    check_fingerprint(manifest.get("fingerprint", fingerprint), fingerprint)
+
     meta = {
         "artifact": "blueprint-binary",
+        "fingerprint": fingerprint,
         "format": {
             "version": FORMAT_VERSION,
             "quant_bits": quant_bits,

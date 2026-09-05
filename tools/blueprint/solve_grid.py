@@ -63,16 +63,19 @@ from typing import Any
 
 import numpy as np
 
+from poker.blueprint_reader import run_fingerprint
 from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES
 from poker.spin import (
     HANDS_PER_LEVEL,
     LEVELS,
+    PRIZE_SUM_TOLERANCE,
     STARTING_CHIPS,
     award_allin,
     is_jam_fold_depth,
     open_amount,
     roles,
+    solver_mode,
 )
 
 
@@ -141,7 +144,7 @@ class GridConfig:
     classes: tuple[int, ...] = tuple(range(len(ALL_CLASSES)))
     # Budżet PI-FP zmierzony krzywą ε-vs-iteracje (POKER-47, `eps_curve.py`):
     # tolerancja jest progiem wiążącym, bo dług każdej warstwy sumuje się przez
-    # cały DAG — 5e-5 przy sufcie 384 trzyma ex-post ε poniżej 0,001 puli.
+    # cały DAG — 5e-5 przy sufcie 384 trzyma ex-post ε poniżej 0,001 sumy wypłat.
     fp_max_iters: int = 384
     fp_check_every: int = 8
     fp_tol: float = 5e-5
@@ -171,6 +174,16 @@ class GridConfig:
     # 0 wyłącza. Nie wpływa na wynik, więc nie wchodzi do hasha konfiguracji.
     cost_limit_core_hours: float = 140.0
     jobs: int = 1
+
+    def __post_init__(self) -> None:
+        total = sum(self.prizes)
+        if abs(total - 1.0) > PRIZE_SUM_TOLERANCE:
+            raise ValueError(
+                f"wektor wypłat {self.prizes} sumuje się do {total}, nie do 1 — ex-post ε jest "
+                "w jednostkach SUMY WEKTORA WYPŁAT (expost.py dzieli przez sum(prizes)), więc "
+                "multiplikator w wektorze po cichu podzieliłby ε i próg blokujący przez siebie. "
+                "Multiplikator żyje w tabeli tierów (poker.spin.TIERS), nie tutaj"
+            )
 
 
 def config_from_dict(payload: dict[str, Any]) -> GridConfig:
@@ -212,6 +225,23 @@ def level_blinds(config: GridConfig, hand: int) -> tuple[int, int]:
 
 def n_hands(config: GridConfig) -> int:
     return len(config_levels(config)) * config.hands_per_level
+
+
+def config_fingerprint(config: GridConfig) -> dict[str, Any]:
+    """Fingerprint przebiegu z konfiguracji — do manifestu i do metadanych `.bpk`.
+
+    Zegar wchodzi rozwinięty (`config_levels`), bo `levels=None` znaczy „domyślne
+    poziomy produktu" i przy porównaniu artefaktów nie niesie żadnej informacji.
+    Odcisk NIE zastępuje `config_hash` (ten pilnuje wznowienia bajt w bajt);
+    odpowiada na inne pytanie — jaką grę ten plik opisuje.
+    """
+    return run_fingerprint(
+        prizes=config.prizes,
+        total_chips=config.total_chips,
+        levels=config_levels(config),
+        hands_per_level=config.hands_per_level,
+        grid_step=config.grid_step,
+    )
 
 
 def config_hash(config: GridConfig, tensor_manifest: dict[str, Any]) -> str:
@@ -1543,15 +1573,6 @@ class CostFuseExceeded(RuntimeError):
         self.report = report
 
 
-def state_mode(stacks: tuple[int, int, int], bb_amt: int) -> str:
-    """Tryb solvera stanu bez rozwiązywania — ta sama reguła co build_stage_problem."""
-    alive = sum(1 for value in stacks if value > 0)
-    jamfold = is_jam_fold_depth(stacks, bb_amt)
-    if alive == 3:
-        return "jamfold" if jamfold else "deep"
-    return "hu-jamfold" if jamfold else "hu-deep"
-
-
 def extrapolate_cost(
     plan: Sequence[dict[str, int]],
     measured: dict[str, dict[str, float]],
@@ -1613,7 +1634,9 @@ def _cost_fuse_report(
         _, bb_amt = level_blinds(config, hand)
         counts: dict[str, int] = {}
         for state in reachable[hand]:
-            mode = state_mode(state, bb_amt)
+            # Tryb bez rozwiązywania stanu — ta sama reguła co build_stage_problem;
+            # mieszka w `poker.spin`, bo liczy nią także arena (POKER-56).
+            mode = solver_mode(state, bb_amt)
             counts[mode] = counts.get(mode, 0) + 1
         plan.append(counts)
     measured: dict[str, dict[str, float]] = {}
@@ -1653,11 +1676,15 @@ def solve(
         manifest = artifacts.read_json(manifest_path)
         if manifest["config_hash"] != digest:
             raise ValueError("konfiguracja wznowienia różni się od manifestu biegu")
+        # Bieg sprzed POKER-56 nie ma odcisku; hash konfiguracji już potwierdził,
+        # że to ta sama konfiguracja, więc odcisk wolno dopisać, a nie zgadywać.
+        manifest.setdefault("fingerprint", config_fingerprint(config))
     else:
         manifest = {
             "artifact": "blueprint-grid-pilot",
             "config": asdict(config),
             "config_hash": digest,
+            "fingerprint": config_fingerprint(config),
             "tensor_dir": str(tensor_dir.resolve()),
             "tensor_sha256": tensors.manifest["sha256"],
             "provenance": {

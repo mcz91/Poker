@@ -66,6 +66,13 @@ rozjazdu, który POKER-54 naprawił w rozgrywaczu: `out_of_order`,
 trening wymusza maską). Na naprawionym rozgrywaczu wszystkie trzy są zerami
 i bramka trzyma je zerami; zostają, bo mierzą wejście areny w infoset, którego
 model nie ma.
+
+Osobno od fallbacków agent liczy UDZIAŁ DECYZYJNY TRYBÓW (`decisions_deep`
+i siostry, POKER-56): w jakim trybie solvera leży komórka artefaktu, do której
+trafia decyzja. To jest inna wielkość niż udział komórek w siatce, którą płaci
+bieg (na produkcji 1 198 z 49 765 stanów-warstw to `deep`) — odwiedziny nie
+rozkładają się jak komórki, a wycena kolejnych przebiegów zależy od jednego,
+kierunek gry od drugiego. Licznik jest bez progu: mierzy, nie bramkuje.
 """
 
 from __future__ import annotations
@@ -82,7 +89,14 @@ from poker.blueprint_reader import (
     StateBlock,
     StateNotFound,
 )
-from poker.spin import HANDS_PER_LEVEL, LEVELS, is_jam_fold_depth, roles
+from poker.spin import (
+    HANDS_PER_LEVEL,
+    LEVELS,
+    SOLVER_MODES,
+    is_jam_fold_depth,
+    roles,
+    solver_mode,
+)
 from poker.spin_arena import SeatView, legal_actions
 
 # Zegar blindów staje na ostatnim poziomie od ręki CYCLE_BASE (`blinds_for_hand`),
@@ -181,7 +195,7 @@ def cyclic_hand(hand: int) -> int:
     Cena przekładu jest ZMIERZONA, nie oszacowana rzędem wielkości (decyzja 28
     pkt 3, KOREKTA F2 audytu POKER-55): niezgodność V między warstwami cyklu
     dla tej samej sytuacji fizycznej wynosi na artefakcie produkcyjnym
-    średnio 1,22e−3 i maks 1,67e−2 udziału puli przy trzech żywych
+    średnio 1,22e−3 i maks 1,67e−2 udziału sumy wypłat przy trzech żywych
     (6,58e−3 dla stacków ≥ 20 żetonów), a w HU maks 9,98e−4. Odniesienie:
     wpływ całej reguły awaryjnej po tej zmianie jest nieodróżnialny od zera
     w CI (blok POKER-55 pkt 9). Komenda pomiaru w bloku POKER-55 pkt 1.
@@ -452,10 +466,12 @@ class BlueprintAgent:
         self.mode_mismatches = 0
         self.out_of_order = 0
         self.order_collapse = 0
+        self.mode_decisions: dict[str, int] = dict.fromkeys(SOLVER_MODES, 0)
 
     def counters(self) -> dict[str, int]:
         return {
             "decisions": self.decisions,
+            **{f"decisions_{mode}": self.mode_decisions[mode] for mode in SOLVER_MODES},
             "from_artifact": self.from_artifact,
             "cyclic_reads": self.cyclic_reads,
             "mode_flip_reads": self.mode_flip_reads,
@@ -482,6 +498,7 @@ class BlueprintAgent:
         i porównania na wspólnych seedach zostają porównaniami.
         """
         self.decisions += 1
+        self.mode_decisions[self.decision_mode(view)] += 1
         try:
             mass = self.action_mass(view)
         except (LayerNotFound, PolicyMissing):
@@ -545,6 +562,17 @@ class BlueprintAgent:
         próg 7 bb rozstrzyga się na kanonicznym.
         """
         return is_jam_fold_depth(state_keys(view, layer, self.grid_step)[0], view.bb)
+
+    def decision_mode(self, view: SeatView) -> str:
+        """Tryb solvera KOMÓRKI ARTEFAKTU, w której zapada ta decyzja.
+
+        Liczy się tryb stanu po kwantyzacji, a nie tryb areny: mianownikiem
+        porównania jest mieszanka trybów, którą policzył bieg, więc obie strony
+        muszą mierzyć ten sam obiekt. Przeskok trybu ma własne liczniki
+        (`mode_flip_*`) i to one, a nie ten, opisują rozjazd areny z modelem.
+        """
+        layer = self.layer_hand(view.hand)
+        return solver_mode(state_keys(view, layer, self.grid_step)[0], view.bb)
 
     def mode_flipped(self, view: SeatView) -> bool:
         """Czy kwantyzacja przerzuciła stan przez próg jam/fold.

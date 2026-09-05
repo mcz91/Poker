@@ -1,4 +1,17 @@
-"""Spin & Go: wypłaty 3-max, role blindów, rozliczenie all-in, EV shove UTG."""
+"""Spin & Go: wypłaty 3-max, tabela tierów, role blindów, rozliczenie all-in, EV shove UTG.
+
+Dwie różne rzeczy nazywają się tu „wypłatami" i mylenie ich jest kosztowne:
+
+- `PAYOUTS` niesie wektor NIEZNORMALIZOWANY (3x to (3, 0, 0)) i służy
+  punktacji areny, gdzie ROI liczy się w buy-inach, więc multiplikator ma być
+  w liczbach;
+- `TIERS` niesie kształt ZNORMALIZOWANY (suma 1) do konfiguracji przebiegu
+  solvera. Multiplikator żyje w tabeli tierów, NIGDY w wektorze wypłat
+  solvera: ex-post ε jest w jednostkach sumy wektora wypłat
+  (`tools/blueprint/expost.py` dzieli przez `sum(prizes)`), więc przebieg
+  puszczony z `PAYOUTS["3x"].prizes` po cichu podzieliłby ε przez 3
+  i zamienił próg blokujący 1e-3 w 3e-3. `GridConfig` odrzuca taki wektor.
+"""
 
 from __future__ import annotations
 
@@ -37,6 +50,89 @@ PAYOUTS: dict[str, SpinPayout] = {
 }
 
 Stacks3 = tuple[int, int, int]
+
+# Suma wektora wypłat jest jednostką ε, więc odchyłka musi być poniżej progu,
+# przy którym ε zmieniłoby się w ostatniej znaczącej cyfrze raportu (1e-9).
+PRIZE_SUM_TOLERANCE = 1e-9
+
+
+class UnconfirmedTierError(ValueError):
+    """Tier bez potwierdzenia operatora użyty do konfiguracji przebiegu."""
+
+
+@dataclass(frozen=True, slots=True)
+class SpinTier:
+    """Wiersz tabeli tierów: co multiplikator ustala w KONFIGURACJI PRZEBIEGU.
+
+    `prizes` jest znormalizowany (suma 1) — to wektor dla solvera. Sam
+    multiplikator zostaje tu, w tabeli, i wchodzi dopiero do przeliczenia
+    wyniku (ROI [pp] = ε × multiplikator × 100).
+    """
+
+    key: str
+    multipliers: tuple[int, ...]
+    start_stack: int
+    hands_per_level: int
+    prizes: tuple[float, float, float]
+    volume_share: float
+    confirmed: bool
+
+    def __post_init__(self) -> None:
+        total = sum(self.prizes)
+        if abs(total - 1.0) > PRIZE_SUM_TOLERANCE:
+            raise ValueError(
+                f"tier {self.key}: kształt wypłat {self.prizes} sumuje się do {total}, nie do 1 "
+                "— multiplikator należy do tabeli tierów, nie do wektora wypłat solvera"
+            )
+
+    @property
+    def total_chips(self) -> int:
+        """Suma żetonów przy stole — to jest wymiar siatki stanów solvera."""
+        return 3 * self.start_stack
+
+
+# Tabela tierów — WEJŚCIE OPERATORSKIE, status: NIEPOTWIERDZONA.
+# Źródło: decyzja 29 pkt 1 i 3A (`docs/decisions/29-tier-first-fundament-gto-mapa-po-researchu.md`,
+# 2026-09-05), streszczająca research ze źródeł WTÓRNYCH (rozkład multiplikatorów
+# i stacków startowych Spin & Go). Format był raz restrukturyzowany (fuzja Flash
+# 2025), więc żaden wiersz nie wchodzi do przebiegu bez potwierdzenia wobec
+# żywego lobby — `tier_for_run` wymaga wtedy jawnej flagi.
+# `hands_per_level` NIE pochodzi z researchu: to dzisiejszy zegar produktu
+# (`HANDS_PER_LEVEL`), a krzywa wrażliwości {3, 6} rąk na poziom jest osobnym
+# kontraktem (decyzja 29, P-8). Udziały wolumenu nie sumują się do 1, bo tiery
+# 25x+ są odroczone (decyzja 29 pkt 3A).
+TIERS: dict[str, SpinTier] = {
+    "T-MODAL": SpinTier("T-MODAL", (2, 3), 30, HANDS_PER_LEVEL, (1.0, 0.0, 0.0), 0.87, False),
+    "T-MID": SpinTier("T-MID", (4,), 40, HANDS_PER_LEVEL, (1.0, 0.0, 0.0), 0.09, False),
+    "T-DEEP": SpinTier("T-DEEP", (10,), 50, HANDS_PER_LEVEL, (0.8, 0.2, 0.0), 0.01, False),
+}
+
+
+def tier_for_multiplier(multiplier: int) -> SpinTier:
+    """Tier ujawnionego multiplikatora — wybór artefaktu jest lookupem, nie liczeniem."""
+    for tier in TIERS.values():
+        if multiplier in tier.multipliers:
+            return tier
+    raise LookupError(f"multiplikator {multiplier} spoza tabeli tierów (25x+ odroczone)")
+
+
+def tier_for_run(key: str, *, allow_unconfirmed: bool = False) -> SpinTier:
+    """Tier do konfiguracji przebiegu solvera.
+
+    Niepotwierdzony wiersz przechodzi wyłącznie z jawną flagą: przebieg tierowy
+    kosztuje rdzenio-godziny, a tabela pochodzi ze źródeł wtórnych, więc cicha
+    zgoda na niepotwierdzone liczby jest tu droższa niż zatrzymanie.
+    """
+    tier = TIERS[key]
+    if not tier.confirmed and not allow_unconfirmed:
+        raise UnconfirmedTierError(
+            f"tier {key} nie jest potwierdzony wobec żywego lobby (wejście operatorskie, "
+            "decyzja 29 pkt 6) — przebieg wymaga jawnego allow_unconfirmed=True"
+        )
+    return tier
+
+
+SOLVER_MODES: tuple[str, ...] = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
 # Equal-stack depths (bb=2). Classic Spin clock, chips scale.
 DEPTHS: tuple[tuple[int, Stacks3], ...] = (
@@ -81,6 +177,20 @@ def effective_bb(stacks: Stacks3, bb: int) -> float:
 
 def is_jam_fold_depth(stacks: Stacks3, bb: int) -> bool:
     return effective_bb(stacks, bb) <= JAM_FOLD_BB
+
+
+def solver_mode(stacks: Stacks3, bb: int) -> str:
+    """Tryb solvera stanu: liczba żywych × próg jam/fold — bez rozwiązywania stanu.
+
+    Jedno źródło dla trzech rachunków, które muszą się zgadzać: mieszanka trybów
+    w manifeście biegu, wycena kosztu per tryb i udział decyzyjny trybów
+    w arenie. Rozjazd którejkolwiek z tych reguł byłby niewidoczny w wyniku.
+    """
+    alive = sum(1 for value in stacks if value > 0)
+    jamfold = is_jam_fold_depth(stacks, bb)
+    if alive == 3:
+        return "jamfold" if jamfold else "deep"
+    return "hu-jamfold" if jamfold else "hu-deep"
 
 
 def post_blinds(

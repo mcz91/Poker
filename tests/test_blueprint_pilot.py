@@ -25,7 +25,7 @@ from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES, CLASS_INDEX, PreflopClass
 from poker.preflop_equity import equity as class_equity
 from poker.preflop_equity_data import TRIALS_PER_PAIR
-from poker.spin import blinds_for_hand
+from poker.spin import PAYOUTS, TIERS, blinds_for_hand
 
 REPO = Path(__file__).resolve().parent.parent
 BLUEPRINT = REPO / "tools" / "blueprint"
@@ -1461,6 +1461,49 @@ def test_konwerter_odrzuca_artefakt_niezgodny_z_manifestem(control_run: dict[str
     layers[hand]["eps"] = layers[hand]["eps"] + 1.0
     _load("artifacts").write_npz(tampered / f"layer_{hand:02d}.npz", layers[hand])
     with pytest.raises(ValueError, match="sha256"):
+        pk.pack(tampered, tmp_path / "tampered.bpk")
+
+
+def test_konfiguracja_odrzuca_nieznormalizowany_wektor_wyplat() -> None:
+    """Pułapka normalizacji (decyzja 29 pkt 3A) zatrzymana w konstruktorze biegu.
+
+    `PAYOUTS["3x"]` to (3, 0, 0) — wektor punktacji areny. Puszczony jako wektor
+    solvera podzieliłby ex-post ε przez 3 (`expost.py` dzieli przez
+    `sum(prizes)`), więc kryterium blokujące 1e-3 stałoby się po cichu 3e-3.
+    Kształt tieru, znormalizowany, przechodzi.
+    """
+    sg = _load("solve_grid")
+    for pay in PAYOUTS.values():
+        if abs(sum(pay.prizes) - 1.0) < 1e-12:
+            continue
+        with pytest.raises(ValueError, match="tabeli tierów"):
+            sg.GridConfig(prizes=pay.prizes)
+    assert sg.GridConfig().prizes == TIERS["T-DEEP"].prizes
+    assert sg.GridConfig(prizes=TIERS["T-MODAL"].prizes).prizes == (1.0, 0.0, 0.0)
+
+
+def test_konwerter_odrzuca_manifest_klamiacy_o_odcisku_przebiegu(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """Odcisk w manifeście musi opisywać konfigurację biegu, inaczej pochodzenie kłamie.
+
+    Manifest z odciskiem WTA przy biegu 80/20 opisywałby inną grę niż policzona,
+    a konsument czytałby ten odcisk zamiast konfiguracji — dlatego konwerter
+    sprawdza go wobec konfiguracji, zamiast przepisywać.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    tampered = tmp_path / "tampered"
+    tampered.mkdir()
+    for path in control_run["out_dir"].iterdir():
+        if path.is_file():
+            (tampered / path.name).write_bytes(path.read_bytes())
+    manifest_path = tampered / "solve_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["fingerprint"]["prizes"] == [0.8, 0.2, 0.0]
+    manifest["fingerprint"]["prizes"] = [1.0, 0.0, 0.0]
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(br.FingerprintMismatch, match="prizes"):
         pk.pack(tampered, tmp_path / "tampered.bpk")
 
 

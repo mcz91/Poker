@@ -58,12 +58,20 @@ from poker.blueprint_agent import (
     stale_history,
     state_keys,
 )
-from poker.blueprint_reader import BlueprintLookupError, BlueprintReader, StateBlock
+from poker.blueprint_reader import (
+    BlueprintLookupError,
+    BlueprintReader,
+    FingerprintMismatch,
+    StateBlock,
+    check_fingerprint,
+)
 from poker.dealing import shuffled_deck
 from poker.spin import (
     LEVELS,
     PAYOUTS,
+    SOLVER_MODES,
     STARTING_CHIPS,
+    TIERS,
     blinds_for_hand,
     is_jam_fold_depth,
     roles,
@@ -1579,3 +1587,99 @@ def test_wyplata_nie_wchodzi_do_decyzji_tylko_do_punktacji(mini_artifact: Path) 
         counters.append(agent.counters())
     assert counters[0] == counters[1], counters
     assert counters[0]["decisions"] > 100
+
+
+def test_fingerprint_przebiegu_jedzie_w_manifescie_i_w_metadanych(mini_artifact: Path) -> None:
+    """Artefakt niesie odcisk gry, którą policzył — jednym polem, nie do wydedukowania.
+
+    Rodzina blueprintów per tier (decyzja 29 pkt 3A) sprawia, że pomyłka o jeden
+    plik jest cicha: te same warstwy, ta sama siatka, inna gra. Odcisk jest
+    w metadanych `.bpk` i w manifeście biegu, i w obu miejscach ten sam.
+    """
+    with mini_artifact.open("rb") as stream:
+        meta = json.loads(BlueprintReader(stream).meta_bytes())
+    assert meta["fingerprint"] == meta["run_manifest"]["fingerprint"]
+    assert meta["fingerprint"] == {
+        "prizes": [0.8, 0.2, 0.0],
+        "total_chips": 150,
+        "levels": [list(pair) for pair in LEVELS],
+        "hands_per_level": 3,
+        "grid_step": 50,
+        "profile": "blueprint",
+        "hero": "symmetric",
+    }
+
+
+def test_artefakt_8020_czytany_z_oczekiwaniem_wta_rzuca(mini_artifact: Path) -> None:
+    """Konsument oczekujący WTA nie zagra z artefaktu 80/20 — dostaje wyjątek.
+
+    Cicha zgoda kosztowałaby tu grę w inną grę: przy (1, 0, 0) Malmuth-Harville
+    degeneruje się do udziału w stacku, a przy (0,8, 0,2, 0) stack dwóch żetonów
+    niesie +88% equity ponad udział (decyzja 29 pkt 1).
+    """
+    with mini_artifact.open("rb") as stream:
+        fingerprint = json.loads(BlueprintReader(stream).meta_bytes())["fingerprint"]
+    # Zgodne oczekiwanie przechodzi — inaczej test świeciłby na czerwono zawsze.
+    check_fingerprint(fingerprint, {"prizes": TIERS["T-DEEP"].prizes, "grid_step": 50})
+    with pytest.raises(FingerprintMismatch, match="prizes"):
+        check_fingerprint(fingerprint, {"prizes": TIERS["T-MODAL"].prizes})
+    with pytest.raises(FingerprintMismatch, match="total_chips"):
+        check_fingerprint(fingerprint, {"total_chips": TIERS["T-MODAL"].total_chips})
+    with pytest.raises(FingerprintMismatch, match="hero"):
+        check_fingerprint(fingerprint, {"hero": "seat-restricted"})
+    # Pole, którego odcisk nie niesie, jest różnicą tak samo jak inna wartość.
+    with pytest.raises(FingerprintMismatch, match="nie niesie"):
+        check_fingerprint(fingerprint, {"model_prior": "blueprint"})
+
+
+def test_licznik_udzialu_decyzyjnego_trybow_jest_zupelny_i_niepusty(
+    mini_artifact: Path,
+) -> None:
+    """Udział decyzyjny trybów: cztery liczniki sumują się do decyzji, żaden nie jest pusty.
+
+    Otwarte pytanie 2 decyzji 29 zmierzone na artefakcie bramki: udział KOMÓREK
+    siatki nie jest udziałem ODWIEDZIN. Ten sam bieg ma 6,4% komórek `deep`
+    (9 stanów-warstw na 141) i 51,4% decyzji `deep` — osiem razy więcej, bo
+    turniej zaczyna się w komórce głębokiej i wraca do niej co rotację, a płaci
+    się za komórki. Obie liczby są z TEGO SAMEGO artefaktu.
+    """
+    agent = _agent(mini_artifact)
+    _agent_run(agent)
+    counters = agent.counters()
+    modes = {mode: counters[f"decisions_{mode}"] for mode in SOLVER_MODES}
+    assert sum(modes.values()) == counters["decisions"] == 5770
+    assert all(count > 0 for count in modes.values()), modes
+    assert modes == {"deep": 2966, "jamfold": 192, "hu-deep": 1440, "hu-jamfold": 1172}
+    cells = _load("mode_census").census(_mini_config(), 1).layer_totals()
+    cell_share = cells["deep"] / sum(cells.values())
+    visit_share = modes["deep"] / counters["decisions"]
+    assert cell_share == pytest.approx(0.0638, abs=0.0005)
+    assert visit_share == pytest.approx(0.5140, abs=0.0005)
+
+
+def test_licznik_trybu_opisuje_komorke_artefaktu_a_nie_arene(mini_artifact: Path) -> None:
+    """Tryb liczy się ze stanu PO KWANTYZACJI — tym samym, którego szuka odczyt.
+
+    Kontrola: ten sam widok przy dwóch poziomach blindów wpada w dwa różne tryby,
+    a przy przeskoku trybu (arena głęboka, stan artefaktu jam/fold) licznik idzie
+    za artefaktem, bo mianownikiem porównania jest mieszanka trybów biegu.
+    """
+    import random
+
+    agent = _agent(mini_artifact)
+    rng = random.Random(0)
+    deep = _view(hand=0, bb=2)
+    short = _view(hand=20, bb=20, jamfold=True, jammed=True)
+    assert agent.decision_mode(deep) == "deep"
+    assert agent.decision_mode(short) == "jamfold"
+    assert agent.decision_mode(_view(hand=2, stacks=(0, 75, 75), seat=1, bb=2)) == "hu-deep"
+    agent.act(deep, rng)
+    agent.act(short, rng)
+    assert agent.counters()["decisions_deep"] == 1
+    assert agent.counters()["decisions_jamfold"] == 1
+    # Przeskok trybu: arena liczy próg z dokładnych stacków (71 przy bb 10 to
+    # 7,1 bb), a stan artefaktu po kwantyzacji krokiem 50 jest jam/fold.
+    flipped = _view(hand=15, seat=0, button=0, stacks=(71, 0, 79), bb=10, jamfold=False)
+    assert not is_jam_fold_depth(flipped.stacks, flipped.bb)
+    assert state_keys(flipped, 15, 50)[0] == (100, 0, 50)
+    assert agent.decision_mode(flipped) == "hu-jamfold"

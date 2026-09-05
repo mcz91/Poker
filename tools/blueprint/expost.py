@@ -1,13 +1,16 @@
 """Ex-post best-response check i raporty pilota blueprintu (POKER-46, decyzja 25).
 
-Ex-post (Ganzfried, Algorithm 6): strategie wszystkich miejsc zamrożone
+Ex-post (Ganzfried–Sandholm, IJCAI-09, Algorithm 3): strategie miejsc zamrożone
 z artefaktu solvera; trzeci gracz optymalizuje po całym DAG-u — to MDP,
 więc liczymy go tą samą indukcją wsteczną na tych samych tablicach:
 V_BR(n) = best response w grze etapowej przy zamrożonych przeciwnikach
 i kontynuacji V_BR(n+1). Horyzont: V_BR(N) = warunek brzegowy biegu
 (nieskończony ogon ostatniego poziomu traktujemy jako stały dla obu stron).
-ε stanu i miejsca = V_BR − V, w jednostkach puli (pula nagród = 1);
-z konstrukcji ε ≥ 0 z dokładnością do arytmetyki f32.
+ε stanu i miejsca = V_BR − V, w jednostkach SUMY WEKTORA WYPŁAT
+(`sum(config.prizes)`, poniżej `pool_prize`) — nie „puli pota"; `GridConfig`
+wymusza sumę 1, więc jednostką jest jeden turniej, a multiplikator tieru
+przelicza ją dopiero na ROI (decyzja 29 pkt 2a i 4). Z konstrukcji ε ≥ 0
+z dokładnością do arytmetyki f32.
 
 Raporty:
 - `icm` — różnica V vs ICM per stan/warstwa, z wyszczególnieniem stanów

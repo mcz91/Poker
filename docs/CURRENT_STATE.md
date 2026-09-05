@@ -1,6 +1,11 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-50 (bieg
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-56 (higiena
+tierowa przed rodziną blueprintów: tabela tierów ze statusem
+niepotwierdzonym, twarda normalizacja wektora wypłat w `GridConfig`,
+fingerprint przebiegu w manifeście i w `.bpk` z wyjątkiem u konsumenta,
+fixture wyceny per tryb solvera i licznik udziału decyzyjnego trybów; zero
+rdzenio-godzin solvera); wcześniej POKER-51…55 — bloki niżej; POKER-50 (bieg
 produkcyjny blueprintu: siatka 2 żetonów pełnego zegara pod budżetami
 z POKER-47/49 — ex-post ε maks 4,720e−4 poniżej punktu odniesienia
 5e−4, opcja sufitu 1536 nieuruchomiona; koszt regeneracji artefaktu
@@ -344,7 +349,7 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   z biegiem odniesienia — ex-post ε zamraża ogon dla obu stron, więc
   bez tego pomiaru błąd horyzontu jest dla metryki niewidzialny.
   `expost.py` — ex-post best response po całym
-  DAG-u (Ganzfried Alg. 6), raport V vs ICM per warstwa z
+  DAG-u (Ganzfried–Sandholm IJCAI-09, Alg. 3), raport V vs ICM per warstwa z
   wyszczególnieniem krótkiego BB, sanity jam/fold obok
   `poker.jamfold.solve`. `eps_curve.py` (POKER-47) — krzywa ε ex-post
   gry etapowej po sufitach iteracji na próbce stanów jednego trybu
@@ -483,6 +488,18 @@ Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi się agent
 spoza repozytorium.
 
 ## Następny krok
+
+Po POKER-56 higiena tierowa nie blokuje już żadnej gałęzi mapy z
+[decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md):
+wektor wypłat nie da się pomylić z multiplikatorem, artefakty niosą odcisk
+przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
+POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie
+z ~262 do ~172 rdzenio-h). Kolejne
+w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
+1–5 — teraz wycenione na 47,9 rdzenio-h, nie 13,4) i **P-4 POKER-59**
+(checkpoint horyzontu). Pierwszy przebieg TIEROWY (P-7/P-8) czeka na
+**potwierdzenie tabeli tierów przez operatora** wobec żywego lobby — do tego
+czasu `tier_for_run` przepuszcza tier wyłącznie z jawną flagą.
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)); b4 plastrami
@@ -634,8 +651,9 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    w HU stałe 128 iteracji. ε wewnętrzne (self-ε, **nie** jakość —
    decyzja 17): FP mediana 4,4e−4, maks 3,6e−3; CFR+ mediana 4,0e−6.
 3. **Ex-post best response (C).** 883 s dla 8 654 stanów. W jednostkach
-   puli (pula = 1): **ε max 0,00848, mediana 0,00092**, min −7e−8
-   (szum f32). Punkt odniesienia decyzji 25 to 0,05% puli — mediana
+   SUMY WEKTORA WYPŁAT (`sum(prizes)` = 1): **ε max 0,00848, mediana
+   0,00092**, min −7e−8 (szum f32). Punkt odniesienia decyzji 25 to 0,05%
+   sumy wypłat — mediana
    jest 1,8× wyżej, a maksimum **17× wyżej**. Dziesięć najgorszych
    stanów to wyłącznie ręce 0–3 przy ~25 bb, czyli tryb `deep`
    (14 węzłów, pełne drzewo z openem): tam 24 iteracje PI-FP nie
@@ -647,7 +665,7 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    krótkiego BB (< 5 bb bieżącego poziomu): 4 327 stanów, max **0,0785**,
    średnia 0,0200. Największe rozjazdy mają kształt „jeden gracz na 5
    żetonach, dwaj z resztą" (np. ręka 15, stan 125/20/5). To ~2,6×
-   więcej niż 3% puli, które Ganzfried mierzył jako błąd ICM —
+   więcej niż 3% sumy wypłat, które Ganzfried mierzył jako błąd ICM —
    **ICM jako wartość „po ręce" jest w naszym reżimie jeszcze gorszy,
    niż zakładała decyzja 25.**
 5. **Sanity vs `poker.jamfold` (E).** Równe stacki 50/50/50 przy 1/2
@@ -693,7 +711,7 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    przy maksimach) i zapasu już nie ma.**
 
 Wniosek pilota do rozstrzygnięcia przez architekta: koszt nie jest
-przeszkodą, a jakość jest — ε ex-post w węzłach `deep` (0,85% puli)
+przeszkodą, a jakość jest — ε ex-post w węzłach `deep` (0,85% sumy wypłat)
 jest 17× powyżej punktu odniesienia decyzji 25 i to tam, nie w koszcie,
 leży kontrakt produkcyjny (więcej iteracji PI-FP albo inny solver dla
 pełnego drzewa 14-węzłowego). **Rozstrzygnięte w POKER-47: wystarczył
@@ -706,12 +724,12 @@ Czerwień testu kotwicznego na kodzie sprzed poprawki odtworzona
 czerwone, test tensora zielony — zgodnie z raportem); bramka, zakres
 i raporty commitów sprawdzone; ε, delta ICM i sanity odczytane
 z zapisanych artefaktów. Pilot **zdany**: kierunek decyzji 25
-potwierdzony, bo błąd ICM „po ręce" (7,9% puli) jest 2,6× większy niż
+potwierdzony, bo błąd ICM „po ręce" (7,9% sumy wypłat) jest 2,6× większy niż
 u Ganzfrieda — model turniejowy kupuje realną przewagę, a nie
 kosmetykę. Koszt schodzi z drogi (~35 rdzenio-h wobec ~108
 oszacowanych; oszacowanie decyzji 25 było błędne w obie strony —
 zapisane, nie zamiecione). Jakość jest jedynym wąskim gardłem
-i **nie unieważnia decyzji 25**: mediana ε (0,092% puli) mieści się
+i **nie unieważnia decyzji 25**: mediana ε (0,092% sumy wypłat) mieści się
 w regule odczytu, a maksimum dotyczy trybu `deep` — 253 z 8 654
 stanów pilota, ~1,6% siatki produkcyjnej. To ograniczony defekt
 budżetu iteracji, nie porażka metody, więc następny krok jest wąski
@@ -831,7 +849,7 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    w `GridConfig` i w CLI solvera. Uzasadnienie z krzywej, nie
    z założenia: dług DAG-u jest sumą ε etapowych ~21 warstw, więc żeby
    ε ex-post maks zeszło z 0,00848 poniżej 0,001 (2× punktu odniesienia
-   decyzji 25, którym pozostaje 0,05% puli), typowe ε etapowe musi
+   decyzji 25, którym pozostaje 0,05% sumy wypłat), typowe ε etapowe musi
    spaść ~9×; tolerancja 5e−5 wobec 1e−3 daje zapas 20×, a sufit 384
    jest miejscem, w którym mediana `deep` tę tolerancję osiąga
    (a `jamfold` osiąga ją już przy 48–96).
@@ -851,8 +869,8 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
    maks 4,322e−4 (mediana 2,422e−4), `jamfold` 2,696e−4 (1,080e−4),
    `hu-deep` 2,175e−4, `hu-jamfold` 4,791e−5 (te dwie liczby są w obu
    biegach identyczne **co do bitu** — patrz niżej). **Żaden z 8 654 stanów
-   nie przekracza 0,001 puli** (poprzednio 253 z 253 stanów `deep`
-   i 4 514 z 6 798 `jamfold` przekraczało), a maksimum 0,043% puli jest
+   nie przekracza 0,001 sumy wypłat** (poprzednio 253 z 253 stanów `deep`
+   i 4 514 z 6 798 `jamfold` przekraczało), a maksimum 0,043% sumy wypłat jest
    **poniżej punktu odniesienia decyzji 25** (0,05%) — nie tylko poniżej
    podwojonego progu z kontraktu. Na stanach HU V i ε ex-post są w obu
    biegach identyczne co do bitu (20 z 20 warstw mających stany HU,
@@ -893,7 +911,7 @@ M  python tools/blueprint/expost.py icm --out PILOT/grid5n
 9. **Wybór solvera — odpowiedź na korektę decyzji 25 pkt 2.** Korekta
    zostawiła rozstrzygnięcie „PI-FP czy CFR+ w trybie `deep`" pomiarowi
    POKER-47. Pomiar mówi: PI-FP **wystarcza do jakości** — schodzi
-   w `deep` poniżej punktu odniesienia (0,05% puli) bez plateau
+   w `deep` poniżej punktu odniesienia (0,05% sumy wypłat) bez plateau
    i bez oscylacji, nachyleniem −1,35 w log-log, a w `jamfold` −2,00.
    Argument „przełącz na CFR+, bo eksploatowalność nie schodzi" nie ma
    tu podstawy faktycznej, bo schodzi. Otwarta zostaje **cena**, nie
@@ -932,7 +950,7 @@ best response waży stany sam, więc ε ex-post stanu startowego **jest**
 eksploatowalnością całego blueprintu, a osobne Σ P(s)·ε(s) liczyłoby
 ten sam dług wielokrotnie. Mój model tej metryki był błędny.
 
-Jakość przestaje być wąskim gardłem: maksimum 0,043% puli jest poniżej
+Jakość przestaje być wąskim gardłem: maksimum 0,043% sumy wypłat jest poniżej
 samego punktu odniesienia decyzji 25 (0,05%), nie tylko podwojonego
 progu kontraktu. Wąskim gardłem staje się **koszt** (91 rdzenio-godzin
 wobec ~108 z decyzji 25 — zapas zniknął) oraz **warunek brzegowy
@@ -942,6 +960,137 @@ Nie płacimy 91 rdzenio-godzin za bieg produkcyjny stojący na
 niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
+
+**POKER-56 (higiena tierowa przed rodziną blueprintów) DOSTARCZONY.**
+Realizacja [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
+pkt 1, 3A, 4 i 5 (P-1). Zero rdzenio-godzin solvera: kontrakt nie liczy
+żadnego przebiegu, tylko odbiera cichym pomyłkom możliwość zaistnienia
+i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
+
+1. **Tabela tierów w `poker.spin` (`TIERS`) — WEJŚCIE OPERATORSKIE, status
+   niepotwierdzona.** Multiplikator → żetony startowe, długość poziomu,
+   ZNORMALIZOWANY kształt wypłat, udział wolumenu. Źródło i data w docstringu
+   (decyzja 29 pkt 1 i 3A, 2026-09-05, research ze źródeł wtórnych):
+
+   | tier | multiplikatory | żetony (suma) | rąk/poziom | wypłaty | wolumen |
+   |---|---|---:|---:|---|---:|
+   | T-MODAL | 2x, 3x | 30 (90) | 3 | (1, 0, 0) | ~87% |
+   | T-MID | 4x | 40 (120) | 3 | (1, 0, 0) | ~9% |
+   | T-DEEP | 10x | 50 (150) | 3 | (0,8, 0,2, 0) | ~1% |
+
+   Udziały nie sumują się do 1, bo tiery 25x+ są odroczone. `hands_per_level`
+   NIE pochodzi z researchu — to dzisiejszy zegar produktu (`HANDS_PER_LEVEL`),
+   a krzywa wrażliwości {3, 6} rąk na poziom należy do P-8. **Operator
+   potwierdza tabelę wobec żywego lobby przed pierwszym przebiegiem tierowym**
+   (format był raz restrukturyzowany — fuzja Flash 2025); do tego czasu
+   `tier_for_run` rzuca `UnconfirmedTierError`, a przebieg wymaga jawnego
+   `allow_unconfirmed=True` (pod testem). T-DEEP opisuje dzisiejszy artefakt
+   produkcyjny i zgadza się z nim co do żetonów, zegara i wypłat.
+2. **Pułapka normalizacji zamknięta w konstruktorze biegu.** `GridConfig`
+   odrzuca wektor wypłat, który nie sumuje się do 1. Bez tego przebieg
+   puszczony z `PAYOUTS["3x"].prizes` = (3, 0, 0) policzyłby się poprawnie,
+   a ex-post ε wyszłoby **podzielone przez 3** (`expost.py` dzieli przez
+   `sum(prizes)`), więc kryterium blokujące 1e−3 stałoby się po cichu 3e−3.
+   Multiplikator żyje odtąd wyłącznie w tabeli tierów; `PAYOUTS` zostaje
+   wektorem punktacji areny (ROI w buy-inach) i tylko nim. Bieg produkcyjny
+   (0,8, 0,2, 0) i artefakt kontrolny przechodzą bez zmian — hash konfiguracji
+   kontrolnej `b30a1755…` jest ten sam (test łańcucha pinuje bajty).
+3. **Fingerprint przebiegu.** Manifest solvera i metadane `.bpk` niosą blok
+   `fingerprint`: kształt wypłat, suma żetonów, ROZWINIĘTY zegar blindów,
+   rąk na poziom, krok siatki, rodzaj profilu (`blueprint` | `dbr`)
+   i konwencja hero (`symmetric` | `seat-restricted`). Słownik jest
+   rozszerzalny — nowe pole nie unieważnia starych oczekiwań, bo
+   `poker.blueprint_reader.check_fingerprint` porównuje wyłącznie to, o co
+   pyta konsument, i RZUCA `FingerprintMismatch` przy pierwszej różnicy (także
+   przy polu, którego artefakt nie niesie). Pod testem: artefakt 80/20
+   odczytany z oczekiwaniem WTA daje wyjątek, nie ciche granie. Konwerter
+   sprawdza odcisk manifestu wobec konfiguracji biegu, więc manifest, który
+   skłamał o odcisku, zapala błąd w `pack`, a nie u konsumenta. Odcisk NIE
+   zastępuje `config_hash` (ten pilnuje wznowienia bajt w bajt) — odpowiada
+   na inne pytanie: jaką grę opisuje ten plik. Artefakty spakowane przed tym
+   kontraktem odcisku nie mają; wznowienie biegu dopisuje go z konfiguracji,
+   której `config_hash` już dowiódł.
+4. **Wycena per tryb (`tools/blueprint/mode_census.py`) — panel liczył
+   mnożnikiem liczby stanów i mylił się w obie strony.** Fixture liczy
+   mieszankę trybów konfiguracji (osiągalność wczesnych warstw z
+   `_reachable_sets` biegu, tryb stanu z `poker.spin.solver_mode`) i dopiero
+   z niej koszt, tempami ZMIERZONYMI w POKER-50 (`deep` 50,8 / `jamfold` 1,83
+   / `hu-deep` 0,054 / `hu-jamfold` 0,018 rdzenio-s na stan; zweryfikowane na
+   `solve_manifest.json` biegu produkcyjnego: iloraz rdzenio-sekund dzieci do
+   liczby stanów, warstwy plus horyzont, daje 50,75 / 1,829 / 0,0537 / 0,0180,
+   czyli dokładnie te cztery zaokrąglenia; same warstwy dają dla `jamfold`
+   1,811, więc horyzontu z tego rachunku wyjąć nie wolno).
+   Kalibracja na jedynym biegu, za który naprawdę zapłacono: **64,3
+   rdzenio-h solvera wobec 65,4 zmierzonych (−1,7%)**, warstwy 39,6 wobec
+   40,2, horyzont 24,7 wobec 25,2 — wycena jest dolnym oszacowaniem o kilka
+   procent (tempa per stan nie niosą narzutu forka 1,018), nie prognozą
+   z przedziałem. Komenda (venv z extras `train`, z katalogu repozytorium,
+   ≈80 s zegara (zmierzone 77–81 s), jeden proces, bez artefaktów wejściowych):
+
+   ```
+   BL python tools/blueprint/mode_census.py table
+   ```
+
+   | konfiguracja | stany-warstwy | deep | warstwy | horyzont | solver | + tensor |
+   |---|---:|---:|---:|---:|---:|---:|
+   | bieg produkcyjny 10x (kalibracja) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
+   | WTA@25bb (P-7) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
+   | T-MODAL 90/WTA (P-8) | 19 129 | 49 | 9,2 | 8,7 | 17,8 | 29,0 |
+   | T-MID 120/WTA (P-9) | 32 792 | 421 | 20,8 | 15,7 | 36,4 | 47,6 |
+   | pełny DBR na T-MODAL (P-13, 3 hero) | — | — | — | — | 53,5 | 64,7 |
+   | krok siatki 1 na 150 żetonach | 191 028 | 4 268 | 151,2 | 100,9 | 252,1 | 263,3 |
+   | domknięcie warstw 1–5 (różnica) | +8 696 | +3 212 | +47,9 | — | +47,9 | — |
+
+   Koszty w rdzenio-godzinach; horyzont liczony na 6 cyklach (tyle zbiegał
+   bieg produkcyjny — dla innej siatki to założenie, nie pomiar, i jest
+   parametrem komendy). Tensor rolloutów jest kartowy, więc kolejne tiery
+   liczą się na tym samym pliku i płacą go raz.
+   **Rozbieżności wobec panelu decyzji 29 (fixture jest źródłem prawdy):**
+   T-MODAL ~30 → **17,8**; T-MID ~71 → **36,4**; WTA@25bb ~65 → **64,3**
+   (zgodne); pełny DBR ~96 → **53,5**; warstwy 1–5 „~+13,4" → **+47,9**.
+   Kierunek rozbieżności nie jest jednostajny, bo panel mnożył liczbę stanów:
+   T-MODAL ma 0,384 stanów-warstw biegu produkcyjnego, ale 0,232 jego kosztu
+   warstw (mnożnik zawyża), a domknięcie warstw 1–5 ma 0,175 stanów i 1,21
+   kosztu warstw (mnożnik zaniża). **A/B wypłat P-7 jest kosztowo neutralne**:
+   przejścia siatki nie zależą od wektora wypłat, więc WTA@25bb kosztuje
+   dokładnie tyle co drugi bieg 80/20. Suma czterech pozycji mapy, które ten
+   fixture wycenia (P-7, P-8, P-9, P-13), schodzi z **~262 do ~172
+   rdzenio-h**; P-10/P-11/P-12 zostają jak w decyzji 29, bo nie są
+   przebiegami siatki. Wszystkie liczby tej tabeli mają asercje
+   w `tests/test_mode_census.py`.
+5. **Udział decyzyjny trybów w rachunkowości areny.** Agent liczy
+   `decisions_deep` / `decisions_jamfold` / `decisions_hu-deep` /
+   `decisions_hu-jamfold` — tryb KOMÓRKI ARTEFAKTU (stan po kwantyzacji), bo
+   mianownikiem porównania jest mieszanka trybów, którą policzył bieg. Cztery
+   liczniki sumują się do `decisions` i wychodzą z komendą BF. Otwarte pytanie
+   2 decyzji 29 rozstrzygnięte pomiarem: **udział komórek ≠ udział odwiedzin**.
+   Na artefakcie bramki (5 770 decyzji) komórki `deep` to 6,4% stanów-warstw
+   biegu, a decyzje `deep` — 51,4%, osiem razy więcej; obie liczby z TEGO
+   SAMEGO artefaktu, obie pod asercją. Licznik jest bez progu: mierzy,
+   nie bramkuje.
+6. **Cztery korekty dokumentacyjne (decyzja 29 pkt 4).** (a) Jednostką ε jest
+   SUMA WEKTORA WYPŁAT, nie „pula pota" — poprawione w całym tym dokumencie
+   (19 wystąpień) oraz w docstringach `expost.py`, `solve_grid.py`,
+   `pack_blueprint.py` i `poker.blueprint_agent`; przy `sum(prizes)` = 1
+   jednostką jest jeden turniej, a ROI [pp] = ε × multiplikator × 100.
+   (b) Ex-post to **Algorytm 3 Ganzfrieda–Sandholma (IJCAI-09)**, nie 6 —
+   poprawione w opisie `tools/blueprint` i w docstringu `expost.py`.
+   (c) i (d) — zdania „my bezstratni vs Pluribus abstrahowany" oraz
+   „dorównujemy/przekraczamy SOTA" **w tym dokumencie nie występują**
+   (sprawdzone wprost: brak wystąpień „Pluribus", „SOTA" i „0,049"); nie ma
+   czego skreślać i nic nie dopisano w ich miejsce. Obalenia zostają zapisane
+   w decyzji 29 pkt 4.
+7. **Cena bramki.** Wycena krokiem 1 wymaga policzenia osiągalności 191 028
+   stanów-warstw, więc `tests/test_mode_census.py` kosztuje **73 s** i bramka
+   rośnie z 3 min 17 s do 4 min 30–40 s (457 testów). Płacimy to świadomie:
+   liczba w dokumencie bez asercji rozjeżdża się przy pierwszej zmianie
+   modelu, a te akurat liczby decydują o wydatku rzędu setek rdzenio-godzin.
+8. **Czego ten kontrakt NIE zrobił.** Nie potwierdził tabeli tierów (to
+   operator), nie ruszył formatu `.bpk` v2 (POKER-57), nie policzył ani jednej
+   warstwy solvera. Odcisk przebiegu nie jest sprawdzany przez arenę: BF i BG
+   celowo grają tym samym artefaktem 80/20 przy `3x` i `10x`, bo nagrody
+   wchodzą tam dopiero do punktacji — bramką odcisku jest konsument liczący ε,
+   a nie mierzący ROI.
 
 **POKER-55 (agent wierny artefaktowi: tryb jam/fold przy przeskoku progu,
 cykliczny odczyt horyzontu; PONOWNY pomiar BF/BG/BH) DOSTARCZONY.**
@@ -971,7 +1120,7 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    (F2 audytu; [decyzja 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)
    pkt 3 KOREKTA): niezgodność V między warstwami cyklu dla tej samej sytuacji
    fizycznej (te same stacki tych samych ról) wynosi na artefakcie
-   produkcyjnym **średnio 1,22e−3 i maks 1,67e−2 udziału puli** przy trzech
+   produkcyjnym **średnio 1,22e−3 i maks 1,67e−2 udziału sumy wypłat** przy trzech
    żywych (6,58e−3 dla stacków ≥ 20 żetonów), a w HU maks 9,98e−4 — a nie
    „rząd 1e−4", jak mówiła pierwsza wersja decyzji i tego bloku. Odniesienie
    zostaje to samo: wpływ całej reguły awaryjnej po tej zmianie jest
@@ -1134,11 +1283,17 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    1 / 2 / 3 / 4, od ręki 5 zero — ten sam wzorzec co w POKER-52, gdzie na
    próbce 158 698 decyzji wypadło 335 / 717 / 197 / 13)
    i 0,006% wzorzec z pkt 6. Zmierzony wpływ reguły, która te miejsca
-   rozstrzyga, to pkt 9: zero w granicach CI. Cena domknięcia z decyzji 28
-   pkt 2d bez zmian: pełna siatka warstw 1–5 to +8 696 stanów-warstw wobec
-   49 765 biegu produkcyjnego (+17,5%, czyli ~13,4 rdzenio-h wobec 76,6).
+   rozstrzyga, to pkt 9: zero w granicach CI. Cena domknięcia: pełna siatka
+   warstw 1–5 to +8 696 stanów-warstw wobec 49 765 biegu produkcyjnego
+   (+17,5%), ale **+47,9 rdzenio-h, a nie +13,4** — brakujące stany są
+   w większości głębokie (3 212 z 8 696) i mnożnik liczby stanów mylił się
+   tu 3,6×. **KOREKTA POKER-56**: liczba pochodzi z fixture'a wyceny
+   per-tryb (`tools/blueprint/mode_census.py`, blok POKER-56 wyżej), pod
+   asercją; poprzednia (~13,4) była iloczynem 0,175 × 76,6, czyli mnożnikiem
+   liczby stanów zamiast wyceną per tryb.
    Decyzja 29 wymagała tego pomiaru przed pomiarami tierowymi — jest.
-11. **Co trzyma bramka** (`tests/test_blueprint_agent.py`; 434 testy zielone).
+11. **Co trzyma bramka** (`tests/test_blueprint_agent.py`; 457 testów zielonych
+   po POKER-56, 434 przy zamknięciu tego bloku).
    Poza niezmiennikami POKER-52/54, które zostają: cykl horyzontu stoi na
    stałych blindach od ręki 18 (test na `blinds_for_hand`, nie na komentarzu);
    przenumerowanie przy odczycie cyklicznym sadza role WARSTWY na rolach
@@ -1553,7 +1708,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
       stanów) i dalej nie ma ich wcale, bo od ręki 6 warstwa niesie pełną
       siatkę.
       Cena domknięcia: warstwy 1–5 na pełnej siatce to +8 696
-      stanów-warstw wobec 49 765 w biegu produkcyjnym (+17,5%) — decyzja
+      stanów-warstw wobec 49 765 w biegu produkcyjnym (+17,5%), czyli
+      **47,9 rdzenio-h** (wycena per tryb, blok POKER-56) — decyzja
       po ponownym pomiarze (decyzja 28 pkt 2d).
       → **JEDYNA pozostała przyczyna fallbacku po 54+55** (0,844% decyzji,
       ten sam rozkład po rękach); dane do decyzji w bloku POKER-55 pkt 10.
@@ -1842,7 +1998,7 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    artefakcie zero znaczy „akcja poza maską drzewa", a nie „mało
    prawdopodobna". **KOREKTA JEDNOSTKOWA (2026-08-29) obowiązuje:**
    0,0039 to błąd w przestrzeni prawdopodobieństw, a **nie** ε (udział
-   puli); koszt kwantyzacji jest zmierzony w ε w punkcie 6, a nie
+   sumy wypłat); koszt kwantyzacji jest zmierzony w ε w punkcie 6, a nie
    wyprowadzony z tej liczby.
 
 3. **Determinizm zapisu.** Ten sam katalog biegu daje **bajt w bajt
@@ -1953,7 +2109,7 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    | ex-post ε maks | 4,6641e−4 | **3,8380e−4** | **−17,7%** |
    | ex-post ε mediana | 1,0771e−4 | 4,6518e−5 | −56,8% |
 
-   Przyrost ε maks wynosi **−8,26e−5 puli**, czyli **−17,7%** wartości
+   Przyrost ε maks wynosi **−8,26e−5 sumy wypłat**, czyli **−17,7%** wartości
    surowej wobec dopuszczalnego **+10%**: kwantyzacja uint8 nie
    kosztuje tu nic, a zmierzone ε **spada**. Bieg surowy odtworzył
    raport POKER-49 **co do wszystkich cyfr** (4,664108132224065e−4 /
@@ -2094,14 +2250,14 @@ i status `aborted-cost-fuse` w manifeście).
    zero stanów powyżej tolerancji (maksima 5,00e−5 / 4,99e−5 /
    4,98e−5).
 6. **V vs ICM (AG) i rozkład per warstwa.** Stany krótkiego BB
-   (< 5 bb): **27 078**, |V−ICM| maks **0,0948 puli** (ręka 20, stan
+   (< 5 bb): **27 078**, |V−ICM| maks **0,0948 sumy wypłat** (ręka 20, stan
    22/2/126), średnia 0,0206 — na pełnej siatce błąd ICM sięga ~9,5%
-   puli (pilot siatki 5: 7,9%). Maksimum warstwy idzie w górę wzdłuż
+   sumy wypłat (pilot siatki 5: 7,9%). Maksimum warstwy idzie w górę wzdłuż
    zegara od 0,0105 (ręka 0) do 0,0948 (ręka 20) jako trend,
    z lokalnymi spadkami między poziomami blindów (np. 0,0586 → 0,0578
    w rękach 3–5) — to liczba uzasadniająca kierunek decyzji 25
    (ICM tylko na horyzoncie).
-   Rozkład per warstwa (ε w jednostkach puli; ICM = |V−ICM| maks /
+   Rozkład per warstwa (ε w jednostkach sumy wypłat; ICM = |V−ICM| maks /
    średnia warstwy):
 
    | ręka | stany | ε maks | ε mediana | ICM maks | ICM śr. |
@@ -2316,7 +2472,7 @@ Y  python tools/blueprint/eps_curve.py cost --out PILOT/grid5d \
    trzecim cyklu, różnica rzędu 0,002) i inna średnia CFR+, a pomiar
    wrażliwości z punktu 4 mówi, że zmiana brzegu o 0,002 rusza ε o ~1e−5;
    reszta mieści się w zmianie profilu HU i szumie f32. **Maksimum 0,0466%
-   puli nadal jest poniżej punktu odniesienia decyzji 25 (0,05%)** i 2,1×
+   sumy wypłat nadal jest poniżej punktu odniesienia decyzji 25 (0,05%)** i 2,1×
    poniżej progu 0,001 z POKER-47, ale zapas do punktu odniesienia stopniał
    z 14% do 6,7%.
 
@@ -2574,7 +2730,7 @@ Następne kroki:
    mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB), bo 60% komórek to
    węzły nieosiągalne i nie trafiają do pliku wcale. Kwantyzacja do
    uint8 daje maksymalny błąd 0,0026 **w przestrzeni
-   prawdopodobieństw akcji** — to inna jednostka niż ε (udział puli)
+   prawdopodobieństw akcji** — to inna jednostka niż ε (udział sumy wypłat)
    i porównanie tych liczb wprost było błędem (korekta architekta
    2026-08-29); koszt w ε jest **zmierzony** tym samym narzędziem
    ex-post (−17,7% na pilocie, −3,7% na artefakcie kontrolnym), więc
