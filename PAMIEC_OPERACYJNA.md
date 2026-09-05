@@ -20,8 +20,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   regeneracja equity ≈40 min/4 rdzenie (POKER-12).
 - 2026-08-28 arch: gałąź integracyjna =
   `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
-  przed scaleniem; gałęzi koderów 26/27/28 brak; raporty researchu
-  w transkrypcie sesji architekta (decyzja 25 streszcza).
+  przed scaleniem; raporty researchu w transkrypcie/scratchpadzie sesji
+  architekta (decyzja 25 i 29 streszczają; pełna synteza 2026-09-05:
+  `…/scratchpad/research/synteza.md`).
 - 2026-09-04 arch: artefakty produkcyjne żyją w scratchpadzie sesji
   `…/scratchpad/prod/` (tensor + grid2 + blueprint.bpk — ten ostatni
   to wejście POKER-52); regeneracja = AC–AH i BA z CURRENT_STATE.

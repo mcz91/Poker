@@ -96,7 +96,17 @@
     areny z modelem treningu zakwalifikowane (kolejność od agresora
     i darmowy call → POKER-54; przeskok trybu i odczyt cykliczny
     horyzontu → POKER-55; warstwy 1–5 → decyzja po ponownym pomiarze);
-    AIVAT przesunięty za naprawy przyrządu.
+    AIVAT przesunięty za naprawy przyrządu;
+29. [`29-tier-first-fundament-gto-mapa-po-researchu.md`](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
+    — fundament GTO po głębokim researchu z weryfikacją adwersaryjną:
+    artefakt 80/20@25bb obsługuje ~1% turniejów, modalna gra to WTA
+    15–20bb → rodzina blueprintów per tier (T-MODAL pierwszy); linia
+    tolerancyjna NASYCONA (prawo ε→ROI: pełna wyzyskiwalność = 0,14 pp
+    przy CI areny 1,46 pp); warstwa eksploatacyjna = seat-restricted
+    DBR offline, HU-first, bramkowana ex-post ε; prawo kosztu Θ(L·C³·it)
+    i szew `_settle()`; katalog obaleń (PED, maximin, regret transfer,
+    RNR, search w runtime, GPU-artefakt…); mapa POKER-56..68 z bramką
+    STOP i wejściami operatorskimi (tabela tierów, korpus HH).
 
 ## TaskSpeki
 
