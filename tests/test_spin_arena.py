@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 import random
 import subprocess
@@ -16,7 +17,7 @@ from poker.cards import Card
 from poker.dealing import DealtHand, deal_hand, shuffled_deck
 from poker.events import ActionType, HandConfig
 from poker.openfold import _mass, threebet_vs_range
-from poker.spin import PAYOUTS, STARTING_CHIPS, is_jam_fold_depth, open_amount
+from poker.spin import PAYOUTS, STARTING_CHIPS, is_jam_fold_depth, open_amount, roles
 from poker.spin_arena import (
     Seat,
     SeatBook,
@@ -330,6 +331,81 @@ def test_darmowy_call_nie_jest_pytaniem_tylko_wejsciem() -> None:
     assert sum(out) == 103
 
 
+class _ActionLog:
+    """Obserwator licytacji: (widok w chwili akcji, akcja, czy pytana)."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[SeatView, str, bool]] = []
+
+    def __call__(self, view: SeatView, act: str, asked: bool) -> None:
+        self.events.append((view, act, asked))
+
+    def free_entries(self) -> list[SeatView]:
+        """Widoki wejść, o które rozgrywacz nie pytał."""
+        return [view for view, _, asked in self.events if not asked]
+
+
+def test_darmowe_wejscie_obejmuje_najwyzszy_wklad_bez_przebicia() -> None:
+    """F1 audytu POKER-54: dołożenie zerowe bywa też wtedy, gdy nikt nie przebił.
+
+    Najwyższym wkładem bywa cudzy BLIND — gracz all-in z samego blindu nie ma
+    czym zagrać, a ten, kto go pokrywa, nie ma czego oszczędzić foldem. Obie
+    żywe sekwencje: w HU guzik all-in z SB (1 żeton przy sb = 2), w 3-max BB
+    all-in z blindu (1 żeton przy bb = 4) po foldzie UTG. Wynik rozstrzyga
+    o naprawie, nie tylko log: przy foldzie za darmo byłoby odpowiednio
+    `[2, 0, 49]` i `[50, 49, 2]`.
+    """
+    deck = shuffled_deck(random.Random(0))
+    log: list[int] = []
+    hu: tuple[Seat, Seat, Seat] = (
+        _Script("fold", log=log),
+        always_fold(),
+        _Script("fold", log=log),
+    )
+    assert _play_hand([1, 0, 50], 0, 0, 2, 4, hu, deck, random.Random(0)) == [0, 0, 51]
+    assert log == []
+
+    three: tuple[Seat, Seat, Seat] = (
+        _Script("fold", log=log),
+        _Script("fold", log=log),
+        _Script("fold", log=log),
+    )
+    assert _play_hand([50, 50, 1], 0, 1, 2, 4, three, deck, random.Random(0)) == [50, 51, 0]
+    assert log == [0]
+
+
+def test_obserwator_licytacji_widzi_wejscie_bez_pytania() -> None:
+    """`on_action` pokazuje, czego nie widać z widoków: wejście za darmo.
+
+    Jest ono zawsze ostatnią akcją ręki, więc nie trafia do historii żadnej
+    następnej decyzji (F4 audytu POKER-54) — obserwator jest jedynym miejscem,
+    w którym widać jego trzy cechy: wpis w licytacji, brak pytania i brak
+    poboru z rng. Obserwacja jest czysta: przebieg ręki z nią i bez niej jest
+    identyczny.
+    """
+    seen = _ActionLog()
+    books: tuple[Seat, Seat, Seat] = (always_fold(), always_fold(), always_fold())
+    plain = _play_hand(
+        [1, 0, 50], 0, 0, 2, 4, books, shuffled_deck(random.Random(0)), random.Random(0)
+    )
+    watched = _play_hand(
+        [1, 0, 50],
+        0,
+        0,
+        2,
+        4,
+        books,
+        shuffled_deck(random.Random(0)),
+        random.Random(0),
+        on_action=seen,
+    )
+    assert plain == watched
+    assert [(view.seat, act, asked) for view, act, asked in seen.events] == [(2, "jam", False)]
+    entry = seen.events[0][0]
+    assert (entry.contrib, entry.actions) == ((1, 0, 4), ())  # widok SPRZED wejścia
+    assert max(entry.contrib) == entry.contrib[entry.seat]  # dołożenie zerowe
+
+
 def _asked_views(seeds: range, books: tuple[Seat, Seat, Seat]) -> list[SeatView]:
     """Widoki WSZYSTKICH decyzji, o które rozgrywacz zapytał w tych turniejach."""
     seen: list[SeatView] = []
@@ -355,6 +431,68 @@ def _asked_views(seeds: range, books: tuple[Seat, Seat, Seat]) -> list[SeatView]
     return seen
 
 
+class _CountingRandom(random.Random):
+    """RNG liczący pobory — wejście za darmo nie jest decyzją, więc nie pobiera."""
+
+    draws = 0
+
+    def random(self) -> float:
+        self.draws += 1
+        return super().random()
+
+
+def test_wejscie_za_darmo_nie_pobiera_z_rng_i_jest_ostatnia_akcja_reki() -> None:
+    """Dwie cechy wejścia za darmo, które DA się zaobserwować (F4 audytu POKER-54).
+
+    Pobór z rng: rozgrywacz bierze jeden na DECYZJĘ, a wejścia za darmo nikt
+    nie podejmuje — liczba poborów musi się równać liczbie pytań. Kolejność:
+    po wejściu za darmo nie ma już czym zagrać, bo każdy, kto po nim mógłby
+    mówić, wpłacił mniej niż wchodzący, a wpłacił mniej tylko wtedy, gdy jest
+    all-in albo już grał. Ta druga cecha jest powodem, dla którego wpisu
+    wejścia w `SeatView.actions` ani przesunięcia głosu po nim NIE widać
+    z żadnego kolejnego widoku — i dlatego twierdzeń o nich nie ma
+    w opisach: obserwowalny jest sam fakt akcji (log `on_action`).
+    """
+    sb, bb = 2, 4
+    books: tuple[Seat, Seat, Seat] = (always_fold(), always_jam(), field_exploit())
+    deck = shuffled_deck(random.Random(0))
+    free_entries = 0
+    for stacks in itertools.product(range(9), repeat=3):
+        if sum(1 for chips in stacks if chips > 0) < 2:
+            continue
+        for button in range(3):
+            if stacks[button] <= 0:
+                continue
+            seen = _ActionLog()
+            rng = _CountingRandom(0)
+            rng.draws = 0
+            _play_hand(list(stacks), 0, button, sb, bb, books, deck, rng, on_action=seen)
+            asked = [event for event in seen.events if event[2]]
+            assert rng.draws == len(asked), (stacks, button, seen.events, rng.draws)
+            for index, (_, _, was_asked) in enumerate(seen.events):
+                if was_asked:
+                    continue
+                free_entries += 1
+                assert index == len(seen.events) - 1, (stacks, button, seen.events)
+    assert free_entries > 0, "siatka bez wejść za darmo nie sprawdza niczego"
+
+
+def _posted_blinds(
+    stacks: tuple[int, ...], button: int, sb: int, bb: int
+) -> tuple[int, int, int]:
+    """Blind postawiony przez każde miejsce w tej ręce (0 dla UTG i wybitych)."""
+    live = [seat for seat in range(3) if stacks[seat] > 0]
+    bb_seat = (
+        next(seat for seat in live if seat != button)
+        if len(live) <= 2
+        else roles(button)[2]
+    )
+    posted = [0, 0, 0]
+    posted[button] = sb
+    posted[bb_seat] = bb
+    return (posted[0], posted[1], posted[2])
+
+
 def _zero_due_pending(view: SeatView) -> list[int]:
     """Miejsca (poza decydentem), których dołożenie do najwyższego wkładu to zero."""
     top = max(view.contrib)
@@ -373,19 +511,56 @@ def _zero_due_pending(view: SeatView) -> list[int]:
 def test_zadne_miejsce_nie_jest_pytane_o_dolozenie_zerowe() -> None:
     """Właściwość na turniejach: pytanie pada tylko tam, gdzie wejście kosztuje.
 
-    Druga asercja pilnuje, żeby pierwsza nie była o pustce: w tej samej próbce
-    sytuacja „ktoś ma dołożenie zerowe" naprawdę występuje (widzi ją miejsce
-    pytane wcześniej w tej samej rundzie).
+    Asercja jest BEZWARUNKOWA — tak jak reguła: nie ma znaczenia, czy stoi
+    przebicie, czy najwyższym wkładem jest cudzy blind (F1/F5 audytu
+    POKER-54). Druga asercja pilnuje, żeby pierwsza nie była o pustce: w tej
+    samej próbce sytuacja „ktoś ma dołożenie zerowe" naprawdę występuje
+    (widzi ją miejsce pytane wcześniej w tej samej rundzie).
     """
     books = (field_exploit(), dollar_fish(), always_jam())
     views = _asked_views(range(60), books)
     assert len(views) > 500
     pending = 0
     for view in views:
-        if view.jammed or view.opened:
-            assert view.contrib[view.seat] < max(view.contrib), view
+        assert view.contrib[view.seat] < max(view.contrib), view
         pending += len(_zero_due_pending(view))
     assert pending > 0, "próbka bez dołożeń zerowych nie sprawdza niczego"
+
+
+def test_zero_due_bez_przebicia_to_wylacznie_all_in_z_blindu() -> None:
+    """Dlaczego reguła wejścia za darmo nie potrzebuje warunku „stoi przebicie".
+
+    W zamrożonym drzewie nie ma limpa: każda akcja poza foldem podbija ponad
+    blindy (open to 2,2 bb, a jam cały stack), więc przed pierwszym podbiciem
+    wkłady w puli to DOKŁADNIE postawione blindy. Zerowe dołożenie znaczy
+    wtedy, że czyjś blind nie przewyższa naszego, a to możliwe wyłącznie, gdy
+    ten ktoś jest all-in z samego blindu. Test przybija oba ogniwa na
+    wejściach z prawdziwych turniejów.
+    """
+    sb, bb = 2, 4
+    books: tuple[Seat, Seat, Seat] = (always_fold(), always_fold(), always_fold())
+    deck = shuffled_deck(random.Random(0))
+    free_entries = 0
+    for stacks in itertools.product(range(7), repeat=3):
+        if sum(1 for chips in stacks if chips > 0) < 2:
+            continue
+        for button in range(3):
+            if stacks[button] <= 0:
+                continue
+            seen = _ActionLog()
+            _play_hand(
+                list(stacks), 0, button, sb, bb, books, deck, random.Random(0), on_action=seen
+            )
+            posted = _posted_blinds(stacks, button, sb, bb)
+            for entry in seen.free_entries():
+                # Książka folduje wszystko, więc w tej próbce nikt nie podbija.
+                free_entries += 1
+                assert not (entry.jammed or entry.opened), entry
+                assert any(
+                    other != entry.seat and 0 < stacks[other] <= posted[other]
+                    for other in range(3)
+                ), (stacks, button, entry.seat)
+    assert free_entries > 0, "siatka bez wejść za darmo nie sprawdza niczego"
 
 
 def _kolejnosc_sprzed_poker_54(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
@@ -423,18 +598,18 @@ def test_kolejnosc_od_agresora_jest_neutralna_dystrybucyjnie_dla_ksiazek(
     before = [play_block(hero, villain, prizes, 5000 + i) for i in range(n)]
 
     changed = sum(1 for a, b in zip(after, before, strict=True) if a != b)
-    assert changed == 54, changed  # liczba w bloku POKER-54 CURRENT_STATE
+    assert changed == 55, changed  # liczba w bloku POKER-54 CURRENT_STATE
     diffs = [a - b for a, b in zip(after, before, strict=True)]
     mean = sum(diffs) / n
     sd = (sum((d - mean) ** 2 for d in diffs) / (n - 1)) ** 0.5
     se = sd / n**0.5
     assert mean - 1.96 * se <= 0.0 <= mean + 1.96 * se, (mean, se)
-    assert mean == pytest.approx(0.0133, abs=5e-4), mean
-    assert (mean - 1.96 * se, mean + 1.96 * se) == pytest.approx((-0.0373, 0.0640), abs=5e-4)
+    assert mean == pytest.approx(0.0167, abs=5e-4), mean
+    assert (mean - 1.96 * se, mean + 1.96 * se) == pytest.approx((-0.0344, 0.0677), abs=5e-4)
     sd_after = (sum((x - sum(after) / n) ** 2 for x in after) / (n - 1)) ** 0.5
     sd_before = (sum((x - sum(before) / n) ** 2 for x in before) / (n - 1)) ** 0.5
-    assert abs(sd_after - sd_before) < 0.01 * sd_before, (sd_after, sd_before)
-    assert (sd_after, sd_before) == pytest.approx((0.6379, 0.6328), abs=5e-4)
+    assert abs(sd_after - sd_before) < 0.02 * sd_before, (sd_after, sd_before)
+    assert (sd_after, sd_before) == pytest.approx((0.6426, 0.6340), abs=5e-4)
 
 
 def test_ksiazki_referencyjne_nie_widza_kolejnosci_wcale(
@@ -455,7 +630,16 @@ def test_ksiazki_referencyjne_nie_widza_kolejnosci_wcale(
     )
     for hero, villain in pairs:
         for book in (hero, villain):
-            for freq in (book.open, book.overjam, book.vs_open, book.vs_jam):
+            # Wszystkie SZEŚĆ wektorów, nie cztery: jam/fold ma własne dwa
+            # i to one rządzą krótkim stołem (F7 audytu POKER-54).
+            for freq in (
+                book.open,
+                book.overjam,
+                book.vs_open,
+                book.vs_jam,
+                book.jf_first,
+                book.jf_vs_jam,
+            ):
                 assert set(freq) <= {0.0, 1.0}, book
     after = [[play_block(h, v, prizes, 6000 + i) for i in range(40)] for h, v in pairs]
     monkeypatch.setattr(spin_arena, "speaking_order", _kolejnosc_sprzed_poker_54)

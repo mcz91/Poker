@@ -18,7 +18,11 @@ Kolejność głosu jest regułą pokera, nie kolejką ról: akcja idzie na lewo 
 tego, kto właśnie zagrał, więc po przebiciu pyta się pierwszego
 niedopasowanego gracza na lewo od agresora (`speaking_order`). Gracz, którego
 dołożenie do najwyższego wkładu wynosi zero, nie jest pytany — wchodzi do puli
-za darmo, bo fold nic by mu nie oszczędził (POKER-54, decyzja 28 pkt 2a i 2b).
+za darmo, bo fold nic by mu nie oszczędził (POKER-54, decyzja 28 pkt 2a i 2b);
+nie ma znaczenia, czy stoi przebicie, bo najwyższym wkładem bywa cudzy blind.
+Takie wejście jest zawsze OSTATNIĄ akcją ręki (każdy, kto mógłby mówić po nim,
+wpłacił mniej, a wpłacił mniej tylko będąc all-in albo już zagrawszy), więc
+widać je wyłącznie w obserwatorze `on_action` — nie w widoku kolejnej decyzji.
 """
 
 from __future__ import annotations
@@ -70,8 +74,10 @@ class SeatView:
     artefaktu. `stacks` to stan sprzed postawienia blindów, `contrib` —
     wkłady już w puli, `actions` — akcje ręki w kolejności podjęcia
     (miejsce, akcja); miejsce all-in z samego blinda nie ma w nich wpisu, bo
-    nie ma czym zagrać, ale wejście za darmo ma — rozgrywacz o nie nie pyta,
-    a mimo to jest akcją ręki. `bb` to duży blind tej ręki — z niego i ze
+    nie ma czym zagrać, a wejście za darmo ma, choć rozgrywacz o nie nie pyta
+    — jest akcją ręki i tak trzyma `actions` pełną historią licytacji, nawet
+    jeśli dziś żaden widok już po nim nie powstaje. `bb` to duży blind tej
+    ręki — z niego i ze
     stacków liczy się próg jam/fold, więc bez niego agent nie umiałby
     powiedzieć, czy artefakt opisuje ten sam tryb drzewa co arena.
     """
@@ -96,6 +102,14 @@ class SeatAgent(Protocol):
 
 
 Seat = SeatBook | SeatAgent
+
+# Czysta obserwacja licytacji: (widok miejsca w chwili akcji, akcja, czy
+# rozgrywacz o nią PYTAŁ) — bez wpływu na przebieg, wzorem `on_deck`. Bez niej
+# wejście za darmo jest niewidoczne z zewnątrz: jest zawsze ostatnią akcją
+# ręki, więc nie trafia do widoku żadnej następnej decyzji (F4 audytu
+# POKER-54). Widok jest stanem SPRZED akcji, więc obserwator odtwarza z niego
+# ten sam węzeł modelu, co agent w chwili decyzji.
+OnAction = Callable[[SeatView, str, bool], None]
 
 
 def speaking_order(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
@@ -225,12 +239,13 @@ def run_spin(
     seed: int,
     *,
     on_deck: Callable[[int, tuple[Card, ...]], None] | None = None,
+    on_action: OnAction | None = None,
 ) -> tuple[tuple[int, int, int], str]:
     """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk).
 
     `on_deck` to czysta obserwacja talii każdej ręki (indeks, talia) —
     bez wpływu na przebieg gry; z niej test dowodzi identyczności kart
-    między rotacjami bloku.
+    między rotacjami bloku. `on_action` obserwuje licytację (patrz `OnAction`).
     """
     seeds = _hand_seeds(seed)
     stacks = [STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS]
@@ -246,7 +261,15 @@ def run_spin(
         if on_deck is not None:
             on_deck(hand_i, deck)
         stacks = _play_hand(
-            stacks, hand_i, button, sb, bb, books, deck, random.Random(act_seed)
+            stacks,
+            hand_i,
+            button,
+            sb,
+            bb,
+            books,
+            deck,
+            random.Random(act_seed),
+            on_action=on_action,
         )
         hand_i += 1
     reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
@@ -275,6 +298,8 @@ def _play_hand(
     books: tuple[Seat, Seat, Seat],
     deck: Sequence[Card],
     rng: random.Random,
+    *,
+    on_action: OnAction | None = None,
 ) -> list[int]:
     live = _alive(stacks)
     if len(live) <= 2:
@@ -304,14 +329,11 @@ def _play_hand(
     # lewa strona BB; dalej głos idzie na lewo od tego, kto właśnie zagrał.
     speaker = bb_seat
 
-    def facing_raise() -> bool:
-        return jammed or opened or max(contrib) > bb
-
     def to_act() -> int | None:
         remaining = [s for s in range(3) if not folded[s] and stacks[s] > 0]
         if len(remaining) <= 1:
             return None
-        raised = facing_raise()
+        raised = jammed or opened
         for candidate in speaking_order(order, speaker):
             if folded[candidate] or stacks[candidate] <= 0:
                 continue
@@ -327,23 +349,50 @@ def _play_hand(
     steps = 0
     actions: list[tuple[int, str]] = []
     start = (stacks[0], stacks[1], stacks[2])
+
+    def make_view(seat: int, klass: int) -> SeatView:
+        return SeatView(
+            hand=hand,
+            seat=seat,
+            button=button,
+            stacks=start,
+            contrib=(contrib[0], contrib[1], contrib[2]),
+            actions=tuple(actions),
+            bb=bb,
+            klass=klass,
+            jamfold=jamfold,
+            opened=opened,
+            jammed=jammed,
+        )
+
+    def klass_of(seat: int) -> int:
+        hole = holes[seat]
+        assert hole is not None, "rozgrywacz dotyka wyłącznie miejsc z kartami"
+        return CLASS_INDEX[classify(hole[0], hole[1])]
+
     while steps < 12:
         steps += 1
         seat = to_act()
         if seat is None:
             break
-        if facing_raise() and contrib[seat] >= max(contrib):
-            # Przebicie nie przewyższa wkładu tego miejsca: wejście kosztuje
-            # zero i dominuje folda, więc trening wymusza je maską akcji,
-            # a rozgrywacz nie pyta (decyzja 28 pkt 2b).
+        if contrib[seat] >= max(contrib):
+            # Nikt nie przebił wkładu tego miejsca: wejście kosztuje zero
+            # i dominuje folda, więc rozgrywacz nie pyta (decyzja 28 pkt 2b).
+            # Warunek nie pyta o to, CZY stoi przebicie: najwyższym wkładem
+            # bywa cudzy blind (all-in z samego blindu), a fold jest wtedy
+            # tak samo darmowy — F1 audytu POKER-54. Wpis w historii i głos
+            # są tu dziś nieobserwowalne (wejście jest ostatnią akcją ręki),
+            # ale zostają, bo to one czynią oba pola prawdziwymi.
+            entry = make_view(seat, klass_of(seat)) if on_action is not None else None
             actions.append((seat, "jam"))
             acted[seat] = True
             speaker = seat
+            if on_action is not None and entry is not None:
+                on_action(entry, "jam", False)
             continue
-        hole = holes[seat]
-        assert hole is not None, "rozgrywacz pyta wyłącznie miejsca z kartami"
-        idx = CLASS_INDEX[classify(hole[0], hole[1])]
+        idx = klass_of(seat)
         book = books[seat]
+        view = make_view(seat, idx) if on_action is not None else None
         if isinstance(book, SeatBook):
             act = pick(
                 book,
@@ -354,19 +403,8 @@ def _play_hand(
                 rng=rng,
             )
         else:
-            view = SeatView(
-                hand=hand,
-                seat=seat,
-                button=button,
-                stacks=start,
-                contrib=(contrib[0], contrib[1], contrib[2]),
-                actions=tuple(actions),
-                bb=bb,
-                klass=idx,
-                jamfold=jamfold,
-                opened=opened,
-                jammed=jammed,
-            )
+            if view is None:
+                view = make_view(seat, idx)
             act = book.act(view, rng)
             if act not in legal_actions(view):
                 raise ValueError(
@@ -375,6 +413,8 @@ def _play_hand(
         actions.append((seat, act))
         acted[seat] = True
         speaker = seat
+        if on_action is not None and view is not None:
+            on_action(view, act, True)
         if act == "fold":
             folded[seat] = True
         elif act == "open":

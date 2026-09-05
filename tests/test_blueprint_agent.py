@@ -20,6 +20,7 @@ from typing import Any
 
 import pytest
 
+from poker import spin_arena
 from poker.blueprint_agent import (
     N_B_VS_U_JAM_T_FOLD,
     N_T_VS_U_JAM,
@@ -29,6 +30,8 @@ from poker.blueprint_agent import (
     NODES_HU,
     ORDER_COLLAPSE,
     ORDER_SWAP,
+    ROOTS_3MAX,
+    ROOTS_HU,
     SLOT_FOLD,
     SLOT_JAM,
     SLOT_MID,
@@ -411,7 +414,7 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
     """
     config = _mini_config()
     views = _spy_views(range(40), (dollar_fish(), always_jam()))
-    assert len(views) == 772  # liczba w bloku POKER-54 CURRENT_STATE
+    assert len(views) == 764  # liczba w bloku POKER-54 CURRENT_STATE
     seen_nodes: set[tuple[int, int]] = set()
     cache: dict[tuple[Any, int], Any] = {}
     for view in views:
@@ -428,6 +431,68 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
         assert node in problem.nodes, (view, node)
     assert {node for live, node in seen_nodes if live == 3} == set(range(14))
     assert {node for live, node in seen_nodes if live == 2} == set(range(4))
+
+
+def test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony() -> None:
+    """F2 audytu POKER-54: „arena pyta ⟺ model nie wymusza" sprawdzone w OBIE strony.
+
+    Sam spacer po historii tego nie łapie: przy pustej kolejce i masce
+    jednoelementowej konsumuje wymuszony slot milcząco. Ten test patrzy wprost
+    na maskę węzła, do którego trafia KAŻDA akcja areny — także ta, o którą
+    rozgrywacz nie pytał (widzi ją obserwator `on_action`, bo wejście za darmo
+    jest zawsze ostatnią akcją ręki).
+
+    Zerami są dokładnie te klasy, za które odpowiada rozgrywacz: nie ma
+    pytania o dołożenie zerowe i nie ma wejścia za darmo poza maską wymuszoną
+    w węźle nie-korzeniu. Zostają dwie klasy, które są cechami DRZEWA
+    TRENINGU, nie areny, i dlatego mają policzone liczby zamiast zera:
+
+    * `capped_call` — model kapuje call na stacku jamującego, a `jam` areny
+      znaczy „cały stack", więc gdy duży stack sprawdza krótki all-in, arena
+      stawia trzeciego gracza przed realnym dołożeniem, którego model nie ma;
+    * `root_fold` — w korzeniu model daje fold graczowi, który pokrywa cudzy
+      krótki blind, choć ten fold nic mu nie oszczędza; po POKER-54 to arena
+      jest w tym miejscu bliżej pokera niż model.
+
+    Naprawa obu należy do drzewa (treningu i zamrożonego drzewa decyzji 27),
+    więc jest poza tym kontraktem — liczby są tu po to, żeby rosły widocznie.
+    """
+    config = _mini_config()
+    cache: dict[tuple[Any, int], Any] = {}
+    events: list[tuple[SeatView, str, bool]] = []
+    log = events.append
+    for books in (
+        (field_exploit(), dollar_fish(), always_jam()),
+        (dollar_fish(), always_jam(), field_exploit()),
+        (wide_call(0.4), field_exploit(), dollar_fish()),
+    ):
+        for seed in range(60):
+            run_spin(books, seed, on_action=lambda view, act, asked: log((view, act, asked)))
+    assert len(events) == 3075  # liczba w bloku POKER-54 CURRENT_STATE
+
+    forced_entry = root_fold = free_question = capped_call = 0
+    for view, _, asked in events:
+        node, divergence = node_slot(view)
+        assert divergence is None, view
+        key = state_keys(view, 1)[0]  # krok 1: dokładne stacki areny, bez siatki
+        cache_key = (key, view.hand)
+        if cache_key not in cache:
+            cache[cache_key] = _stage_problem(config, key, view.hand)
+        allowed = cache[cache_key].allowed[node]
+        live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
+        root = node in (ROOTS_3MAX if live == 3 else ROOTS_HU)
+        if not asked:
+            if len(allowed) == 1:
+                forced_entry += 1
+                continue
+            root_fold += 1
+            assert root and not (view.jammed or view.opened), view
+        elif len(allowed) >= 2:
+            free_question += 1
+        else:
+            capped_call += 1
+            assert max(view.contrib) > view.contrib[view.seat], view
+    assert (forced_entry, root_fold, free_question, capped_call) == (21, 8, 3044, 2)
 
 
 def test_wejscie_za_darmo_areny_to_akcja_wymuszona_maska_treningu() -> None:
@@ -691,8 +756,40 @@ def test_stan_spoza_warstwy_zdarza_sie_tylko_w_warstwie_przycietej(
     assert agent.layer_is_full(20) is True
 
 
+class _NodesSeen:
+    """Miejsce grające agentem, ale zapisujące węzeł modelu każdej jego decyzji."""
+
+    def __init__(self, agent: BlueprintAgent) -> None:
+        self.agent = agent
+        self.nodes: set[tuple[int, int]] = set()
+
+    def act(self, view: SeatView, rng: Any) -> str:
+        live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
+        self.nodes.add((live, node_slot(view)[0]))
+        return self.agent.act(view, rng)
+
+
+def _kolejnosc_sprzed_poker_54(order: Any, last_actor: int) -> tuple[int, ...]:
+    """Kolejność areny SPRZED POKER-54: stała kolejka ról, ślepa na agresora.
+
+    Kontrola eksperymentu do niepustki zer: pokazuje, że TA SAMA próbka
+    naprawdę wytwarza rozjazd kolejności, gdy kolejność jest ta stara.
+    """
+    return tuple(order)
+
+
+def _agent_run(agent: BlueprintAgent) -> _NodesSeen:
+    """Próbka biegu agenta: 4 przeciwników × 80 seedów bloków od 300."""
+    seen = _NodesSeen(agent)
+    prizes = PAYOUTS["3x"].prizes
+    for villain in (field_exploit(), dollar_fish(), always_jam(), wide_call(0.5)):
+        for seed in range(80):
+            play_block(seen, villain, prizes, 300 + seed)
+    return seen
+
+
 def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
-    mini_artifact: Path,
+    mini_artifact: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Kryterium POKER-54, blokująco: trzy liczniki rozjazdu = 0 na artefakcie bramki.
 
@@ -702,23 +799,35 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
     i 1 092 wpisów na 1 582 048 decyzji; naprawiony rozgrywacz nie wytwarza
     żadnego z tych infosetów.
 
-    Zero nie jest o pustce: ta sama próbka odwiedza węzły, na których rozjazd
-    siedział — odpowiedź UTG na 3bet (węzły 9 i 10) i decyzję BB wobec 3betu
-    (węzeł 8) — a każdy z trzech liczników ma osobny test wzrostu.
+    Zero jest niepuste NA TEJ SAMEJ PRÓBCE, a nie na innej (F3 audytu
+    POKER-54): ten sam bieg powtórzony z kolejnością sprzed POKER-54 zapala
+    oba liczniki kolejności (2 i 136), a agent odwiedza w nim wszystkie 14
+    węzłów modelu 3-max — w tym 8, 9 i 10, na których rozjazd siedział.
+
+    `forced_action_misses` ma na artefakcie bramki wąskie gardło: rozkład
+    czyta się dopiero po klasie, a mini-artefakt zna cztery klasy ze 169, więc
+    większość decyzji kończy się na `class_misses` przed odczytem węzła. Za tę
+    przyczynę odpowiada dodatkowo `test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony`,
+    który patrzy na maski modelu dla KAŻDEJ akcji areny, niezależnie od klas
+    artefaktu.
     """
     agent = _agent(mini_artifact)
-    prizes = PAYOUTS["3x"].prizes
-    for villain in (field_exploit(), dollar_fish(), always_jam()):
-        for seed in range(25):
-            play_block(agent, villain, prizes, 300 + seed)
+    seen = _agent_run(agent)
     counters = agent.counters()
-    assert counters["decisions"] > 500, counters
+    assert counters["decisions"] == 5773, counters
     assert counters["out_of_order"] == 0, counters
     assert counters["order_collapse"] == 0, counters
     assert counters["forced_action_misses"] == 0, counters
     assert counters["node_misses"] == counters["mode_flip_misses"], counters
-    nodes = [node_slot(view)[0] for view in _spy_views(range(25), (field_exploit(), always_jam()))]
-    assert {8, 9, 10} <= set(nodes), sorted(set(nodes))
+    # Węzeł 7 (UTG wobec 3betu BB po foldzie guzika) w tej próbce nie wypada;
+    # rozjazd kolejności siedział na 8, 9 i 10 i te agent odwiedza.
+    assert {node for live, node in seen.nodes if live == 3} == set(range(14)) - {7}
+
+    monkeypatch.setattr(spin_arena, "speaking_order", _kolejnosc_sprzed_poker_54)
+    before = _agent(mini_artifact)
+    _agent_run(before)
+    stale = before.counters()
+    assert (stale["out_of_order"], stale["order_collapse"]) == (2, 136), stale
 
 
 def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path) -> None:
