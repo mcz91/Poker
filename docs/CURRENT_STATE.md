@@ -2211,7 +2211,11 @@ Następne kroki:
    wzrostu), a cztery rozjazdy areny z modelem zakwalifikowane — dwa jako
    usterki rozgrywacza (POKER-54), przeskok trybu i horyzont jako
    odwzorowanie agenta (POKER-55), warstwy 1–5 do decyzji po ponownym
-   pomiarze. **POKER-54 dostarczony** (blok wyżej): kolejność od agresora
+   pomiarze. **POKER-54 zamknięty** (blok wyżej; audyt świeżym kontekstem
+   2026-09-05: kolejność od agresora czysta z niezależną wyrocznią, trzy
+   findingi blokujące wokół darmowego wejścia i dowodów zer naprawione
+   z czerwieniami, resztkowe rozjazdy drzew policzone jawnie zamiast
+   zerowane): kolejność od agresora
    i wymuszone wejście za darmo, trzy liczniki rozjazdu zerami blokująco,
    wpływ na liczby POKER-42/43/48 zmierzony i mieszczący się w ich własnych
    CI. Następny krok linii: **POKER-55** (odwzorowanie trybu jam/fold przy
