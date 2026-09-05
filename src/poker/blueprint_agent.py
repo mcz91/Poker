@@ -45,9 +45,13 @@ produkcyjnym zawsze zero, bo liczy wszystkie 169). Każda ścieżka fallbacku gr
 check-call → fold: gdy jedynym wejściem jest sprawdzenie all-inu, agent
 sprawdza, inaczej pasuje.
 
-Wierność artefaktowi tam, gdzie kiedyś był fallback, ma własne liczniki:
-`cyclic_reads` (decyzja zagrana z warstwy cyklu, czyli ręka za horyzontem
-warstw) i `mode_flip_reads` (decyzja zagrana z bliźniaczego węzła jam/fold).
+Wierność artefaktowi tam, gdzie kiedyś był fallback, ma własne liczniki
+(rosną dopiero wtedy, gdy rozkład naprawdę wraca do gry — po sprawdzeniu masy
+na akcjach legalnych): `cyclic_reads` (decyzja zagrana z warstwy cyklu, czyli
+ręka za horyzontem warstw), `mode_flip_reads` (decyzja zagrana z drzewa
+jam/fold przy głębokim drzewie areny) i jego podzbiór `mode_flip_translated`
+— odczyty, w których bliźniak jest INNYM węzłem niż węzeł areny, więc pula
+modelu różni się od puli areny (patrz `jam_fold_slot`).
 
 Liczniki diagnostyczne rozdzielają rozjazd areny z modelem treningu od braku
 w artefakcie: `full_layer_state_misses` (stan spoza warstwy niosącej PEŁNĄ
@@ -171,9 +175,16 @@ def cyclic_hand(hand: int) -> int:
     """Ręka → ręka cyklu punktu stałego horyzontu (decyzja 28 pkt 3).
 
     Ręka w pierwszym cyklu jest sobie równa; dalsza wraca do warstwy tego
-    samego miejsca w cyklu. Przekład jest ścisły z dokładnością do zmierzonej
-    delty zbieżności ogona (POKER-50), bo od `CYCLE_BASE` blindy nie rosną,
-    a warstwy cyklu są policzone przeciw punktowi stałemu horyzontu.
+    samego miejsca w cyklu, bo od `CYCLE_BASE` blindy nie rosną, a warstwy
+    cyklu są policzone przeciw punktowi stałemu horyzontu.
+
+    Cena przekładu jest ZMIERZONA, nie oszacowana rzędem wielkości (decyzja 28
+    pkt 3, KOREKTA F2 audytu POKER-55): niezgodność V między warstwami cyklu
+    dla tej samej sytuacji fizycznej wynosi na artefakcie produkcyjnym
+    średnio 1,22e−3 i maks 1,67e−2 udziału puli przy trzech żywych
+    (6,58e−3 dla stacków ≥ 20 żetonów), a w HU maks 9,98e−4. Odniesienie:
+    wpływ całej reguły awaryjnej po tej zmianie jest nieodróżnialny od zera
+    w CI (blok POKER-55 pkt 9). Komenda pomiaru w bloku POKER-55 pkt 1.
     """
     if hand < CYCLE_BASE + CYCLE_LENGTH:
         return hand
@@ -360,6 +371,13 @@ def jam_fold_slot(view: SeatView) -> int | None:
     DRUGIE wejście roli, która otworzyła (w jam/fold jest ono terminalne).
     Agent w stanie jam/fold nigdy nie otwiera, więc drugiego wejścia nie ma —
     ale `None` zostaje jawne, bo alternatywą byłby cichy zły węzeł.
+
+    Granica przekładu (F1 audytu POKER-55): bliźniak ma te same AKCJE, ale nie
+    tę samą PULĘ — w węźle po jamie model widzi wkład całego stacku agresora,
+    a arena tylko jego otwarcie. To ta sama klasa rozjazdu co `ORDER_COLLAPSE`
+    (decyzja 28 pkt 2a KOREKTA), w mniejszej skali; dlatego przekład ma własny
+    licznik (`mode_flip_translated`) rozłączny od odczytów, w których bliźniak
+    jest tym samym węzłem co węzeł areny.
     """
     order = role_seats(view)
     actor = order.index(view.seat)
@@ -421,6 +439,7 @@ class BlueprintAgent:
         self.from_artifact = 0
         self.cyclic_reads = 0
         self.mode_flip_reads = 0
+        self.mode_flip_translated = 0
         self.grid_fallbacks = 0
         self.horizon_fallbacks = 0
         self.state_misses = 0
@@ -440,6 +459,7 @@ class BlueprintAgent:
             "from_artifact": self.from_artifact,
             "cyclic_reads": self.cyclic_reads,
             "mode_flip_reads": self.mode_flip_reads,
+            "mode_flip_translated": self.mode_flip_translated,
             "grid_fallbacks": self.grid_fallbacks,
             "horizon_fallbacks": self.horizon_fallbacks,
             "state_misses": self.state_misses,
@@ -558,6 +578,9 @@ class BlueprintAgent:
         Rozkład przycina `legal_actions`: przeskok w drugą stronę (stan
         artefaktu głęboki, arena jam/fold) daje open, którego arena nie ma —
         to jest liczone (`mode_mismatches`), a nie przemilczane.
+
+        Liczniki odczytu rosną na końcu, po sprawdzeniu masy: mają znaczyć
+        „decyzja zagrana z artefaktu", a nie „próba odczytu" (F3 audytu).
         """
         layer = self.layer_hand(view.hand)
         node, divergence = node_slot(view)
@@ -566,6 +589,7 @@ class BlueprintAgent:
         elif divergence == ORDER_COLLAPSE:
             self.order_collapse += 1
         jam_fold_state = self.state_is_jam_fold(view, layer)
+        arena_node = node
         twin = jam_fold_slot(view) if jam_fold_state and not view.jamfold else None
         if twin is not None:
             node = twin
@@ -576,10 +600,6 @@ class BlueprintAgent:
         if column is None:
             raise ClassMissing(f"klasa {view.klass} poza zestawem klas artefaktu")
         probs = block.policy(node, column)
-        if layer != view.hand:
-            self.cyclic_reads += 1
-        if twin is not None:
-            self.mode_flip_reads += 1
         live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
         root = not jam_fold_state and node in (ROOTS_3MAX if live == 3 else ROOTS_HU)
         mass = {"fold": probs[SLOT_FOLD], "jam": probs[SLOT_JAM]}
@@ -595,6 +615,15 @@ class BlueprintAgent:
             raise NoLegalMass(
                 f"rozkład węzła {node} klasy {view.klass} nie ma masy na akcjach {legal}"
             )
+        # Liczniki odczytu rosną DOPIERO tutaj: opisują decyzję zagraną
+        # z artefaktu, a nie próbę odczytu, więc żadna ścieżka fallbacku ich
+        # nie dotyka (F3 audytu POKER-55).
+        if layer != view.hand:
+            self.cyclic_reads += 1
+        if twin is not None:
+            self.mode_flip_reads += 1
+            if twin != arena_node:
+                self.mode_flip_translated += 1
         return mass
 
 

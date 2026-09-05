@@ -58,9 +58,16 @@ from poker.blueprint_agent import (
     stale_history,
     state_keys,
 )
-from poker.blueprint_reader import BlueprintReader, StateBlock
+from poker.blueprint_reader import BlueprintLookupError, BlueprintReader, StateBlock
 from poker.dealing import shuffled_deck
-from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, blinds_for_hand, roles
+from poker.spin import (
+    LEVELS,
+    PAYOUTS,
+    STARTING_CHIPS,
+    blinds_for_hand,
+    is_jam_fold_depth,
+    roles,
+)
 from poker.spin_arena import (
     HAND_GUARD,
     SeatBook,
@@ -326,6 +333,81 @@ def test_cykl_horyzontu_stoi_na_zegarze_blindow() -> None:
     assert [cyclic_hand(hand) for hand in range(15, 28)] == [
         15, 16, 17, 18, 19, 20, 18, 19, 20, 18, 19, 20, 18,
     ]
+
+
+def _cycle_value_spread(
+    reader: BlueprintReader, step: int, layers: tuple[int, ...], misread: int = 0
+) -> list[float]:
+    """Rozstęp V po rolach między warstwami cyklu dla tej samej sytuacji fizycznej.
+
+    Klucz każdej warstwy powstaje jej własną regułą ról, a odczytana wartość
+    wraca na role tą samą regułą — chyba że `misread` przesuwa FAZĘ odczytu
+    (mutacja: agent czyta wartość nie swojej roli).
+    """
+    total = sum(reader.state_key(layers[0], 0))
+    out: list[float] = []
+    for first in range(0, total + 1, step):
+        for second in range(0, total - first + 1, step):
+            situation = (first, second, total - first - second)
+            live = tuple(value for value in situation if value > 0)
+            if len(live) < 2:
+                continue
+            rows: list[tuple[float, ...] | None] = []
+            for dead in ((None,) if len(live) == 3 else (0, 1, 2)):
+                rows = []
+                for index, layer in enumerate(layers):
+                    labels = tuple(
+                        label for label in range(3) if label != dead
+                    ) if dead is not None else (0, 1, 2)
+                    order = _training_role_labels(layer, labels)
+                    read = _training_role_labels(
+                        layer + (misread if index else 0), labels
+                    )
+                    key = [0, 0, 0]
+                    for role, label in enumerate(order):
+                        key[label] = live[role]
+                    try:
+                        row = reader.value(layer, (key[0], key[1], key[2]))
+                    except BlueprintLookupError:
+                        rows.append(None)
+                        continue
+                    rows.append(tuple(row[label] for label in read))
+                if all(row is not None for row in rows):
+                    break
+            if any(row is None for row in rows):
+                continue
+            for role in range(len(live)):
+                values = [row[role] for row in rows if row is not None]
+                out.append(max(values) - min(values))
+    return out
+
+
+def test_warstwy_cyklu_opisuja_ten_sam_punkt_staly(mini_artifact: Path) -> None:
+    """Artefaktowa strona odczytu cyklicznego: V warstw cyklu ma się zgadzać.
+
+    Odczyt „ręka 21 → warstwa 18" jest wart tyle, ile zgodność warstw 18–20
+    na tej samej sytuacji fizycznej (te same stacki tych samych ról). Na
+    artefakcie bramki rozstęp nie przekracza 5e−5 udziału puli.
+
+    Liczba, która niesie decyzję, jest jednak PRODUKCYJNA i nie mieści się
+    w „rzędzie 1e−4" z pierwszej wersji decyzji 28 pkt 3 (KOREKTA F2 audytu
+    POKER-55): na artefakcie produkcyjnym średnia 1,22e−3 i maks 1,67e−2
+    (3-max; 6,58e−3 dla stacków ≥ 20 żetonów), HU maks 9,98e−4 — komenda
+    pomiaru w bloku POKER-55 pkt 1. Tego artefaktu bramka nie dotyka.
+
+    Mutacja fazy cyklu (odczyt wartości roli o jedną warstwę obok) czerwieni
+    ten test na obu artefaktach: na bramkowym rozstęp rośnie z 2,0e−5 do
+    0,20, na produkcyjnym z 1,67e−2 do 0,73.
+    """
+    stream = mini_artifact.open("rb")
+    reader = BlueprintReader(stream)
+    step = json.loads(reader.meta_bytes())["run_manifest"]["config"]["grid_step"]
+    cycle = tuple(CYCLE_BASE + phase for phase in range(CYCLE_LENGTH))
+    spread = _cycle_value_spread(reader, step, cycle)
+    assert len(spread) == 15, spread
+    assert max(spread) < 5e-5, max(spread)
+    mutated = _cycle_value_spread(reader, step, cycle, misread=1)
+    assert max(mutated) > 0.1, max(mutated)
 
 
 def test_odczyt_cykliczny_sadza_role_warstwy_na_rolach_areny() -> None:
@@ -803,7 +885,7 @@ def test_decyzje_sa_deterministyczne_miedzy_procesami(mini_artifact: Path) -> No
     script = (
         "import json,sys\n"
         "from poker.blueprint_agent import BlueprintAgent\n"
-        "from poker.blueprint_reader import BlueprintReader, StateBlock\n"
+        "from poker.blueprint_reader import BlueprintLookupError, BlueprintReader, StateBlock\n"
         "from poker.spin import PAYOUTS\n"
         "from poker.spin_arena import dollar_fish, field_exploit, play_block\n"
         "stream = open(sys.argv[1], 'rb')\n"
@@ -1036,14 +1118,18 @@ def test_przeskok_trybu_gra_rozkladem_jamfold_zamiast_fallbacku(
     Zero jest niepuste NA TEJ SAMEJ PRÓBCE: ten sam bieg z wyłączonym węzłem
     bliźniaczym zapala `mode_flip_misses` trzy razy (w pomiarze POKER-52 było
     to 1 098 wpisów). Dziesięć odczytów to wszystkie decyzje, w których stan
-    artefaktu jest jam/fold, a arena gra drzewem głębokim — trzy z nich były
-    fallbackiem, siedem to korzenie, gdzie węzeł istnieje w obu drzewach,
+    artefaktu jest jam/fold, a arena gra drzewem głębokim; `mode_flip_translated`
+    wydziela z nich te, w których bliźniak jest INNYM węzłem niż węzeł areny —
+    tylko tam pula modelu różni się od puli areny (F1 audytu POKER-55). Trzy
+    przekłady to dokładnie te trzy decyzje, które przedtem szły do fallbacku;
+    pozostałe siedem to korzenie, gdzie węzeł jest w obu drzewach ten sam,
     a rozkład i tak jest jam/fold.
     """
     agent = _agent(mini_artifact)
     _agent_run(agent)
     counters = agent.counters()
     assert counters["mode_flip_reads"] == 10, counters
+    assert counters["mode_flip_translated"] == 3, counters
     assert counters["mode_flip_misses"] == 0, counters
     assert counters["node_misses"] == 0, counters
     assert counters["grid_fallbacks"] == 0, counters
@@ -1066,6 +1152,11 @@ def test_przeskok_trybu_czyta_rozklad_jamfold_stanu_artefaktu(
     5 bb — drzewo jam/fold. Agent wobec otwarcia czyta więc węzeł „BB wobec
     jamu" i gra jego rozkładem zamiast fallbacku; slot środkowy znaczy tam
     „sprawdź all-in", nie „podbij".
+
+    To jest PRZEKŁAD, nie tożsamość: węzeł areny (1) i węzeł czytany (3) to
+    dwa różne węzły modelu, więc pula modelu (przeciwnik all-in za 100) różni
+    się od puli areny (przeciwnik po otwarciu za 22) — akcje są te same, pula
+    nie, i dlatego przekład ma osobny licznik (F1 audytu POKER-55).
     """
     import random
 
@@ -1090,6 +1181,7 @@ def test_przeskok_trybu_czyta_rozklad_jamfold_stanu_artefaktu(
     assert agent.act(view, random.Random(0)) in legal_actions(view)
     counters = agent.counters()
     assert counters["mode_flip_reads"] == 2  # `action_mass` i `act`
+    assert counters["mode_flip_translated"] == 2, counters
     assert counters["mode_flip_misses"] == 0, counters
     assert counters["from_artifact"] == 1
 
@@ -1245,6 +1337,33 @@ def test_licznik_rozkladu_bez_legalnej_masy_rosnie(mini_artifact: Path) -> None:
     assert counters["mass_misses"] == 1, counters
     assert counters["grid_fallbacks"] == 1
     assert counters["mode_mismatches"] == 1  # open poza drzewem areny — też liczony
+    # F3 audytu: ścieżka bez legalnej masy nie jest decyzją zagraną z artefaktu,
+    # więc liczniki odczytu na niej nie rosną (inkrementy stoją za tym testem).
+    assert counters["cyclic_reads"] == 0, counters
+    assert counters["mode_flip_reads"] == 0, counters
+    assert counters["mode_flip_translated"] == 0, counters
+
+
+def test_brak_legalnej_masy_nie_spotyka_sie_z_odczytem_cyklicznym() -> None:
+    """Dlaczego zera z testu wyżej są dziś nieosiągalne inaczej niż wprost.
+
+    Rozkład bez legalnej masy wymaga korzenia drzewa GŁĘBOKIEGO (tylko tam slot
+    środkowy znaczy „podbij") przy arenie jam/fold. Odczyt cykliczny zaczyna
+    się od ręki `CYCLE_BASE + CYCLE_LENGTH`, a tam blindy stoją na ostatnim
+    poziomie: 7 bb to 140 żetonów, więc przy 150 w grze i dwóch żywych
+    najkrótszy stack nigdy nie przekracza progu i KAŻDY stan siatki jest
+    jam/fold. Te dwie ścieżki nie mogą się więc dziś spotkać — kolejność
+    inkrementów w `action_mass` nie zależy od tego faktu, ale dokument tak.
+    """
+    _, big, _ = blinds_for_hand(CYCLE_BASE + CYCLE_LENGTH)
+    assert big == LEVELS[-1][1]
+    total = 3 * STARTING_CHIPS
+    for first in range(0, total + 1, 2):
+        for second in range(0, total - first + 1, 2):
+            stacks = (first, second, total - first - second)
+            if sum(1 for value in stacks if value > 0) < 2:
+                continue
+            assert is_jam_fold_depth(stacks, big), stacks
 
 
 def test_licznik_wejscia_wymuszonego_rosnie_za_galezia_spoza_maski(

@@ -967,6 +967,21 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    dużego blinda, a **żaden licznik by tego nie pokazał**, bo stan i węzeł
    istnieją. Kotwica: dla rąk 21–29 przenumerowanie sadza role warstwy na
    rolach areny, a w HU numer ręki i numer warstwy dają jawnie różne klucze.
+   **Cena przekładu jest zmierzona, nie oszacowana rzędem wielkości**
+   (F2 audytu; [decyzja 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md)
+   pkt 3 KOREKTA): niezgodność V między warstwami cyklu dla tej samej sytuacji
+   fizycznej (te same stacki tych samych ról) wynosi na artefakcie
+   produkcyjnym **średnio 1,22e−3 i maks 1,67e−2 udziału puli** przy trzech
+   żywych (6,58e−3 dla stacków ≥ 20 żetonów), a w HU maks 9,98e−4 — a nie
+   „rząd 1e−4", jak mówiła pierwsza wersja decyzji i tego bloku. Odniesienie
+   zostaje to samo: wpływ całej reguły awaryjnej po tej zmianie jest
+   nieodróżnialny od zera w CI (pkt 9). Kontrola sensowności liczby: te same
+   warstwy wzięte przez granicę poziomu blindów (17/18/19) dają średnio
+   4,18e−3 i maks 4,77e−2, czyli 3,4× gorzej — cykl 18–20 naprawdę jest
+   ciaśniejszy niż sąsiedztwo. Drugie, mniejsze źródło asymetrii: kwantyzator
+   rozstrzyga remisy reszt po numerze etykiety (71/79 → guzik 72 albo 70);
+   przy blindach 10/20 nie zmienia to trybu drzewa. Komenda BK — pod listą,
+   bo heredoc musi zaczynać się od pierwszej kolumny.
 2. **Przeskok trybu: rozkład jam/fold jest legalnym podzbiorem, nie brakiem.**
    Gdy kwantyzacja zepchnie stan pod próg 7 bb, drzewo stanu w artefakcie jest
    jam/fold, choć arena z dokładnych stacków oferuje drzewo głębokie. Agent
@@ -980,10 +995,20 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    tych infosetów nie dochodzi, a `None` zostaje jawne zamiast cichego złego
    węzła. Slot środkowy znaczy „podbij" tylko w korzeniu drzewa GŁĘBOKIEGO,
    więc stan jam/fold **nigdy nie wypuszcza open**, choćby arena go dawała.
+   **Granica przekładu (F1 audytu): bliźniak ma te same AKCJE, ale nie tę samą
+   PULĘ.** W węźle po jamie model widzi wkład całego stacku agresora, a arena
+   tylko jego otwarcie (np. HU ręki 8, stacki (0, 107, 43) przy bb 6: arena —
+   przeciwnik dołożył 13, pula 19; węzeł 3 modelu — przeciwnik all-in za 107,
+   pula 113). To ta sama klasa rozjazdu co `order_collapse` z decyzji 28
+   pkt 2a KOREKTA, w mniejszej skali; dlatego przekład ma **osobny licznik
+   `mode_flip_translated`**, rozłączny od odczytów, w których bliźniak jest
+   tym samym węzłem co węzeł areny (korzenie: te same akcje i ta sama pula).
 3. **Fallback tylko dla granicy artefaktu; zera są niepuste na TEJ SAMEJ
    próbce.** Na artefakcie bramki (4 przeciwników × 80 seedów, 5 770 decyzji)
    `horizon_fallbacks` = 0 i `mode_flip_misses` = 0 blokująco, przy
-   `cyclic_reads` = 6 i `mode_flip_reads` = 10. Kontrola eksperymentu (lekcja
+   `cyclic_reads` = 6 i `mode_flip_reads` = 10 (z tego `mode_flip_translated`
+   = 3 — dokładnie te trzy decyzje, które przedtem szły do fallbacku; siedem
+   pozostałych to korzenie, gdzie bliźniak jest tym samym węzłem). Kontrola eksperymentu (lekcja
    F3 audytu POKER-54): ten sam bieg z wyłączoną regułą cyklu zapala horyzont
    **109 razy**, a z wyłączonym węzłem bliźniaczym zapala `mode_flip_misses`
    **3 razy**. Z artefaktu bramki wychodzi tylko sześć odczytów cyklicznych,
@@ -1001,6 +1026,9 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    BH python tools/run_arena.py fallback  PROD/blueprint.bpk 10000 3x
    ```
 
+   Bieg BF powtórzono po naprawach audytu (rozdzielenie licznika przekładu):
+   wszystkie liczniki i wszystkie ROI wychodzą **co do sztuki i co do liczby
+   te same**, doszedł wyłącznie podział `mode_flip_reads`.
    Mianownik BF/BG jest ten sam co w POKER-52 (bieg przepuszcza te same
    rozdania dwa razy): **1 563 234 wpisy na 781 617 różnych decyzji** —
    mniej niż 1 582 048 przed, bo wierniejszy agent gra inne decyzje i
@@ -1016,6 +1044,7 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    | `from_artifact` | 1 545 678 | 1 549 946 | **99,150%** |
    | `cyclic_reads` | — | 10 596 | 0,678% |
    | `mode_flip_reads` | — | 4 502 | 0,288% |
+   | z tego `mode_flip_translated` | — | 1 100 | 0,070% |
    | `horizon_fallbacks` | 21 354 | **0** | 0% |
    | `grid_fallbacks` | 15 016 | 13 288 | **0,850%** |
    | `state_misses` (warstwy 1–4) | 12 826 | 13 194 | 0,844% |
@@ -1026,6 +1055,11 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    | `order_collapse` | 19 458 | **0** | 0% |
    | `mass_misses` / `class_misses` / `full_layer_state_misses` / `mode_mismatches` | 0 | 0 | 0% |
 
+   Przekład (bliźniak ≠ węzeł areny, pkt 2) to **1 100 z 4 502 odczytów
+   przeskoku trybu (24,4%)**, czyli 0,070% decyzji — tyle, ile przed naprawami
+   wynosił `mode_flip_misses` (1 098); pozostałe 3 402 odczyty to korzenie,
+   w których węzeł i pula są w obu drzewach te same. Tylko te 1 100 wejść
+   niesie rozjazd puli opisany w pkt 2.
    Liczby bezwzględne nie są sparowane (wierniejszy agent gra inne rozdania),
    niezależne od tego są odsetki. Sumaryczny udział fallbacku: **2,299% →
    0,850% decyzji**, w całości granica artefaktu. Rozjazdy areny z modelem,
@@ -1116,13 +1150,81 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    artefakcie bramki, każde z kontrolą na TEJ SAMEJ próbce (109 i 3); przy
    przeskoku trybu rozkład ma dokładnie akcje legalne areny i nigdy open;
    jeden pobór z rng na decyzję na KAŻDEJ ścieżce, teraz także na odczycie
-   z warstwy cyklu i na ścieżce horyzontu.
+   z warstwy cyklu i na ścieżce horyzontu. Po audycie doszły trzy: **warstwy
+   cyklu zgadzają się na V** tej samej sytuacji fizycznej (na artefakcie
+   bramki rozstęp < 5e−5, a mutacja fazy odczytu podnosi go do 0,20 — ta sama
+   mutacja na produkcji daje 0,73 wobec 1,67e−2); **`mode_flip_translated`
+   rozdziela przekład od tożsamości** (3 z 10 na próbce bramki); **liczniki
+   odczytu rosną dopiero po sprawdzeniu masy**, a ścieżka bez legalnej masy
+   trzyma je na zerze — z dowodem, że przy blindach ostatniego poziomu każdy
+   stan siatki jest jam/fold, więc ta ścieżka i odczyt cykliczny nie mogą się
+   dziś spotkać.
+
+Komenda BK (z katalogu repozytorium, venv bramki; `PROD` jak wyżej; drugi
+cykl warstw to kontrola przez granicę poziomu blindów; ≈0,2 s):
+
+```
+python - "$PROD/blueprint.bpk" 2 <<'EOF'
+import sys
+from poker.blueprint_reader import BlueprintLookupError, BlueprintReader
+from poker.spin import roles
+path, step = sys.argv[1], int(sys.argv[2])
+def labels(layer, live):  # role treningu w tej warstwie, etykietami miejsc
+    if len(live) == 3:
+        return roles(layer % 3)
+    order = sorted(live)
+    return (order[layer % 2], order[1 - layer % 2])
+def row(reader, layer, by_role, dead):
+    live = tuple(l for l in range(3) if l != dead) if dead is not None else (0, 1, 2)
+    order = labels(layer, live)
+    key = [0, 0, 0]
+    for role, label in enumerate(order):
+        key[label] = by_role[role]
+    try:
+        v = reader.value(layer, (key[0], key[1], key[2]))
+    except BlueprintLookupError:
+        return None
+    return tuple(v[label] for label in order)
+with open(path, "rb") as stream:
+    reader = BlueprintReader(stream)
+    for cycle in ((18, 19, 20), (17, 18, 19)):
+        total = sum(reader.state_key(cycle[0], 0))
+        buckets = {"3max": [], "3max>=20": [], "hu": []}
+        for a in range(0, total + 1, step):
+            for b in range(0, total - a + 1, step):
+                by_role = tuple(x for x in (a, b, total - a - b) if x > 0)
+                if len(by_role) < 2:
+                    continue
+                for dead in ((None,) if len(by_role) == 3 else (0, 1, 2)):
+                    rows = [row(reader, layer, by_role, dead) for layer in cycle]
+                    if all(r is not None for r in rows):
+                        break
+                if any(r is None for r in rows):
+                    continue
+                for role in range(len(by_role)):
+                    vals = [r[role] for r in rows]
+                    names = ["3max"] if len(by_role) == 3 else ["hu"]
+                    if len(by_role) == 3 and min(by_role) >= 20:
+                        names.append("3max>=20")
+                    for name in names:
+                        buckets[name].append(max(vals) - min(vals))
+        for name, vals in buckets.items():
+            if vals:
+                print(f"{cycle} {name}: n={len(vals)} "
+                      f"srednia={sum(vals)/len(vals):.3e} maks={max(vals):.3e}")
+EOF
+```
 
 Świadomie zostawione: (1) warstwy 1–5 — dane w pkt 10, decyzja architekta;
 (2) wzorzec z pkt 6 (kwantyzacja wymusza wejście, którego arena nie wymusza) —
-naprawa jest zmianą drzew, nie agenta; (3) AIVAT (POKER-53) — teraz ma już
-naprawiony przyrząd i artefakt mierzony bez pary z regułą; (4) rejestr LAN
-agenta — nadal poza kontraktem.
+naprawa jest zmianą drzew, nie agenta; (3) **rozjazd puli w przekładzie
+(pkt 2)** — opcją, której ten kontrakt NIE wykonuje, jest czytanie rozkładu
+z najbliższego stanu GŁĘBOKIEGO zamiast bliźniaka jam/fold; to zmiana
+odwzorowania (inny stan, inne V), więc wymaga osobnej kwalifikacji, a skala
+rozjazdu jest mała: różnica masy „wchodzę" wobec właściwego węzła w najbliższym
+stanie głębokim to średnio 0,010–0,017 w HU i 0,063 w 3-max (audyt POKER-55,
+F1); (4) AIVAT (POKER-53) — teraz ma już naprawiony przyrząd i artefakt
+mierzony bez pary z regułą; (5) rejestr LAN agenta — nadal poza kontraktem.
 
 **POKER-54 (rozgrywacz areny Spin: akcja od agresora i wymuszone wejście
 za darmo) DOSTARCZONY.** Realizacja
