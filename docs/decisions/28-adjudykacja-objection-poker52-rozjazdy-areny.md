@@ -90,7 +90,16 @@ z POKER-49/50 (liczony cyklami do tolerancji ogona). Warstwy 18–20 są
 policzone przeciw temu punktowi stałemu, więc odczyt cykliczny jest
 ścisły z dokładnością do zmierzonej delty zbieżności ogona (rząd 1e−4
 puli; blok POKER-50) — wobec fallbacku check-call→fold, którego wpływ
-pkt 7 bloku POKER-52 mierzy w punktach procentowych ROI. Decyzja:
+pkt 7 bloku POKER-52 mierzy w punktach procentowych ROI.
+**KOREKTA (2026-09-05, audyt POKER-55, F2):** „rząd 1e−4" było
+o rząd optymistyczne. Zmierzona na artefakcie produkcyjnym niezgodność
+V między warstwami 18/19/20 opisującymi tę samą sytuację fizyczną (po
+przenumerowaniu) wynosi w 3-max średnio 1,09e−3 i maks 6,6e−3 puli
+(stacki ≥ 20 żetonów), w HU maks 5,7e−4 — 2× (średnia) do 13× (maks)
+ponad deklarację; drugie źródło asymetrii to rozstrzyganie remisów
+kwantyzatora po numerze etykiety. Wniosek stoi (wpływ całej reguły
+awaryjnej po POKER-55 nieodróżnialny od zera w CI), ale liczbę w
+dokumentach podaje się zmierzoną, nie z rzędu wielkości. Decyzja:
 wprowadzić w POKER-55, z licznikiem odczytów cyklicznych osobno od
 odczytów wprost (rozróżnialność zostaje).
 
