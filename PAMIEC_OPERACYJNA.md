@@ -72,8 +72,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
-- Książka 0/1 nie testuje strumienia rng — dodatkowy pobór przeżywa test
-  „port nie zmienia przebiegu" (POKER-52: 0/30 vs 8/30 na mieszanej; audyt).
+- Zero na artefakcie bramki ≠ zero na siatce produkcyjnej: krok siatki
+  bywa przyczyną pudła (POKER-55 pkt 6 — 0 przy kroku 50, 94 przy 2).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
