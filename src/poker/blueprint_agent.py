@@ -4,11 +4,16 @@ Agent nie ma własnej strategii: każdą decyzję czyta z artefaktu `.bpk`
 czytnikiem `poker.blueprint_reader` i losuje z odczytanego rozkładu rng-iem
 akcji ręki. Cała trudność siedzi w trzech odwzorowaniach stanu areny na
 model treningu (`tools/blueprint/solve_grid.py`), bo arena i trening opisują
-tę samą grę w dwóch układach współrzędnych:
+tę samą grę w dwóch układach współrzędnych (numer ręki wchodzi do odwzorowań
+1 i 2, więc przy odczycie cyklicznym role treningu liczą się z numeru WARSTWY,
+a role areny — jak zawsze — z rotacji guzika areny):
 
-1. **Zegar → warstwa.** Numer ręki turnieju jest numerem warstwy artefaktu.
-   Ręka spoza warstw (`LayerNotFound`) albo warstwa niosąca samo V
-   (`PolicyMissing`) to horyzont: decyzja spada na fallback pasywny.
+1. **Zegar → warstwa.** Numer ręki turnieju jest numerem warstwy artefaktu,
+   a ręka za ostatnią warstwą strategii czyta warstwę **cyklu punktu stałego**
+   (POKER-55, decyzja 28 pkt 3): od ręki `CYCLE_BASE` blindy stoją, więc ręce
+   dalsze żyją w tym samym stacjonarnym cyklu `CYCLE_LENGTH` rąk, którego
+   punktem stałym jest brzeg horyzontu z POKER-49/50. Fallback pasywny zostaje
+   dla ręki, której nawet warstwa cyklu nie ma (`LayerNotFound`/`PolicyMissing`).
 2. **Stacki → klucz stanu.** Trening sadza guzik na miejscu `ręka % 3`
    (przy dwóch żywych: `sorted(żywi)[ręka % 2]`), a arena rotuje guzik po
    żywych miejscach, więc ten sam numer ręki opisuje w obu światach inny
@@ -23,27 +28,40 @@ tę samą grę w dwóch układach współrzędnych:
    14 slotami przy trzech żywych i 4 slotami w endgame'ie HU. Węzeł liczy
    się z ról i akcji już podjętych w ręce; miejsce all-in z samego blinda
    rozgrywacz pomija, a trening wymusza mu wejście maską akcji, więc agent
-   dolicza mu akcję wymuszoną, inaczej trafiłby w zły slot.
+   dolicza mu akcję wymuszoną, inaczej trafiłby w zły slot. Gdy kwantyzacja
+   zepchnie stan pod próg 7 bb, drzewo stanu w artefakcie jest jam/fold,
+   choć arena z dokładnych stacków oferuje drzewo głębokie: rozkład jam/fold
+   jest wtedy legalnym PODZBIOREM akcji areny ({jam, fold} ⊂ {jam, open,
+   fold}), więc agent czyta bliźniaczy węzeł drzewa jam/fold (`jam_fold_slot`,
+   otwarcie w historii czytane jako jam) zamiast wołać fallback — POKER-55,
+   decyzja 28 pkt 2c.
 
 Fallback jest jawny i policzalny, w rozłącznych licznikach: `horizon_fallbacks`
-(ręka poza zegarem warstw — `LayerNotFound`/`PolicyMissing`), `grid_fallbacks`
-(ręka w zegarze, ale artefakt nie ma tam strategii: stan spoza warstwy, węzeł
-spoza maski, rozkład bez masy na akcjach legalnych) i `class_misses` (klasa
-spoza zestawu policzonego w biegu — w artefakcie produkcyjnym zawsze zero, bo
-liczy wszystkie 169). Każda ścieżka fallbacku gra check-call → fold: gdy
-jedynym wejściem jest sprawdzenie all-inu, agent sprawdza, inaczej pasuje.
+(ręka bez warstwy strategii nawet w cyklu — `LayerNotFound`/`PolicyMissing`),
+`grid_fallbacks` (warstwa jest, ale artefakt nie ma tam strategii: stan spoza
+warstwy, węzeł spoza maski, rozkład bez masy na akcjach legalnych)
+i `class_misses` (klasa spoza zestawu policzonego w biegu — w artefakcie
+produkcyjnym zawsze zero, bo liczy wszystkie 169). Każda ścieżka fallbacku gra
+check-call → fold: gdy jedynym wejściem jest sprawdzenie all-inu, agent
+sprawdza, inaczej pasuje.
+
+Wierność artefaktowi tam, gdzie kiedyś był fallback, ma własne liczniki:
+`cyclic_reads` (decyzja zagrana z warstwy cyklu, czyli ręka za horyzontem
+warstw) i `mode_flip_reads` (decyzja zagrana z bliźniaczego węzła jam/fold).
 
 Liczniki diagnostyczne rozdzielają rozjazd areny z modelem treningu od braku
 w artefakcie: `full_layer_state_misses` (stan spoza warstwy niosącej PEŁNĄ
 siatkę — dopiero to jest błąd odwzorowania, bo warstwy wczesne bieg tnie
-osiągalnością), `mode_flip_misses` i `mode_mismatches` (kwantyzacja
-przerzuciła stan przez próg jam/fold, więc drzewo stanu w artefakcie jest
-innego trybu niż drzewo areny) oraz trzy liczniki rozjazdu, który POKER-54
-naprawił w rozgrywaczu: `out_of_order`, `order_collapse` (kolejność licytacji
-po ponownym otwarciu — patrz `NODES_3MAX_OUT_OF_ORDER`) i
-`forced_action_misses` (gałąź za akcją, którą trening wymusza maską). Na
-naprawionym rozgrywaczu wszystkie trzy są zerami i bramka trzyma je zerami;
-zostają, bo mierzą wejście areny w infoset, którego model nie ma.
+osiągalnością), `mode_flip_misses` (przeskok trybu, którego nie ratuje nawet
+węzeł bliźniaczy: drzewo jam/fold nie ma tej historii albo jej węzła w masce)
+i `mode_mismatches` (przeskok w drugą stronę: stan artefaktu głęboki, arena
+jam/fold, więc rozkład niesie open, którego arena nie ma) oraz trzy liczniki
+rozjazdu, który POKER-54 naprawił w rozgrywaczu: `out_of_order`,
+`order_collapse` (kolejność licytacji po ponownym otwarciu — patrz
+`NODES_3MAX_OUT_OF_ORDER`) i `forced_action_misses` (gałąź za akcją, którą
+trening wymusza maską). Na naprawionym rozgrywaczu wszystkie trzy są zerami
+i bramka trzyma je zerami; zostają, bo mierzą wejście areny w infoset, którego
+model nie ma.
 """
 
 from __future__ import annotations
@@ -60,8 +78,15 @@ from poker.blueprint_reader import (
     StateBlock,
     StateNotFound,
 )
-from poker.spin import is_jam_fold_depth, roles
+from poker.spin import HANDS_PER_LEVEL, LEVELS, is_jam_fold_depth, roles
 from poker.spin_arena import SeatView, legal_actions
+
+# Zegar blindów staje na ostatnim poziomie od ręki CYCLE_BASE (`blinds_for_hand`),
+# więc ręce dalsze żyją w tym samym stacjonarnym cyklu CYCLE_LENGTH rąk co
+# warstwy CYCLE_BASE…CYCLE_BASE + CYCLE_LENGTH − 1 (guzik treningu: warstwa ≡
+# ręka mod 3, bo CYCLE_BASE ≡ 0). Oba warunki trzyma test bramki.
+CYCLE_BASE = (len(LEVELS) - 1) * HANDS_PER_LEVEL
+CYCLE_LENGTH = HANDS_PER_LEVEL
 
 # Publiczne sloty węzłów drzewa 3-max i endgame'u HU — numeracja artefaktu
 # (`tools/blueprint/solve_grid.py`); nazwy ról: U = UTG, T = guzik (płaci SB),
@@ -142,6 +167,19 @@ NODES_3MAX_OUT_OF_ORDER: dict[Key3, int] = {
 }
 
 
+def cyclic_hand(hand: int) -> int:
+    """Ręka → ręka cyklu punktu stałego horyzontu (decyzja 28 pkt 3).
+
+    Ręka w pierwszym cyklu jest sobie równa; dalsza wraca do warstwy tego
+    samego miejsca w cyklu. Przekład jest ścisły z dokładnością do zmierzonej
+    delty zbieżności ogona (POKER-50), bo od `CYCLE_BASE` blindy nie rosną,
+    a warstwy cyklu są policzone przeciw punktowi stałemu horyzontu.
+    """
+    if hand < CYCLE_BASE + CYCLE_LENGTH:
+        return hand
+    return CYCLE_BASE + (hand - CYCLE_BASE) % CYCLE_LENGTH
+
+
 def quantize_stacks(stacks: tuple[int, int, int], step: int) -> tuple[int, int, int]:
     """Kwantyzacja największych reszt: suma stała, krok siatki, żywy zostaje żywy.
 
@@ -180,17 +218,24 @@ def role_seats(view: SeatView) -> tuple[int, ...]:
     return (view.button, next(seat for seat in live if seat != view.button))
 
 
-def label_seats(view: SeatView) -> tuple[tuple[int, ...], ...]:
+def label_seats(view: SeatView, layer: int) -> tuple[tuple[int, ...], ...]:
     """Przenumerowania miejsc na etykiety artefaktu: `out[i][etykieta] = miejsce`.
 
-    Trening wiąże role z numerami miejsc (guzik = `ręka % 3`, w HU guzik =
-    `sorted(żywi)[ręka % 2]`), a arena rotuje guzik po żywych, więc ten sam
+    Trening wiąże role z numerami miejsc (guzik = `warstwa % 3`, w HU guzik =
+    `sorted(żywi)[warstwa % 2]`), a arena rotuje guzik po żywych, więc ten sam
     układ sił opisują w obu światach inne numery miejsc. Przenumerowanie jest
     permutacją, na którą model jest równoważny (nagrody i ICM symetryczne),
     i jedynym sposobem, żeby rola areny czytała rozkład swojej roli.
 
+    Role treningu liczą się z numeru CZYTANEJ WARSTWY, nie z numeru ręki areny:
+    przy odczycie cyklicznym (ręka ≥ `CYCLE_BASE + CYCLE_LENGTH`) te numery są
+    różne, a rozkłady w warstwie opisują role po jej własnej regule. Przy
+    trzech żywych obie reguły i tak dają to samo (cykl ma długość 3, więc
+    warstwa ≡ ręka mod 3), ale w HU guzik zmienia się co rękę i pomyłka
+    posadziłaby guzika areny na etykiecie dużego blinda.
+
     Przy trzech żywych warunek „role treningu = role areny" wyznacza dokładnie
-    jedną permutację (rotację o `guzik − ręka % 3`). W HU warunek wiąże tylko
+    jedną permutację (rotację o `guzik − warstwa % 3`). W HU warunek wiąże tylko
     porządek dwóch żywych etykiet, więc etykieta wybitego miejsca zostaje
     wolna: wszystkie trzy warianty opisują tę samą sytuację, ale warstwy rąk
     1–5 niosą wyłącznie stany osiągalne w treningu, więc nie muszą zawierać
@@ -200,7 +245,7 @@ def label_seats(view: SeatView) -> tuple[tuple[int, ...], ...]:
     """
     live = [seat for seat in range(3) if view.stacks[seat] > 0]
     if len(live) == 3:
-        shift = (view.button - view.hand % 3) % 3
+        shift = (view.button - layer % 3) % 3
         return (tuple((label + shift) % 3 for label in range(3)),)
     button, other = role_seats(view)
     dead = next(seat for seat in range(3) if view.stacks[seat] == 0)
@@ -208,15 +253,15 @@ def label_seats(view: SeatView) -> tuple[tuple[int, ...], ...]:
     for empty in (dead, *(seat for seat in range(3) if seat != dead)):
         low, high = (label for label in range(3) if label != empty)
         seat_of_label = [dead, dead, dead]
-        seat_of_label[low if view.hand % 2 == 0 else high] = button
-        seat_of_label[high if view.hand % 2 == 0 else low] = other
+        seat_of_label[low if layer % 2 == 0 else high] = button
+        seat_of_label[high if layer % 2 == 0 else low] = other
         seat_of_label[empty] = dead
         out.append(tuple(seat_of_label))
     return tuple(out)
 
 
-def state_keys(view: SeatView, step: int) -> tuple[tuple[int, int, int], ...]:
-    """Klucze siatki równoważne temu stanowi — pierwszy jest kanoniczny."""
+def state_keys(view: SeatView, layer: int, step: int) -> tuple[tuple[int, int, int], ...]:
+    """Klucze siatki równoważne temu stanowi w tej warstwie — pierwszy kanoniczny."""
     return tuple(
         quantize_stacks(
             (
@@ -226,7 +271,7 @@ def state_keys(view: SeatView, step: int) -> tuple[tuple[int, int, int], ...]:
             ),
             step,
         )
-        for seat_of_label in label_seats(view)
+        for seat_of_label in label_seats(view, layer)
     )
 
 
@@ -304,6 +349,28 @@ def node_slot(view: SeatView) -> tuple[int, str | None]:
     return node, ORDER_SWAP
 
 
+def jam_fold_slot(view: SeatView) -> int | None:
+    """Slot węzła drzewa JAM/FOLD dla tej historii albo `None`, gdy go tam nie ma.
+
+    Kwantyzacja bywa jednostronna: stan artefaktu jest jam/fold, a arena
+    z dokładnych stacków gra drzewem głębokim (decyzja 28 pkt 2c). Drzewo
+    jam/fold jest drzewem głębokim bez otwarcia, więc tę samą historię opisuje
+    w nim ścieżka, w której otwarcie jest jamem — i to jest cała reguła
+    przekładu. Ścieżki, których w drzewie jam/fold nie ma, dają `None`: to
+    DRUGIE wejście roli, która otworzyła (w jam/fold jest ono terminalne).
+    Agent w stanie jam/fold nigdy nie otwiera, więc drugiego wejścia nie ma —
+    ale `None` zostaje jawne, bo alternatywą byłby cichy zły węzeł.
+    """
+    order = role_seats(view)
+    actor = order.index(view.seat)
+    taken = tuple(
+        "jam" if action == "open" else action for action in taken_actions(view, order)
+    )
+    if len(order) == 2:
+        return NODES_HU.get((actor, taken[0], taken[1]))
+    return NODES_3MAX.get((actor, taken[0], taken[1], taken[2]))
+
+
 class NoLegalMass(BlueprintLookupError):
     """Rozkład artefaktu bez masy na akcjach legalnych w arenie."""
 
@@ -341,12 +408,19 @@ class BlueprintAgent:
         self.full_layer_states = max(
             layer.n_states for layer in reader.layers if layer.has_policy
         )
+        # Ręka z własną warstwą strategii czyta ją wprost; dopiero ręka spoza
+        # tego zbioru idzie do warstwy cyklu punktu stałego.
+        self.policy_hands = frozenset(
+            layer.hand for layer in reader.layers if layer.has_policy
+        )
         if len(self.column) != reader.n_classes:
             raise ValueError(
                 f"zestaw {len(self.column)} klas nie opisuje {reader.n_classes} kolumn artefaktu"
             )
         self.decisions = 0
         self.from_artifact = 0
+        self.cyclic_reads = 0
+        self.mode_flip_reads = 0
         self.grid_fallbacks = 0
         self.horizon_fallbacks = 0
         self.state_misses = 0
@@ -364,6 +438,8 @@ class BlueprintAgent:
         return {
             "decisions": self.decisions,
             "from_artifact": self.from_artifact,
+            "cyclic_reads": self.cyclic_reads,
+            "mode_flip_reads": self.mode_flip_reads,
             "grid_fallbacks": self.grid_fallbacks,
             "horizon_fallbacks": self.horizon_fallbacks,
             "state_misses": self.state_misses,
@@ -401,9 +477,10 @@ class BlueprintAgent:
             if isinstance(miss, NodeUnreachable):
                 self.node_misses += 1
                 # Węzeł spoza maski stanu ma dwie rozłączne przyczyny: przeskok
-                # trybu przy kwantyzacji (POKER-55) albo wejście areny w gałąź
-                # za akcją, którą maska treningu wymusza — to drugie znikło
-                # razem z pytaniem o darmowy call (POKER-54).
+                # trybu przy kwantyzacji, którego nie uratował węzeł bliźniaczy
+                # (POKER-55), albo wejście areny w gałąź za akcją, którą maska
+                # treningu wymusza — to drugie znikło razem z pytaniem
+                # o darmowy call (POKER-54).
                 if self.mode_flipped(view):
                     self.mode_flip_misses += 1
                 else:
@@ -412,12 +489,22 @@ class BlueprintAgent:
                 self.mass_misses += 1
             else:
                 self.state_misses += 1
-                if self.layer_is_full(view.hand):
+                if self.layer_is_full(self.layer_hand(view.hand)):
                     self.full_layer_state_misses += 1
             rng.random()
             return passive_action(view)
         self.from_artifact += 1
         return sample(mass, rng)
+
+    def layer_hand(self, hand: int) -> int:
+        """Numer warstwy, z której czyta ta ręka — wprost albo z cyklu horyzontu.
+
+        Warstwa cyklu wchodzi dopiero tam, gdzie artefakt nie ma własnej
+        warstwy strategii; artefakt sięgający dalej czyta się wprost.
+        """
+        if hand in self.policy_hands:
+            return hand
+        return cyclic_hand(hand)
 
     def layer_is_full(self, hand: int) -> bool:
         """Czy warstwa tej ręki niesie pełną siatkę stanów.
@@ -431,6 +518,14 @@ class BlueprintAgent:
                 return layer.n_states >= self.full_layer_states
         return False
 
+    def state_is_jam_fold(self, view: SeatView, layer: int) -> bool:
+        """Czy drzewo STANU ARTEFAKTU jest jam/fold (próg liczony po kwantyzacji).
+
+        Wszystkie równoważne klucze są permutacjami tego samego wektora, więc
+        próg 7 bb rozstrzyga się na kanonicznym.
+        """
+        return is_jam_fold_depth(state_keys(view, layer, self.grid_step)[0], view.bb)
+
     def mode_flipped(self, view: SeatView) -> bool:
         """Czy kwantyzacja przerzuciła stan przez próg jam/fold.
 
@@ -438,15 +533,15 @@ class BlueprintAgent:
         tuż nad progiem drzewo areny jest głębokie, a drzewo stanu artefaktu —
         jam/fold (i nie ma węzłów po open).
         """
-        key = state_keys(view, self.grid_step)[0]
-        return is_jam_fold_depth(key, view.bb) != view.jamfold
+        layer = self.layer_hand(view.hand)
+        return self.state_is_jam_fold(view, layer) != view.jamfold
 
-    def state_block(self, view: SeatView) -> StateBlock:
+    def state_block(self, view: SeatView, layer: int) -> StateBlock:
         """Blok stanu spod pierwszej równoważnej etykiety obecnej w warstwie."""
         missing: StateNotFound | None = None
-        for key in state_keys(view, self.grid_step):
+        for key in state_keys(view, layer, self.grid_step):
             try:
-                return self.reader.state(view.hand, key)
+                return self.reader.state(layer, key)
             except StateNotFound as miss:
                 missing = miss
         assert missing is not None, "lista kluczy stanu nigdy nie jest pusta"
@@ -455,26 +550,38 @@ class BlueprintAgent:
     def action_mass(self, view: SeatView) -> dict[str, float]:
         """Rozkład z artefaktu przeniesiony na legalne akcje areny.
 
-        Slot środkowy znaczy „podbij" w korzeniu i „sprawdź all-in" niżej, więc
-        poza korzeniem scala się ze slotem jamu w jedną akcję areny. Rozkład
-        przycina `legal_actions`: gdy kwantyzacja stacków przerzuci stan przez
-        próg jam/fold, artefakt może oferować open tam, gdzie arena go nie ma —
+        Slot środkowy znaczy „podbij" wyłącznie w korzeniu drzewa GŁĘBOKIEGO;
+        w drzewie jam/fold i poza korzeniem znaczy „sprawdź all-in", więc scala
+        się ze slotem jamu w jedną akcję areny. Stąd stan jam/fold nigdy nie
+        wypuszcza open — także wtedy, gdy arena jest głęboka po przeskoku
+        trybu, a agent czyta bliźniaczy węzeł jam/fold (`jam_fold_slot`).
+        Rozkład przycina `legal_actions`: przeskok w drugą stronę (stan
+        artefaktu głęboki, arena jam/fold) daje open, którego arena nie ma —
         to jest liczone (`mode_mismatches`), a nie przemilczane.
         """
+        layer = self.layer_hand(view.hand)
         node, divergence = node_slot(view)
         if divergence == ORDER_SWAP:
             self.out_of_order += 1
         elif divergence == ORDER_COLLAPSE:
             self.order_collapse += 1
+        jam_fold_state = self.state_is_jam_fold(view, layer)
+        twin = jam_fold_slot(view) if jam_fold_state and not view.jamfold else None
+        if twin is not None:
+            node = twin
         # Kolejność ma znaczenie diagnostyczne: najpierw stan i węzeł (tam żyje
         # odwzorowanie), dopiero potem klasa (tam żyje zakres biegu artefaktu).
-        block = self.state_block(view)
+        block = self.state_block(view, layer)
         column = self.column.get(view.klass)
         if column is None:
             raise ClassMissing(f"klasa {view.klass} poza zestawem klas artefaktu")
         probs = block.policy(node, column)
+        if layer != view.hand:
+            self.cyclic_reads += 1
+        if twin is not None:
+            self.mode_flip_reads += 1
         live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
-        root = node in (ROOTS_3MAX if live == 3 else ROOTS_HU)
+        root = not jam_fold_state and node in (ROOTS_3MAX if live == 3 else ROOTS_HU)
         mass = {"fold": probs[SLOT_FOLD], "jam": probs[SLOT_JAM]}
         if root:
             mass["open"] = probs[SLOT_MID]

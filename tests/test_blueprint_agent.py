@@ -20,10 +20,22 @@ from typing import Any
 
 import pytest
 
-from poker import spin_arena
+from poker import blueprint_agent, spin_arena
 from poker.blueprint_agent import (
+    CYCLE_BASE,
+    CYCLE_LENGTH,
+    H_B_VS_JAM,
+    H_B_VS_OPEN,
+    H_ROOT,
+    N_B_VS_T_JAM,
+    N_B_VS_T_OPEN,
+    N_B_VS_U_JAM_T_CALL,
     N_B_VS_U_JAM_T_FOLD,
+    N_B_VS_U_OPEN,
+    N_B_VS_U_OPEN_T_JAM,
+    N_T_FI,
     N_T_VS_U_JAM,
+    N_T_VS_U_OPEN,
     N_U_ROOT,
     NODES_3MAX,
     NODES_3MAX_OUT_OF_ORDER,
@@ -36,6 +48,8 @@ from poker.blueprint_agent import (
     SLOT_JAM,
     SLOT_MID,
     BlueprintAgent,
+    cyclic_hand,
+    jam_fold_slot,
     label_seats,
     node_slot,
     quantize_stacks,
@@ -254,14 +268,14 @@ def test_kwantyzacja_zachowuje_sume_i_zywych() -> None:
             assert (out[seat] > 0) == (stacks[seat] > 0), (stacks, out)
 
 
-def _training_role_labels(hand: int, live_labels: tuple[int, ...]) -> tuple[int, ...]:
-    """Role treningu wyrażone etykietami miejsc: guzik z `ręka % 3` albo `ręka % 2`."""
+def _training_role_labels(layer: int, live_labels: tuple[int, ...]) -> tuple[int, ...]:
+    """Role treningu wyrażone etykietami miejsc: guzik z `warstwa % 3` albo `% 2`."""
     if len(live_labels) == 3:
-        utg, button, big = roles(hand % 3)
+        utg, button, big = roles(layer % 3)
         return (utg, button, big)
     ordered = sorted(live_labels)
-    button = ordered[hand % 2]
-    return (button, ordered[1 - hand % 2])
+    button = ordered[layer % 2]
+    return (button, ordered[1 - layer % 2])
 
 
 def test_przenumerowanie_sadza_role_treningu_na_rolach_areny() -> None:
@@ -279,7 +293,7 @@ def test_przenumerowanie_sadza_role_treningu_na_rolach_areny() -> None:
                     continue
                 view = _view(hand=hand, button=button, stacks=stacks, seat=button)
                 arena = role_seats(view)
-                for seat_of_label in label_seats(view):
+                for seat_of_label in label_seats(view, hand):
                     live_labels = tuple(
                         label
                         for label in range(3)
@@ -294,12 +308,67 @@ def test_przenumerowanie_sadza_role_treningu_na_rolach_areny() -> None:
                     assert len(set(seat_of_label)) == 3
 
 
+def test_cykl_horyzontu_stoi_na_zegarze_blindow() -> None:
+    """Warunek decyzji 28 pkt 3 jako niezmiennik: od `CYCLE_BASE` blindy stoją.
+
+    Odczyt cykliczny jest ścisły tylko dlatego, że ręce za horyzontem żyją
+    w tym samym stacjonarnym cyklu co warstwy `CYCLE_BASE`…`+CYCLE_LENGTH−1`.
+    Gdyby zegar dostał ósmy poziom albo inną długość poziomu, ta stałość
+    znika — i wtedy ma czerwienieć test, a nie milczeć agent.
+    """
+    assert (CYCLE_BASE, CYCLE_LENGTH) == (18, 3)
+    stale = blinds_for_hand(CYCLE_BASE)
+    assert stale == (10, 20, len(LEVELS) - 1)
+    assert blinds_for_hand(CYCLE_BASE - 1) != stale
+    for hand in range(CYCLE_BASE, HAND_GUARD):
+        assert blinds_for_hand(hand) == stale, hand
+    # Ręka w zegarze warstw jest sobie równa; dalsza wraca w cykl 3 rąk.
+    assert [cyclic_hand(hand) for hand in range(15, 28)] == [
+        15, 16, 17, 18, 19, 20, 18, 19, 20, 18, 19, 20, 18,
+    ]
+
+
+def test_odczyt_cykliczny_sadza_role_warstwy_na_rolach_areny() -> None:
+    """Kotwica przenumerowania przy odczycie cyklicznym (ręka 21 ↔ warstwa 18).
+
+    Ról szuka się z numeru CZYTANEJ WARSTWY, a nie z numeru ręki areny: przy
+    trzech żywych obie reguły dają to samo (cykl ma 3 ręce), ale w HU guzik
+    treningu zmienia się co rękę i `21 % 2 ≠ 18 % 2` — pomyłka posadziłaby
+    guzika areny na etykiecie dużego blinda, a żaden licznik by tego nie
+    pokazał, bo stan i węzeł istnieją (to jest pułapka odwzorowania 2).
+    """
+    vectors = ((50, 50, 50), (20, 100, 30), (0, 90, 60), (75, 0, 75), (60, 90, 0))
+    for hand in range(CYCLE_BASE + CYCLE_LENGTH, CYCLE_BASE + 4 * CYCLE_LENGTH):
+        layer = cyclic_hand(hand)
+        assert layer == CYCLE_BASE + (hand - CYCLE_BASE) % CYCLE_LENGTH
+        for button in range(3):
+            for stacks in vectors:
+                if stacks[button] == 0:
+                    continue
+                view = _view(hand=hand, button=button, stacks=stacks, seat=button)
+                arena = role_seats(view)
+                for seat_of_label in label_seats(view, layer):
+                    live_labels = tuple(
+                        label for label in range(3) if stacks[seat_of_label[label]] > 0
+                    )
+                    training = _training_role_labels(layer, live_labels)
+                    for role, label in enumerate(training):
+                        assert seat_of_label[label] == arena[role], (hand, layer, stacks)
+                # Trzy żywe: ręka i warstwa dają tę samą permutację (21 ≡ 18).
+                if all(stacks):
+                    assert label_seats(view, layer) == label_seats(view, hand)
+    # HU: numer ręki NIE jest tu zamienny z numerem warstwy — parzystość różna.
+    heads_up = _view(hand=21, button=2, stacks=(60, 0, 90), seat=2)
+    assert label_seats(heads_up, 18) != label_seats(heads_up, 21)
+    assert state_keys(heads_up, 18, 2)[0] != state_keys(heads_up, 21, 2)[0]
+
+
 def test_klucz_stanu_to_przenumerowanie_i_kwantyzacja() -> None:
     """Klucz jest złożeniem dwóch reguł, obu osobno pod testem."""
     view = _view(hand=4, button=2, stacks=(47, 51, 52))
-    keys = state_keys(view, 2)
+    keys = state_keys(view, view.hand, 2)
     assert len(keys) == 1
-    seat_of_label = label_seats(view)[0]
+    seat_of_label = label_seats(view, view.hand)[0]
     assert keys[0] == quantize_stacks(
         (
             view.stacks[seat_of_label[0]],
@@ -313,7 +382,7 @@ def test_klucz_stanu_to_przenumerowanie_i_kwantyzacja() -> None:
 def test_hu_daje_trzy_rownowazne_klucze_o_tym_samym_ukladzie_sil() -> None:
     """W HU etykieta wybitego miejsca jest wolna — warianty opisują tę samą grę."""
     view = _view(hand=3, button=2, stacks=(60, 0, 90), seat=2)
-    keys = state_keys(view, 2)
+    keys = state_keys(view, view.hand, 2)
     assert len(keys) == 3
     for key in keys:
         live_labels = tuple(label for label in range(3) if key[label] > 0)
@@ -323,15 +392,28 @@ def test_hu_daje_trzy_rownowazne_klucze_o_tym_samym_ukladzie_sil() -> None:
     assert len(set(keys)) == 3
 
 
-def _stage_problem(config: Any, stacks: tuple[int, int, int], hand: int) -> Any:
-    """Gra etapowa treningu dla tego stanu i tej ręki (wypłaty liści nieużywane)."""
+def _stage_problem(
+    config: Any, stacks: tuple[int, int, int], hand: int, *, jam_fold: bool | None = None
+) -> Any:
+    """Gra etapowa treningu dla tego stanu i tej ręki (wypłaty liści nieużywane).
+
+    `jam_fold=True` wymusza drzewo jam/fold niezależnie od głębokości — tak
+    wygląda drzewo stanu, który kwantyzacja zepchnęła pod próg 7 bb.
+    """
     sg = _load("solve_grid")
     import numpy as np
 
     tensors = _tensors(config)
     sb, bb_amt, _ = blinds_for_hand(hand)
     problem, _, _ = sg.build_stage_problem(
-        tensors, config, stacks, hand, sb, bb_amt, lambda target: np.zeros(3)
+        tensors,
+        config,
+        stacks,
+        hand,
+        sb,
+        bb_amt,
+        lambda target: np.zeros(3),
+        force_jamfold=jam_fold,
     )
     return problem
 
@@ -420,7 +502,7 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
     for view in views:
         node, divergence = node_slot(view)
         assert divergence is None, (view, node)
-        key = state_keys(view, 1)[0]  # krok 1 = brak kwantyzacji: dokładne stacki areny
+        key = state_keys(view, view.hand, 1)[0]  # krok 1 = brak kwantyzacji: stacki areny
         cache_key = (key, view.hand)
         if cache_key not in cache:
             cache[cache_key] = _stage_problem(config, key, view.hand)
@@ -431,6 +513,69 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
         assert node in problem.nodes, (view, node)
     assert {node for live, node in seen_nodes if live == 3} == set(range(14))
     assert {node for live, node in seen_nodes if live == 2} == set(range(4))
+
+
+def test_wezel_blizniaczy_zgadza_sie_z_drzewem_jamfold_treningu() -> None:
+    """Przeskok trybu: bliźniak czytany w artefakcie to węzeł drzewa JAM/FOLD.
+
+    Reguła przekładu (otwarcie w historii czytane jako jam) jest sprawdzana
+    CHODZENIEM po drzewie jam/fold gry etapowej treningu, nie przynależnością
+    do tablicy: przestawiona parami tablica przechodzi test „węzeł istnieje",
+    a nie przechodzi spaceru (PUŁAPKA POKER-46).
+
+    Bliźniaka nie ma dokładnie dla DRUGIEGO wejścia roli, która otworzyła —
+    w drzewie jam/fold odpowiedź na jam jest terminalna. Agent w stanie
+    jam/fold nigdy nie otwiera, więc do tych infosetów nie dochodzi, ale
+    `None` zostaje jawne zamiast cichego złego węzła.
+    """
+    config = _mini_config()
+    views = _spy_views(range(40), (dollar_fish(), always_jam()))
+    cache: dict[tuple[Any, int], Any] = {}
+    pairs: set[tuple[int, int, int]] = set()
+    second_entries = 0
+    for view in views:
+        if view.jamfold:
+            continue
+        node = node_slot(view)[0]
+        twin = jam_fold_slot(view)
+        if view.seat in {seat for seat, _ in view.actions}:
+            assert twin is None, view
+            second_entries += 1
+            continue
+        assert twin is not None, view
+        order = role_seats(view)
+        key = state_keys(view, view.hand, 1)[0]  # krok 1: dokładne stacki areny
+        cache_key = (key, view.hand)
+        if cache_key not in cache:
+            cache[cache_key] = _stage_problem(config, key, view.hand, jam_fold=True)
+        problem = cache[cache_key]
+        as_jam = replace(
+            view,
+            actions=tuple(
+                (seat, "jam" if action == "open" else action)
+                for seat, action in view.actions
+            ),
+        )
+        assert _tree_node(problem, as_jam, order) == (twin, view.seat), view
+        assert twin in problem.nodes, view
+        pairs.add((len(order), node, twin))
+    assert second_entries > 0, "próbka bez drugich wejść nie sprawdza `None`"
+    # Węzeł drzewa jam/fold jest sam sobie bliźniakiem (historia bez otwarcia);
+    # przekład widać na czterech węzłach 3-max i jednym HU.
+    jam_fold_3max = (N_U_ROOT, N_T_FI, N_B_VS_T_JAM, N_T_VS_U_JAM,
+                     N_B_VS_U_JAM_T_FOLD, N_B_VS_U_JAM_T_CALL)
+    assert {(node, twin) for live, node, twin in pairs if live == 3} == {
+        *((node, node) for node in jam_fold_3max),
+        (N_B_VS_T_OPEN, N_B_VS_T_JAM),
+        (N_T_VS_U_OPEN, N_T_VS_U_JAM),
+        (N_B_VS_U_OPEN, N_B_VS_U_JAM_T_FOLD),
+        (N_B_VS_U_OPEN_T_JAM, N_B_VS_U_JAM_T_CALL),
+    }
+    assert {(node, twin) for live, node, twin in pairs if live == 2} == {
+        (H_ROOT, H_ROOT),
+        (H_B_VS_JAM, H_B_VS_JAM),
+        (H_B_VS_OPEN, H_B_VS_JAM),
+    }
 
 
 def test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony() -> None:
@@ -474,7 +619,7 @@ def test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony() -> None:
     for view, _, asked in events:
         node, divergence = node_slot(view)
         assert divergence is None, view
-        key = state_keys(view, 1)[0]  # krok 1: dokładne stacki areny, bez siatki
+        key = state_keys(view, view.hand, 1)[0]  # krok 1: stacki areny, bez siatki
         cache_key = (key, view.hand)
         if cache_key not in cache:
             cache[cache_key] = _stage_problem(config, key, view.hand)
@@ -559,18 +704,20 @@ def test_rozgrywacz_odrzuca_akcje_spoza_drzewa() -> None:
 def test_liczniki_fallbacku_sa_rozlaczne_i_policzalne(mini_artifact: Path) -> None:
     """Cztery przyczyny, cztery liczniki: horyzont, stan, węzeł, klasa.
 
-    Horyzont to warstwa brzegowa (samo V) i ręka spoza artefaktu; stan spoza
-    warstwy i węzeł spoza maski to sygnał odwzorowania; klasa spoza zestawu
-    biegu to granica artefaktu, nie odwzorowania.
+    Horyzont po POKER-55 to wyłącznie ręka, której artefakt nie ma nawet
+    w warstwie cyklu; stan spoza warstwy i węzeł spoza maski to sygnał
+    odwzorowania; klasa spoza zestawu biegu to granica artefaktu, nie
+    odwzorowania.
     """
     import random
 
     agent = _agent(mini_artifact)
     rng = random.Random(0)
-    assert agent.act(_view(hand=21, jammed=True), rng) == "jam"
-    assert agent.counters()["horizon_fallbacks"] == 1
-    assert agent.act(_view(hand=99), rng) == "fold"
-    assert agent.counters()["horizon_fallbacks"] == 2
+    # Ręka za zegarem warstw czyta warstwę cyklu (POKER-55), więc horyzont
+    # zapala się dopiero tam, gdzie artefakt nie ma nawet jej — tu wyłącznie
+    # przy wyłączonej regule cyklu (osobny test) — a ręka w zegarze i tak nie.
+    assert agent.act(_view(hand=21, jammed=True), rng) in ("jam", "fold")
+    assert agent.counters()["horizon_fallbacks"] == 0
     assert agent.counters()["grid_fallbacks"] == 0
 
     # Warstwa 0 zna wyłącznie stan startowy — każdy inny to stan spoza warstwy.
@@ -603,18 +750,31 @@ def test_liczniki_fallbacku_sa_rozlaczne_i_policzalne(mini_artifact: Path) -> No
     assert agent.counters()["class_misses"] == 1
     assert agent.counters()["grid_fallbacks"] == 2
     counters = agent.counters()
-    assert counters["decisions"] == 5
-    assert counters["from_artifact"] == 0
+    assert counters["decisions"] == 4
+    assert counters["from_artifact"] == 1  # ręka 21 z warstwy cyklu
+    assert counters["cyclic_reads"] == 1
     assert (
         counters["grid_fallbacks"]
         == counters["state_misses"] + counters["node_misses"] + counters["mass_misses"]
     )
 
 
-def test_fallback_poza_horyzontem_to_check_call_fold(mini_artifact: Path) -> None:
-    """Poza zegarem warstw agent sprawdza all-in, a bez all-inu pasuje (jak mccfr)."""
+def test_fallback_poza_horyzontem_to_check_call_fold(
+    mini_artifact: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bez warstwy strategii agent sprawdza all-in, a bez all-inu pasuje (jak mccfr).
+
+    Po POKER-55 artefakt o pełnym zegarze (bramkowy i produkcyjny) nie ma już
+    ręki bez warstwy: każda za horyzontem czyta warstwę cyklu. Przyczyna
+    zostaje dla artefaktu o zegarze KRÓTSZYM niż gra (np. pilotowego), a że
+    bramka takiego nie buduje, ścieżkę osiąga się tu wyłączeniem reguły cyklu.
+    Sam fallback jest prawdziwy: to ta sama `passive_action` i ten sam licznik,
+    który bieg kontrolny w `test_horyzont_czyta_warstwe_cyklu_punktu_stalego`
+    zapala 109 razy.
+    """
     import random
 
+    monkeypatch.setattr(blueprint_agent, "cyclic_hand", lambda hand: hand)
     agent = _agent(mini_artifact)
     rng = random.Random(1)
     assert agent.act(_view(hand=30, jammed=True, jamfold=True), rng) == "jam"
@@ -746,8 +906,9 @@ def test_stan_spoza_warstwy_zdarza_sie_tylko_w_warstwie_przycietej(
             play_block(agent, villain, prizes, 300 + seed)
     counters = agent.counters()
     assert counters["decisions"] > 500
-    # Odczytów stanu było tyle, ile decyzji poza horyzontem — zero pudeł
-    # w warstwie pełnej jest więc twierdzeniem o czymś, a nie o pustce.
+    # Odczyt stanu miała każda decyzja (po POKER-55 także te za horyzontem,
+    # z warstwy cyklu) — zero pudeł w warstwie pełnej jest więc twierdzeniem
+    # o czymś, a nie o pustce.
     reads = counters["from_artifact"] + counters["class_misses"] + counters["node_misses"]
     assert reads > 1000, counters
     assert counters["state_misses"] == 0, counters
@@ -757,15 +918,17 @@ def test_stan_spoza_warstwy_zdarza_sie_tylko_w_warstwie_przycietej(
 
 
 class _NodesSeen:
-    """Miejsce grające agentem, ale zapisujące węzeł modelu każdej jego decyzji."""
+    """Miejsce grające agentem, ale zapisujące węzeł modelu i zegar każdej decyzji."""
 
     def __init__(self, agent: BlueprintAgent) -> None:
         self.agent = agent
         self.nodes: set[tuple[int, int]] = set()
+        self.hands: list[int] = []
 
     def act(self, view: SeatView, rng: Any) -> str:
         live = sum(1 for seat in range(3) if view.stacks[seat] > 0)
         self.nodes.add((live, node_slot(view)[0]))
+        self.hands.append(view.hand)
         return self.agent.act(view, rng)
 
 
@@ -814,11 +977,11 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
     agent = _agent(mini_artifact)
     seen = _agent_run(agent)
     counters = agent.counters()
-    assert counters["decisions"] == 5773, counters
+    assert counters["decisions"] == 5770, counters
     assert counters["out_of_order"] == 0, counters
     assert counters["order_collapse"] == 0, counters
     assert counters["forced_action_misses"] == 0, counters
-    assert counters["node_misses"] == counters["mode_flip_misses"], counters
+    assert counters["node_misses"] == 0, counters
     # Węzeł 7 (UTG wobec 3betu BB po foldzie guzika) w tej próbce nie wypada;
     # rozjazd kolejności siedział na 8, 9 i 10 i te agent odwiedza.
     assert {node for live, node in seen.nodes if live == 3} == set(range(14)) - {7}
@@ -828,6 +991,107 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
     _agent_run(before)
     stale = before.counters()
     assert (stale["out_of_order"], stale["order_collapse"]) == (2, 136), stale
+
+
+def test_horyzont_czyta_warstwe_cyklu_punktu_stalego(
+    mini_artifact: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Kryterium POKER-55, blokująco: ręka ≥ 21 czyta artefakt, nie fallback.
+
+    Zero jest niepuste NA TEJ SAMEJ PRÓBCE (lekcja F3 audytu POKER-54): ten
+    sam bieg z wyłączoną regułą cyklu zapala `horizon_fallbacks` 109 razy,
+    czyli dokładnie na tych decyzjach rąk ≥ 21, które teraz idą do artefaktu.
+    Z artefaktu wychodzi ich sześć, bo mini-artefakt zna cztery klasy ze 169
+    i reszta kończy się na `class_misses` — na artefakcie produkcyjnym (169
+    klas) cały ten ruch jest odczytem.
+
+    Stan spoza siatki w warstwie cyklu nadal ma iść do licznika osiągalności,
+    a nie do cichej gry: `state_misses` = 0 znaczy tu, że warstwy cyklu mają
+    wszystkie stany, o które arena pyta po horyzoncie.
+    """
+    agent = _agent(mini_artifact)
+    seen = _agent_run(agent)
+    counters = agent.counters()
+    late = [hand for hand in seen.hands if hand >= CYCLE_BASE + CYCLE_LENGTH]
+    assert len(late) == 106, len(late)
+    assert counters["horizon_fallbacks"] == 0, counters
+    assert counters["cyclic_reads"] == 6, counters
+    assert counters["state_misses"] == 0, counters
+    assert counters["full_layer_state_misses"] == 0, counters
+    assert agent.layer_hand(21) == 18 and agent.layer_hand(20) == 20
+
+    monkeypatch.setattr(blueprint_agent, "cyclic_hand", lambda hand: hand)
+    before = _agent(mini_artifact)
+    _agent_run(before)
+    stale = before.counters()
+    assert stale["horizon_fallbacks"] == 109, stale
+    assert stale["cyclic_reads"] == 0, stale
+
+
+def test_przeskok_trybu_gra_rozkladem_jamfold_zamiast_fallbacku(
+    mini_artifact: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Kryterium POKER-55, blokująco: przeskok trybu czyta artefakt, nie fallback.
+
+    Zero jest niepuste NA TEJ SAMEJ PRÓBCE: ten sam bieg z wyłączonym węzłem
+    bliźniaczym zapala `mode_flip_misses` trzy razy (w pomiarze POKER-52 było
+    to 1 098 wpisów). Dziesięć odczytów to wszystkie decyzje, w których stan
+    artefaktu jest jam/fold, a arena gra drzewem głębokim — trzy z nich były
+    fallbackiem, siedem to korzenie, gdzie węzeł istnieje w obu drzewach,
+    a rozkład i tak jest jam/fold.
+    """
+    agent = _agent(mini_artifact)
+    _agent_run(agent)
+    counters = agent.counters()
+    assert counters["mode_flip_reads"] == 10, counters
+    assert counters["mode_flip_misses"] == 0, counters
+    assert counters["node_misses"] == 0, counters
+    assert counters["grid_fallbacks"] == 0, counters
+
+    monkeypatch.setattr(blueprint_agent, "jam_fold_slot", lambda view: None)
+    without = _agent(mini_artifact)
+    _agent_run(without)
+    stale = without.counters()
+    assert stale["mode_flip_misses"] == 3, stale
+    assert stale["mode_flip_reads"] == 0, stale
+
+
+def test_przeskok_trybu_czyta_rozklad_jamfold_stanu_artefaktu(
+    mini_artifact: Path,
+) -> None:
+    """Decyzja przy przeskoku trybu: rozkład jam/fold stanu, nigdy open.
+
+    HU ręki 12 (blindy 5/10): arena ma 75/75 żetonów, czyli 7,5 bb (drzewo
+    głębokie), a siatka 50 żetonów kwantyzuje ten stan do (100, 50, 0), czyli
+    5 bb — drzewo jam/fold. Agent wobec otwarcia czyta więc węzeł „BB wobec
+    jamu" i gra jego rozkładem zamiast fallbacku; slot środkowy znaczy tam
+    „sprawdź all-in", nie „podbij".
+    """
+    import random
+
+    agent = _agent(mini_artifact)
+    view = _view(
+        hand=12,
+        seat=1,
+        button=0,
+        stacks=(75, 75, 0),
+        contrib=(22, 10, 0),
+        actions=((0, "open"),),
+        bb=10,
+        klass=next(iter(agent.column)),
+        opened=True,
+    )
+    assert state_keys(view, view.hand, agent.grid_step)[0] == (100, 50, 0)
+    assert agent.mode_flipped(view) is True
+    assert node_slot(view)[0] == H_B_VS_OPEN
+    assert jam_fold_slot(view) == H_B_VS_JAM
+    mass = agent.action_mass(view)
+    assert set(mass) == {"fold", "jam"} == set(legal_actions(view))
+    assert agent.act(view, random.Random(0)) in legal_actions(view)
+    counters = agent.counters()
+    assert counters["mode_flip_reads"] == 2  # `action_mass` i `act`
+    assert counters["mode_flip_misses"] == 0, counters
+    assert counters["from_artifact"] == 1
 
 
 def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path) -> None:
@@ -843,7 +1107,7 @@ def test_przeskok_trybu_na_progu_siedmiu_bb_jest_rozpoznany(mini_artifact: Path)
     classes = json.loads(reader.meta_bytes())["run_manifest"]["config"]["classes"]
     agent = BlueprintAgent(reader, grid_step=2, classes=classes)
     deep = _view(hand=13, seat=2, button=2, stacks=(79, 0, 71), bb=10, jamfold=False)
-    assert state_keys(deep, 2)[0] == (80, 0, 70)
+    assert state_keys(deep, deep.hand, 2)[0] == (80, 0, 70)
     assert agent.mode_flipped(deep) is True
     even = _view(hand=13, seat=2, button=2, stacks=(80, 0, 70), bb=10, jamfold=True)
     assert agent.mode_flipped(even) is False
@@ -945,7 +1209,7 @@ def test_licznik_przeskoku_trybu_rosnie_gdy_artefakt_oferuje_open(
         klass=next(iter(agent.column)),
         jamfold=True,
     )
-    assert state_keys(view, agent.grid_step)[0] == (50, 50, 50)
+    assert state_keys(view, view.hand, agent.grid_step)[0] == (50, 50, 50)
     action = agent.act(view, random.Random(3))
     assert action in legal_actions(view)
     assert agent.counters()["mode_mismatches"] == 1, agent.counters()
@@ -974,7 +1238,7 @@ def test_licznik_rozkladu_bez_legalnej_masy_rosnie(mini_artifact: Path) -> None:
         payload=payload,
     )
     assert block.policy(0, agent.column[klass]) == (0.0, 1.0, 0.0)
-    agent.state_block = lambda view: block  # type: ignore[method-assign]
+    agent.state_block = lambda view, layer: block  # type: ignore[method-assign]
     view = _view(hand=6, seat=0, button=1, bb=6, klass=klass, jamfold=True)
     assert agent.act(view, random.Random(0)) == "fold"
     counters = agent.counters()
@@ -1008,7 +1272,7 @@ def test_licznik_wejscia_wymuszonego_rosnie_za_galezia_spoza_maski(
         payload=bytes(4 * width),
     )
     assert block.has_node(N_B_VS_U_JAM_T_FOLD) is False
-    agent.state_block = lambda view: block  # type: ignore[method-assign]
+    agent.state_block = lambda view, layer: block  # type: ignore[method-assign]
     view = _view(
         hand=20,
         seat=2,
@@ -1139,14 +1403,16 @@ def test_widok_niesie_zegar_rotacje_i_wklady_areny() -> None:
                 assert view.contrib[utg] == 0, view
 
 
-def test_agent_bierze_dokladnie_jeden_pobor_rng_na_decyzje(mini_artifact: Path) -> None:
+def test_agent_bierze_dokladnie_jeden_pobor_rng_na_decyzje(
+    mini_artifact: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Strumień losowań ręki ma być taki sam jak przy `SeatBook` na tym miejscu.
 
     `pick` bierze jeden pobór w każdej gałęzi; agent musi brać tyle samo —
     inaczej podmiana książki na agenta przesuwa decyzje PRZECIWNIKÓW w tej
     samej ręce i porównania na wspólnych seedach przestają być porównaniami.
-    Test liczy pobory na wszystkich ścieżkach: z artefaktu i na każdym
-    fallbacku (horyzont, stan, węzeł, klasa).
+    Test liczy pobory na wszystkich ścieżkach: z artefaktu (wprost i z warstwy
+    cyklu) i na każdym fallbacku (horyzont, stan, węzeł, klasa).
     """
     import random
 
@@ -1161,7 +1427,7 @@ def test_agent_bierze_dokladnie_jeden_pobor_rng_na_decyzje(mini_artifact: Path) 
     rng = Counting(5)
     views = [
         _view(hand=6, stacks=(50, 50, 50), bb=6, klass=next(iter(agent.column))),
-        _view(hand=30, bb=20, jammed=True),  # poza horyzontem warstw
+        _view(hand=30, bb=20, klass=next(iter(agent.column))),  # z warstwy cyklu
         _view(hand=0, stacks=(0, 50, 100), seat=1, button=1, bb=2),  # stan spoza warstwy
         _view(hand=6, stacks=(50, 50, 50), bb=6, klass=168),  # klasa spoza artefaktu
     ]
@@ -1169,10 +1435,16 @@ def test_agent_bierze_dokladnie_jeden_pobor_rng_na_decyzje(mini_artifact: Path) 
         agent.act(view, rng)
     counters = agent.counters()
     assert counters["decisions"] == len(views) == Counting.draws
-    assert counters["from_artifact"] == 1
-    assert counters["horizon_fallbacks"] == 1
+    assert counters["from_artifact"] == 2
+    assert counters["cyclic_reads"] == 1
     assert counters["state_misses"] == 1
     assert counters["class_misses"] == 1
+
+    # Ścieżka horyzontu (artefakt bez warstwy nawet w cyklu) bierze tyle samo.
+    monkeypatch.setattr(blueprint_agent, "cyclic_hand", lambda hand: hand)
+    agent.act(_view(hand=30, bb=20, jammed=True), rng)
+    assert agent.counters()["horizon_fallbacks"] == 1
+    assert agent.counters()["decisions"] == Counting.draws == 5
 
 
 def test_wyplata_nie_wchodzi_do_decyzji_tylko_do_punktacji(mini_artifact: Path) -> None:
