@@ -1632,6 +1632,20 @@ def test_artefakt_8020_czytany_z_oczekiwaniem_wta_rzuca(mini_artifact: Path) -> 
         check_fingerprint(fingerprint, {"model_prior": "blueprint"})
 
 
+def test_brak_odcisku_jest_roznica_a_nie_bledem_typu() -> None:
+    """Artefakt spakowany przed POKER-56 nie ma odcisku — i to też jest wyjątek odcisku.
+
+    Naturalne wywołanie konsumenta to `meta.get("fingerprint")`, więc `None`
+    trafia tu wprost; `TypeError` wypadłby poza `except FingerprintMismatch`
+    i wróciłby do cichego grania inną drogą (F4 audytu POKER-56).
+    """
+    with pytest.raises(FingerprintMismatch, match="nie niesie odcisku"):
+        check_fingerprint(None, {"prizes": TIERS["T-DEEP"].prizes})
+    # Ten sam błąd łapie się jako ValueError — dyscyplina wyjątków POKER-51.
+    with pytest.raises(ValueError):
+        check_fingerprint(None, {"prizes": TIERS["T-DEEP"].prizes})
+
+
 def test_licznik_udzialu_decyzyjnego_trybow_jest_zupelny_i_niepusty(
     mini_artifact: Path,
 ) -> None:

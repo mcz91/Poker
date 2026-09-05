@@ -493,13 +493,18 @@ Po POKER-56 higiena tierowa nie blokuje już żadnej gałęzi mapy z
 [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md):
 wektor wypłat nie da się pomylić z multiplikatorem, artefakty niosą odcisk
 przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
-POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie
-z ~262 do ~172 rdzenio-h). Kolejne
+POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie z ~262 do
+~172 rdzenio-h, przy jawnych założeniach z pkt 4 i 4a). Kolejne
 w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
-1–5 — teraz wycenione na 47,9 rdzenio-h, nie 13,4) i **P-4 POKER-59**
-(checkpoint horyzontu). Pierwszy przebieg TIEROWY (P-7/P-8) czeka na
-**potwierdzenie tabeli tierów przez operatora** wobec żywego lobby — do tego
-czasu `tier_for_run` przepuszcza tier wyłącznie z jawną flagą.
+1–5 przez osiągalność łańcucha DOKŁADNEGO, budżet 2–10 rdzenio-h wg decyzji
+29 — wycena tego kontraktu jej nie zmienia; poprawione **47,9 rdzenio-h** to
+GÓRNE ograniczenie: cena domknięcia do PEŁNEJ siatki, czyli opcji, którą
+decyzja 29 odrzuciła, i tyle zastępuje błędne ~13,4 z bloków POKER-52/55)
+i **P-4 POKER-59** (checkpoint horyzontu). Pierwszy przebieg TIEROWY
+(P-7/P-8) czeka na **potwierdzenie tabeli tierów przez operatora** wobec
+żywego lobby — do tego czasu `tier_for_run` przepuszcza tier wyłącznie
+z jawną flagą — i on też zmierzy mnożnik kosztu WTA wobec 80/20 na siatce
+produkcyjnej (blok POKER-56 pkt 4a).
 
 Etap (b) kierunku bot drogą operatora
 ([decyzja 04](README.md#dokumenty-decyzji)); b4 plastrami
@@ -1024,7 +1029,12 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    rdzenio-h solvera wobec 65,4 zmierzonych (−1,7%)**, warstwy 39,6 wobec
    40,2, horyzont 24,7 wobec 25,2 — wycena jest dolnym oszacowaniem o kilka
    procent (tempa per stan nie niosą narzutu forka 1,018), nie prognozą
-   z przedziałem. Komenda (venv z extras `train`, z katalogu repozytorium,
+   z przedziałem. **Czego ta kalibracja dowodzi, a czego nie** (F3 audytu):
+   tempa pochodzą z tego samego manifestu, więc −1,7% to w całości narzut
+   forka, a nie błąd predykcji. Dowodzi RACHUNKOWOŚCI — że osiągalność daje
+   właściwą mieszankę trybów, a horyzont to dokładnie 3 × cykle × pełna siatka
+   — i tyle; o przenośności temp na inną siatkę albo inne wypłaty nie mówi nic
+   (test wyceny jest w tej części testem narzutu forka). Komenda (venv z extras `train`, z katalogu repozytorium,
    ≈80 s zegara (zmierzone 77–81 s), jeden proces, bez artefaktów wejściowych):
 
    ```
@@ -1043,25 +1053,106 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    | T-MID 120/WTA (P-9) | 32 792 | 421 | 20,8 | 15,7 | 36,4 | 47,6 |
    | pełny DBR na T-MODAL (P-13, 3 hero) | — | — | — | — | 53,5 | 64,7 |
    | krok siatki 1 na 150 żetonach | 191 028 | 4 268 | 151,2 | 100,9 | 252,1 | 263,3 |
-   | domknięcie warstw 1–5 (różnica) | +8 696 | +3 212 | +47,9 | — | +47,9 | — |
+   | domknięcie warstw 1–5 do PEŁNEJ siatki | +8 696 | +3 212 | +47,9 | — | +47,9 | — |
 
-   Koszty w rdzenio-godzinach; horyzont liczony na 6 cyklach (tyle zbiegał
-   bieg produkcyjny — dla innej siatki to założenie, nie pomiar, i jest
-   parametrem komendy). Tensor rolloutów jest kartowy, więc kolejne tiery
-   liczą się na tym samym pliku i płacą go raz.
+   Koszty w rdzenio-godzinach. **Trzy jawne założenia, każde tej samej klasy
+   — nie pomiary:** (a) horyzont liczony na 6 cyklach (tyle zbiegał bieg
+   produkcyjny; dla innej siatki to założenie i jest parametrem komendy);
+   (b) tempo per stan **przenosi się między wektorami wypłat** — a nie
+   przenosi się dokładnie, patrz pomiar BM niżej, i kierunek jest
+   niekorzystny, więc wiersze WTA są DOLNYM oszacowaniem; (c) tempo per stan
+   **nie zależy od kroku siatki** — gra etapowa jednego stanu nie widzi kroku
+   (widzi go tylko liczba stanów i sąsiedztwo w lookupie), ale nikt tego nie
+   zmierzył, więc wiersz „krok 1" dziedziczy to założenie. Tensor rolloutów
+   jest kartowy, więc kolejne tiery liczą się na tym samym pliku i płacą go
+   raz.
    **Rozbieżności wobec panelu decyzji 29 (fixture jest źródłem prawdy):**
    T-MODAL ~30 → **17,8**; T-MID ~71 → **36,4**; WTA@25bb ~65 → **64,3**
-   (zgodne); pełny DBR ~96 → **53,5**; warstwy 1–5 „~+13,4" → **+47,9**.
+   (zgodne); pełny DBR ~96 → **53,5**; warstwy 1–5 do pełnej siatki „~+13,4"
+   → **+47,9** (to górne ograniczenie, nie cena P-3/POKER-58 — ten rozwiązuje
+   różnicę łańcucha DOKŁADNEGO za 2–10 rdzenio-h wg decyzji 29).
    Kierunek rozbieżności nie jest jednostajny, bo panel mnożył liczbę stanów:
    T-MODAL ma 0,384 stanów-warstw biegu produkcyjnego, ale 0,232 jego kosztu
    warstw (mnożnik zawyża), a domknięcie warstw 1–5 ma 0,175 stanów i 1,21
-   kosztu warstw (mnożnik zaniża). **A/B wypłat P-7 jest kosztowo neutralne**:
-   przejścia siatki nie zależą od wektora wypłat, więc WTA@25bb kosztuje
-   dokładnie tyle co drugi bieg 80/20. Suma czterech pozycji mapy, które ten
-   fixture wycenia (P-7, P-8, P-9, P-13), schodzi z **~262 do ~172
-   rdzenio-h**; P-10/P-11/P-12 zostają jak w decyzji 29, bo nie są
-   przebiegami siatki. Wszystkie liczby tej tabeli mają asercje
+   kosztu warstw (mnożnik zaniża). Do listy dochodzi **krok 1**, wyceniany
+   na ~444 rdzenio-h warstw i ~555 łącznie, a przez fixture na **151,2
+   i 263,3**. Metody, która dała 444, nie odtwarzam — sam mnożnik liczby
+   stanów daje jeszcze inną liczbę (11 473 / 2 923 = 3,93× wobec 76,6 ≈ 301)
+   — i to jest właśnie powód, dla którego rozstrzyga fixture: jako jedyny
+   liczy mieszankę trybów, a przy kroku 1 jest ona w 93,6% `jamfold`. **A/B wypłat P-7 nie jest kosztowo
+   neutralne** — patrz pkt 4a niżej: neutralna jest MIESZANKA TRYBÓW, nie
+   koszt stanu. Suma czterech pozycji mapy, które ten fixture wycenia (P-7,
+   P-8, P-9, P-13), schodzi z **~262 do ~172 rdzenio-h** i są to DOLNE
+   oszacowania (założenie (b) wyżej); P-10/P-11/P-12 zostają jak w decyzji 29,
+   bo nie są przebiegami siatki. Wszystkie liczby tej tabeli mają asercje
    w `tests/test_mode_census.py`.
+
+   **4a. Wypłaty zmieniają koszt stanu, choć nie zmieniają mieszanki trybów**
+   (finding F1 audytu POKER-56; wcześniejsza wersja tego bloku twierdziła
+   „dokładnie tyle co drugi bieg 80/20" i było to fałszywe). Przesłanka jest
+   prawdziwa i pod testem: przejścia siatki wyznacza drzewo gry i kwantyzacja,
+   więc WTA@25bb ma co do sztuki tę samą mieszankę trybów co bieg 80/20.
+   Wniosek nie: wektor wypłat jest punktem, na który zbiega PI-FP, więc
+   zmienia LICZBĘ ITERACJI na stan. Zmierzone na łańcuchu kontrolnym z repo
+   (ta sama siatka, ten sam tensor, ta sama mieszanka trybów, zmieniony
+   wyłącznie `prizes`; budżet PI-FP/CFR+ produkcyjny, żeby wiązała tolerancja,
+   a nie sufit) — liczone w ITERACJACH, nie w sekundach, bo iteracje są
+   deterministyczne, a czas na współdzielonym kontenerze nie jest:
+
+   | tryb | stany | iteracje 80/20 | iteracje WTA | WTA / 80-20 |
+   |---|---:|---:|---:|---:|
+   | `deep` | 1 | 384 | 384 | 1,000 (sufit) |
+   | `jamfold` | 11 | 1 160 | 1 608 | **1,386** |
+   | `hu-deep` | 2 | 912 | 1 024 | **1,123** |
+   | `hu-jamfold` | 8 | 1 008 | 1 920 | **1,905** |
+
+   **Tego mnożnika NIE przenosimy na siatkę produkcyjną**: łańcuch kontrolny
+   ma 34 żetony, 4 klasy ze 169 i dwie warstwy, a `deep` siedzi tu na sufcie
+   iteracji, więc jedyne, co ten pomiar niesie, to ZNAK — WTA jest droższe.
+   `MEASURED_RATES` pochodzą z biegu 80/20, więc wyceny WTA (T-MODAL, T-MID,
+   WTA@25bb, DBR) stoją na założeniu przenośności tempa i są dolnym
+   oszacowaniem. Wycena tego mnożnika na siatce produkcyjnej należy do
+   kontraktu, który pierwszy puści przebieg WTA (P-7 albo P-8). Komenda
+   (venv z extras `train`, z katalogu repozytorium, ≈2 min, świeży katalog
+   roboczy — pisze do niego dwa biegi solvera):
+
+   ```
+   BM python - KATALOG <<'EOF'
+   import dataclasses, importlib.util, sys
+   from pathlib import Path
+   import numpy as np
+   spec = importlib.util.spec_from_file_location(
+       "control_chain", "tools/blueprint/control_chain.py")
+   cc = importlib.util.module_from_spec(spec)
+   sys.modules["control_chain"] = cc
+   spec.loader.exec_module(cc)
+   sg = sys.modules["solve_grid"]
+   work = Path(sys.argv[1])
+   tensor = Path("tools/blueprint/control/tensor")
+   budget = sg.GridConfig()
+   iters = {}
+   for name, prizes in (("80-20", (0.8, 0.2, 0.0)), ("WTA", (1.0, 0.0, 0.0))):
+       config = dataclasses.replace(
+           cc.control_config(), prizes=prizes,
+           fp_max_iters=budget.fp_max_iters, fp_tol=budget.fp_tol,
+           cfr_iters=budget.cfr_iters, cfr_tol=budget.cfr_tol,
+       )
+       sg.solve(config, tensor, work / name)
+       per = {}
+       for path in sorted((work / name).glob("layer_*.npz")):
+           data, hand = np.load(path), int(path.stem.split("_")[1])
+           _, bb = sg.level_blinds(config, hand)
+           for state, count in zip(data["states"].tolist(), data["iters"].tolist()):
+               row = per.setdefault(
+                   sg.solver_mode(tuple(int(x) for x in state), bb), [0, 0])
+               row[0] += 1
+               row[1] += int(count)
+       iters[name] = per
+   for mode in sorted(iters["80-20"]):
+       a, b = iters["80-20"][mode], iters["WTA"][mode]
+       print(f"{mode:12s} {a[0]:4d} {a[1]:6d} {b[1]:6d} {b[1] / a[1]:.3f}")
+   EOF
+   ```
 5. **Udział decyzyjny trybów w rachunkowości areny.** Agent liczy
    `decisions_deep` / `decisions_jamfold` / `decisions_hu-deep` /
    `decisions_hu-jamfold` — tryb KOMÓRKI ARTEFAKTU (stan po kwantyzacji), bo
@@ -1318,7 +1409,9 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    tu 3,6×. **KOREKTA POKER-56**: liczba pochodzi z fixture'a wyceny
    per-tryb (`tools/blueprint/mode_census.py`, blok POKER-56 wyżej), pod
    asercją; poprzednia (~13,4) była iloczynem 0,175 × 76,6, czyli mnożnikiem
-   liczby stanów zamiast wyceną per tryb.
+   liczby stanów zamiast wyceną per tryb. To jest cena PEŁNEJ siatki, czyli
+   GÓRNE ograniczenie — decyzja 29 wybrała inną drogę (P-3/POKER-58: solve
+   różnicy łańcucha dokładnego, budżet 2–10 rdzenio-h).
    Decyzja 29 wymagała tego pomiaru przed pomiarami tierowymi — jest.
 11. **Co trzyma bramka** (`tests/test_blueprint_agent.py`; 457 testów zielonych
    po POKER-56, 434 przy zamknięciu tego bloku).
@@ -1737,8 +1830,9 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
       siatkę.
       Cena domknięcia: warstwy 1–5 na pełnej siatce to +8 696
       stanów-warstw wobec 49 765 w biegu produkcyjnym (+17,5%), czyli
-      **47,9 rdzenio-h** (wycena per tryb, blok POKER-56) — decyzja
-      po ponownym pomiarze (decyzja 28 pkt 2d).
+      **47,9 rdzenio-h** (wycena per tryb, blok POKER-56) — GÓRNE
+      ograniczenie, bo decyzja 29 wybrała solve różnicy łańcucha dokładnego
+      (P-3/POKER-58, 2–10 rdzenio-h), a nie pełną siatkę.
       → **JEDYNA pozostała przyczyna fallbacku po 54+55** (0,844% decyzji,
       ten sam rozkład po rękach); dane do decyzji w bloku POKER-55 pkt 10.
    b) **Akcja wymuszona maską treningu** (1 092 wpisów, czyli

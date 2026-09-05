@@ -181,17 +181,34 @@ def test_mnoznik_liczby_stanow_myli_sie_w_obie_strony(census_table: dict[str, An
     assert gap["core_hours"] / prod["layers_core_hours"] == pytest.approx(1.21, abs=0.01)
 
 
-def test_ab_wyplat_jest_neutralne_kosztowo(census_table: dict[str, Any]) -> None:
-    """Przejścia siatki nie zależą od wypłat, więc WTA@25bb kosztuje tyle co 80/20.
+def test_populacje_trybow_nie_zaleza_od_wektora_wyplat(census_table: dict[str, Any]) -> None:
+    """Osiągalność i mieszanka trybów są niezależne od wypłat — i tylko tyle.
 
-    To rozstrzyga wycenę P-7 (jednozmienny A/B wypłat) bez przebiegu: cena
-    eksperymentu to cena drugiego biegu tej samej siatki, ani grosza więcej.
+    Przejścia siatki wyznacza drzewo gry i kwantyzacja, nie wektor wypłat, więc
+    WTA@25bb ma co do sztuki tę samą mieszankę trybów co bieg 80/20. NIE wynika
+    z tego równy koszt: wypłaty są punktem, na który zbiega PI-FP, więc zmieniają
+    liczbę iteracji na stan (audyt POKER-56 F1; pomiar na łańcuchu kontrolnym
+    w bloku POKER-56 pkt 4 — komenda BM). Ten test broni przesłanki, nie wniosku.
     """
     rows = census_table["rows"]
     assert rows["WTA@25bb"]["layer_modes"] == rows["prod-10x"]["layer_modes"]
     assert rows["WTA@25bb"]["boundary_modes"] == rows["prod-10x"]["boundary_modes"]
+    assert rows["WTA@25bb"]["states_per_layer"] == rows["prod-10x"]["states_per_layer"]
     assert rows["WTA@25bb"]["prizes"] == [1.0, 0.0, 0.0]
     assert rows["prod-10x"]["prizes"] == [0.8, 0.2, 0.0]
+
+
+def test_nazwy_trybow_solvera_sa_jednym_formatem_co_do_kolejnosci() -> None:
+    """`MODE_NAMES` solvera to FORMAT: indeks trybu leży w artefaktach warstw.
+
+    `eps_curve` dekoduje nim stare artefakty, więc przestawienie nazw jest cichą
+    zmianą znaczenia zapisanych liczb, nie zmianą nazwy (PUŁAPKA z audytu
+    POKER-56). Kotwica wiąże je z `poker.spin.SOLVER_MODES` co do KOLEJNOŚCI.
+    """
+    from poker.spin import SOLVER_MODES
+
+    assert _load("solve_grid").MODE_NAMES == SOLVER_MODES
+    assert SOLVER_MODES == ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
 
 def test_wycena_buduje_konfiguracje_tieru_przez_jawna_flage() -> None:

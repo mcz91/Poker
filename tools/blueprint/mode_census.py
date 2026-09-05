@@ -21,8 +21,20 @@ Trzy rzeczy, których ta wycena NIE zgaduje:
 
 Kalibracja: na konfiguracji biegu produkcyjnego wycena daje 64,3 rdzenio-h
 solvera wobec 65,4 zmierzonych (−1,7%); różnicę robi narzut forka i zbiórki,
-którego tempa per stan nie niosą. Wycena jest więc dolnym oszacowaniem o kilka
-procent, nie prognozą z przedziałem.
+którego tempa per stan nie niosą. Ta kalibracja dowodzi RACHUNKOWOŚCI
+(osiągalność → mieszanka trybów → horyzont = 3 × cykle × pełna siatka), a nie
+przenośności temp: tempa pochodzą z tego samego biegu, więc −1,7% to narzut
+forka, nie błąd predykcji.
+
+Dwa założenia, których ten moduł NIE mierzy, oba w kierunku zaniżenia:
+
+1. **Tempo przenosi się między wektorami wypłat.** Mieszanka trybów jest od
+   wypłat niezależna (przejścia wyznacza drzewo i kwantyzacja) — koszt stanu
+   nie jest: wypłaty są punktem, na który zbiega PI-FP. Na łańcuchu kontrolnym
+   WTA potrzebuje 1,12–1,91× iteracji tego, co 80/20 (blok POKER-56 pkt 4a,
+   komenda BM), więc wiersze WTA są DOLNYM oszacowaniem.
+2. **Tempo nie zależy od kroku siatki.** Gra etapowa jednego stanu kroku nie
+   widzi, ale nikt tego nie zmierzył — wiersz „krok 1" to dziedziczy.
 
 Uruchomienie (venv z extras train, z katalogu repozytorium):
 

@@ -150,12 +150,22 @@ def run_fingerprint(
     return out
 
 
-def check_fingerprint(actual: Mapping[str, Any], expected: Mapping[str, Any]) -> None:
+def check_fingerprint(
+    actual: Mapping[str, Any] | None, expected: Mapping[str, Any]
+) -> None:
     """Fingerprint artefaktu wobec oczekiwań konsumenta — wyjątek przy pierwszej różnicy.
 
     Klucz, którego artefakt nie niesie, jest różnicą tak samo jak wartość inna:
-    „nie wiem, jaką grę czytam" nie może kończyć się cichym graniem.
+    „nie wiem, jaką grę czytam" nie może kończyć się cichym graniem. Z tego
+    samego powodu `None` (artefakt spakowany przed POKER-56, gdzie naturalnym
+    wywołaniem jest `meta.get("fingerprint")`) jest różnicą, a nie błędem typu:
+    inaczej wypadałby poza `except FingerprintMismatch` konsumenta.
     """
+    if actual is None:
+        raise FingerprintMismatch(
+            "artefakt nie niesie odcisku przebiegu, a konsument oczekuje "
+            f"{ {key: _canonical(expected[key]) for key in sorted(expected)} }"
+        )
     for key in sorted(expected):
         want = _canonical(expected[key])
         if key not in actual:
