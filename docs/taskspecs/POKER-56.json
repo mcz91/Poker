@@ -1,0 +1,45 @@
+{
+  "id": "POKER-56",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Higiena tierowa przed rodziną blueprintów (decyzja 29 P-1): tabela tierów z proweniencją, twarda normalizacja wypłat, fingerprint przebiegu egzekwowany przez agenta, fixture wyceny per-mode i licznik udziału decyzyjnego trybów — zero rdzenio-godzin, odblokowuje wszystkie przebiegi tierowe.",
+  "context": "Zatwierdzony po zamknięciu POKER-55 (4ee97a6). Decyzja 29 pkt 1, 3A i 5 (P-1). Pułapka normalizacji sprawdzona w kodzie: ε w expost.py jest dzielone przez sum(config.prizes) (linie 136/155), a PAYOUTS w poker.spin niesie wektory nienormalizowane ((3,0,0) sumuje się do 3) — uruchomienie siatki z takim wektorem po cichu podzieliłoby ε przez multiplikator i zamieniło próg blokujący 1e-3 w 3e-3. Multiplikator żyje w tabeli tierów, nigdy w wektorze wypłat solvera. Tabela tierów (multiplikator → żetony startowe, długość poziomu, kształt wypłat, udział wolumenu) pochodzi ze źródeł wtórnych researchu — jest wejściem operatorskim: operator potwierdza ją wobec żywego lobby przed pierwszym przebiegiem tierowym, a do tego czasu nosi jawny status 'niepotwierdzona'. Fixture wyceny per-mode naprawia udokumentowany błąd panelu (mnożnik liczby stanów zamiast wyceny per-mode; stawki zmierzone: deep 50,8 / jamfold 1,83 / hu-deep 0,054 / hu-jamfold 0,018 rdzenio-s/stan). Cztery korekty dokumentacyjne z decyzji 29 pkt 4 wchodzą tu z asercjami tam, gdzie liczba ma test.",
+  "acceptance": [
+    "Tabela tierów w poker.spin: multiplikator → (żetony startowe, hands_per_level, znormalizowany kształt wypłat, udział wolumenu, status potwierdzenia operatora) z datą i źródłem w docstringu; pole statusu 'niepotwierdzona' dopóki operator nie potwierdzi wobec lobby — pod testem, że przebieg tierowy z niepotwierdzoną tabelą wymaga jawnej flagi.",
+    "GridConfig odrzuca nienormalizowany wektor wypłat: assert/walidacja sum(prizes) == 1.0 z czytelnym błędem — pod testem czerwonym na PAYOUTS['3x'] podanym wprost; istniejący bieg produkcyjny (0.8, 0.2, 0) przechodzi bez zmian.",
+    "Fingerprint przebiegu w manifeście solvera (kształt wypłat, total_chips, levels, hands_per_level, grid_step, rodzaj profilu, konwencja hero — rozszerzalny słownik) i w metadanych .bpk; czytnik/agent ma funkcję sprawdzenia fingerprinta wobec oczekiwań konsumenta i RZUCA wyjątek przy niezgodności (dyscyplina LookupError/ValueError jak w POKER-51) — pod testem: artefakt 80/20 odczytany jako WTA = wyjątek, nie ciche granie.",
+    "Fixture wyceny per-mode: funkcja licząca (deep, jamfold, hu-deep, hu-jamfold) per warstwa dla dowolnej konfiguracji (total_chips, grid_step, levels) + koszt prognozowany ze zmierzonych stawek; pod testem odtwarza zmierzone populacje trybów biegu produkcyjnego (1 198 deep / ... z bloku POKER-50) oraz liczby z decyzji 29 (90 żetonów bb=2: 253 deep / 693 jamfold / 90 hu-deep / 42 hu-jamfold; formuła stanów (u+1)(u+2)/2−3 na 2 923 / 11 473 / 1 078); rozstrzyga rozbieżność sędziów o koszt T-MODAL/T-MID/DBR deterministycznie i liczby wchodzą do dokumentu.",
+    "Licznik udziału decyzyjnego trybów w rachunkowości areny (BF): ile decyzji agenta zapada w trybie deep / jamfold / hu — raportowany z komendą (otwarte pytanie 2 decyzji 29: udział komórek siatki ≠ udział odwiedzin); bez progu.",
+    "Cztery korekty dokumentacyjne decyzji 29 pkt 4 naniesione w CURRENT_STATE (jednostki ε = suma wektora wypłat; Algorytm 3, nie 6; skreślenie zdania o abstrakcji Pluribusa; skreślenie zdania o SOTA) oraz korekty wyceny w bloku znanych limitów (warstwy 1–5: ~37–60 rdzenio-h; krok 1: ~444 warstw / ~555 łącznie, z adnotacją o rozbieżności metod i o tym, że fixture per-mode ją rozstrzyga) — liczby z fixture'a pod asercjami.",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do poker.spin (tabela tierów) i modułu czytnika/agenta (sprawdzenie fingerprinta)."
+  ],
+  "non_goals": [
+    "Jakikolwiek przebieg solvera (P-3/P-7/P-8 to osobne kontrakty).",
+    "Format .bpk v2 (POKER-57 — maska uint32, uint16, ε per stan).",
+    "Zmiany drzewa gry i rozgrywacza.",
+    "Potwierdzenie tabeli tierów (należy do operatora — kontrakt tylko nosi status)."
+  ],
+  "operator_inputs": {
+    "tabela_tierow": "potwierdzenie multiplikator → stack/zegar/wypłaty wobec żywego lobby przed pierwszym przebiegiem tierowym"
+  },
+  "allowed_paths": [
+    "src/poker/spin.py",
+    "src/poker/blueprint_reader.py",
+    "src/poker/blueprint_agent.py",
+    "tools/blueprint/",
+    "tools/run_arena.py",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-56.json"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-05T14:10:00Z",
+    "basis": "decyzja 29 pkt 1, 3A, 4, 5 (P-1); pułapka normalizacji sprawdzona w kodzie (expost.py:136,155; PAYOUTS); POKER-55 zamknięty; mandat autonomii operatora 2026-08-09; kolejność integracji: po POKER-55"
+  }
+}
