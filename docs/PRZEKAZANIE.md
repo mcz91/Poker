@@ -149,7 +149,7 @@ pomiarem kilka razy okazało się mierzyć nie to, co miało chronić
 
 **POKER-57** (`.bpk` v2: maska uint32, cztery sloty, kwantyzacja uint16,
 ε per stan, marginesy indyferencji, blok fingerprinta). Kontrakt
-zatwierdzony (`6f2a0b6`), praca kodera **dostarczona jako `a42a3bd`**;
+zatwierdzony (`6f2a0b6`), praca kodera **dostarczona jako `aefc3c8`** (kod identyczny z audytowanym `a42a3bd`; po rebase i po doprecyzowaniu jednego zdania o czasie bramki);
 bramka zielona na tym stanie (477 testów), kryterium blokujące spełnione
 (koszt kwantyzacji uint16 w ε: +0,015% wobec limitu +10%). Status
 w CURRENT_STATE: **DOSTARCZONE, czeka na audyt świeżym kontekstem**.
@@ -375,7 +375,7 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 
 ## 11. Od czego zacząć
 
-1. **Domknij POKER-57**: audyt świeżym kontekstem commita `a42a3bd` →
+1. **Domknij POKER-57**: audyt świeżym kontekstem commita `aefc3c8` →
    zamknięcie w indeksie → scalenie do main. Praca jest dostarczona
    i bramka zielona; brakuje wyłącznie audytu.
 2. **Zrób POKER-59** (checkpoint horyzontu, ~1 rdzenio-h) — zanim
