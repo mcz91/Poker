@@ -737,20 +737,23 @@ def _leaf_hero_ev(problem: StageProblem, leaf: int, hero: int,
 def _walk_hero(problem: StageProblem, tree: Tree, hero: int, reach: dict[int, np.ndarray],
                own: np.ndarray, sigma: dict[int, np.ndarray], propagate: str,
                record: dict[int, list[np.ndarray]],
-               own_record: dict[int, np.ndarray]) -> np.ndarray:
+               own_record: dict[int, np.ndarray],
+               reach_record: dict[int, dict[int, np.ndarray]] | None = None) -> np.ndarray:
     if tree[0] == "leaf":
         return _leaf_hero_ev(problem, tree[1], hero, reach)
     _, node_id, actor, children = tree
     allowed = problem.allowed[node_id]
     if actor == hero:
         own_record[node_id] = own
+        if reach_record is not None:
+            reach_record[node_id] = dict(reach)
         values = []
         for slot, child in children:
             if slot not in allowed:
                 continue
             values.append(
                 _walk_hero(problem, child, hero, reach, own * sigma[node_id][:, slot],
-                           sigma, propagate, record, own_record)
+                           sigma, propagate, record, own_record, reach_record)
             )
         record[node_id] = values
         if propagate == "best":
@@ -767,18 +770,25 @@ def _walk_hero(problem: StageProblem, tree: Tree, hero: int, reach: dict[int, np
         new_reach = dict(reach)
         new_reach[actor] = reach[actor] * sigma[node_id][:, slot]
         total += _walk_hero(problem, child, hero, new_reach, own, sigma, propagate,
-                            record, own_record)
+                            record, own_record, reach_record)
     return total
 
 
 def _hero_action_values(
-    problem: StageProblem, hero: int, sigma: dict[int, np.ndarray], propagate: str
+    problem: StageProblem, hero: int, sigma: dict[int, np.ndarray], propagate: str,
+    reach_record: dict[int, dict[int, np.ndarray]] | None = None,
 ) -> tuple[dict[int, list[np.ndarray]], dict[int, np.ndarray], np.ndarray]:
     """Wartości akcji bohatera, jego własny reach w każdym własnym węźle i wartość korzenia.
 
     Własny reach (iloczyn własnych prawdopodobieństw na drodze do węzła) jest
     wagą średniej CFR+ — bez niego średnia nie jest tą, dla której zachodzi
     gwarancja zbieżności.
+
+    `reach_record` (opcjonalny, POKER-57) zbiera reach PRZECIWNIKÓW w każdym
+    własnym węźle bohatera. Solver go nie podaje i nie płaci za niego niczego
+    poza jednym `if` na węzeł: potrzebuje go dopiero marginesowanie infosetów,
+    które musi podzielić wartości akcji przez masę rozdań docierających do
+    węzła, żeby margines był EV na rękę klasy, a nie na reach przeciwnika.
     """
     reach = {
         role: np.ones(problem.count, dtype=np.float32)
@@ -789,7 +799,7 @@ def _hero_action_values(
     own_record: dict[int, np.ndarray] = {}
     root = _walk_hero(problem, problem.tree, hero, reach,
                       np.ones(problem.count, dtype=np.float32), sigma, propagate,
-                      record, own_record)
+                      record, own_record, reach_record)
     return record, own_record, root
 
 

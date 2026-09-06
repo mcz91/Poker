@@ -1,6 +1,10 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-56 (higiena
+Wersja pakietu: 0.1.0 · DOSTARCZONE, czeka na audyt: POKER-57 (format
+`.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
+uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
+infoset, odcisk przebiegu w metadanych; v1 bajt w bajt nietknięty; zero
+rdzenio-godzin solvera) · ostatnie zamknięte zadanie: POKER-56 (higiena
 tierowa przed rodziną blueprintów: tabela tierów ze statusem
 niepotwierdzonym, twarda normalizacja wektora wypłat w `GridConfig`,
 fingerprint przebiegu w manifeście i w `.bpk` z wyjątkiem u konsumenta,
@@ -351,7 +355,11 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   `expost.py` — ex-post best response po całym
   DAG-u (Ganzfried–Sandholm IJCAI-09, Alg. 3), raport V vs ICM per warstwa z
   wyszczególnieniem krótkiego BB, sanity jam/fold obok
-  `poker.jamfold.solve`. `eps_curve.py` (POKER-47) — krzywa ε ex-post
+  `poker.jamfold.solve`. `margins.py` (POKER-57) — marginesy indyferencji
+  per infoset (różnica wartości dwóch najlepszych akcji przy zamrożonym
+  profilu artefaktu i jego własnej kontynuacji V, warunkowa: na jedną rękę
+  klasy) jednym przechodem po zapisanych V i σ, bez re-solve'u; wejście
+  sekcji marginesów formatu v2. `eps_curve.py` (POKER-47) — krzywa ε ex-post
   gry etapowej po sufitach iteracji na próbce stanów jednego trybu
   (najgorsze ex-post z biegu plus losowanie o jawnym seedzie; w trybach
   `hu-*` mierzy CFR+, a nie PI-FP — solverem drabinki jest ten, którym
@@ -415,7 +423,15 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   bo to jest kontrakt fallbacku agenta z POKER-52. Konwerter jest
   deterministyczny (ten sam artefakt wejściowy → bajt w bajt ten sam
   plik) i sprawdza sha256 pakowanych plików wobec manifestu biegu.
-  Specyfikacja bajtowa, liczby i komendy: blok POKER-51 niżej.
+  Od POKER-57 format ma **wersję 2**: maska osiągalności uint32 zamiast
+  uint16 (sufit 16 węzłów zdjęty), cztery sloty akcji zamiast trzech (trzy
+  zapisane, czwarty z dopełnienia — dziś zerowy), kwantyzacja uint16
+  domyślnie oraz dwie sekcje opcjonalne — ex-post ε per stan i miejsce
+  (float32) i marginesy indyferencji per infoset (uint8 na skali stanu).
+  Czytnik czyta obie wersje, `pack` bez `--format-version` nadal pisze v1
+  (artefakt produkcyjny zostaje v1), a sekcja nieobecna podnosi
+  `SectionMissing` zamiast oddawać zera. Specyfikacja bajtowa, liczby
+  i komendy: bloki POKER-51 i POKER-57 niżej.
 - `poker.blueprint_agent` — **jedyny konsument czytnika w pakiecie**
   (POKER-52): miejsce areny Spin grające rozkładami z artefaktu.
   Decyzja powstaje wyłącznie z widocznego stanu (`SeatView`: numer ręki,
@@ -500,7 +516,10 @@ w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
 29 — wycena tego kontraktu jej nie zmienia; poprawione **47,9 rdzenio-h** to
 GÓRNE ograniczenie: cena domknięcia do PEŁNEJ siatki, czyli opcji, którą
 decyzja 29 odrzuciła, i tyle zastępuje błędne ~13,4 z bloków POKER-52/55)
-i **P-4 POKER-59** (checkpoint horyzontu). Pierwszy przebieg TIEROWY
+i **P-4 POKER-59** (checkpoint horyzontu). **P-2 POKER-57 jest
+dostarczony** (blok niżej): format `.bpk` v2 zdejmuje trzy sufity v1, więc
+poszerzenie drzewa (P-14) i profile DBR (P-13) nie czekają już na format —
+czekają na swoje rekordy decyzyjne i na korpus. Pierwszy przebieg TIEROWY
 (P-7/P-8) czeka na **potwierdzenie tabeli tierów przez operatora** wobec
 żywego lobby — do tego czasu `tier_for_run` przepuszcza tier wyłącznie
 z jawną flagą — i on też zmierzy mnożnik kosztu WTA wobec 80/20 na siatce
@@ -965,6 +984,332 @@ Nie płacimy 91 rdzenio-godzin za bieg produkcyjny stojący na
 niezbieżnym warunku brzegowym — dlatego przed produkcją wchodzi
 **POKER-49** (domknięcie horyzontu i endgame'ów HU), a przed nim
 audyt linii blueprintu świeżym kontekstem.
+
+**POKER-57 (format `.bpk` v2: trzy sufity v1 zdjęte, ε i marginesy w pliku)
+DOSTARCZONY.** Realizacja [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
+pkt 3 i 5 (P-2). Zero rdzenio-godzin solvera: kontrakt nie liczy ani jednej
+warstwy — pakuje istniejące artefakty i mierzy koszt kwantyzacji na pilocie
+z POKER-49. Konwerter i czytnik są te same co w POKER-51
+(`tools/blueprint/pack_blueprint.py`, `src/poker/blueprint_reader.py`);
+doszedł `tools/blueprint/margins.py`. Liczby zmierzone na 4 rdzeniach
+(Intel Xeon @ 2.80GHz, Python 3.13.12, numpy 2.5.2, venv z extras `train`);
+`PROD` i `PILOT` to katalogi artefaktów poza repozytorium.
+
+```
+BN python tools/blueprint/pack_blueprint.py pack \
+       --run PROD/grid2 --out PROD/blueprint_v2.bpk --format-version 2
+BO python tools/blueprint/pack_blueprint.py bench \
+       --file PROD/blueprint_v2.bpk --samples 2000 --sweep
+BP python tools/blueprint/margins.py margins --out KATALOG_BIEGU --jobs 3
+BQ mkdir -p PILOT/grid5d_raw
+   cp PILOT/grid5d/layer_*.npz PILOT/grid5d/boundary.npz \
+      PILOT/grid5d/solve_manifest.json PILOT/grid5d_raw/
+   python -c 'import json,sys;from pathlib import Path;p=Path(sys.argv[1]);\
+m=json.loads(p.read_text());m["config"].setdefault("cost_limit_core_hours",140.0);\
+p.write_text(json.dumps(m,indent=2,sort_keys=True,ensure_ascii=False)+"\n")' \
+       PILOT/grid5d_raw/solve_manifest.json
+   python tools/blueprint/pack_blueprint.py requantize \
+       --run PILOT/grid5d_raw --out PILOT/grid5d_q16 --packed PILOT/grid5d_v2.bpk \
+       --format-version 2 --bits 16
+   python tools/blueprint/expost.py expost --out PILOT/grid5d_raw --jobs 3
+   python tools/blueprint/expost.py expost --out PILOT/grid5d_q16 --jobs 3
+```
+
+BQ to sekwencja BC–BE z bloku POKER-51 z jedną zmianą — kwantyzacją — więc
+i tu obowiązuje jej uzasadnienie: manifest biegu `grid5d` powstał przed
+POKER-50 i bez `cost_limit_core_hours` pada `KeyError` w `config_from_dict`,
+a pole uzupełnia się **w kopii roboczej**, identycznie po obu stronach
+porównania. Oryginał `PILOT/grid5d` (i jego raport ex-post z POKER-49)
+zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
+
+1. **Specyfikacja v2 z dokładnością do bajtów.** Wszystko little-endian,
+   sekcje wyrównane do 8 bajtów, bez znaczników czasu — jak v1. Magia jest
+   ta sama (`POKERBP1`, rodzina plików), rozstrzyga **wersja w nagłówku**.
+   Struktury żyją w `poker.blueprint_reader` (`HEADER_STRUCT`,
+   `HEADER_V2_STRUCT`, `LAYER_V2_STRUCT`, `MASK_V2_STRUCT`,
+   `MARGIN_HEAD_STRUCT`) i konwerter importuje je stamtąd.
+
+   **Nagłówek, 128 B od offsetu 0** — pierwsze 104 bajty są wspólne
+   z v1 co do znaczenia, pola v2 leżą w rezerwie v1:
+
+   | ofs | dł | pole |
+   |----:|---:|------|
+   | 0 | 8 | magia `POKERBP1` |
+   | 8 | 2 | wersja formatu, uint16 (**2**) |
+   | 10 | 2 | bity kwantyzacji, uint16 (**16 domyślnie**, 8 nadal legalne) |
+   | 12 | 4 | liczba klas preflop, uint32 |
+   | 16 | 4 | liczba warstw, uint32 |
+   | 20 | 4 | liczba slotów węzłów, uint32 (14) |
+   | 24 | 8 | offset metadanych, uint64 |
+   | 32 | 8 | długość metadanych po kompresji, uint64 |
+   | 40 | 8 | długość metadanych przed kompresją, uint64 |
+   | 48 | 8 | offset katalogu warstw, uint64 |
+   | 56 | 8 | liczba stanów w pliku, uint64 |
+   | 64 | 8 | długość pliku, uint64 |
+   | 72 | 32 | sha256 konfiguracji biegu, surowe bajty |
+   | 104 | 2 | **liczba slotów akcji, uint16 (4)** |
+   | 106 | 2 | **liczba slotów zapisanych, uint16 (3)** |
+   | 108 | 4 | **flagi sekcji, uint32** (bit 0 = ε, bit 1 = marginesy) |
+   | 112 | 16 | rezerwa (zera) |
+
+   Plik v1 z przestemplowaną wersją na 2 **nie jest** plikiem v2 i jest
+   odrzucany na tym właśnie polu: w rezerwie v1 stoją zera, więc taki plik
+   zapowiada zero slotów akcji. Odmowa jest z reguły, a nie z potknięcia się
+   o cudzy układ katalogu warstw (test wprost).
+
+   **Katalog warstw** — po jednym rekordzie **80 B** na warstwę (v1: 48 B),
+   rosnąco po numerze ręki:
+
+   | ofs | dł | pole |
+   |----:|---:|------|
+   | 0 | 4 | numer ręki, uint32 |
+   | 4 | 4 | liczba stanów warstwy, uint32 |
+   | 8 | 1 | `has_sigma` |
+   | 9 | 1 | liczba miejsc, uint8 (3) |
+   | 10 | 1 | **`has_eps`** |
+   | 11 | 1 | **`has_margins`** |
+   | 12 | 4 | rezerwa (zera) |
+   | 16 | 8 | offset tablicy kluczy stanów, uint64 |
+   | 24 | 8 | offset tablicy V, uint64 |
+   | 32 | 8 | offset indeksu bloków, uint64 |
+   | 40 | 8 | offset obszaru bloków, uint64 |
+   | 48 | 8 | **offset sekcji ε, uint64** (0 gdy `has_eps`=0) |
+   | 56 | 8 | **offset indeksu marginesów, uint64** (0 gdy `has_margins`=0) |
+   | 64 | 8 | **offset obszaru marginesów, uint64** |
+   | 72 | 8 | rezerwa (zera) |
+
+   **Sekcja warstwy**, w tej kolejności: tablica kluczy stanów
+   (`n × 3 × int16`, posortowana leksykalnie) → tablica V
+   (`n × 3 × float64`, nieskompresowana, pełna precyzja) → **sekcja ε
+   (`n × 3 × float32`, 12 B na stan, nieskompresowana, ten sam porządek)** →
+   indeks bloków (`n × 16 B`) → bloki strategii → **indeks marginesów
+   (`n × 16 B`) → bloki marginesów**. Sekcje nieobecne nie zajmują ani
+   bajtu i mają w rekordzie warstwy zero.
+
+   **Blok stanu** to `zlib` z ładunku: **`uint32` maska osiągalności**
+   węzłów (v1: uint16), a dalej — dla każdego ustawionego bitu rosnąco —
+   **trzy** kolumny po `n_classes` wartości `uint16`: cały slot 0 (fold),
+   cały slot 1 (open/call), cały slot 2 (jam). Kolumnowo, nie przeplotem,
+   z tego samego powodu co w v1. **Slot 3 wynika z dopełnienia do skali.**
+
+   **Blok marginesów** to `zlib` z ładunku: `uint32` maska DECYZJI, `float32`
+   skala stanu, a dalej — dla każdego ustawionego bitu rosnąco — `n_classes`
+   bajtów `uint8`. Margines = `q · skala / 255`.
+
+2. **Trzy sufity v1, po kolei.** (a) **Maska osiągalności**: v1 pisał ją
+   `to_bytes(2, "little")` i czytał `"<H"`, więc siedemnasty węzeł nie
+   mieścił się w formacie — a drzewo ma dziś 14 węzłów 3-max i 4 sloty HU.
+   v2 ma uint32. Pod testem na ARTEFAKCIE, nie na stałej: warstwy kontrolne
+   dostają siedemnasty węzeł, v1 odmawia z komunikatem o sufcie, v2 pakuje
+   i czyta węzeł 16. (b) **Sloty akcji**: v1 zapisywał dwa i wyprowadzał
+   trzeci (jam). v2 zapisuje trzy i wyprowadza czwarty — w dzisiejszym
+   drzewie zerowy, bo czwartej akcji nie ma. To jest miejsce w formacie,
+   a nie akcja w drzewie: poszerzenie drzewa wymaga rekordu decyzyjnego
+   (P-14, decyzja 27), a ten kontrakt go nie tworzy. Reguła dopełnienia ma
+   własny test na bloku, w którym reszta jest niezerowa — inaczej „czwarty
+   slot" przechodziłby każdą asercję, będąc stałym zerem. (c) **Kwantyzacja**:
+   uint8 zerował 24,2% wartości slotów żywych infosetów (blok POKER-51 pkt 6);
+   v2 domyślnie uint16, więc błąd pojedynczego prawdopodobieństwa spada
+   z 2,610e−3 do poniżej 1/65535 = 1,526e−5 — 171×. Metoda jest ta sama
+   (największe reszty, suma zachowana dokładnie), więc zmienia się wyłącznie
+   skala. uint8 zostaje legalne w nagłówku obu wersji.
+
+   Numery slotów 0–2 znaczą w obu wersjach to samo, a slot z dopełnienia jest
+   zawsze OSTATNI, więc konsument napisany pod v1 (`probs[SLOT_FOLD]`,
+   `probs[SLOT_MID]`, `probs[SLOT_JAM]`) czyta v2 bez przeliczania —
+   `poker.blueprint_agent` nie był w tym kontrakcie dotykany.
+
+3. **Sekcja ex-post ε per stan i miejsce.** `float32`, trzy wartości na stan
+   (po jednej na miejsce), w tym samym porządku co klucze i V; źródłem jest
+   `expost.npz` biegu, a nie osobny rachunek. Odczyt to `seek` + 12 bajtów
+   (`reader.epsilon(hand, stacks)`). Zgodność co do wartości jest pod asercją
+   na artefakcie kontrolnym: każda liczba w pliku równa się `float32` liczby
+   z `expost.npz`, a maksimum po ŻYWYCH miejscach równa się `epsilon_max`
+   z `expost_report.json` (3,8314e−3 na artefakcie kontrolnym). Ta sama
+   asercja przepuszczona poza bramką przez plik produkcyjny: **49 765 stanów,
+   zero rozjazdów**, maksimum 4,7195848e−4 = `float32` liczby 4,719584907e−4
+   z raportu POKER-50 (zero na artefakcie bramki to nie zero na produkcji —
+   dlatego jest ten drugi przebieg). Panel decyzji
+   29 szacował tę sekcję na ~199 KB w skali produkcyjnej — to był rachunek na
+   JEDNĄ wartość na stan; zmierzone **597 180 B**, bo ε jest per miejsce, a
+   bramka wysyłkowa profilu ograniczonego (P-13) jest z definicji
+   seat-restricted. Warstwa brzegowa sekcji ε nie ma (ex-post jej nie liczy)
+   i mówi to wyjątkiem `SectionMissing`, nie zerami.
+
+4. **Sekcja marginesów indyferencji per infoset.** Margines infosetu
+   (stan, węzeł, klasa) = różnica wartości DWÓCH NAJLEPSZYCH akcji tego, kto
+   w węźle decyduje, przy zamrożonym profilu artefaktu i jego własnej
+   kontynuacji V. Jednostka jest ta sama co ε (udział sumy wektora wypłat),
+   a wartość jest **warunkowa**: dzielona przez masę rozdań klasy docierających
+   do węzła, więc mówi „o ile lepsza jest najlepsza akcja na jedną rękę tej
+   klasy", a nie „ile ta decyzja waży w ε". Liczy je `tools/blueprint/margins.py`
+   (komenda BP) tą samą maszynerią gry etapowej co ex-post —
+   `build_stage_problem` + `_hero_action_values` — czyli JEDNYM przechodem po
+   zapisanych V i σ. **Re-solve nie jest potrzebny**, więc nie ma tu podstawy
+   do sprzeciwu; cena jest ceną jednego ex-post (pkt 7 niżej).
+
+   Zapis jest **zgrubny z wyboru** (decyzja 29 pkt 3): `uint8` na skali stanu
+   zapisanej we `float32`, więc rozdzielczość to `skala/255` tego stanu —
+   margines mniejszy od pół kroku czyta się jako zero. Dla pola, którego
+   pytanie brzmi „czy ta komórka jest bliska obojętności", to jest właściwa
+   strata; kto potrzebuje EV, ma V, nie to pole.
+
+   Maska marginesów jest **węższa** od maski osiągalności: węzeł, w którym
+   drzewo zostawia jedną legalną akcję, nie jest decyzją i nie ma marginesu,
+   zamiast mieć margines zero. Na artefakcie kontrolnym z 416 infosetów
+   (stan × żywy węzeł × klasa) decyzjami jest **376**; mediana marginesu
+   0,0770, maksimum 0,3027, minimum 8,40e−5 — **3 600× między końcami
+   rozkładu**, i to jest cały powód, dla którego to pole istnieje.
+
+   **Test konstrukcyjny, a nie obserwacja.** Obojętność: gra o wypłatach
+   (1/3, 1/3, 1/3) ze stałą kontynuacją 1/3 — każda akcja warta dokładnie
+   tyle samo, więc margines musi zniknąć; zmierzone **dokładnie 0,0** na
+   wszystkich decyzjach. Dominacja: to samo drzewo jam/fold HU przy wypłatach
+   WTA i stackach (0, 17, 17) — marginesy w korzeniu 0,524 (AA), 0,462 (KK),
+   0,321 (J8o), 0,244 (72o) — od 4,9× (72o) do 10,5× (AA) powyżej progu
+   testu 0,05. **Mieszanie w σ artefaktu NIE jest dowodem obojętności** i dlatego
+   nie jest kryterium: σ to średnia najlepszych odpowiedzi PI-FP, więc niesie
+   masę akcji, która była najlepsza wcześnie — na artefakcie kontrolnym AA
+   miesza w korzeniu 0,898/0,101 przy marginesie 0,011568, a KK gra niemal
+   czysto przy marginesie 0,000981. Właśnie dlatego to pole musi być w pliku,
+   a warstwa eksploatacyjna nie może go zgadywać z rozkładu.
+
+5. **Odcisk przebiegu w metadanych.** Metadane v2 to ten sam blok co w v1
+   (`zlib(JSON UTF-8)`, kanoniczny): kopia manifestu biegu, `source_sha256`,
+   opis kwantyzacji i **`fingerprint` z POKER-56** — kształt wypłat, suma
+   żetonów, rozwinięty zegar, rąk na poziom, krok siatki, rodzaj profilu,
+   konwencja hero. `check_fingerprint` na artefakcie v2 działa tak samo jak
+   na v1 (pod testem). Opis formatu v2 dostaje dwa pola więcej niż v1:
+   `sections` (które sekcje opcjonalne weszły) i `margin_levels`.
+
+6. **Liczby na artefakcie produkcyjnym (BN, BO).** Bieg `PROD/grid2`
+   (49 765 stanów-warstw + 2 923 stany warunku brzegowego, 169 klas,
+   22 warstwy, `expost.npz` z POKER-50 obok):
+   **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** w v1 —
+   **2,13×**; zapis trwa **32,0 s** (v1: 24,0 s). Panel decyzji 29 szacował
+   ~34 MiB i liczył wyłącznie podwojenie bitów; różnica to **trzeci
+   przechowywany slot** (jam nie jest już wyprowadzany) i sekcja ε.
+   Rozkład bajtów: bloki strategii 37 509 938 B (**753,7 B na stan
+   z polityką** wobec 334,3 B w v1), indeks bloków 796 240 B, tablice V
+   1 264 512 B, **sekcja ε 597 180 B**, klucze stanów 316 128 B, metadane
+   4 076 B, nagłówek i katalog 1 888 B, dopełnienia wyrównania 294 B.
+   Sekcji marginesów ten plik NIE ma — patrz pkt 7.
+
+   **Czas odczytu (BO, 2 000 losowań deterministycznych, maszyna
+   nieobciążona; dla porównywalności v1 zmierzone TĄ SAMĄ komendą w tej
+   samej sesji, a nie przepisane z POKER-51, gdzie maszyna liczyła
+   równolegle):** jeden stan **mediana 38,7 / 39,2 µs, p95 68,8 / 71,5 µs**
+   wobec v1 **27,7 / 27,8 µs, p95 40,5 / 43,0 µs** — v2 kosztuje ~1,4×
+   więcej, bo dekompresuje trzy razy większy blok. Jedna wartość V:
+   **10,2 / 10,3 µs** wobec **9,5 / 9,6 µs** (tablica V jest w obu wersjach
+   ta sama). Liczby są raportowane, nie progowane — próg należy do konsumenta.
+
+   **Bajty przeczytane, `bench --sweep` (przemiał WSZYSTKICH stanów, nie
+   próbka):** odczyt stanu **maksimum 4 860 B, mediana 745 B, p95 1 295 B**
+   na 49 765 odczytów (v1: 1 804 / 394 / 664); odczyt wartości V
+   **maksimum 80 B, mediana 74 B** na 52 688 odczytów (bez zmian wobec v1);
+   odczyt ε **maksimum 84 B, mediana 78 B** na 49 765 odczytów. Najgorszy
+   odczyt stanu to 0,012% pliku. Sufity w bramce stoją na artefakcie
+   kontrolnym: zmierzone najgorsze przypadki to 180 B na stan, 56 B na V,
+   42 B na ε i 97 B na marginesy, a sufity stoją na 260 / 72 / 60 / 140 B —
+   ~1,4× zapasu, tyle samo co sufity v1 w POKER-51 (116 → 160 B). Zapas jest
+   na inną wersję `zlib`, a nie na inny sposób odczytu.
+
+7. **Czego produkcyjny plik v2 NIE ma: marginesów — i ile by kosztowały.**
+   `PROD/grid2` nie ma `margins.npz`, więc sekcja marginesów nie weszła do
+   pliku i warstwy mówią to wprost (`has_margins`=0, odczyt →
+   `SectionMissing`). Policzenie ich to jeden przechód komendą BP po
+   49 765 stanach: ta sama maszyneria i ta sama liczba gier etapowych co
+   ex-post, którego bieg produkcyjny kosztował **4 122 s ściennych przy
+   4 procesach (~4,6 rdzenio-h)** — to jest wycena, poza budżetem
+   „zero rdzenio-godzin" tego kontraktu i dlatego niewykonana. Arytmetyka
+   (NIE pomiar) mówi też, ile by ważyły: `margins.npz` to 49 765 × 14 × 169
+   wartości float32 = 471 MB przed kompresją, a w pliku `.bpk` — 1 bajt na
+   infoset żywej decyzji, czyli ~47 MB przed kompresją bloków. Kontrakt,
+   który tych marginesów zażąda dla produkcji, dostanie razem z nimi
+   rachunek za oba te rzędy wielkości.
+
+8. **Koszt kwantyzacji uint16 W ε — kryterium blokujące (BQ).** Mierzy go
+   `expost`, tym samym narzędziem i na tej samej definicji ε co POKER-46/50
+   i POKER-51: bieg przepuszczony przez format (`requantize` pakuje i
+   odczytuje strategie **czytnikiem stdlib**) obok kopii surowej, oba
+   przebiegi na tej samej maszynie i tym samym kodzie. Próg — przyrost ε maks
+   ≤ **10%** wartości surowej — żyje jako `QUANT_EPS_LIMIT_SHARE`
+   w konwerterze.
+
+   **Artefakt kontrolny z repo (w bramce):** niezmieniony, bo bramka mierzy
+   koszt uint8 (blok POKER-51 pkt 6) — v2 nie rusza domyślnej ścieżki v1.
+
+   **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas) — KRYTERIUM
+   BLOKUJĄCE SPEŁNIONE.** Sekwencja BQ w świeżych katalogach; dwa przebiegi
+   ex-post po 14 min 46 s i 14 min 27 s ściennych przy 3 procesach.
+
+   | wielkość | surowe | po round-tripie uint16 | zmiana |
+   |---|---:|---:|---:|
+   | ex-post ε maks | 4,6641e−4 | **4,6648e−4** | **+0,015%** |
+   | ex-post ε mediana | 1,0771e−4 | 1,0785e−4 | +0,13% |
+
+   Przyrost ε maks wynosi **+6,986e−8 sumy wypłat**, czyli **+0,015%**
+   wartości surowej wobec dopuszczalnego **+10%** — 667× poniżej progu.
+   Bieg surowy odtworzył raport POKER-49 **co do wszystkich cyfr**
+   (4,664108132224065e−4 / 1,0770827861122934e−4), te same, które odtworzył
+   pomiar POKER-51 — porównanie stoi na sprawdzonym przewodzie, nie na dwóch
+   różnych pomiarach.
+
+   **Czego ta liczba dowodzi wobec −17,7% z POKER-51.** uint8 obniżał ε
+   o 17,7%, bo obcinał ogony mieszania, które najlepsza odpowiedź
+   eksploatowała — i blok POKER-51 pkt 6 mówi wprost, że to NIE była poprawa
+   blueprintu, tylko ślepota metryki (ex-post trzyma V biegu surowego).
+   uint16 pokazuje ten sam mechanizm od drugiej strony: profil zostaje
+   praktycznie nietknięty (błąd prawdopodobieństwa 171× mniejszy), więc ε
+   zostaje praktycznie nietknięte. To jest wynik oczekiwany i to jest powód,
+   dla którego v2 ma uint16 domyślnie: przestajemy płacić za zmianę profilu,
+   której nikt nie zamawiał.
+
+9. **v1 nie zauważył, że powstało v2.** Repack biegu produkcyjnego do v1 daje
+   **bajt w bajt ten sam plik** kodem sprzed tego kontraktu i po nim:
+   19 016 824 B, sha256 `4e33d35f…` w obu przypadkach (komenda BA
+   z bloku POKER-51). Ten plik różni się od `PROD/blueprint.bpk` z 4 września
+   o 72 bajty — to `fingerprint` dopisany do metadanych przez **POKER-56**
+   (blok zlib 3 983 → 4 049 B) i wynikające z niego przesunięcie offsetów
+   sekcji; klucze, V i ładunki bloków wszystkich 52 688 stanów są w obu
+   plikach identyczne (sprawdzone czytnikiem, 0 rozjazdów). Sekcje v2 nie
+   wchodzą do pliku v1 nawet wtedy, gdy bieg je ma, i nie dopisują nic do
+   bloku metadanych v1 — to jest osobna asercja w bramce, bo to ona chroni
+   sha artefaktu produkcyjnego.
+
+10. **Co trzyma bramka** (`tests/test_blueprint_v2.py`, 18 testów; testy
+    POKER-51 w `tests/test_blueprint_pilot.py` zostały NIETKNIĘTE i zielone).
+    Nagłówek v2 z liczbą slotów, flagami sekcji i odciskiem przebiegu;
+    determinizm zapisu v2 bajt w bajt; v1 bajt w bajt niezależnie od sekcji
+    biegu i z niezmienionym opisem formatu; round-trip rozkładów w granicach
+    kroku uint16 na komplecie 416 infosetów artefaktu kontrolnego (cztery
+    sloty, suma 1, czwarty zerowy); reguła dopełnienia na bloku z niezerową
+    resztą; V bajtowo dokładne (także warstwa brzegowa); ε co do wartości
+    zgodne z `expost.npz` i z `epsilon_max` raportu; marginesy dokładnie
+    w swojej skali, z własną węższą maską i z konstrukcyjnym testem
+    obojętności i dominacji; obie sekcje idą za STANEM, a nie za wierszem
+    (bieg przetasowany daje te same wartości pod tymi samymi kluczami);
+    sufit 16 węzłów zdjęty (artefakt 17-węzłowy: v1 odmawia, v2 czyta);
+    odrzucenie obcej magii, obcej wersji i v1 przestemplowanego na v2; brak
+    sekcji jako rozróżnialny `SectionMissing`, nie ciche zero; sufity bajtów
+    odczytu stanu, V, ε i marginesów oraz `bench --sweep` mierzący wszystkie
+    cztery; `requantize` do v2. Czytnik nadal jest czystym stdlib
+    (`struct`, `zlib`) — test architektury bez zmian w regułach.
+    Cena: bramka rośnie z 459 do **477 testów** i z ~4 min 30 s do
+    **5 min 53 s** (osiemnaście testów v2 stoi na własnym biegu solvera
+    z doliczonym ex-post i marginesami — ~12 s na komplet).
+
+11. **Czego ten kontrakt NIE zrobił.** Nie poszerzył drzewa (maska uint32
+    tylko ZDEJMUJE sufit formatu — kształt drzewa to rekord decyzyjny z P-14);
+    nie policzył marginesów dla biegu produkcyjnego (pkt 7); nie zmienił
+    domyślnej wersji zapisu — `pack` bez `--format-version` nadal pisze v1,
+    więc `PROD/blueprint.bpk`, na którym stoją pomiary POKER-52/55/56,
+    zostaje tym samym plikiem; nie dodał wartości kontrfaktycznych per infoset
+    (świadomie — decyzja 29 pkt 4, search w runtime wykluczony
+    architektonicznie); nie ruszył profili DBR ani trzech tablic V hero (P-13
+    — format jest na nie gotowy przez odcisk i rozszerzalność, nie przez
+    implementację); nie zmienił solverów ani modelu gry.
 
 **POKER-56 (higiena tierowa przed rodziną blueprintów) ZAMKNIĘTY** (audyt świeżym kontekstem 2026-09-05: fixture wyceny przeliczony niezależnie co do cyfry; dwa findingi blokujące — fałszywa neutralność kosztowa A/B wypłat i sprzeczne ceny P-3 — naprawione z pomiarem BM).
 Realizacja [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
