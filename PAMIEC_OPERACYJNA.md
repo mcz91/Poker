@@ -64,9 +64,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 - ε ex-post warstwy DAG-u to suma długów warstw za nią (stan startowy
   97,5%) — rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
   (POKER-47: tolerancja, nie sufit iteracji — wbrew diagnozie arch.).
-- Horyzont nie ma checkpointu per cykl — restart w trakcie kosztuje
-  wszystkie policzone cykle (POKER-50: 16,2 rdzenio-h); jednostką
-  wznowienia jest dopiero warstwa.
+- `pytest.raises(Błąd)` bez `match` nie odróżnia strażnika od potknięcia
+  piętro niżej: usunięcie kontroli slotów v2 z czytnika przeżywa całą
+  bramkę, bo plik i tak wywraca się na cudzym katalogu warstw (57, audyt).
 - `MODE_NAMES` jest formatem, nie nazwą: indeks trybu leży w `layer_*.npz`,
   `eps_curve` dekoduje nim stare artefakty — przestawienie przeżyje bramkę.
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
