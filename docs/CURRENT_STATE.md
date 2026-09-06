@@ -1296,9 +1296,11 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
     odczytu stanu, V, ε i marginesów oraz `bench --sweep` mierzący wszystkie
     cztery; `requantize` do v2. Czytnik nadal jest czystym stdlib
     (`struct`, `zlib`) — test architektury bez zmian w regułach.
-    Cena: bramka rośnie z 459 do **477 testów** i z ~4 min 30 s do
-    **5 min 53 s** (osiemnaście testów v2 stoi na własnym biegu solvera
-    z doliczonym ex-post i marginesami — ~12 s na komplet).
+    Cena: bramka rośnie z 459 do **477 testów** i z ~4 min 30 s do ~6 min
+    (dwa przebiegi na tym samym drzewie: 5 min 53 s i 6 min 03 s — czas
+    ścienny na współdzielonym kontenerze nie jest deterministyczny, liczba
+    testów jest). Osiemnaście testów v2 stoi na własnym biegu solvera
+    z doliczonym ex-post i marginesami — ~12 s na komplet.
 
 11. **Czego ten kontrakt NIE zrobił.** Nie poszerzył drzewa (maska uint32
     tylko ZDEJMUJE sufit formatu — kształt drzewa to rekord decyzyjny z P-14);
