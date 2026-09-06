@@ -1,0 +1,28 @@
+{
+  "id": "POKER-58",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Domknięcie warstw 1–5 przez osiągalność łańcucha DOKŁADNEGO (decyzja 29 P-3): arena chodzi po łańcuchu dokładnym, trening po kwantyzowanym — właściwe domknięcie to suma obu; in-grid fallback agenta spada z ~0,8% do ~0,14% za 2–10 rdzenio-h zamiast 37–60 za pełną siatkę.",
+  "context": "SZKIC — zatwierdzenie po POKER-57 (kolejność mapy P-1→P-2→P-3; merytorycznie zależy tylko od POKER-55). Decyzja 29 pkt 5 (P-3). Warstwy rąk 0–4 biegu produkcyjnego nie są pełną siatką (1/18/147/691/2143 z 2 923): trening dochodzi do nich własnym, już skwantyzowanym łańcuchem, arena łańcuchem dokładnym — po dwóch-trzech rękach bywa w stanie siatki, którego trening nie policzył (12 826 trafień fallbacku „stan spoza warstwy” w biegu BF POKER-52; rozkład per ręka 335/717/197/13 w rękach 1–4, zero od ręki 5 — POKER-54). Nie rozwiązujemy pełnej siatki: wyliczamy zbiór osiągalny łańcucha dokładnego dla rąk 1–5 w czystym Pythonie (sekundy), kwantyzujemy na końcu, bierzemy sumę ze zbiorem treningowym i rozwiązujemy TYLKO różnicę wobec zamrożonego V (warstwy za ręką 5 nietknięte — ich V jest gotowe). Liczba brakujących stanów jest znana PRZED autoryzacją solve'a — kontrakt raportuje ją i przewycenia przed startem biegu; bezpiecznik: jeśli wycena różnicy przekroczy 15 rdzenio-h, STOP i raport do architekta zamiast palenia budżetu.",
+  "acceptance": [
+    "Wyliczenie zbioru osiągalnego łańcucha dokładnego rąk 0–5 (od startu 50/50/50, wszystkie legalne przebiegi drzewa preflopowego, kwantyzacja krokiem siatki dopiero na liściu przejścia) — deterministyczne, pod testem na małym przypadku ręcznie policzalnym; różnica wobec zbioru treningowego raportowana per ręka PRZED solve'em, z przewycenioną prognozą kosztu z fixture'a per-mode (POKER-56).",
+    "Solve różnicy wobec zamrożonego V biegu produkcyjnego (bez ruszania istniejących warstw i brzegu; budżety domyślne bez zmian); wynik dołączony do artefaktu jako rozszerzenie warstw 1–5 z pełnym pochodzeniem w manifeście (fingerprint z POKER-56 rozszerzony o pole 'uzupełnienie osiągalności'); konwerter pakuje sumę do .bpk v2.",
+    "Ex-post ε stanów uzupełnionych zmierzone tym samym narzędziem: kryterium blokujące maks ≤ 1e-3, raport wobec 5e-4 jak w POKER-50; deterministyczna odtwarzalność uzupełnienia bajt w bajt pod testem na wycinku.",
+    "Licznik in-grid fallbacku agenta na artefakcie z uzupełnieniem: stan-spoza-warstwy = 0 dla rąk 1–5 na biegu BF (blokująco, z niepustką na tej samej próbce — lekcja F3); pozostały fallback wyłącznie węzeł-spoza-maski i granice policzone w POKER-54 — raport sumarycznego udziału fallbacków (oczekiwanie decyzji 29: ~0,14%).",
+    "Pomiar BF/BH powtórzony na artefakcie z uzupełnieniem (te same seedy): tabela przed/po, wpływ reguły awaryjnej po domknięciu — dane do werdyktu przypisywalności przewagi (uzupełnienie danych z POKER-55).",
+    "Pełna bramka zielona; src/poker nietknięte poza ewentualną obsługą czytnika dla rozszerzonego manifestu (jeśli format v2 już to niesie — zero zmian)."
+  ],
+  "non_goals": [
+    "Pełna siatka warstw 1–5 (37–60 rdzenio-h — opcja odrzucona w decyzji 29, chyba że wyliczenie różnicy pokaże inaczej i architekt zdecyduje).",
+    "Krok siatki 1 (wyzwalacz z sondy P-6a).",
+    "Zmiany solverów, drzewa, rozgrywacza."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-58.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"]
+}

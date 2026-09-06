@@ -1,0 +1,20 @@
+{
+  "id": "POKER-53",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "AIVAT w przestrzeni NAGRÓD (decyzja 29 P-5, decyzja 26 pkt 2): estymator wartości z funkcją wartości = własne V artefaktu per (stan, miejsce) stosowane na granicach rozdań, z dwiema asertowalnymi bramkami nieobciążoności — mnożnik mocy pomiarowej dla wszystkich dalszych A/B areny (tiery, P_max, DBR).",
+  "context": "SZKIC v2 — przeskalowany po decyzji 29 (zastępuje szkic z 2026-08-30). Dowód nieobciążoności AIVAT jest per-decyzja i nie wymaga dwóch graczy ani sumy zerowej — sformułowany dla ogólnej gry w formie ekstensywnej z dowolną heurystyczną funkcją wartości stanu (zweryfikowane źródło pierwotne w researchu decyzji 29). Mamy: V artefaktu per stan/miejsce (float64 w .bpk), jawną politykę hero (rozkłady artefaktu + deterministyczna reguła awaryjna = część polityki, bez obsługi specjalnej), arenę z rotacjami i blokami (POKER-48). ZAKAZ JENSENA (decyzja 26): E[ICM(stack)] ≠ ICM(E[stack]) — żadna redukcja wariancji w przestrzeni żetonów przed wklęsłym mapowaniem; poprawki losowe przy rozdaniu i poprawki akcji w decyzjach hero liczone W PRZESTRZENI NAGRÓD z V artefaktu na granicach rozdań. Funkcja wartości ZAMROŻONA i zhashowana przed danymi (fingerprint artefaktu); V z profili DBR NIE zasila AIVAT (decyzja 29 pkt 3B). Raportujemy WYŁĄCZNIE redukcję wariancji zmierzoną na naszym estymatorze blokowym — nigdy cudzych liczb (85%, 54×, 74× to 2p0s chip-EV HUNL). Punkt odniesienia: estymator rotacyjny POKER-48 zdejmuje już 37,7–58,5% SD.",
+  "acceptance": [
+    "Estymator AIVAT dla areny Spin: poprawki losowe (rozdanie kart) i poprawki akcji hero w przestrzeni nagród z V artefaktu na granicach rozdań; funkcja wartości zamrożona i zhashowana (fingerprint) PRZED jakimkolwiek pomiarem; strukturalny assert zakazu Jensena (żadna ścieżka nie uśrednia żetonów przed mapowaniem przez ICM/nagrody) — pod testem.",
+    "BRAMKA NIEOBCIĄŻONOŚCI 1 (analityczna): trzy identyczne blueprinty przy wypłacie 10x mają ROI dokładnie +233,33% — asercja, że estymata AIVAT pokrywa tę wartość w CI przy N z tabeli mocy, oraz że estymata surowa robi to samo (kontrola).",
+    "BRAMKA NIEOBCIĄŻONOŚCI 2: |średnia AIVAT − średnia surowa| < k·SE przy dużym N na parach z bloku POKER-55 (k prerejestrowane w kontrakcie: 3) — pod testem na artefakcie bramki i w pomiarze produkcyjnym.",
+    "Redukcja wariancji ZMIERZONA na estymatorze blokowym (jednostka = blok rotacji, nigdy ręka/turniej): SD surowe vs SD AIVAT na tych samych seedach dla trzech par z POKER-55; kryterium blokujące z decyzji 26 (≥ 56% redukcji SD wobec surowego estymatora blokowego = próg 10 pp przy N=320) — raport wprost, czy osiągnięte, bez luzowania; stretch 78% raportowany.",
+    "Opcjonalne zatrzymywanie ramion areny: anytime-valid confidence sequences (jawnie nazwane, z asercją pokrycia na symulacji) albo jawny non-goal z uzasadnieniem.",
+    "Komendy pomiaru w dokumencie działają jak napisane; liczby z asercjami na artefakcie bramki; V z artefaktu DBR odrzucane strukturalnie (fingerprint profilu 'blueprint' wymagany).",
+    "Pełna bramka zielona; zmiany w src/poker ograniczone do nowego modułu aivat.py i minimalnego portu w spin_arena (zbieranie granic rozdań)."
+  ],
+  "non_goals": ["Zmiany strategii agenta, artefaktu, solverów.", "Pomiary tierowe (P-7/P-8 — używają tego estymatora, ale są osobnymi kontraktami).", "Cudze liczby redukcji wariancji jako nasze."],
+  "operator_inputs": {},
+  "allowed_paths": ["src/poker/aivat.py", "src/poker/spin_arena.py", "tests/", "tools/run_arena.py", "docs/CURRENT_STATE.md", "docs/taskspecs/POKER-53.json"],
+  "verification": ["ruff check .", "mypy", "pytest"]
+}

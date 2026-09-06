@@ -1,0 +1,20 @@
+{
+  "id": "POKER-59",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Checkpoint horyzontu per cykl (decyzja 29 P-4): wznowienie w środku horyzontu bajt w bajt identyczne z przebiegiem nieprzerwanym — zamyka znany limit, którego jedyny restart kosztował 16,2 rdzenio-h; wymagane przed każdym przebiegiem dłuższym niż sesja Colab (P-7 WTA@25bb, P-13 DBR).",
+  "context": "SZKIC — zatwierdzenie po POKER-58. PUŁAPKA z PAMIEC: „Horyzont nie ma checkpointu per cykl — restart w trakcie kosztuje wszystkie policzone cykle (POKER-50: 16,2 rdzenio-h); jednostką wznowienia jest dopiero warstwa.” Warstwy mają atomowy zapis (.tmp + os.replace) i manifest postępu; horyzont iteruje cykle 3 rąk od inicjalizacji ICM do tolerancji ogona (produkcja: 6 cykli, ~25 rdzenio-h) i zapisuje wyłącznie końcowe boundary.npz. Naprawa: zapis częściowej granicy po każdym cyklu tym samym mechanizmem co warstwy, z manifestem cyklu (numer, delta, hash konfiguracji) i wznowieniem od ostatniego kompletnego cyklu. Test: przerwanie po k cyklach i wznowienie daje boundary.npz bajt w bajt identyczne z biegiem nieprzerwanym, niezależnie od --jobs — na wycinku (mała siatka), bo pełny horyzont to 25 rdzenio-h.",
+  "acceptance": [
+    "Zapis częściowej granicy po każdym cyklu ogona atomowo (.tmp + os.replace) z manifestem cyklu (numer cyklu, delta, hash konfiguracji, znacznik kompletności) — bez znaczników czasu w bajtach artefaktu.",
+    "Wznowienie horyzontu od ostatniego kompletnego cyklu: przerwanie po k cyklach (k = 1, 2, cykl ostatni) i wznowienie daje boundary.npz bajt w bajt identyczne z biegiem nieprzerwanym — pod testem na wycinku (mała siatka, tolerancja produkcyjna), dla dwóch wartości --jobs.",
+    "Niezgodność hasha konfiguracji między checkpointem a bieżącą konfiguracją = odmowa wznowienia z czytelnym błędem (nie ciche kontynuowanie na obcym stanie) — pod testem.",
+    "Bezpiecznik kosztu i raport postępu obejmują cykle horyzontu (czas i delta per cykl) jak warstwy; ekstrapolacja kosztu całości uwzględnia zmierzone cykle.",
+    "Bieg kontrolny łańcucha (tools/blueprint/control) bajt w bajt bez zmian — hash konfiguracji kontrolnej niezmieniony (checkpoint nie wchodzi do hasha).",
+    "Dokument: PUŁAPKA z PAMIEC przenosi się do repo jako zdanie w bloku + test — architekt usuwa wpis z PAMIEC przy zamknięciu.",
+    "Pełna bramka zielona; src/poker nietknięte."
+  ],
+  "non_goals": ["Zmiany solverów, tolerancji, modelu gry.", "Przebiegi produkcyjne (P-7/P-8 osobno)."],
+  "operator_inputs": {},
+  "allowed_paths": ["tools/blueprint/", "tests/", "docs/CURRENT_STATE.md", "docs/taskspecs/POKER-59.json"],
+  "verification": ["ruff check .", "mypy", "pytest"]
+}

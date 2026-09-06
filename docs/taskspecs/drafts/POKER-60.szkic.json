@@ -1,0 +1,18 @@
+{
+  "id": "POKER-60",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Trzy sondy błędu modelu (decyzja 29 P-6): (a) błąd odwzorowania kroku siatki, (b) uczciwy koszt kwantyzacji z własnym V profilu kwantyzowanego, (c) wrażliwość na ziarno tensora — trzy liczby, wobec których metryka ε jest ślepa, a które są 5–9× większe od bronionego ε; one, nie argument literaturowy, decydują o kroku 1 i o liczbie prób tensora (bramka STOP decyzji 29).",
+  "context": "SZKIC — zatwierdzenie po POKER-53. Decyzja 29 pkt 2b i 5 (P-6) oraz bramka STOP P-15: (1) P-6(a) nad tolerancją → krok 1 uzasadniony (na T-MODAL mnożnik ~1,43×, na 150 żetonach ~252 rdzenio-h wg fixture'a POKER-56); (2) P-6(c) ≥ 1e−4 puli → próby tensora 60 000 (+33,6 rdzenio-h) PRZED każdym wydatkiem na tolerancję. Sonda (b) naprawia znaną ślepotę pomiaru POKER-51: −17,7% liczone z SUROWYM V biegu mówi „o ile BR bije wartość deklarowaną”, nie „czy kwantyzacja pogorszyła artefakt” — potrzebna policy-evaluation profilu kwantyzowanego po DAG-u (czysta propagacja EV bez re-solve'u etapów), potem ex-post BR wobec spójnej pary (σ_q, V_q). Wszystkie trzy liczby prerejestrowane co do reguły czytania PRZED pomiarem (wzorzec 47/50).",
+  "acceptance": [
+    "(a) Sonda poza-siatkowa: ~300 stanów poza siatką kroku 2 (dwie nieparzyste składowe, ręce 3–20, próbka losowa z jawnym ziarnem + 20 najgorszych ε), każdy rozwiązany wobec zamrożonego produkcyjnego V; mierzone ε importu strategii najbliższego stanu siatki wobec własnego rozwiązania — rozkład (maks, mediana, per tryb) w dokumencie z komendą; REGUŁA CZYTANIA prerejestrowana w kontrakcie: maks importu > tolerancja etapowa 5e−5·k (k = 10, czyli 5e−4 — poziom odniesienia POKER-50) = wyzwalacz kroku 1; inaczej krok 1 pozostaje odrzucony.",
+    "(b) Uczciwy koszt kwantyzacji: policy-evaluation profilu kwantyzowanego uint8 I uint16 po DAG-u (własne V_q), potem ex-post BR wobec (σ_q, V_q) na pilocie grid5d i na wycinku produkcji; raport obok liczby POKER-51 (−17,7% z surowym V) z jawnym zdaniem, którą liczbę wolno czytać jako „pogorszenie artefaktu”; kryterium blokujące kontraktu POKER-51 (+10%) przeliczone na uczciwej parze.",
+    "(c) Wrażliwość na ziarno tensora: drugi tensor trójek 15 000 prób z innym ziarnem (~11 rdzenio-h); ewaluacja krzyżowa profilu produkcyjnego (V i ε liczone na tensorze B dla σ z A); raport σ = |A−B|/√2 w jednostkach V i ε, stratyfikowany po trybie i wąskości zakresów, MAKSIMUM nie średnia; REGUŁA CZYTANIA prerejestrowana: maks ≥ 1e−4 puli = wyzwalacz podniesienia prób do 60 000 przed każdym wydatkiem na tolerancję.",
+    "Wszystkie trzy liczby wchodzą do dokumentu z komendami działającymi jak napisane (świeże katalogi) i do bramki STOP w indeksie „Następny krok” jako rozstrzygnięte wyzwalacze (TAK/NIE z liczbą); bezpiecznik kosztu kontraktu 30 rdzenio-h (szacunek ~24) — przekroczenie = STOP i raport.",
+    "Pełna bramka zielona; src/poker nietknięte; artefakty sond poza repo, w repo wyłącznie testy na artefakcie kontrolnym dla narzędzi sond (policy-evaluation po DAG-u pod testem tożsamości: dla σ surowego V_eval == V biegu bajtowo/1e−9)."
+  ],
+  "non_goals": ["Wykonanie kroku 1 lub podniesienie prób (wyzwalacze → osobne kontrakty).", "Zmiany solverów, drzewa, formatu."],
+  "operator_inputs": {},
+  "allowed_paths": ["tools/blueprint/", "tests/", "docs/CURRENT_STATE.md", "docs/taskspecs/POKER-60.json"],
+  "verification": ["ruff check .", "mypy", "pytest"]
+}
