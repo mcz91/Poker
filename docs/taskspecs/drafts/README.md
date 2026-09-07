@@ -15,5 +15,6 @@ potem próg), dopisuje `approved` i przenosi plik poziom wyżej, do
 | `POKER-59.szkic.json` | P-4: checkpoint horyzontu per cykl | ~1 |
 | `POKER-53.szkic.json` | P-5: AIVAT w przestrzeni nagród (wersja przeskalowana decyzją 29) | ~5 |
 | `POKER-60.szkic.json` | P-6: trzy sondy błędu modelu (bramka STOP) | ~24 |
+| `POKER-69.szkic.json` | runner Colab rdzenia GTO (decyzja 31) — przed P-7 | 0 |
 
 Wzorzec zatwierdzonego kontraktu: `docs/taskspecs/POKER-57.json`.

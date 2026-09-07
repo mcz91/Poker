@@ -1,0 +1,30 @@
+{
+  "id": "POKER-69",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Runner Colab dla rdzenia GTO (decyzja 31): jedna komenda / jeden notes wznawia bieg solvera z Drive po zabiciu sesji i zostawia .bpk + tożsamość — bez tego każdy przebieg P-7/P-8 pali ścianę na setup zamiast na indukcję.",
+  "context": "SZKIC — zatwierdzenie po scaleniu POKER-59 (checkpoint horyzontu). Colab jest runnerem CPU z decyzji 25/29: GPU nie liczy artefaktu; budżet w rdzenio-h; sesja pada ~12 h ściany. Warstwy i cykle ogona już się wznawiają. Brakuje opakowania: notes, układ katalogu na Drive, bezpiecznik ściany sesji (10 h, 2 h zapasu), weryfikacja tożsamości na starcie, komendy packera. Test na wycinku kontrolnym (łańcuch control/), nie na 76 rdzenio-h produkcji. src/poker nietknięte.",
+  "acceptance": [
+    "Notes tools/blueprint/colab/train_gto.ipynb (albo równoważny skrypt tools/blueprint/colab_run.py wołany z notesu) ma trzy kroki pod testem dokumentowym: (1) install + mount out/, (2) solve --out z resume jako domyślnym, (3) pack v2 + verify_identity.",
+    "Bezpiecznik ściany sesji: parametr --session-hours (domyślnie 10) przerywa bieg statusem partial ZAPISUJĄC ostatni kompletny cykl/warstwę; wznowienie tej samej komendy dokańcza i daje pliki bajt w bajt z biegiem nieprzerwanym — pod testem na wycinku, jobs=1.",
+    "GPU nie jest używane: notes nie importuje cupy/cuda; dokument mówi wprost, że artefakt jest CPU.",
+    "Na starcie wznowienia: verify_identity --dir OUT albo jawny --allow-fresh gdy katalog pusty; obcy config_hash = stop z czytelnym błędem (istniejący strażnik solve_grid).",
+    "Łańcuch kontrolny: ten sam notes/skrypt na tools/blueprint/control/tensor daje config_hash z chain_control.json.",
+    "CURRENT_STATE: komenda Colab wpisana dosłownie w Następny krok; decyzja 31 wymieniona.",
+    "Pełna bramka zielona; src/poker nietknięte."
+  ],
+  "non_goals": [
+    "Przebiegi produkcyjne P-7/P-8.",
+    "AIVAT, sondy, DBR, I/O RTA.",
+    "Zmiany solverów i tolerancji.",
+    "Publikacja artefaktu."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-69.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"]
+}
