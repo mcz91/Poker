@@ -68,7 +68,7 @@ def icm_value_fn(prizes: tuple[float, float, float]) -> FrozenValue:
     return FrozenValue(
         run_fingerprint(
             prizes=prizes,
-            total_chips=1,
+            total_chips=150,
             levels=((0, 0),),
             hands_per_level=1,
             grid_step=1,
@@ -133,7 +133,10 @@ def sd_reduction(raw: Sequence[float], adjusted: Sequence[float]) -> float:
     """1 − sd(AIVAT)/sd(surowe); jednostka = blok, nie ręka."""
     if len(raw) != len(adjusted) or len(raw) < 2:
         raise AivatError("redukcja SD wymaga pary serii tej samej długości ≥ 2")
-    return 1.0 - _sd(adjusted) / _sd(raw)
+    raw_sd = _sd(raw)
+    if raw_sd == 0.0:
+        return 0.0 if _sd(adjusted) == 0.0 else float("-inf")
+    return 1.0 - _sd(adjusted) / raw_sd
 
 
 def gate2_holds(raw: Sequence[float], adjusted: Sequence[float], k: float = GATE2_K) -> bool:

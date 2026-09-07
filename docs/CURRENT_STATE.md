@@ -3242,9 +3242,13 @@ Następne kroki:
    ```
    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
      python tools/blueprint/colab_run.py solve \
-       --tensor TENSOR --out OUT --session-hours 10 --jobs 4 --allow-fresh
-   python tools/blueprint/colab_run.py pack --run OUT --bpk OUT/blueprint_v2.bpk
+       --profile smoke --tensor TENSOR --out OUT --session-hours 0.25 --allow-fresh
+   python tools/blueprint/colab_run.py status --out OUT
    ```
+
+   Produkcja WTA: `--profile wta25 --session-hours 9` i tensor z Drive.
+   Profile: `smoke` / `tdeep` (krok 2, 80/20) / `wta25` (krok 2, 1,0,0).
+   Nie wołaj solvera bez profilu — milczący krok siatki to 5.
 
    Po restarcie sesji ta sama komenda `solve` bez `--allow-fresh`.
    Notes: `tools/blueprint/colab/train_gto.ipynb`. GPU nie liczy artefaktu.

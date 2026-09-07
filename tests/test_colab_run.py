@@ -57,7 +57,7 @@ def test_cpu_only_odrzuca_zaladowany_modul_gpu() -> None:
 def test_swiezy_katalog_wymaga_flagi(tmp_path: Path) -> None:
     runner = _load("colab_run")
     with pytest.raises(SystemExit, match="allow-fresh"):
-        runner.run_solve(CONTROL / "tensor", tmp_path / "out", control=True)
+        runner.run_solve(CONTROL / "tensor", tmp_path / "out", profile="smoke")
 
 
 def test_hash_lancucha_kontrolnego_z_runnera() -> None:
@@ -69,6 +69,12 @@ def test_hash_lancucha_kontrolnego_z_runnera() -> None:
     )
     config = _load("control_chain").control_config()
     assert sg.config_hash(config, tensor_manifest) == expected["control"]["config_hash"]
+    tdeep = runner.config_for_profile("tdeep", jobs=1)
+    wta = runner.config_for_profile("wta25", jobs=1)
+    assert tdeep.grid_step == runner.PROD_GRID_STEP == 2
+    assert wta.grid_step == 2
+    assert tdeep.prizes == (0.8, 0.2, 0.0)
+    assert wta.prizes == (1.0, 0.0, 0.0)
     assert runner.FORBIDDEN_GPU == ("cupy", "cudf", "pycuda")
 
 

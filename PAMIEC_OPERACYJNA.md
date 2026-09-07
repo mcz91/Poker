@@ -16,15 +16,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## STAN — praca w locie
 
-- 2026-08-08 arch: F2 POKER-1 — odstępstwo decyzją operatora;
-  regeneracja equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-28 arch: gałąź integracyjna =
-  `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
-  przed scaleniem; raporty researchu w scratchpadzie sesji architekta
-  (decyzje 25/29 streszczają; synteza: `…/scratchpad/research/synteza.md`).
-- 2026-09-07 arch: POKER-58 plaster 1 zatwierdzony (instrument P-3:
-  exact_reach + verify_identity). Solve luki = drugi plaster, BRAK PROD.
-  Gałąź robocza: `grok/poker-58-instrument`.
+- 2026-08-28 arch: integracja `claude/poker-project-architecture-jw6ukd`.
+- 2026-09-07 arch: gałąź Colab `grok/poker-53-aivat`; dym `--profile smoke`.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -72,8 +65,10 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
-- Zero na artefakcie bramki ≠ zero na siatce produkcyjnej: krok siatki
-  bywa przyczyną pudła (POKER-55 pkt 6 — 0 przy kroku 50, 94 przy 2).
+- `!` w Colabie widzi shell, nie zmienne Pythona — `$TENSOR` z komórki
+  jest puste; ładuj ścieżki do `os.environ` (POKER-69).
+- Domyślny `GridConfig.grid_step` to 5, produkcja 2 — bieg bez
+  `--profile` to inna siatka (POKER-69).
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
