@@ -11,7 +11,7 @@ potem próg), dopisuje `approved` i przenosi plik poziom wyżej, do
 
 | plik | rola w mapie | koszt [rdzenio-h] |
 |---|---|---:|
-| `POKER-58.szkic.json` | P-3: domknięcie warstw 1–5 przez osiągalność łańcucha dokładnego | 2–10 |
+| ~~`POKER-58.szkic.json`~~ | P-3 plaster 1 zatwierdzony jako [`../POKER-58.json`](../POKER-58.json); pełny solve luki = drugi plaster | instrument: 0; solve: 2–10 |
 | `POKER-59.szkic.json` | P-4: checkpoint horyzontu per cykl | ~1 |
 | `POKER-53.szkic.json` | P-5: AIVAT w przestrzeni nagród (wersja przeskalowana decyzją 29) | ~5 |
 | `POKER-60.szkic.json` | P-6: trzy sondy błędu modelu (bramka STOP) | ~24 |

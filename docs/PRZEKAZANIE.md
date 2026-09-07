@@ -148,9 +148,9 @@ pomiarem kilka razy okazało się mierzyć nie to, co miało chronić
 
 ### W locie
 
-**Brak.** POKER-57 (`.bpk` v2) został zamknięty 2026-09-07 — patrz tabela
-wyżej. Następny kontrakt do wzięcia: **POKER-58** (szkic w
-[`docs/taskspecs/drafts/`](taskspecs/drafts/)).
+**POKER-58 plaster 1** (instrument P-3): weryfikator tożsamości i łańcuch
+dokładny są w repo. Drugi plaster (solve luki, ε, BF/BH) czeka na katalog
+`PROD`. Następny kontrakt niezależny od `PROD`: **POKER-59**.
 
 ### Kolejka — mapa decyzji 29, szkice w repo
 
@@ -400,19 +400,17 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 
 ## 11. Od czego zacząć
 
-1. **Domknij POKER-57**: audyt świeżym kontekstem commita `aefc3c8` →
-   zamknięcie w indeksie → scalenie do main. Praca jest dostarczona
-   i bramka zielona; brakuje wyłącznie audytu.
-2. **Zrób POKER-59** (checkpoint horyzontu, ~1 rdzenio-h) — zanim
+1. **POKER-59** (checkpoint horyzontu, ~1 rdzenio-h) — zanim
    odpalisz jakikolwiek długi przebieg. To jedyna pozycja, która chroni
    przed powtórzeniem straty 16,2 rdzenio-h.
-3. **Jeśli regenerujesz artefakt** — zweryfikuj tożsamość wobec
+2. **Drugi plaster POKER-58** (solve luki warstw 1–5) — tylko gdy masz
+   katalog `PROD`. Najpierw: `python tools/blueprint/verify_identity.py --dir PROD`.
+3. **Jeśli regenerujesz artefakt** — tożsamość wobec
    `prod_identity.json` przed użyciem jakiejkolwiek liczby z sekcji 6.
-4. Dalej mapa decyzji 29: P-3 (POKER-58, niesie też narzędzie
-   weryfikacji tożsamości) → P-5 → P-6 (sondy rozstrzygają bramkę STOP)
-   → **P-7** (pierwszy jednozmienny A/B wypłat wraz z prerejestrowanym
-   kill-checkiem całej tezy tierowej — odblokowany decyzją 30, nie czeka
-   na operatora).
+   Wpis `blueprint.bpk` to plik z 4 września (19 016 752 B); packer po
+   POKER-56 pisze 19 016 824 B — rozjazd hasha jest oczekiwany i nie
+   znaczy, że strategia się zmieniła (payload identyczny, blok POKER-57 pkt 9).
+4. Dalej mapa decyzji 29: P-5 → P-6 → **P-7** (odblokowany decyzją 30).
 
 Jedna uwaga na koniec, wynikająca z historii tej linii: **każdy audyt
 świeżym kontekstem w tym projekcie znalazł coś istotnego** — w tym dwa
