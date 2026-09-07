@@ -118,7 +118,11 @@
     (sha256 32 plików), który pozwala regenerującej drużynie zachować
     pomiary zamiast je powtarzać; P-7 (WTA@25bb) odblokowane bez
     potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
-    zablokowane.
+    zablokowane;
+31. [`31-gto-core-pod-rta.md`](decisions/31-gto-core-pod-rta.md)
+    — docelowo RTA, teraz wyłącznie rdzeń GTO: runtime to lookup `.bpk`,
+    nie search w ręce; explo (DBR) nakłada się później; trening = Colab
+    CPU z resume (szkic POKER-69) przed P-7/P-8.
 
 ## TaskSpeki
 
