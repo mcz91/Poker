@@ -3241,9 +3241,15 @@ Następne kroki:
    wymagany przed każdym przebiegiem dłuższym niż sesja Colab) →
    POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
    sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
-   potwierdzeniu tabeli tierów przez operatora); bramka decyzji 29
-   „pomiar przed tierami" — wykonana w POKER-55. Przekazanie pracy nowej
-   drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
+   potwierdzeniu tabeli tierów przez operatora — z wyjątkiem P-7,
+   odblokowanego [decyzją 30](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md),
+   bo nie bierze z tabeli nic); bramka decyzji 29
+   „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu
+   rozstrzygnięta decyzją 30: repozytorium jest publiczne, więc artefakt
+   nie wchodzi do dystrybucji przez repo, a w repo żyje manifest
+   tożsamości `tools/blueprint/control/prod_identity.json` (sha256
+   32 plików), pod który POKER-58 dokłada narzędzie weryfikacji.
+   Przekazanie pracy nowej drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
    — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to

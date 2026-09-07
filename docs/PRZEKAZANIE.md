@@ -1,6 +1,6 @@
 # Przekazanie pracy — produkt Poker (linia blueprintu GTO)
 
-Stan na 2026-09-06. Autor: architekt produktu (sesja kończąca się tym
+Stan na 2026-09-07. Autor: architekt produktu (sesja kończąca się tym
 dokumentem). Adresat: **drużyna przejmująca**, bez kontekstu poprzednich
 sesji.
 
@@ -163,8 +163,8 @@ Szkice TaskSpeców leżą w [`docs/taskspecs/drafts/`](taskspecs/drafts/)
 | P-4 POKER-59 | checkpoint horyzontu per cykl | ~1 | wymagany przed przebiegami > 12 h |
 | P-5 POKER-53 | AIVAT w przestrzeni nagród | ~5 | 55+58 dla sensownych liczb |
 | P-6 POKER-60 | trzy sondy błędu modelu (siatka / kwantyzacja / ziarno tensora) | ~24 | — |
-| P-7 POKER-61 | artefakt WTA@25bb — jednozmienny A/B wypłat | ~64 | 54+55+58 **+ tabela tierów** |
-| P-8 POKER-62 | T-MODAL 90 żetonów WTA + krzywa zegara | ~18 (+18) | j.w. |
+| P-7 POKER-61 | artefakt WTA@25bb — jednozmienny A/B wypłat + kill-check | ~64 | 54+55+58+59 (tabela tierów NIE — decyzja 30) |
+| P-8 POKER-62 | T-MODAL 90 żetonów WTA + krzywa zegara | ~18 (+18) | j.w. **+ tabela tierów** |
 | P-9 POKER-63 | T-MID 120 WTA | ~36 | warunkowy |
 | P-10..13 | warstwa eksploatacyjna DBR (builder modelu → HU → krzywa P_max → pełny DAG) | ~62 (sam P-13: 53,5) | **korpus hand histories** |
 | P-14 POKER-68 | wyceniony spike gałęzi flat-call | ~5 | wymaga nowego rekordu decyzyjnego |
@@ -209,18 +209,34 @@ z pomiarami ex-post/ICM/dekompozycji i pakowaniem (AF–AH, BA/BN) ~20,5 h.
 jeden restart kontenera w środku horyzontu kosztował 16,2 rdzenio-h,
 bo jednostką wznowienia jest dopiero warstwa.
 
-**Po regeneracji liczby z sekcji 6 przestają obowiązywać** — albo
-powtórz pomiary (BF/BG/BH, AF), albo udowodnij bajtową identyczność
-artefaktu (PUŁAPKA POKER-24: regeneracja unieważnia pomiary przy
-artefakcie, a bramka tego nie łapie).
+**Po regeneracji liczby z sekcji 6 przestają obowiązywać, dopóki nie
+udowodnisz tożsamości artefaktu** — porównaj sha256 z
+`prod_identity.json` (zgodność = pomiary obowiązują) albo powtórz
+pomiary (BF/BG/BH, AF). To jest PUŁAPKA POKER-24: regeneracja unieważnia
+pomiary przy artefakcie, a bramka tego nie łapie.
 
 Dwustopniowy dowód odtwarzalności (decyzja 06): mały łańcuch kontrolny
 chodzi w bramce przy każdym `pytest`, pełna regeneracja komendami
 z dokumentu poza bramką.
 
-**Decyzja o dystrybucji artefaktu należy do operatora** i nie została
-podjęta (git-LFS? release? regeneracja u odbiorcy?). Jeśli przekazanie
-ma być kompletne, to jest pierwsza rzecz do rozstrzygnięcia z operatorem.
+**Dystrybucja artefaktu jest rozstrzygnięta**
+([decyzja 30](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md)):
+artefakt **nie wchodzi do żadnej formy dystrybucji przez repozytorium**,
+bo `mcz91/Poker` jest publiczne — release, LFS i gałąź z plikiem to
+nieodwracalna publikacja strategii, a przyszłe profile eksploatacyjne są
+na to wrażliwsze niż blueprint. W zamian w repo żyje **manifest
+tożsamości** `tools/blueprint/control/prod_identity.json`: sha256,
+rozmiar i pochodzenie **32 plików** artefaktu (119 566 611 B opisanych
+w kilku kilobajtach).
+
+Manifest rozwiązuje problem, którego sam plik by nie rozwiązał: po
+regeneracji porównujesz sha256 swoich plików z manifestem i przy
+zgodności **zachowujesz wszystkie pomiary** (ε, ROI areny, liczniki,
+koszty) zamiast powtarzać je za kolejne godziny — to jest wyjście
+z PUŁAPKI POKER-24. Narzędzie porównujące katalog z manifestem jest
+wymogiem kontraktu POKER-58 (szkic). Przekazanie samego pliku kanałem
+prywatnym pozostaje możliwe i nie wymaga zmiany decyzji 30 — zakazana
+jest publikacja, nie przekazanie.
 
 ### Jak to uruchomić
 
@@ -345,9 +361,9 @@ bajtowej zostawia zmutowany `.pyc`.
 
 | wejście | blokuje | stan |
 |---|---|---|
-| **potwierdzenie tabeli tierów** wobec żywego lobby (mnożnik → stack, zegar, wypłaty) | P-7 WTA@25bb **i** P-8 T-MODAL — cały pierwszy przebieg tierowy (decyzja 29 pkt 6.1) | tabela w `poker.spin` z `confirmed=False`; `tier_for_run` rzuca `UnconfirmedTierError` bez jawnego `allow_unconfirmed` |
+| **potwierdzenie tabeli tierów** wobec żywego lobby (mnożnik → stack, zegar, wypłaty) | **tylko P-8 T-MODAL** i dalsze przebiegi tierowe; P-7 odblokowane decyzją 30 pkt 3, bo nie bierze z tabeli nic (dzisiejsze 150 żetonów, zmieniony wyłącznie wektor wypłat) | tabela w `poker.spin` z `confirmed=False`; `tier_for_run` rzuca `UnconfirmedTierError` bez jawnego `allow_unconfirmed` |
 | **korpus realnych hand histories** | całą warstwę eksploatacyjną P-10..P-13 | brak; bez niego uczciwe zatrzymanie na P-11 (maszyneria zwalidowana w HU) |
-| **decyzja o dystrybucji artefaktu** | przekazanie artefaktu bez regeneracji | niepodjęta |
+| ~~decyzja o dystrybucji artefaktu~~ | — | **rozstrzygnięta** (decyzja 30): brak publikacji, manifest tożsamości w repo |
 | **realny hands-per-level** | krzywa zegara w P-8 (kontrakt emituje BRAK zamiast zgadywać) | w kodzie jest zegar produktu (3), jawnie oznaczony jako NIE research |
 
 Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
@@ -390,11 +406,13 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 2. **Zrób POKER-59** (checkpoint horyzontu, ~1 rdzenio-h) — zanim
    odpalisz jakikolwiek długi przebieg. To jedyna pozycja, która chroni
    przed powtórzeniem straty 16,2 rdzenio-h.
-3. **Rozstrzygnij z operatorem dystrybucję artefaktu** — inaczej
-   pierwsza rzecz, jaką zrobi nowa drużyna, to ~20 godzin regeneracji.
-4. Dalej mapa decyzji 29: P-3 → P-5 → P-6 (sondy rozstrzygają bramkę
-   STOP) → P-7 (pierwszy jednozmienny A/B wypłat, po potwierdzeniu
-   tabeli tierów przez operatora).
+3. **Jeśli regenerujesz artefakt** — zweryfikuj tożsamość wobec
+   `prod_identity.json` przed użyciem jakiejkolwiek liczby z sekcji 6.
+4. Dalej mapa decyzji 29: P-3 (POKER-58, niesie też narzędzie
+   weryfikacji tożsamości) → P-5 → P-6 (sondy rozstrzygają bramkę STOP)
+   → **P-7** (pierwszy jednozmienny A/B wypłat wraz z prerejestrowanym
+   kill-checkiem całej tezy tierowej — odblokowany decyzją 30, nie czeka
+   na operatora).
 
 Jedna uwaga na koniec, wynikająca z historii tej linii: **każdy audyt
 świeżym kontekstem w tym projekcie znalazł coś istotnego** — w tym dwa

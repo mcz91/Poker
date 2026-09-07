@@ -106,7 +106,16 @@
     DBR offline, HU-first, bramkowana ex-post ε; prawo kosztu Θ(L·C³·it)
     i szew `_settle()`; katalog obaleń (PED, maximin, regret transfer,
     RNR, search w runtime, GPU-artefakt…); mapa POKER-56..68 z bramką
-    STOP i wejściami operatorskimi (tabela tierów, korpus HH).
+    STOP i wejściami operatorskimi (tabela tierów, korpus HH);
+30. [`30-dystrybucja-artefaktu-i-odblokowanie-p7.md`](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md)
+    — repozytorium jest PUBLICZNE, więc artefakt nie wchodzi do żadnej
+    formy dystrybucji przez repo (release/LFS/gałąź to nieodwracalna
+    publikacja strategii, a profile eksploatacyjne są wrażliwsze niż
+    blueprint); w zamian manifest tożsamości `prod_identity.json`
+    (sha256 32 plików), który pozwala regenerującej drużynie zachować
+    pomiary zamiast je powtarzać; P-7 (WTA@25bb) odblokowane bez
+    potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
+    zablokowane.
 
 ## TaskSpeki
 

@@ -1,0 +1,157 @@
+{
+  "config_hash": "4aecf64eccccd6de39ecd017ebf80f89a834f01fddcf888b10f22220e0fe41d8",
+  "jak_uzyc": "Po regeneracji komendami AC-AH/BA/BN z CURRENT_STATE policz sha256 swoich plikow i porownaj. Zgodnosc = pomiary obowiazuja. Rozjazd = pomiary trzeba powtorzyc.",
+  "konfiguracja": {
+    "cfr_max_iters": null,
+    "cfr_tol": 5e-05,
+    "fp_max_iters": 384,
+    "fp_tol": 5e-05,
+    "grid_step": 2,
+    "hands_per_level": 3,
+    "prizes": [
+      0.8,
+      0.2,
+      0.0
+    ],
+    "seed": null,
+    "tail_cycles": null,
+    "tail_tol": 0.0005,
+    "total_chips": 150
+  },
+  "opis": "Tozsamosc artefaktu produkcyjnego POKER-50/51/57. Artefakt NIE jest dystrybuowany (decyzja 30). Ten plik pozwala udowodnic, ze wlasna regeneracja dala TEN SAM artefakt - a wiec ze pomiary przy nim (blok POKER-50/52/55/57) nadal obowiazuja (PULAPKA POKER-24).",
+  "pliki": {
+    "blueprint.bpk": {
+      "bytes": 19016752,
+      "sha256": "e8ac67c25c38021ffeb54b13d2eb17112218921105ca3d7aabb8e9b51b1a8e42"
+    },
+    "blueprint_v2.bpk": {
+      "bytes": 40490256,
+      "sha256": "4e328c6d6db726ed8a0b589d80e69c0b6c60b254be454f38fe8fe55f6c7c9d8d"
+    },
+    "grid2/boundary.npz": {
+      "bytes": 71704,
+      "sha256": "3ea5647c2f29d2ece4099a37ea8c34544cf7021a81760270b3b55f29266e9075"
+    },
+    "grid2/eps_decomposition.json": {
+      "bytes": 13754,
+      "sha256": "818af05b76203fc053e41e112fe200f15f2c3235895c929c847c1854d5842588"
+    },
+    "grid2/expost.npz": {
+      "bytes": 925287,
+      "sha256": "aa43159850ca6d5c4c661c14390ae62d2f100d5a65ede7d3115b40fc52963eb2"
+    },
+    "grid2/expost_report.json": {
+      "bytes": 4892,
+      "sha256": "5ffd7ae4b4cdd70770051eb6f3a46ee21be5dfb037c2599847ffbe42436cbd1c"
+    },
+    "grid2/icm_report.json": {
+      "bytes": 4478,
+      "sha256": "8a2b0fb7e9381b3e2c88b44483dae902e351f0da975b8992686fa8d77a8aefbb"
+    },
+    "grid2/layer_00.npz": {
+      "bytes": 6740,
+      "sha256": "1562ce5ced04091b9551cc5698af93c767e56078e371a32dea35bfea02dcce20"
+    },
+    "grid2/layer_01.npz": {
+      "bytes": 89422,
+      "sha256": "c5a1e25b243c35479bc6c018f382b59eade0ccdcc8fa207abf036b306d1a388e"
+    },
+    "grid2/layer_02.npz": {
+      "bytes": 460789,
+      "sha256": "1b583b899b4e39e9ea862b115b8758b6b13870208b8b5112dcbae081dfd674fa"
+    },
+    "grid2/layer_03.npz": {
+      "bytes": 1440539,
+      "sha256": "a202b5b883983619bdad3b8fbb451280ef5517e9b5640b3f7c3747bf5cb04ece"
+    },
+    "grid2/layer_04.npz": {
+      "bytes": 4192042,
+      "sha256": "d6fb9727eb6129e8842d926f29e6f3e2c4466c60c3e932228416f6e8542afb12"
+    },
+    "grid2/layer_05.npz": {
+      "bytes": 5334528,
+      "sha256": "12c2395ecd720cf56ad3d41ff292da95af0a9ff2ea5b051de049eb91c113e27f"
+    },
+    "grid2/layer_06.npz": {
+      "bytes": 2784615,
+      "sha256": "67d441d458994ad72ab94c6488e75de85b694e1ba237f9150fd198464e7006fa"
+    },
+    "grid2/layer_07.npz": {
+      "bytes": 2740249,
+      "sha256": "0a009286ed38a856bd557aef6c16dad77d647bd3be02b45a9267b44be70c9414"
+    },
+    "grid2/layer_08.npz": {
+      "bytes": 2682428,
+      "sha256": "7f1584480a956a5f3b7ad0346bfc463849b12883c95abec85039d8cd83c1da63"
+    },
+    "grid2/layer_09.npz": {
+      "bytes": 2036306,
+      "sha256": "76b68cdda3354710c29a6e2b9414503d73bceeaced08ae3b410e55091aae3c9a"
+    },
+    "grid2/layer_10.npz": {
+      "bytes": 2068275,
+      "sha256": "1ecff1b5981589fab01dd2556d778d01bedb7a53134bbf4081b8a6d41f5eba35"
+    },
+    "grid2/layer_11.npz": {
+      "bytes": 2054724,
+      "sha256": "6a984521c4ebea1c0b47d1aa44b24d935358b07cd086061cb05e7078a81da49c"
+    },
+    "grid2/layer_12.npz": {
+      "bytes": 1837066,
+      "sha256": "029a46c6c2445347cbb9de0783baf6064db5c35f39edd99a1fe0b25b01beed9c"
+    },
+    "grid2/layer_13.npz": {
+      "bytes": 1779382,
+      "sha256": "925190d04dbbfea2af974289455c38047c820179a89e9dee227f5130ed90e5c7"
+    },
+    "grid2/layer_14.npz": {
+      "bytes": 1749856,
+      "sha256": "4970502236e6480a2e774cf036cc9222a4360fbdb169e777310ed3ed78530add"
+    },
+    "grid2/layer_15.npz": {
+      "bytes": 1316805,
+      "sha256": "0dee044e5c10971c9c67575777f5610fbeb75506013fd8796356f36251f219b6"
+    },
+    "grid2/layer_16.npz": {
+      "bytes": 1324948,
+      "sha256": "9294ae69fd6a21c62bd0167825deac8b0d8f087c82a3190eb15cbcb2c915f753"
+    },
+    "grid2/layer_17.npz": {
+      "bytes": 1303123,
+      "sha256": "b34298f49d10595c1a6166b86f2d6643a52f7000eec147ac916e5a484d19bafc"
+    },
+    "grid2/layer_18.npz": {
+      "bytes": 1120036,
+      "sha256": "3ca37cc52ef84e40f332f22d67fab943723392615713998fcb65f548ce145b49"
+    },
+    "grid2/layer_19.npz": {
+      "bytes": 1115989,
+      "sha256": "947abfd90f5bb17bca2b99021cc627b616dbbe491dced90fd77f568f44651949"
+    },
+    "grid2/layer_20.npz": {
+      "bytes": 1110111,
+      "sha256": "a03fdde048b7601ab7a85f05d73ec122bbc35c121e942ddc7412e592a44602e0"
+    },
+    "grid2/solve_manifest.json": {
+      "bytes": 18076,
+      "sha256": "35f566874d0d760d9e4302208fa7594fa8e04e00b98e93fb3b32816d33d6dd5d"
+    },
+    "tensor/rollout3.npz": {
+      "bytes": 20346574,
+      "sha256": "c464b695b450263888da1153d120019b4c2b62a74c65a54ea62f7143c2e54882"
+    },
+    "tensor/rollout_hu.npz": {
+      "bytes": 124229,
+      "sha256": "82e6ab876a3686993a6e10cc3f2cc1c238fd41e9aa02d53f43fa9ac8b55cab64"
+    },
+    "tensor/rollout_manifest.json": {
+      "bytes": 2636,
+      "sha256": "b91deb5b80b63d3bc29d5b8be685d4ed4327978fab853863c1c67b235e252a6e"
+    }
+  },
+  "pochodzenie": {},
+  "tensor_sha256_z_manifestu": {
+    "rollout3.npz": "c464b695b450263888da1153d120019b4c2b62a74c65a54ea62f7143c2e54882",
+    "rollout_hu.npz": "82e6ab876a3686993a6e10cc3f2cc1c238fd41e9aa02d53f43fa9ac8b55cab64"
+  }
+}
