@@ -3248,7 +3248,9 @@ Następne kroki:
 
    Po restarcie sesji ta sama komenda `solve` bez `--allow-fresh`.
    Notes: `tools/blueprint/colab/train_gto.ipynb`. GPU nie liczy artefaktu.
-   Drugi plaster P-3 (solve luki) czeka na `PROD` → POKER-53 (AIVAT) → POKER-60
+   Drugi plaster P-3 (solve luki) czeka na `PROD` → **POKER-53 plaster 1
+   (AIVAT)** dostarczony (`poker.aivat`, bramki na zabawce, `on_hand_end`)
+   → drugi plaster P-53 (SD na parach 55, N=320) → POKER-60
    (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
    Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu

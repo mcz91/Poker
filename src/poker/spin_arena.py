@@ -110,6 +110,7 @@ Seat = SeatBook | SeatAgent
 # POKER-54). Widok jest stanem SPRZED akcji, więc obserwator odtwarza z niego
 # ten sam węzeł modelu, co agent w chwili decyzji.
 OnAction = Callable[[SeatView, str, bool], None]
+OnHandEnd = Callable[[int, tuple[int, int, int], tuple[int, int, int]], None]
 
 
 def speaking_order(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
@@ -240,6 +241,7 @@ def run_spin(
     *,
     on_deck: Callable[[int, tuple[Card, ...]], None] | None = None,
     on_action: OnAction | None = None,
+    on_hand_end: OnHandEnd | None = None,
 ) -> tuple[tuple[int, int, int], str]:
     """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk).
 
@@ -260,6 +262,7 @@ def run_spin(
         deck = shuffled_deck(random.Random(deck_seed))
         if on_deck is not None:
             on_deck(hand_i, deck)
+        before = (stacks[0], stacks[1], stacks[2])
         stacks = _play_hand(
             stacks,
             hand_i,
@@ -271,6 +274,8 @@ def run_spin(
             random.Random(act_seed),
             on_action=on_action,
         )
+        if on_hand_end is not None:
+            on_hand_end(hand_i, before, (stacks[0], stacks[1], stacks[2]))
         hand_i += 1
     reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
     return (stacks[0], stacks[1], stacks[2]), reason

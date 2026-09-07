@@ -1,0 +1,37 @@
+{
+  "id": "POKER-53",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Plaster 1 AIVAT (decyzja 29 P-5): estymator w przestrzeni nagród, zakaz Jensena, V zamrożone odciskiem, DBR odrzucone, dwie bramki nieobciążoności na grze o znanej wartości — przyrząd pod dalsze A/B.",
+  "context": "Zatwierdzony jako instrument. Pomiar redukcji SD na parach POKER-55 przy N=320 i kryterium 56% to drugi plaster: wymaga artefaktu V i budżetu areny. Anytime-valid sequences = non-goal tego plastra (AV-AIVAT wyklucza ICM; najpierw nieobciążoność).",
+  "acceptance": [
+    "Moduł poker.aivat: poprawki chance/action w przestrzeni nagród; FrozenValue z hashem fingerprinta przed danymi; profil DBR = wyjątek — pod testem.",
+    "Zakaz Jensena: refuse_chip_expectation na ułamkowym stacku — pod testem.",
+    "Bramka 1: IDENTICAL_TENX_ROI == 10/3 − 1 (dokładnie +233,(3)%).",
+    "Bramka 2: |średnia AIVAT − surowa| < 3·SE na zabawce z dokładnym V — pod testem.",
+    "Przy dokładnym V poprawka szansy zeruje wariancję (sd_reduction = 1).",
+    "spin_arena.run_spin zbiera granice rozdań (on_hand_end) bez zmiany przebiegu.",
+    "Anytime-valid: non-goal z uzasadnieniem w context.",
+    "src/poker ograniczone do aivat.py i minimalnego portu spin_arena."
+  ],
+  "non_goals": [
+    "Pomiar 56%/78% SD na parach POKER-55 (plaster 2).",
+    "Anytime-valid confidence sequences.",
+    "P-7/P-8, DBR, zmiana agentów i solverów."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/aivat.py",
+    "src/poker/spin_arena.py",
+    "tests/",
+    "tools/run_arena.py",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-53.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-07T15:50:00Z",
+    "basis": "decyzja 26 i 29 P-5; mandat 2026-08-09; wzorzec 47: najpierw przyrząd i bramki na znanej wartości"
+  }
+}
