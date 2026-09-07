@@ -1,5 +1,8 @@
 # Indeks dokumentacji produktu Poker
 
+- [`PRZEKAZANIE.md`](PRZEKAZANIE.md) — wytyczne dla zespołu przejmującego
+  (wersja do druku: [`PRZEKAZANIE.pdf`](PRZEKAZANIE.pdf), składana skryptem
+  `tools/docs/mk_pdf.py` poza bramką).
 - [`CURRENT_STATE.md`](CURRENT_STATE.md) — stan bieżący, bramka,
   następny krok.
 
