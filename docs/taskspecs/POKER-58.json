@@ -1,0 +1,40 @@
+{
+  "id": "POKER-58",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Instrument P-3: łańcuch dokładny warstw 0–5 i weryfikator tożsamości artefaktu — liczba brakujących kluczy i wycena solve'a znane PRZED spaleniem rdzenio-godzin; regeneracja zachowuje pomiary albo mówi wprost, że nie.",
+  "context": "Zatwierdzony jako pierwszy plaster P-3 (decyzja 29 pkt 5 + decyzja 30 pkt 2). Solve różnicy, ε uzupełnionych stanów i ponowny BF/BH zostają na drugi plaster: wymagają katalogu PROD, którego nie ma w repo (decyzja 25 pkt 6) i którego ten kontrakt nie regeneruje. Szkic pełnego P-3 zostaje w drafts/ jako mapa. Bezpiecznik 15 rdzenio-h obowiązuje raport, nie zgaduje progu.",
+  "acceptance": [
+    "Łańcuch dokładny: start 50/50/50 albo dowolny GridConfig, wszystkie legalne przejścia drzewa, kwantyzacja dopiero na kluczu odczytu — pod testem na siatce 6 żetonów / krok 2: ręka 0 identyczna z treningiem, ręka 1 niesie stan poza wielokrotnością kroku.",
+    "Raport różnicy per ręka (exact keys vs trained keys, mieszanka trybów luki, wycena z MEASURED_RATES POKER-56) i STOP gdy missing_core_hours > 15; komenda `python tools/blueprint/exact_reach.py --through 5 --grid-step 2`.",
+    "Weryfikator tożsamości: `python tools/blueprint/verify_identity.py --dir KATALOG` porównuje sha256 i bajty z tools/blueprint/control/prod_identity.json (32 pliki); zgodność = kod 0; podmieniony bajt albo brak pliku = kod 1; zły manifest/katalog = kod 2; pod testem na miniaturowym katalogu.",
+    "CURRENT_STATE rozróżnia 19 016 752 B (plik z 4 września, wpis w prod_identity) od 19 016 824 B (repack po fingerprintcie POKER-56); Następny krok wskazuje drugi plaster P-3 i POKER-59.",
+    "Pełna bramka zielona; src/poker nietknięte."
+  ],
+  "non_goals": [
+    "Solve różnicy na PROD/grid2 i pakowanie uzupełnienia do .bpk v2 (drugi plaster — BRAK katalogu PROD).",
+    "Ponowny pomiar BF/BH i licznik fallbacku na uzupełnionym artefakcie.",
+    "Pełna siatka warstw 1–5.",
+    "Zmiany solverów, drzewa, rozgrywacza."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-58.json",
+    "docs/taskspecs/drafts/README.md",
+    "docs/PRZEKAZANIE.md",
+    "PAMIEC_OPERACYJNA.md",
+    "tests/",
+    "tools/blueprint/"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-07T12:00:00Z",
+    "basis": "mandat autonomii 2026-08-09; decyzja 29 P-3 i decyzja 30 pkt 2; wzorzec 47: najpierw instrument i pomiar luki, potem solve; PROD poza repo — pełny P-3 nie jest testowalny w tej sesji"
+  }
+}

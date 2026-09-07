@@ -516,11 +516,9 @@ wektor wypłat nie da się pomylić z multiplikatorem, artefakty niosą odcisk
 przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
 POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie z ~262 do
 ~172 rdzenio-h, przy jawnych założeniach z pkt 4 i 4a). Kolejne
-w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
-1–5 przez osiągalność łańcucha DOKŁADNEGO, budżet 2–10 rdzenio-h wg decyzji
-29 — wycena tego kontraktu jej nie zmienia; poprawione **47,9 rdzenio-h** to
-GÓRNE ograniczenie: cena domknięcia do PEŁNEJ siatki, czyli opcji, którą
-decyzja 29 odrzuciła, i tyle zastępuje błędne ~13,4 z bloków POKER-52/55)
+w mapie: **P-2 POKER-57** (`.bpk` v2, zamknięty), **P-3 POKER-58** plaster
+instrumentu (łańcuch dokładny + weryfikator tożsamości — dostarczony, blok
+niżej); drugi plaster P-3 (solve luki + BF/BH) czeka na katalog `PROD`
 i **P-4 POKER-59** (checkpoint horyzontu). **P-2 POKER-57 jest
 dostarczony** (blok niżej): format `.bpk` v2 zdejmuje trzy sufity v1, więc
 poszerzenie drzewa (P-14) i profile DBR (P-13) nie czekają już na format —
@@ -1212,8 +1210,10 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
 6. **Liczby na artefakcie produkcyjnym (BN, BO).** Bieg `PROD/grid2`
    (49 765 stanów-warstw + 2 923 stany warunku brzegowego, 169 klas,
    22 warstwy, `expost.npz` z POKER-50 obok):
-   **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** w v1 —
-   **2,13×**; zapis trwa **32,0 s** (drugi przebieg po naprawach audytu:
+   **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** v1
+   z 4 września (wpis `blueprint.bpk` w `prod_identity.json`; przed
+   fingerprintem POKER-56) — **2,13×**. Repack v1 kodem po POKER-56 daje
+   **19 016 824 B** (pkt 9). Zapis v2 trwa **32,0 s** (drugi przebieg po naprawach audytu:
    27,3 s przy identycznym pliku co do bajtu — czas ścienny na współdzielonym
    kontenerze nie jest deterministyczny, rozmiar jest; v1: 24,0 s). Panel decyzji 29 szacował
    ~34 MiB i liczył wyłącznie podwojenie bitów; różnica to **trzeci
@@ -3236,8 +3236,9 @@ Następne kroki:
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
-   **POKER-58** (P-3, domknięcie warstw 1–5 łańcuchem dokładnym; szkic
-   w `docs/taskspecs/drafts/`) → POKER-59 (P-4, checkpoint horyzontu —
+   **POKER-58** plaster 1 (instrument P-3: `exact_reach.py` +
+   `verify_identity.py`) dostarczony → drugi plaster P-3 (solve luki)
+   czeka na katalog `PROD` → POKER-59 (P-4, checkpoint horyzontu —
    wymagany przed każdym przebiegiem dłuższym niż sesja Colab) →
    POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
    sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
@@ -3248,7 +3249,7 @@ Następne kroki:
    rozstrzygnięta decyzją 30: repozytorium jest publiczne, więc artefakt
    nie wchodzi do dystrybucji przez repo, a w repo żyje manifest
    tożsamości `tools/blueprint/control/prod_identity.json` (sha256
-   32 plików), pod który POKER-58 dokłada narzędzie weryfikacji.
+   32 plików) i narzędzie `tools/blueprint/verify_identity.py`.
    Przekazanie pracy nowej drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
@@ -3258,8 +3259,10 @@ Następne kroki:
    decyzja o cenie, nie dwie, i uruchamia się wyłącznie przy ε > 5e−4
    (werdykt architekta 2026-08-30). Format
    artefaktu przestał być szacunkiem: napisany i zmierzony w POKER-51
-   plik produkcyjny ma **19 016 752 B** (szacunek z danych `grid5b`
-   mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB), bo 60% komórek to
+   plik produkcyjny z 4 września ma **19 016 752 B** (tożsamość w
+   `prod_identity.json`); regeneracja v1 po fingerprintcie POKER-56
+   daje **19 016 824 B** (blok POKER-57 pkt 9). Szacunek z danych `grid5b`
+   mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB, bo 60% komórek to
    węzły nieosiągalne i nie trafiają do pliku wcale. Kwantyzacja do
    uint8 daje maksymalny błąd 0,0026 **w przestrzeni
    prawdopodobieństw akcji** — to inna jednostka niż ε (udział sumy wypłat)
