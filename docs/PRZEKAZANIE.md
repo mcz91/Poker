@@ -36,7 +36,7 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # ~6 min, 477 testów
+ruff check . && mypy && pytest          # ~5 min 50 s, 483 testy
 #    aktualną liczbę sprawdzisz: pytest --collect-only -q | tail -1
 ```
 
@@ -81,7 +81,7 @@ drugi, zamknięty produkt: stół heads-up NLHE (`table`, `betting`,
 wielu stołów w LAN — decyzja 08, eksport historii, korpus self-play,
 zbiór przykładów) oraz agentów `rule` / `rule-aggressive` / `clone` /
 `mccfr` / `mlp-clone` i macierz equity preflop 169×169. Wszystko pod
-bramką (ok. 101 z 477 testów) i pod niezmiennikami INV-P1…P8.
+bramką (ok. 101 z 483 testów) i pod niezmiennikami INV-P1…P8.
 Instrukcja obsługi: `README.md`. Linia Spin/blueprintu ich nie dotyka,
 ale kontrakt wychodzący poza `allowed_paths` może je złamać.
 
@@ -144,17 +144,13 @@ pomiarem kilka razy okazało się mierzyć nie to, co miało chronić
 | POKER-54 | rozgrywacz areny: akcja od agresora, wymuszone wejście za darmo |
 | POKER-55 | wierność agenta artefaktowi: cykl horyzontu, węzeł bliźniaczy |
 | POKER-56 | higiena tierowa: tabela tierów, normalizacja, fingerprint, wycena per-mode |
+| POKER-57 | format `.bpk` v2: maska uint32, cztery sloty, uint16, ε per stan, marginesy indyferencji |
 
 ### W locie
 
-**POKER-57** (`.bpk` v2: maska uint32, cztery sloty, kwantyzacja uint16,
-ε per stan, marginesy indyferencji, blok fingerprinta). Kontrakt
-zatwierdzony (`6f2a0b6`), praca kodera **dostarczona jako `aefc3c8`** (kod identyczny z audytowanym `a42a3bd`; po rebase i po doprecyzowaniu jednego zdania o czasie bramki);
-bramka zielona na tym stanie (477 testów), kryterium blokujące spełnione
-(koszt kwantyzacji uint16 w ε: +0,015% wobec limitu +10%). Status
-w CURRENT_STATE: **DOSTARCZONE, czeka na audyt świeżym kontekstem**.
-Artefakt `blueprint_v2.bpk` (40 490 256 B) powstał w scratchpadzie.
-Do zrobienia: audyt → zamknięcie w indeksie → scalenie.
+**Brak.** POKER-57 (`.bpk` v2) został zamknięty 2026-09-07 — patrz tabela
+wyżej. Następny kontrakt do wzięcia: **POKER-58** (szkic w
+[`docs/taskspecs/drafts/`](taskspecs/drafts/)).
 
 ### Kolejka — mapa decyzji 29, szkice w repo
 
@@ -319,14 +315,21 @@ PCFR+/DCFR) padło w weryfikacji adwersaryjnej na źródłach pierwotnych.
 
 ## 8. Pułapki, które kosztowały najwięcej
 
-Pełna lista w `PAMIEC_OPERACYJNA.md` (sekcja PUŁAPKI). Cztery najdroższe:
+Pełna lista w `PAMIEC_OPERACYJNA.md` (sekcja PUŁAPKI) — z zastrzeżeniem,
+że wpis znika stamtąd, gdy fakt zostaje utrwalony w repo (tak stało się
+z checkpointem horyzontu: żyje w bloku POKER-50 i jako kontrakt P-4).
+Cztery najdroższe:
 
 - **Tabela permutacji w złą stronę przeżywa testy na transpozycjach**
   (inwolucje) — psują się dopiero 3-cykle. Kotwicz każdą oś i KAŻDĄ
   tablicę osobno. Dwie mutacje osi przeżyły 343 testy, a equity AA
   leciało 0,917 → 0,083 (POKER-46).
 - **Horyzont nie ma checkpointu per cykl** — restart kosztuje wszystkie
-  policzone cykle (16,2 rdzenio-h). Naprawa: POKER-59.
+  policzone cykle (16,2 rdzenio-h; blok POKER-50). Naprawa: POKER-59.
+- **`pytest.raises(Błąd)` bez `match` nie odróżnia strażnika od
+  potknięcia piętro niżej** — usunięcie kontroli formatu przeżywało całą
+  bramkę, bo plik i tak wywracał się na cudzym katalogu warstw
+  (POKER-57, audyt).
 - **Regeneracja artefaktu unieważnia pomiary przy nim**, a bramka tego
   nie łapie (POKER-24).
 - **Zero na artefakcie bramki ≠ zero na siatce produkcyjnej** — krok
@@ -366,7 +369,13 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
   (kwantyzacja sprowadza stack do wysokości blindu) — ta sama klasa.
 - **Marginesy indyferencji nie są policzone dla produkcji** (POKER-57):
   format je niesie, artefakt produkcyjny nie ma sekcji i mówi to jawnie;
-  doliczenie to jeden przechód wyceniony na ~4,6 rdzenio-h.
+  doliczenie to jeden przechód wyceniony na ~4,6 rdzenio-h. Kontrakt,
+  który je policzy, musi zmierzyć jedną rzecz: skala marginesów jest
+  liczona **per stan**, więc klasa o bardzo małej masie dotarcia potrafi
+  ustawić skalę tak, że realne marginesy sąsiadów spadają do zera —
+  a zero znaczy „doskonała obojętność", czyli najsilniejszy alarm.
+  Format rozróżnia dziś „nieokreślony" od zera, ale ile infosetów wpada
+  w zero z powodu skali, a ile z obojętności, wie dopiero pomiar.
 - **POKER-26** (informacja zwrotna przy stole LAN) — szkic czeka
   na zatwierdzenie; **POKER-28** (memoizacja parsowania w testach
   architektury) nadal zasadny.

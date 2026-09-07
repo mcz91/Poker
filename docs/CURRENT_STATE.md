@@ -1,10 +1,13 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · DOSTARCZONE, czeka na audyt: POKER-57 (format
+Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-57 (format
 `.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
 uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
 infoset, odcisk przebiegu w metadanych; v1 bajt w bajt nietknięty; zero
-rdzenio-godzin solvera) · ostatnie zamknięte zadanie: POKER-56 (higiena
+rdzenio-godzin solvera; audyt świeżym kontekstem 2026-09-06/07: dwa
+findingi blokujące — strażnik formatu bez asercji komunikatu i cena
+bramki z bazy przepisanej z cudzego pomiaru — naprawione, cena zmierzona
+sparowaniem: +17 s (+4,9%), 459→483 testy) · poprzednie zadanie: POKER-56 (higiena
 tierowa przed rodziną blueprintów: tabela tierów ze statusem
 niepotwierdzonym, twarda normalizacja wektora wypłat w `GridConfig`,
 fingerprint przebiegu w manifeście i w `.bpk` z wyjątkiem u konsumenta,
@@ -3232,10 +3235,15 @@ Następne kroki:
    (P-3/POKER-58: domknięcie przez osiągalność łańcucha dokładnego,
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
-   decyzji 29: POKER-56 (P-1) zamknięty → **POKER-57** (`.bpk` v2)
-   → POKER-58 → POKER-59 (checkpoint horyzontu) → POKER-53 (AIVAT na
-   naprawionym przyrządzie) → sondy i przebiegi tierowe; bramka decyzji 29
-   „pomiar przed tierami" — wykonana w POKER-55.
+   decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
+   **POKER-58** (P-3, domknięcie warstw 1–5 łańcuchem dokładnym; szkic
+   w `docs/taskspecs/drafts/`) → POKER-59 (P-4, checkpoint horyzontu —
+   wymagany przed każdym przebiegiem dłuższym niż sesja Colab) →
+   POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
+   sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
+   potwierdzeniu tabeli tierów przez operatora); bramka decyzji 29
+   „pomiar przed tierami" — wykonana w POKER-55. Przekazanie pracy nowej
+   drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
    — produkcyjne potwierdzenie wzorca pilota; domknięcie do 5e−5 to
