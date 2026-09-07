@@ -517,9 +517,9 @@ przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
 POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie z ~262 do
 ~172 rdzenio-h, przy jawnych założeniach z pkt 4 i 4a). Kolejne
 w mapie: **P-2 POKER-57** (`.bpk` v2, zamknięty), **P-3 POKER-58** plaster
-instrumentu (łańcuch dokładny + weryfikator tożsamości — dostarczony, blok
-niżej); drugi plaster P-3 (solve luki + BF/BH) czeka na katalog `PROD`
-i **P-4 POKER-59** (checkpoint horyzontu). **P-2 POKER-57 jest
+instrumentu (dostarczony), **P-4 POKER-59** (checkpoint horyzontu —
+dostarczony, test wznowienia per cykl). Drugi plaster P-3 (solve luki)
+czeka na katalog `PROD`. **P-2 POKER-57 jest
 dostarczony** (blok niżej): format `.bpk` v2 zdejmuje trzy sufity v1, więc
 poszerzenie drzewa (P-14) i profile DBR (P-13) nie czekają już na format —
 czekają na swoje rekordy decyzyjne i na korpus. Pierwszy przebieg TIEROWY
@@ -2745,8 +2745,8 @@ i status `aborted-cost-fuse` w manifeście).
    25,2 wobec 18,5 przy pięciu; warstwy tańsze od ekstrapolacji).
    (b) **Koszt faktyczny przedsięwzięcia**: bieg był dwukrotnie
    przerwany restartami kontenera; pierwszy zabił horyzont
-   w 4. cyklu — horyzont nie ma checkpointu per cykl, więc przepadło
-   14 552 s ściennych × 4 = **16,2 rdzenio-h**; drugi kosztował jedną
+   w 4. cyklu — horyzont nie miał wtedy checkpointu per cykl, więc przepadło
+   14 552 s ściennych × 4 = **16,2 rdzenio-h** (limit zamknięty w POKER-59); drugi kosztował jedną
    częściową warstwę (≤2,8 rdzenio-h: między końcem warstwy 6
    a restartem minęły 42,5 min ścienne, śmierć kontenera nie zostawia
    znacznika) — razem **92,8–95,6 rdzenio-h**. Zegarowo całość
@@ -2809,13 +2809,12 @@ i status `aborted-cost-fuse` w manifeście).
    `boundary.npz` + warstwy wznowiły się po obu restartach zgodnie
    z projektem: bieg sklejony z trzech sesji zakończył się statusem
    `done` bez rozjazdu manifestu, a identyczność bajt w bajt wznowień
-   na kroku 2 trzyma test wycinka (AD). Świadomie zostawione:
-   **horyzont nie ma checkpointu per cykl** — restart w trakcie
-   horyzontu kosztuje cały dotychczasowy postęp cykli (zmierzone:
-   16,2 rdzenio-h; przy dzisiejszej stabilności kontenera to ryzyko
-   ~4–6 h ściennych na bieg). Wycena domknięcia: zapis `boundary
-   partial` per cykl tym samym mechanizmem co warstwy — osobny,
-   mały kontrakt, jeśli planowane są kolejne pełne biegi.
+   na kroku 2 trzyma test wycinka (AD). **POKER-59 zamyka limit horyzontu:**
+   po każdym cyklu ogona `boundary.npz` i rekord cyklu (numer, delta,
+   hash konfiguracji, kompletność) zapisują się atomowo; wznowienie od
+   ostatniego kompletnego cyklu jest bajt w bajt z biegiem nieprzerwanym
+   pod testem na wycinku, dla dwóch `jobs`. Historyczny koszt restartu
+   w 4. cyklu (16,2 rdzenio-h) zostaje jako pomiar, nie jako otwarty limit.
 
 **POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) zamknięty.**
 Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
@@ -3236,11 +3235,9 @@ Następne kroki:
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
-   **POKER-58** plaster 1 (instrument P-3: `exact_reach.py` +
-   `verify_identity.py`) dostarczony → drugi plaster P-3 (solve luki)
-   czeka na katalog `PROD` → POKER-59 (P-4, checkpoint horyzontu —
-   wymagany przed każdym przebiegiem dłuższym niż sesja Colab) →
-   POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
+   **POKER-58** plaster 1 (instrument P-3) dostarczony → **POKER-59**
+   (P-4, checkpoint horyzontu) dostarczony → drugi plaster P-3 (solve luki)
+   czeka na katalog `PROD` → POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
    sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
    potwierdzeniu tabeli tierów przez operatora — z wyjątkiem P-7,
    odblokowanego [decyzją 30](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md),

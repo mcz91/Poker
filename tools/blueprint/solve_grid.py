@@ -1475,22 +1475,36 @@ def _merge_mode_stats(
 
 
 def _boundary(
-    tensors: Tensors, config: GridConfig, states: tuple[tuple[int, int, int], ...]
-) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]]]:
+    tensors: Tensors,
+    config: GridConfig,
+    states: tuple[tuple[int, int, int], ...],
+    *,
+    current: np.ndarray | None = None,
+    deltas: list[float] | None = None,
+    stats: dict[str, dict[str, float]] | None = None,
+    out_dir: Path | None = None,
+    digest: str | None = None,
+    manifest: dict[str, Any] | None = None,
+    manifest_path: Path | None = None,
+    cycle_limit: int | None = None,
+) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]], bool]:
     """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
 
-    Zwraca deltę każdego cyklu, nie samą ostatnią — z tego ciągu bierze się
-    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol` —
-    oraz tempo per tryb dla bezpiecznika kosztu.
+    Po każdym cyklu zapisuje `boundary.npz` atomowo i dopisuje rekord cyklu
+    do `manifest["horizon"]`, żeby wznowienie nie liczyło ogona od zera
+    (POKER-59). Zwraca też, czy horyzont dobiegł (tolerancja albo sufit).
     """
     total = n_hands(config)
     sb, bb_amt = level_blinds(config, total)
-    current = np.stack(
-        [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
-    )
-    deltas: list[float] = []
-    stats: dict[str, dict[str, float]] = {}
-    for _ in range(config.tail_max_cycles):
+    if current is None:
+        current = np.stack(
+            [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
+        )
+    if deltas is None:
+        deltas = []
+    if stats is None:
+        stats = {}
+    for _ in range(config.tail_max_cycles - len(deltas)):
         cycle_started = time.perf_counter()
         next_v = current
         for offset in (2, 1, 0):
@@ -1501,6 +1515,7 @@ def _boundary(
             next_v = layer["v"]
         deltas.append(float(np.max(np.abs(next_v - current))))
         current = next_v
+        seconds = time.perf_counter() - cycle_started
         print(
             json.dumps(
                 {
@@ -1508,15 +1523,97 @@ def _boundary(
                     "cycle": len(deltas),
                     "n_states": len(states),
                     "delta": deltas[-1],
-                    "seconds": round(time.perf_counter() - cycle_started, 3),
+                    "seconds": round(seconds, 3),
                 },
                 ensure_ascii=False,
             ),
             flush=True,
         )
+        if out_dir is not None and digest is not None and manifest is not None:
+            artifacts.write_npz(
+                out_dir / "boundary.npz",
+                {"states": np.array(states, dtype=np.int16), "v": current},
+            )
+            _commit_horizon_cycle(
+                manifest,
+                digest=digest,
+                cycle=len(deltas),
+                delta=deltas[-1],
+                seconds=seconds,
+                jobs=config.jobs,
+                modes=stats,
+                complete=False,
+            )
+            if manifest_path is not None:
+                artifacts.write_json(manifest_path, manifest)
         if deltas[-1] <= config.tail_tol:
-            break
-    return current, deltas, stats
+            return current, deltas, stats, True
+        if cycle_limit is not None and len(deltas) >= cycle_limit:
+            return current, deltas, stats, False
+    return current, deltas, stats, True
+
+
+def _commit_horizon_cycle(
+    manifest: dict[str, Any],
+    *,
+    digest: str,
+    cycle: int,
+    delta: float,
+    seconds: float,
+    jobs: int,
+    modes: dict[str, dict[str, float]],
+    complete: bool,
+) -> None:
+    """Rekord jednego cyklu ogona — bez znaczników czasu w payloadzie."""
+    wall = round(seconds * jobs, 3)
+    record = {
+        "cycle": cycle,
+        "delta": delta,
+        "seconds": round(seconds, 3),
+        "core_seconds_wall": wall,
+        "config_hash": digest,
+        "complete": True,
+    }
+    horizon = manifest.setdefault(
+        "horizon",
+        {
+            "config_hash": digest,
+            "complete": False,
+            "cycles_done": 0,
+            "deltas": [],
+            "cycles": [],
+            "core_seconds_wall": 0.0,
+            "modes": {},
+        },
+    )
+    if horizon.get("config_hash") not in (None, digest):
+        raise ValueError(
+            "hash konfiguracji checkpointu horyzontu różni się od bieżącej — "
+            "odmowa wznowienia na obcym stanie"
+        )
+    horizon["config_hash"] = digest
+    horizon["cycles_done"] = cycle
+    horizon["deltas"] = list(horizon.get("deltas", []))
+    if len(horizon["deltas"]) < cycle:
+        horizon["deltas"].append(delta)
+    else:
+        horizon["deltas"][cycle - 1] = delta
+    horizon["cycles"] = list(horizon.get("cycles", []))
+    if len(horizon["cycles"]) < cycle:
+        horizon["cycles"].append(record)
+    else:
+        horizon["cycles"][cycle - 1] = record
+    horizon["core_seconds_wall"] = round(
+        sum(float(row["core_seconds_wall"]) for row in horizon["cycles"]), 3
+    )
+    horizon["modes"] = {
+        mode: {
+            "n_states": stats["n_states"],
+            "core_seconds": round(stats["core_seconds"], 3),
+        }
+        for mode, stats in sorted(modes.items())
+    }
+    horizon["complete"] = complete
 
 
 PERTURB_KINDS = ("tilt", "noise")
@@ -1638,6 +1735,18 @@ def _cost_fuse_report(
 ) -> dict[str, Any]:
     """Raport bezpiecznika z danych manifestu (odporny na wznowienia)."""
     plan: list[dict[str, int]] = []
+    horizon = manifest.get("horizon") or {}
+    boundary_done = manifest.get("boundary") is not None
+    if not boundary_done:
+        remaining_cycles = config.tail_max_cycles - int(horizon.get("cycles_done", 0))
+        if remaining_cycles > 0:
+            _, bb_amt = level_blinds(config, n_hands(config))
+            per_cycle: dict[str, int] = {}
+            for state in grid_states(config.total_chips, config.grid_step):
+                mode = solver_mode(state, bb_amt)
+                per_cycle[mode] = per_cycle.get(mode, 0) + 1
+            for _ in range(remaining_cycles * 3):
+                plan.append(dict(per_cycle))
     for hand in range(n_hands(config)):
         if str(hand) in manifest["layers"]:
             continue
@@ -1650,22 +1759,32 @@ def _cost_fuse_report(
             counts[mode] = counts.get(mode, 0) + 1
         plan.append(counts)
     measured: dict[str, dict[str, float]] = {}
-    _merge_mode_stats(measured, manifest["boundary"]["modes"])
-    spent = float(manifest["boundary"]["core_seconds_wall"])
+    spent = 0.0
+    if manifest.get("boundary") is not None:
+        _merge_mode_stats(measured, manifest["boundary"]["modes"])
+        spent += float(manifest["boundary"]["core_seconds_wall"])
+    elif horizon:
+        _merge_mode_stats(measured, horizon.get("modes") or {})
+        spent += float(horizon.get("core_seconds_wall") or 0.0)
     for entry in manifest["layers"].values():
         _merge_mode_stats(measured, entry["modes"])
         spent += float(entry["core_seconds_wall"])
     report = extrapolate_cost(plan, measured, spent)
     report["limit_core_hours"] = config.cost_limit_core_hours
+    report["horizon_cycles_done"] = int(horizon.get("cycles_done", 0)) if horizon else (
+        int(manifest["boundary"]["cycles"]) if manifest.get("boundary") else 0
+    )
     if config.cost_limit_core_hours <= 0:
         report["verdict"] = "disabled"
         return report
     exceeded = report["extrapolated_core_hours"] > config.cost_limit_core_hours
     report["verdict"] = "exceeded" if exceeded else "ok"
     if exceeded:
+        done_layers = len(manifest["layers"])
         report["reason"] = (
             "ekstrapolowany koszt całości przekracza limit — bieg przerwany po "
-            f"{len(manifest['layers'])} warstwach zamiast palić budżet"
+            f"{done_layers} warstwach i {report['horizon_cycles_done']} cyklach "
+            "horyzontu zamiast palić budżet"
         )
     return report
 
@@ -1676,6 +1795,7 @@ def solve(
     out_dir: Path,
     layers_limit: int | None = None,
     boundary_from: Path | None = None,
+    horizon_cycles_limit: int | None = None,
 ) -> dict[str, Any]:
     tensors = load_tensors(tensor_dir, config.classes)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1717,12 +1837,60 @@ def solve(
     full_states = grid_states(config.total_chips, config.grid_step)
     started = time.perf_counter()
     boundary_path = out_dir / "boundary.npz"
-    if manifest["boundary"] is None or not boundary_path.exists():
+    if manifest.get("horizon") and manifest["horizon"].get("config_hash") not in (
+        None,
+        digest,
+    ):
+        raise ValueError(
+            "hash konfiguracji checkpointu horyzontu różni się od bieżącej — "
+            "odmowa wznowienia na obcym stanie"
+        )
+    if manifest["boundary"] is not None and boundary_path.exists():
+        loaded = artifacts.read_npz(boundary_path)
+        boundary_v = loaded["v"]
+    else:
         boundary_started = time.perf_counter()
         boundary_stats: dict[str, dict[str, float]] = {}
         if boundary_from is None:
-            fixed_point, deltas, boundary_stats = _boundary(tensors, config, full_states)
-            source: dict[str, Any] = {"kind": "computed"}
+            resume_v = None
+            resume_deltas: list[float] = []
+            resume_stats: dict[str, dict[str, float]] = {}
+            horizon = manifest.get("horizon") or {}
+            if (
+                horizon.get("cycles_done", 0) > 0
+                and boundary_path.exists()
+                and not horizon.get("complete")
+            ):
+                loaded = artifacts.read_npz(boundary_path)
+                resume_v = loaded["v"]
+                resume_deltas = list(horizon.get("deltas") or [])
+                resume_stats = {
+                    mode: {
+                        "n_states": float(row["n_states"]),
+                        "core_seconds": float(row["core_seconds"]),
+                    }
+                    for mode, row in (horizon.get("modes") or {}).items()
+                }
+            fixed_point, deltas, boundary_stats, horizon_done = _boundary(
+                tensors,
+                config,
+                full_states,
+                current=resume_v,
+                deltas=resume_deltas,
+                stats=resume_stats,
+                out_dir=out_dir,
+                digest=digest,
+                manifest=manifest,
+                manifest_path=manifest_path,
+                cycle_limit=horizon_cycles_limit,
+            )
+            source = {"kind": "computed"}
+            if not horizon_done:
+                manifest["status"] = "partial"
+                if "horizon" in manifest:
+                    manifest["horizon"]["complete"] = False
+                artifacts.write_json(manifest_path, manifest)
+                return manifest
         else:
             # Pomiar wrażliwości na brzeg ma zmieniać wyłącznie brzeg: punkt stały
             # przejmujemy z biegu odniesienia, żeby porównanie nie mieszało do
@@ -1746,6 +1914,8 @@ def solve(
             {"states": np.array(full_states, dtype=np.int16), "v": boundary_v},
         )
         boundary_seconds = time.perf_counter() - boundary_started
+        if manifest.get("horizon"):
+            manifest["horizon"]["complete"] = True
         manifest["boundary"] = {
             "file": "boundary.npz",
             "sha256": artifacts.sha256_file(boundary_path),
@@ -1772,9 +1942,6 @@ def solve(
             ),
         }
         artifacts.write_json(manifest_path, manifest)
-    else:
-        loaded = artifacts.read_npz(boundary_path)
-        boundary_v = loaded["v"]
     reachable = _reachable_sets(config)
     v_next_states: tuple[tuple[int, int, int], ...] = full_states
     v_next = boundary_v
@@ -1909,7 +2076,15 @@ def main(argv: Any = None) -> int:
         print(json.dumps({"status": "aborted-cost-fuse", "cost_fuse": fuse.report},
                          ensure_ascii=False))
         return 3
-    boundary = manifest["boundary"]
+    boundary = manifest.get("boundary")
+    if boundary is None:
+        horizon = manifest.get("horizon") or {}
+        print(json.dumps({
+            "status": manifest["status"],
+            "horizon_cycles": horizon.get("cycles_done", 0),
+            "horizon_complete": horizon.get("complete", False),
+        }, ensure_ascii=False))
+        return 0
     print(json.dumps({
         "status": manifest["status"],
         "boundary_cycles": boundary["cycles"],
