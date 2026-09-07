@@ -73,6 +73,7 @@ from poker.blueprint_reader import (
     MAGIC,
     MARGIN_HEAD_STRUCT,
     MARGIN_LEVELS,
+    MARGIN_UNDEFINED,
     MASK_STRUCT,
     MASK_V2_STRUCT,
     N_SLOTS,
@@ -242,24 +243,36 @@ def _optional_sections(run_dir: Path, version: int) -> dict[str, dict[str, np.nd
     return sections
 
 
-def quantize_margins(margin: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, float]:
-    """Marginesy jednego stanu (węzły × klasy) → uint8 na skali stanu i ta skala.
+def quantize_margins(margin: np.ndarray, mask: np.ndarray,
+                    defined: np.ndarray) -> tuple[np.ndarray, float]:
+    """Marginesy jednego stanu (węzły × klasy) → bajty i skala stanu.
 
-    Skala to największy margines W TYM stanie zapisany jako float32, więc
-    dekwantyzacja czytnika (`q * scale / 255`) jest odwracalna co do kroku
-    skali. Stan bez żadnej decyzji ma skalę 0 i same zera. Zaokrąglenie jest
-    „pół w górę" liczone jawnie, a nie `np.rint` (bankierskie) — determinizm
-    zapisu ma nie zależeć od reguły remisu biblioteki.
+    Bajt 0 (`MARGIN_UNDEFINED`) znaczy „nieokreślony": węzeł spoza maski decyzji
+    albo klasa, która przy tym profilu do węzła nie dociera. Margines liczbowy
+    idzie z przesunięciem, jako `1 + round(m / skala * 254)`, więc czytelnik nie
+    myli „nie policzono" z „doskonała obojętność" (F3 audytu POKER-57).
+
+    Skala to największy OKREŚLONY margines W TYM stanie zapisany jako float32,
+    więc dekwantyzacja czytnika jest odwracalna co do kroku skali. Zaokrąglenie
+    jest „pół w górę" liczone jawnie, a nie `np.rint` (bankierskie) —
+    determinizm zapisu ma nie zależeć od reguły remisu biblioteki.
     """
-    live = np.asarray(mask, dtype=bool)
-    values = np.where(live[:, None], np.asarray(margin, dtype=np.float64), 0.0)
+    live = np.asarray(mask, dtype=bool)[:, None] & np.asarray(defined, dtype=bool)
+    values = np.where(live, np.asarray(margin, dtype=np.float64), 0.0)
     if values.size and bool(np.any(values < 0.0)):
         raise ValueError("margines indyferencji jest z definicji nieujemny")
     scale = float(np.float32(values.max())) if values.size else 0.0
     if scale <= 0.0:
-        return np.zeros(values.shape, dtype=np.uint8), 0.0
-    quantized = np.floor(values / scale * MARGIN_LEVELS + 0.5)
-    return np.clip(quantized, 0, MARGIN_LEVELS).astype(np.uint8), scale
+        # Wszystkie określone marginesy są zerami: skala 0, a określoność
+        # niesie sam bajt 1 — bez tego stan doskonale obojętny byłby
+        # nieodróżnialny od stanu niepoliczonego.
+        return np.where(live, 1, MARGIN_UNDEFINED).astype(np.uint8), 0.0
+    quantized = 1.0 + np.floor(values / scale * MARGIN_LEVELS + 0.5)
+    return (
+        np.where(live, np.clip(quantized, 1, MARGIN_LEVELS + 1), MARGIN_UNDEFINED)
+        .astype(np.uint8),
+        scale,
+    )
 
 
 @dataclass(frozen=True)
@@ -304,6 +317,12 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
     dtype = np.uint8 if quant_bits == 8 else np.dtype("<u2")
     n_classes = len(manifest["config"]["classes"])
     n_stored = SLOTS[version] - 1
+    # Bieg wolno spakować, gdy format niesie jego sloty bez straty: zapisuje
+    # `n_stored` kolumn i dopełnia OSTATNI slot. Bieg o `n_stored` slotach ma
+    # więc slot z dopełnienia zerowy (dzisiejsze drzewo w v2), a bieg o pełnym
+    # komplecie `SLOTS[version]` — niezerowy. Więcej slotów niż format = strata,
+    # i to jest odmowa, nie zaokrąglenie.
+    source_slots = (n_stored, SLOTS[version])
     mask_struct = MASK_V2_STRUCT if version == FORMAT_VERSION_V2 else MASK_STRUCT
     optional = _optional_sections(run_dir, version)
     eps_source = optional.get("epsilon")
@@ -388,13 +407,22 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
             if has_policy:
                 sigma = np.ascontiguousarray(data["sigma"])[order]
                 n_nodes = sigma.shape[1]
-                if sigma.shape[3] != N_SLOTS:
-                    raise ValueError(f"{path.name}: warstwa ma {sigma.shape[3]} slotów akcji")
+                if sigma.shape[3] not in source_slots:
+                    raise ValueError(
+                        f"{path.name}: warstwa ma {sigma.shape[3]} slotów akcji, "
+                        f"a format v{version} zapisuje {n_stored} i dopełnia jeden, "
+                        f"więc przyjmuje bieg o {source_slots[0]} albo {source_slots[1]}"
+                    )
                 mask_bits = mask_struct.size * 8
                 if n_nodes > mask_bits:
+                    hint = (
+                        " — to jest sufit v1, zdjęty przez v2"
+                        if version == FORMAT_VERSION
+                        else ""
+                    )
                     raise ValueError(
                         f"format v{version} mieści maskę osiągalności {mask_bits} węzłów, "
-                        f"a bieg ma ich {n_nodes} — to jest sufit v1 zdjęty przez v2"
+                        f"a bieg ma ich {n_nodes}{hint}"
                     )
                 raw, live = quantize_layer(sigma, levels)
                 masks = [node_mask(live[position]) for position in range(n_states)]
@@ -517,13 +545,15 @@ def _margin_blocks(margin_source: dict[str, np.ndarray], hand: int, order: np.nd
     maski strategii nie może mieć marginesu w ogóle — to sprzeczność artefaktu,
     nie stan pośredni, więc leci wyjątkiem.
     """
-    if f"decision_{hand:02d}" not in margin_source:
-        raise ValueError(
-            f"warstwa {hand}: sekcja marginesów bez maski decyzji — margines bez maski "
-            "byłby zerem tam, gdzie nie ma wyboru, a to co innego niż obojętność"
-        )
+    for prefix in ("decision", "defined"):
+        if f"{prefix}_{hand:02d}" not in margin_source:
+            raise ValueError(
+                f"warstwa {hand}: sekcja marginesów bez maski {prefix} — margines bez maski "
+                "byłby zerem tam, gdzie nie ma czego mierzyć, a to co innego niż obojętność"
+            )
     values = np.asarray(margin_source[f"margin_{hand:02d}"], dtype=np.float32)[order]
     decisions = np.asarray(margin_source[f"decision_{hand:02d}"], dtype=bool)[order]
+    defined = np.asarray(margin_source[f"defined_{hand:02d}"], dtype=bool)[order]
     if values.shape[:2] != decisions.shape or values.shape[2] != n_classes:
         raise ValueError(f"warstwa {hand}: sekcja marginesów ma kształt {values.shape}")
     if decisions.shape[1] != live.shape[1]:
@@ -533,16 +563,20 @@ def _margin_blocks(margin_source: dict[str, np.ndarray], hand: int, order: np.nd
         )
     if bool(np.any(decisions & ~np.asarray(live, dtype=bool))):
         raise ValueError(f"warstwa {hand}: margines w węźle spoza maski osiągalności")
+    if defined.shape != values.shape:
+        raise ValueError(
+            f"warstwa {hand}: maska określoności ma kształt {defined.shape}, "
+            f"a marginesy {values.shape}"
+        )
     blocks: list[bytes] = []
-    for position, strategy_mask in enumerate(masks):
+    for position in range(len(masks)):
         row = decisions[position]
         mask = node_mask(row)
-        quantized, scale = quantize_margins(values[position], row)
+        quantized, scale = quantize_margins(values[position], row, defined[position])
         parts = [MARGIN_HEAD_STRUCT.pack(mask, np.float32(scale))]
         for node in range(row.shape[0]):
             if mask >> node & 1:
                 parts.append(quantized[node].tobytes())
-        assert mask & ~strategy_mask == 0, "maska marginesów szersza niż maska strategii"
         blocks.append(b"".join(parts))
     return blocks
 

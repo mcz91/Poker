@@ -25,9 +25,10 @@ Uruchomienie (venv z extras train):
 
 Wynik: `margins.npz` (`margin_HH` — stany × węzły × klasy, float32;
 `decision_HH` — stany × węzły, bool: węzeł jest DECYZJĄ, czyli ma co najmniej
-dwie legalne akcje) i `margins_report.json`. Oba pliki czyta konwerter
-`pack_blueprint.py --format-version 2`, który zapisuje marginesy zgrubnie
-(uint8 na skali stanu).
+dwie legalne akcje; `defined_HH` — stany × węzły × klasy, bool: klasa dociera
+do węzła, więc margines jest OKREŚLONY) i `margins_report.json`. Oba pliki
+czyta konwerter `pack_blueprint.py --format-version 2`, który zapisuje
+marginesy zgrubnie (uint8 na skali stanu, bajt 0 = nieokreślony).
 """
 
 import argparse
@@ -65,15 +66,19 @@ _MWORK: dict[str, Any] = {}
 
 
 def state_margins(problem: Any, sigma: dict[int, np.ndarray],
-                  n_nodes: int) -> tuple[np.ndarray, np.ndarray]:
-    """Marginesy jednego stanu: (węzły × klasy) i maska węzłów będących decyzją.
+                  n_nodes: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Marginesy jednego stanu, maska węzłów-decyzji i maska OKREŚLONOŚCI.
 
-    Węzeł z jedną legalną akcją nie jest decyzją — nie ma tam czego porównać,
-    więc zostaje poza maską zamiast dostać margines zero (zero znaczy
-    „obojętność", a to co innego niż „brak wyboru").
+    Trzy stany, nie dwa. Węzeł z jedną legalną akcją nie jest decyzją — nie ma
+    tam czego porównać, więc zostaje poza maską węzłów zamiast dostać margines
+    zero. W węźle, który decyzją jest, klasa o zerowej masie rozdań docierających
+    (przy tym profilu nigdy tej decyzji nie podejmuje) nie ma warunkowego EV —
+    zostaje poza maską określoności, znów zamiast dostać zero. Zero jest
+    zarezerwowane na jedną rzecz: zmierzoną obojętność.
     """
     margin = np.zeros((n_nodes, problem.count), dtype=np.float32)
     decision = np.zeros(n_nodes, dtype=bool)
+    defined = np.zeros((n_nodes, problem.count), dtype=bool)
     for hero in range(problem.n_roles):
         reach_record: dict[int, dict[int, np.ndarray]] = {}
         record, _, _ = solve_grid._hero_action_values(
@@ -90,16 +95,14 @@ def state_margins(problem: Any, sigma: dict[int, np.ndarray],
                 ),
                 dtype=np.float64,
             )
-            # Klasa, która przy tym profilu nigdy do węzła nie dociera, nie ma
-            # warunkowego EV; zero jest tu odczytem konserwatywnym („traktuj
-            # jak obojętną"), a nie zmierzoną obojętnością — patrz docstring.
             live = mass > 0.0
             margin[node_id] = np.where(live, gap / np.where(live, mass, 1.0), 0.0)
+            defined[node_id] = live
             decision[node_id] = True
-    return margin, decision
+    return margin, decision, defined
 
 
-def _margin_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray]:
+def _margin_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray, np.ndarray]:
     config = _MWORK["config"]
     tensors = _MWORK["tensors"]
     hand: int = _MWORK["hand"]
@@ -116,11 +119,11 @@ def _margin_state_job(index: int) -> tuple[int, np.ndarray, np.ndarray]:
         tensors, config, states[index], hand, sb, bb_amt, lookup
     )
     sigma = {node_id: sigma_all[index, node_id] for node_id in problem.nodes}
-    margin, decision = state_margins(problem, sigma, sigma_all.shape[1])
+    margin, decision, defined = state_margins(problem, sigma, sigma_all.shape[1])
     # Jak w solverze i w ex-post: cykle domknięć trzymają tensory wypłat do gc.
     del problem
     gc.collect()
-    return index, margin, decision
+    return index, margin, decision, defined
 
 
 def run_margins(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
@@ -164,16 +167,19 @@ def run_margins(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
         rows.sort(key=lambda item: item[0])
         margin = np.stack([row[1] for row in rows], axis=0)
         decision = np.stack([row[2] for row in rows], axis=0)
+        defined = np.stack([row[3] for row in rows], axis=0)
         arrays[f"margin_{hand:02d}"] = margin
         arrays[f"decision_{hand:02d}"] = decision
-        live = margin[decision]
-        values = live.reshape(-1).tolist()
+        arrays[f"defined_{hand:02d}"] = defined
+        live = decision[:, :, None] & defined
+        values = margin[live].reshape(-1).tolist()
         all_values.extend(values)
         per_layer.append(
             {
                 "hand": hand,
                 "n_states": len(states),
                 "n_infosets": len(values),
+                "n_undefined": int((decision[:, :, None] & ~defined).sum()),
                 "margin_max": max(values) if values else 0.0,
                 "margin_median": float(statistics.median(values)) if values else 0.0,
             }
@@ -183,6 +189,7 @@ def run_margins(out_dir: Path, jobs: int | None = None) -> dict[str, Any]:
         "pool": float(sum(config.prizes)),
         "states": sum(layer["states"].shape[0] for layer in layers.values()),
         "n_infosets": len(all_values),
+        "n_undefined": sum(int(layer["n_undefined"]) for layer in per_layer),
         "margin_max": max(all_values) if all_values else 0.0,
         "margin_median": float(statistics.median(all_values)) if all_values else 0.0,
         "layers": sorted(per_layer, key=lambda item: item["hand"]),

@@ -430,7 +430,9 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   (float32) i marginesy indyferencji per infoset (uint8 na skali stanu).
   Czytnik czyta obie wersje, `pack` bez `--format-version` nadal pisze v1
   (artefakt produkcyjny zostaje v1), a sekcja nieobecna podnosi
-  `SectionMissing` zamiast oddawać zera. Specyfikacja bajtowa, liczby
+  `SectionMissing` zamiast oddawać zera — tak samo infoset, dla którego
+  marginesu nie da się policzyć, podnosi `MarginUndefined`, bo zero w tym polu
+  znaczy zmierzoną obojętność. Specyfikacja bajtowa, liczby
   i komendy: bloki POKER-51 i POKER-57 niżej.
 - `poker.blueprint_agent` — **jedyny konsument czytnika w pakiecie**
   (POKER-52): miejsce areny Spin grające rozkładami z artefaktu.
@@ -1094,7 +1096,11 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
 
    **Blok marginesów** to `zlib` z ładunku: `uint32` maska DECYZJI, `float32`
    skala stanu, a dalej — dla każdego ustawionego bitu rosnąco — `n_classes`
-   bajtów `uint8`. Margines = `q · skala / 255`.
+   bajtów `uint8`. Bajt **0 jest zarezerwowany na „margines nieokreślony"**
+   (klasa, która przy tym profilu do węzła nie dociera), więc wartość liczbowa
+   idzie z przesunięciem: margines = `(q − 1) · skala / 254`, a `q = 1` znaczy
+   zero zmierzone. Bez tej rezerwy „nie policzono" czytałoby się jako
+   najsilniejszy sygnał obojętności, jaki to pole niesie.
 
 2. **Trzy sufity v1, po kolei.** (a) **Maska osiągalności**: v1 pisał ją
    `to_bytes(2, "little")` i czytał `"<H"`, więc siedemnasty węzeł nie
@@ -1105,9 +1111,14 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    trzeci (jam). v2 zapisuje trzy i wyprowadza czwarty — w dzisiejszym
    drzewie zerowy, bo czwartej akcji nie ma. To jest miejsce w formacie,
    a nie akcja w drzewie: poszerzenie drzewa wymaga rekordu decyzyjnego
-   (P-14, decyzja 27), a ten kontrakt go nie tworzy. Reguła dopełnienia ma
-   własny test na bloku, w którym reszta jest niezerowa — inaczej „czwarty
-   slot" przechodziłby każdą asercję, będąc stałym zerem. (c) **Kwantyzacja**:
+   (P-14, decyzja 27), a ten kontrakt go nie tworzy. Pod testem są OBIE strony
+   tego miejsca: reguła dopełnienia na bloku, w którym reszta jest niezerowa
+   (inaczej „czwarty slot" przechodziłby każdą asercję, będąc stałym zerem),
+   oraz ŚCIEŻKA ZAPISU — bieg kontrolny z czwartą akcją (połowa masy jamu
+   przeniesiona na slot 3) pakuje się do v2 i wraca z niezerowym slotem 3
+   w granicach kroku uint16, a v1 go odmawia. Strażnik slotów pyta o wersję
+   formatu, nie o stałą v1 (F4 audytu: przedtem `pack --format-version 2`
+   odmawiał biegu o czterech slotach). (c) **Kwantyzacja**:
    uint8 zerował 24,2% wartości slotów żywych infosetów (blok POKER-51 pkt 6);
    v2 domyślnie uint16, więc błąd pojedynczego prawdopodobieństwa spada
    z 2,610e−3 do poniżej 1/65535 = 1,526e−5 — 171×. Metoda jest ta sama
@@ -1149,14 +1160,27 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    do sprzeciwu; cena jest ceną jednego ex-post (pkt 7 niżej).
 
    Zapis jest **zgrubny z wyboru** (decyzja 29 pkt 3): `uint8` na skali stanu
-   zapisanej we `float32`, więc rozdzielczość to `skala/255` tego stanu —
-   margines mniejszy od pół kroku czyta się jako zero. Dla pola, którego
-   pytanie brzmi „czy ta komórka jest bliska obojętności", to jest właściwa
-   strata; kto potrzebuje EV, ma V, nie to pole.
+   zapisanej we `float32`, więc rozdzielczość to `skala/254` tego stanu.
 
-   Maska marginesów jest **węższa** od maski osiągalności: węzeł, w którym
-   drzewo zostawia jedną legalną akcję, nie jest decyzją i nie ma marginesu,
-   zamiast mieć margines zero. Na artefakcie kontrolnym z 416 infosetów
+   **Trzy stany, nie dwa, i jedna znana granica.** Maska marginesów jest
+   **węższa** od maski osiągalności: węzeł, w którym drzewo zostawia jedną
+   legalną akcję, nie jest decyzją i nie ma marginesu, zamiast mieć margines
+   zero. Klasa, która przy tym profilu do węzła nie dociera, ma bajt
+   `MARGIN_UNDEFINED` i podnosi `MarginUndefined` — też nie zero. Zero zostaje
+   zarezerwowane na jedno: **zmierzoną obojętność**. **Granica, która zostaje**
+   (F3 audytu, świadomie nienaprawiona w tym kontrakcie): skala jest wspólna
+   dla CAŁEGO stanu, więc jedna klasa o marginesie o rzędy wielkości większym
+   od reszty spycha realne marginesy sąsiadów poniżej pół kroku, a te czytają
+   się jako zero — czyli jako najsilniejszy alarm „doskonała obojętność",
+   i to fałszywy. To NIE jest „właściwa strata" zgrubnego zapisu: pada dokładnie
+   na tę odpowiedź, po którą to pole istnieje, a naprawą jest skala per węzeł
+   albo logarytmiczna, nie luźniejszy próg. Granica jest pod testem
+   (kwantyzacja wektora [1,0; 1e−4; 0,077] na skali stanu 1,0 daje bajty
+   [255, 1, 21], czyli 1e−4 → 0,0) i na artefakcie kontrolnym nie zachodzi
+   (376 z 376 infosetów określonych), a produkcja marginesów nie ma — więc
+   ryzyko idzie **w całości na kontrakt, który je policzy** (pkt 7).
+
+   Na artefakcie kontrolnym z 416 infosetów
    (stan × żywy węzeł × klasa) decyzjami jest **376**; mediana marginesu
    0,0770, maksimum 0,3027, minimum 8,40e−5 — **3 600× między końcami
    rozkładu**, i to jest cały powód, dla którego to pole istnieje.
@@ -1186,7 +1210,9 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    (49 765 stanów-warstw + 2 923 stany warunku brzegowego, 169 klas,
    22 warstwy, `expost.npz` z POKER-50 obok):
    **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** w v1 —
-   **2,13×**; zapis trwa **32,0 s** (v1: 24,0 s). Panel decyzji 29 szacował
+   **2,13×**; zapis trwa **32,0 s** (drugi przebieg po naprawach audytu:
+   27,3 s przy identycznym pliku co do bajtu — czas ścienny na współdzielonym
+   kontenerze nie jest deterministyczny, rozmiar jest; v1: 24,0 s). Panel decyzji 29 szacował
    ~34 MiB i liczył wyłącznie podwojenie bitów; różnica to **trzeci
    przechowywany slot** (jam nie jest już wyprowadzany) i sekcja ε.
    Rozkład bajtów: bloki strategii 37 509 938 B (**753,7 B na stan
@@ -1210,10 +1236,9 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    **maksimum 80 B, mediana 74 B** na 52 688 odczytów (bez zmian wobec v1);
    odczyt ε **maksimum 84 B, mediana 78 B** na 49 765 odczytów. Najgorszy
    odczyt stanu to 0,012% pliku. Sufity w bramce stoją na artefakcie
-   kontrolnym: zmierzone najgorsze przypadki to 180 B na stan, 56 B na V,
-   42 B na ε i 97 B na marginesy, a sufity stoją na 260 / 72 / 60 / 140 B —
-   ~1,4× zapasu, tyle samo co sufity v1 w POKER-51 (116 → 160 B). Zapas jest
-   na inną wersję `zlib`, a nie na inny sposób odczytu.
+   kontrolnym, z zapasem na inną wersję `zlib`, a nie na inny sposób odczytu:
+   stan 180 → **260 B** (1,44×), V 56 → **72 B** (1,29× — ten sam sufit co
+   w POKER-51), ε 42 → **60 B** (1,43×), marginesy 97 → **140 B** (1,44×).
 
 7. **Czego produkcyjny plik v2 NIE ma: marginesów — i ile by kosztowały.**
    `PROD/grid2` nie ma `margins.npz`, więc sekcja marginesów nie weszła do
@@ -1227,7 +1252,11 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    wartości float32 = 471 MB przed kompresją, a w pliku `.bpk` — 1 bajt na
    infoset żywej decyzji, czyli ~47 MB przed kompresją bloków. Kontrakt,
    który tych marginesów zażąda dla produkcji, dostanie razem z nimi
-   rachunek za oba te rzędy wielkości.
+   rachunek za oba te rzędy wielkości — **i granicę skali per stan z pkt 4**:
+   przy 169 klasach zamiast czterech rozstęp marginesów w jednym stanie będzie
+   szerszy niż na artefakcie kontrolnym, więc zanim to pole cokolwiek zabramkuje,
+   ten kontrakt ma zmierzyć, ile infosetów wpada w zero z powodu skali, a ile
+   z powodu obojętności.
 
 8. **Koszt kwantyzacji uint16 W ε — kryterium blokujące (BQ).** Mierzy go
    `expost`, tym samym narzędziem i na tej samej definicji ε co POKER-46/50
@@ -1278,29 +1307,49 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    bloku metadanych v1 — to jest osobna asercja w bramce, bo to ona chroni
    sha artefaktu produkcyjnego.
 
-10. **Co trzyma bramka** (`tests/test_blueprint_v2.py`, 18 testów; testy
+10. **Co trzyma bramka** (`tests/test_blueprint_v2.py`, 24 testy; testy
     POKER-51 w `tests/test_blueprint_pilot.py` zostały NIETKNIĘTE i zielone).
     Nagłówek v2 z liczbą slotów, flagami sekcji i odciskiem przebiegu;
     determinizm zapisu v2 bajt w bajt; v1 bajt w bajt niezależnie od sekcji
     biegu i z niezmienionym opisem formatu; round-trip rozkładów w granicach
     kroku uint16 na komplecie 416 infosetów artefaktu kontrolnego (cztery
-    sloty, suma 1, czwarty zerowy); reguła dopełnienia na bloku z niezerową
-    resztą; V bajtowo dokładne (także warstwa brzegowa); ε co do wartości
-    zgodne z `expost.npz` i z `epsilon_max` raportu; marginesy dokładnie
-    w swojej skali, z własną węższą maską i z konstrukcyjnym testem
-    obojętności i dominacji; obie sekcje idą za STANEM, a nie za wierszem
-    (bieg przetasowany daje te same wartości pod tymi samymi kluczami);
-    sufit 16 węzłów zdjęty (artefakt 17-węzłowy: v1 odmawia, v2 czyta);
-    odrzucenie obcej magii, obcej wersji i v1 przestemplowanego na v2; brak
-    sekcji jako rozróżnialny `SectionMissing`, nie ciche zero; sufity bajtów
-    odczytu stanu, V, ε i marginesów oraz `bench --sweep` mierzący wszystkie
-    cztery; `requantize` do v2. Czytnik nadal jest czystym stdlib
-    (`struct`, `zlib`) — test architektury bez zmian w regułach.
-    Cena: bramka rośnie z 459 do **477 testów** i z ~4 min 30 s do ~6 min
-    (dwa przebiegi na tym samym drzewie: 5 min 53 s i 6 min 03 s — czas
-    ścienny na współdzielonym kontenerze nie jest deterministyczny, liczba
-    testów jest). Osiemnaście testów v2 stoi na własnym biegu solvera
-    z doliczonym ex-post i marginesami — ~12 s na komplet.
+    sloty, suma 1, czwarty zerowy) oraz w wariancie uint8, który w v2 też
+    jest legalny; reguła dopełnienia na bloku z niezerową resztą i ścieżka
+    ZAPISU czwartego slotu na biegu o czterech akcjach; remis kwantyzacji
+    rozstrzygany numerem slotu (na wierszu, który ODRÓŻNIA sortowanie
+    stabilne od niestabilnego — trzy sloty go nie odróżniają);
+    V bajtowo dokładne (także warstwa brzegowa); ε co do wartości zgodne
+    z `expost.npz` i z `epsilon_max` raportu; wyrównanie wszystkich offsetów
+    sekcji do ośmiu bajtów; marginesy dokładnie w swojej skali, z własną
+    węższą maską, z rozróżnieniem „nieokreślony ≠ zero" na biegu
+    skonstruowanym, z przypiętą granicą skali per stan i z konstrukcyjnym
+    testem obojętności i dominacji; obie sekcje idą za STANEM, a nie za
+    wierszem (bieg przetasowany daje te same wartości pod tymi samymi
+    kluczami); sufit 16 węzłów zdjęty (artefakt 17-węzłowy: v1 odmawia,
+    v2 czyta) i sufit 32 węzłów v2 mówiący o sobie prawdę; odrzucenie obcej
+    magii, obcej wersji i v1 przestemplowanego na v2 — **każde po
+    KOMUNIKACIE strażnika, nie po samym typie wyjątku** (bez tego usunięcie
+    kontroli slotów v2 z czytnika przechodzi całą bramkę, bo plik wywraca się
+    piętro niżej: F1 audytu, dziś PUŁAPKA w pamięci operacyjnej); brak sekcji
+    jako rozróżnialny `SectionMissing`, nie ciche zero; sufity bajtów odczytu
+    stanu, V, ε i marginesów oraz `bench --sweep` mierzący wszystkie cztery;
+    `requantize` do v2. Czytnik nadal jest czystym stdlib (`struct`, `zlib`)
+    — test architektury bez zmian w regułach.
+    Cena, zmierzona SPAROWANIEM (F2 audytu — pierwsza wersja tego zdania
+    porównywała czas po zmianie z bazą przepisaną z innego bloku i innego
+    obciążenia kontenera, co zawyżało cenę ~6×). Metoda jest ta sama, którą
+    stosuje `bench` do porównania v1 z v2: oba przebiegi w tej samej sesji,
+    sekwencyjnie, na tej samej maszynie, każdy po wyczyszczeniu `__pycache__`,
+    czas ścienny całego `pytest -q`:
+
+    | drzewo | testy | sekundy |
+    |---|---:|---:|
+    | `6f2a0b6` (przed kontraktem) | 459 | 344 |
+    | POKER-57 po rundzie audytowej | 483 | 361 |
+
+    **+17 s (+4,9%) za 24 testy** — dwadzieścia cztery testy v2 stoją na jednym
+    wspólnym biegu solvera z doliczonym ex-post i marginesami, więc płaci się
+    głównie za ten bieg, a nie za każdy test osobno.
 
 11. **Czego ten kontrakt NIE zrobił.** Nie poszerzył drzewa (maska uint32
     tylko ZDEJMUJE sufit formatu — kształt drzewa to rekord decyzyjny z P-14);

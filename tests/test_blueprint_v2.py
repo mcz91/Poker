@@ -161,7 +161,7 @@ def test_naglowek_v2_zapowiada_sloty_sekcje_i_kwantyzacje(
         "derived_slot": 3,
         "method": "largest-remainder",
         "sections": ["epsilon", "margins"],
-        "margin_levels": 255,
+        "margin_levels": 254,
     }
     # Odcisk przebiegu (POKER-56) jest w metadanych v2 tak samo jak w v1 —
     # konsument pyta o „jaką grę opisuje ten plik" jednym polem.
@@ -342,6 +342,7 @@ def test_raport_marginesow_artefaktu_kontrolnego(v2_run: dict[str, Any]) -> None
     """
     report = v2_run["margins"]
     assert report["n_infosets"] == CONTROL_MARGIN_INFOSETS
+    assert report["n_undefined"] == 0
     assert report["margin_max"] == pytest.approx(CONTROL_MARGIN_MAX, rel=1e-9)
     assert report["margin_median"] == pytest.approx(CONTROL_MARGIN_MEDIAN, rel=1e-9)
     assert report["pool"] == 1.0
@@ -390,11 +391,16 @@ def test_v2_marginesy_wracaja_w_swojej_skali_i_z_wlasna_maska(
         for hand, layer in layers.items():
             values = source[f"margin_{hand:02d}"]
             decision = source[f"decision_{hand:02d}"]
+            defined = source[f"defined_{hand:02d}"]
+            assert defined[decision].all(), (
+                "artefakt kontrolny nie ma infosetów nieokreślonych — reguła "
+                "nieokreśloności ma własny test na artefakcie skonstruowanym"
+            )
             for position, row in enumerate(layer["states"].tolist()):
                 stacks = (int(row[0]), int(row[1]), int(row[2]))
                 block = reader.margins(hand, stacks)
                 strategy = reader.state(hand, stacks)
-                live = values[position][decision[position]]
+                live = values[position][decision[position][:, None] & defined[position]]
                 # Oczekiwanie liczone TU, z reguły opisanej w dokumencie —
                 # a nie funkcją konwertera, bo wtedy porównywalibyśmy zapis
                 # z jego własną repliką (PUŁAPKA replik z POKER-51).
@@ -407,10 +413,12 @@ def test_v2_marginesy_wracaja_w_swojej_skali_i_z_wlasna_maska(
                 for node in block.nodes():
                     for klass in range(block.n_classes):
                         exact = float(values[position, node, klass])
-                        expected_q = int(exact / expected_scale * br.MARGIN_LEVELS + 0.5)
+                        # Bajt 0 jest zarezerwowany na „nieokreślony", więc
+                        # wartość liczbowa idzie z przesunięciem o jeden.
+                        expected_q = 1 + int(exact / expected_scale * br.MARGIN_LEVELS + 0.5)
                         assert block.quantized(node, klass) == expected_q
                         assert block.margin(node, klass) == (
-                            expected_q * block.scale / br.MARGIN_LEVELS
+                            (expected_q - 1) * block.scale / br.MARGIN_LEVELS
                         )
                         assert abs(block.margin(node, klass) - exact) <= (
                             block.scale / (2 * br.MARGIN_LEVELS) + 1e-9
@@ -445,7 +453,8 @@ def _shuffled_run_v2(source: Path, target: Path, seed: int) -> int:
     boundary = af.read_npz(source / manifest["boundary"]["file"])
     af.write_npz(target / manifest["boundary"]["file"], boundary)
     manifest["boundary"]["sha256"] = af.sha256_file(target / manifest["boundary"]["file"])
-    for name, prefixes in (("expost.npz", ("eps",)), ("margins.npz", ("margin", "decision"))):
+    for name, prefixes in (("expost.npz", ("eps",)),
+                          ("margins.npz", ("margin", "decision", "defined"))):
         arrays = af.read_npz(source / name)
         af.write_npz(target / name, {
             key: value[orders[int(key.split("_")[1])]]
@@ -524,8 +533,9 @@ def test_margines_zna_obojetnosc_i_dominacje(v2_run: dict[str, Any]) -> None:
         tensors, flat, stacks, 0, 1, 2,
         lambda target: np.full(3, 1 / 3, dtype=np.float64),
     )
-    margin, decision = mg.state_margins(problem, uniform(problem), sg.N_NODES)
+    margin, decision, defined = mg.state_margins(problem, uniform(problem), sg.N_NODES)
     assert decision.any()
+    assert defined[decision].all()
     assert float(np.max(np.abs(margin[decision]))) < 1e-6
 
     wta = sg.GridConfig(prizes=(1.0, 0.0, 0.0), classes=cc.control_classes(),
@@ -540,7 +550,7 @@ def test_margines_zna_obojetnosc_i_dominacje(v2_run: dict[str, Any]) -> None:
         ),
     )
     assert mode == "hu-jamfold"
-    margin, decision = mg.state_margins(problem, uniform(problem), sg.N_NODES)
+    margin, decision, defined = mg.state_margins(problem, uniform(problem), sg.N_NODES)
     classes = cc.control_classes()
     aces = classes.index(cc.class_index("AA"))
     worst_class = classes.index(cc.class_index("72o"))
@@ -550,6 +560,34 @@ def test_margines_zna_obojetnosc_i_dominacje(v2_run: dict[str, Any]) -> None:
     # zdanie porównawcze między nimi byłoby zdaniem o niczym, więc go nie ma:
     # obie mają być duże, bo w obu alternatywa jest wyraźnie gorsza.
     assert margin[sg.H_ROOT, worst_class] > MARGIN_DOMINANT_MIN
+
+
+def _widened_run(source: Path, target: Path, n_nodes: int) -> Path:
+    """Kopia biegu o `n_nodes` węzłach: dołożone węzły są kopią zerowego.
+
+    Marginesów nie kopiuje: mierzymy sufit MASKI, a sekcja marginesów o innej
+    liczbie węzłów niż warstwa jest osobnym błędem i ma osobny test.
+    """
+    af = _load("artifacts")
+    target.mkdir(parents=True, exist_ok=True)
+    manifest = json.loads((source / "solve_manifest.json").read_text())
+    for path in source.glob("*.npz"):
+        if path.name == "margins.npz":
+            continue
+        arrays = af.read_npz(path)
+        if "sigma" in arrays:
+            sigma = arrays["sigma"]
+            grown = np.zeros((sigma.shape[0], n_nodes, sigma.shape[2], sigma.shape[3]),
+                             dtype=sigma.dtype)
+            grown[:, : sigma.shape[1]] = sigma
+            grown[:, n_nodes - 1] = sigma[:, 0]
+            arrays["sigma"] = grown
+        af.write_npz(target / path.name, arrays)
+    for entry in manifest["layers"].values():
+        entry["sha256"] = af.sha256_file(target / entry["file"])
+    manifest["boundary"]["sha256"] = af.sha256_file(target / manifest["boundary"]["file"])
+    af.write_json(target / "solve_manifest.json", manifest)
+    return target
 
 
 def test_v2_zdejmuje_sufit_szesnastu_wezlow(v2_run: dict[str, Any], tmp_path: Path) -> None:
@@ -562,30 +600,16 @@ def test_v2_zdejmuje_sufit_szesnastu_wezlow(v2_run: dict[str, Any], tmp_path: Pa
     pk = _load("pack_blueprint")
     af = _load("artifacts")
     br = _import_reader()
-    wide = tmp_path / "wide"
-    wide.mkdir()
-    manifest = json.loads((v2_run["out_dir"] / "solve_manifest.json").read_text())
-    for path in v2_run["out_dir"].glob("*.npz"):
-        # Marginesy zostają: mierzymy sufit MASKI, a sekcja marginesów o innej
-        # liczbie węzłów niż warstwa jest osobnym błędem i ma osobny test.
-        if path.name == "margins.npz":
-            continue
-        arrays = af.read_npz(path)
-        if "sigma" in arrays:
-            sigma = arrays["sigma"]
-            grown = np.zeros((sigma.shape[0], 17, sigma.shape[2], sigma.shape[3]),
-                             dtype=sigma.dtype)
-            grown[:, : sigma.shape[1]] = sigma
-            grown[:, 16] = sigma[:, 0]
-            arrays["sigma"] = grown
-        af.write_npz(wide / path.name, arrays)
-    for entry in manifest["layers"].values():
-        entry["sha256"] = af.sha256_file(wide / entry["file"])
-    manifest["boundary"]["sha256"] = af.sha256_file(wide / manifest["boundary"]["file"])
-    af.write_json(wide / "solve_manifest.json", manifest)
+    wide = _widened_run(v2_run["out_dir"], tmp_path / "wide", 17)
 
-    with pytest.raises(ValueError, match="sufit v1"):
+    with pytest.raises(ValueError, match="16 węzłów, a bieg ma ich 17 — to jest sufit v1"):
         pk.pack(wide, tmp_path / "wide_v1.bpk")
+    # Sufit v2 też istnieje (32 węzły) i mówi o sobie prawdę: komunikat gałęzi
+    # v2 nie może kończyć się zdaniem „to jest sufit v1 zdjęty przez v2".
+    wider = _widened_run(v2_run["out_dir"], tmp_path / "wider", 33)
+    with pytest.raises(ValueError, match=r"format v2 mieści maskę osiągalności 32 "
+                                         r"węzłów, a bieg ma ich 33$"):
+        pk.pack(wider, tmp_path / "wider_v2.bpk", version=2)
     with pytest.raises(ValueError, match="węzłów, a warstwa biegu"):
         af.write_npz(wide / "margins.npz",
                      af.read_npz(v2_run["out_dir"] / "margins.npz"))
@@ -601,6 +625,7 @@ def test_v2_zdejmuje_sufit_szesnastu_wezlow(v2_run: dict[str, Any], tmp_path: Pa
         block = reader.state(info.hand, key)
         assert block.has_node(16)
         assert block.policy(16, 0) == block.policy(0, 0)
+        assert block.node_mask >> 16 & 1
 
 
 def test_czytnik_odrzuca_obca_wersje_i_v1_przestemplowane_na_v2(
@@ -618,15 +643,35 @@ def test_czytnik_odrzuca_obca_wersje_i_v1_przestemplowane_na_v2(
     pk.pack(v2_run["out_dir"], v1)
     raw_v1 = v1.read_bytes()
     raw_v2 = packed_v2.read_bytes()
+    # Komunikat, nie tylko typ: bez `match` test przechodzi także wtedy, gdy
+    # plik wywraca się PIĘTRO NIŻEJ, na cudzym katalogu warstw, a strażnika
+    # w czytniku nie ma wcale (PUŁAPKA z audytu POKER-57).
     cases = {
-        "v1 przestemplowane na v2": raw_v1[:8] + (2).to_bytes(2, "little") + raw_v1[10:],
-        "wersja 3": raw_v2[:8] + (3).to_bytes(2, "little") + raw_v2[10:],
-        "magia": b"XXXXXXXX" + raw_v2[8:],
-        "kwantyzacja": raw_v2[:10] + (7).to_bytes(2, "little") + raw_v2[12:],
-        "obcięty nagłówek": raw_v2[: br.HEADER_SIZE - 1],
+        "v1 przestemplowane na v2": (
+            raw_v1[:8] + (2).to_bytes(2, "little") + raw_v1[10:],
+            r"nagłówek v2 zapowiada 0 slotów akcji",
+        ),
+        "wersja 3": (
+            raw_v2[:8] + (3).to_bytes(2, "little") + raw_v2[10:],
+            r"wersja formatu 3 spoza obsługiwanych",
+        ),
+        "magia": (b"XXXXXXXX" + raw_v2[8:], r"zła magia artefaktu"),
+        "kwantyzacja": (
+            raw_v2[:10] + (7).to_bytes(2, "little") + raw_v2[12:],
+            r"nieobsługiwana kwantyzacja 7 bitów",
+        ),
+        "obcięty nagłówek": (
+            raw_v2[: br.HEADER_SIZE - 1], r"plik krótszy niż nagłówek"
+        ),
+        "v2 zapowiadające pięć slotów": (
+            raw_v2[: br.HEADER_V2_OFFSET]
+            + br.HEADER_V2_STRUCT.pack(5, 4, 3)
+            + raw_v2[br.HEADER_V2_OFFSET + br.HEADER_V2_STRUCT.size :],
+            r"nagłówek v2 zapowiada 5 slotów akcji",
+        ),
     }
-    for label, payload in cases.items():
-        with pytest.raises(br.BlueprintFormatError):
+    for label, (payload, message) in cases.items():
+        with pytest.raises(br.BlueprintFormatError, match=message):
             br.BlueprintReader(io.BytesIO(payload))
         assert issubclass(br.BlueprintFormatError, ValueError), label
 
@@ -642,21 +687,21 @@ def test_brak_sekcji_jest_jawny_a_nie_cichym_zerem(
     with v1.open("rb") as handle:
         reader = br.BlueprintReader(handle)
         stacks = tuple(v2_run["manifest"]["config"]["start_stacks"])
-        with pytest.raises(br.SectionMissing):
+        with pytest.raises(br.SectionMissing, match="nie niesie sekcji ex-post"):
             reader.epsilon(0, stacks)
-        with pytest.raises(br.SectionMissing):
+        with pytest.raises(br.SectionMissing, match="nie niesie sekcji marginesów"):
             reader.margins(0, stacks)
     with packed_v2.open("rb") as handle:
         reader = br.BlueprintReader(handle)
         horizon = max(info.hand for info in reader.layers)
         boundary_key = reader.state_key(horizon, 0)
-        with pytest.raises(br.SectionMissing):
+        with pytest.raises(br.SectionMissing, match="nie niesie sekcji ex-post"):
             reader.epsilon(horizon, boundary_key)
-        with pytest.raises(br.SectionMissing):
+        with pytest.raises(br.SectionMissing, match="nie niesie sekcji marginesów"):
             reader.margins(horizon, boundary_key)
-        with pytest.raises(br.LayerNotFound):
+        with pytest.raises(br.LayerNotFound, match="nie ma warstwy ręki"):
             reader.epsilon(horizon + 7, boundary_key)
-        with pytest.raises(br.StateNotFound):
+        with pytest.raises(br.StateNotFound, match="nie należy do warstwy"):
             reader.epsilon(0, (1, 1, 1))
     assert issubclass(br.SectionMissing, LookupError)
     for other in (br.NodeUnreachable, br.PolicyMissing, br.StateNotFound, br.LayerNotFound):
@@ -724,3 +769,203 @@ def test_round_trip_v2_przez_requantize_zachowuje_sloty(
     manifest = af.read_json(out / "solve_manifest.json")
     assert manifest["requantized"]["format_version"] == 2
     assert manifest["requantized"]["quant_bits"] == 16
+
+
+def _patched_margins(source: Path, target: Path, patch: Any) -> None:
+    """Kopia biegu z podmienioną sekcją marginesów (reszta bajt w bajt)."""
+    af = _load("artifacts")
+    target.mkdir(parents=True, exist_ok=True)
+    for path in source.iterdir():
+        if path.name != "margins.npz":
+            (target / path.name).write_bytes(path.read_bytes())
+    arrays = af.read_npz(source / "margins.npz")
+    patch(arrays)
+    af.write_npz(target / "margins.npz", arrays)
+
+
+def test_margines_nieokreslony_nie_jest_zerem(v2_run: dict[str, Any], tmp_path: Path) -> None:
+    """Klasa, która do węzła nie dociera, ma bajt 0 i wyjątek — nie margines 0,0.
+
+    Zero jest najsilniejszym sygnałem, jaki to pole niesie („doskonała
+    obojętność"), więc „nie policzono" nie może się nim przedstawiać. Artefakt
+    kontrolny nie ma ani jednego takiego infosetu (376 z 376 określonych),
+    więc reguła jest sprawdzana na biegu SKONSTRUOWANYM: jednej klasie
+    odbieramy określoność, drugiej wpisujemy zmierzone zero.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = v2_run["sg"]
+    node = sg.N_U_ROOT
+
+    def patch(arrays: dict[str, Any]) -> None:
+        arrays["defined_00"][0, node, 0] = False
+        arrays["margin_00"][0, node, 0] = 0.0
+        arrays["margin_00"][0, node, 1] = 0.0
+
+    run = tmp_path / "bieg"
+    _patched_margins(v2_run["out_dir"], run, patch)
+    packed = tmp_path / "patched.bpk"
+    pk.pack(run, packed, version=2)
+    stacks = tuple(v2_run["manifest"]["config"]["start_stacks"])
+    with packed.open("rb") as handle:
+        block = br.BlueprintReader(handle).margins(0, stacks)
+    assert block.quantized(node, 0) == br.MARGIN_UNDEFINED == 0
+    with pytest.raises(br.MarginUndefined, match="margines nieokreślony, a nie zerowy"):
+        block.margin(node, 0)
+    # Zmierzone zero jest czymś inny niż brak pomiaru — i wraca jako 0,0.
+    assert block.quantized(node, 1) == 1
+    assert block.margin(node, 1) == 0.0
+    table = block.margin_table(node)
+    assert table[0] is None and table[1] == 0.0
+    assert issubclass(br.MarginUndefined, LookupError)
+    assert not issubclass(br.MarginUndefined, br.SectionMissing)
+
+
+def test_skala_marginesu_jest_wspolna_dla_stanu_i_to_jest_jej_granica() -> None:
+    """Klasa o marginesie rzędy wielkości większym spycha sąsiadów do zera.
+
+    To jest ZNANE ograniczenie zapisu zgrubnego (blok POKER-57 pkt 4), nie
+    niespodzianka: skala jest wspólna dla stanu, więc krok to `skala/254`.
+    Test pinuje granicę, żeby kontrakt liczący marginesy produkcyjne wiedział,
+    czego to pole o rzadkich klasach NIE powie.
+    """
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    values = np.array([[1.0, 1.0e-4, 0.077]], dtype=np.float32)
+    quantized, scale = pk.quantize_margins(
+        values, np.array([True]), np.array([[True, True, True]])
+    )
+    assert scale == 1.0
+    assert quantized.tolist() == [[br.MARGIN_LEVELS + 1, 1, 21]]
+    # Margines 1e-4 czyta się jako zero, choć zerem nie jest; 0,077 przeżywa.
+    assert (quantized[0, 1] - 1) * scale / br.MARGIN_LEVELS == 0.0
+    assert abs((quantized[0, 2] - 1) * scale / br.MARGIN_LEVELS - 0.077) < 1.0 / br.MARGIN_LEVELS
+
+
+def test_v2_zapisuje_czwarty_slot_z_dopelnienia(v2_run: dict[str, Any], tmp_path: Path) -> None:
+    """Bieg o CZTERECH slotach akcji: v2 pakuje i oddaje czwarty slot, v1 odmawia.
+
+    Reguła dopełnienia ma test jednostkowy na bloku, ale ścieżka ZAPISU
+    czwartego slotu nie miała żadnego — a strażnik slotów porównywał kształt
+    warstwy ze stałą v1 (F4 audytu POKER-57). Bieg kontrolny dostaje czwartą
+    akcję przez przeniesienie części masy jamu.
+    """
+    pk = _load("pack_blueprint")
+    af = _load("artifacts")
+    br = _import_reader()
+    wide = tmp_path / "cztery"
+    wide.mkdir()
+    manifest = json.loads((v2_run["out_dir"] / "solve_manifest.json").read_text())
+    for path in v2_run["out_dir"].iterdir():
+        if path.name in ("margins.npz", "expost.npz"):
+            continue
+        if path.suffix != ".npz":
+            continue
+        arrays = af.read_npz(path)
+        if "sigma" in arrays:
+            sigma = arrays["sigma"]
+            grown = np.zeros((*sigma.shape[:3], 4), dtype=sigma.dtype)
+            grown[..., :3] = sigma
+            # Połowa masy jamu przechodzi na czwartą akcję — suma zostaje 1.
+            grown[..., 3] = sigma[..., 2] * 0.5
+            grown[..., 2] = sigma[..., 2] * 0.5
+            arrays["sigma"] = grown
+        af.write_npz(wide / path.name, arrays)
+    for entry in manifest["layers"].values():
+        entry["sha256"] = af.sha256_file(wide / entry["file"])
+    manifest["boundary"]["sha256"] = af.sha256_file(wide / manifest["boundary"]["file"])
+    af.write_json(wide / "solve_manifest.json", manifest)
+
+    with pytest.raises(ValueError, match="4 slotów akcji, a format v1 zapisuje 2"):
+        pk.pack(wide, tmp_path / "cztery_v1.bpk")
+    packed = tmp_path / "cztery_v2.bpk"
+    pk.pack(wide, packed, version=2)
+    source = af.read_npz(wide / "layer_00.npz")
+    nonzero = 0
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        stacks = tuple(int(x) for x in source["states"][0])
+        block = reader.state(0, stacks)
+        for node in block.nodes():
+            for klass, got in enumerate(block.policy_table(node)):
+                expected = source["sigma"][0, node, klass]
+                assert len(got) == 4
+                assert abs(sum(got) - 1.0) < 1e-9
+                for slot in range(4):
+                    assert abs(got[slot] - float(expected[slot])) < QUANT_STEP_U16
+                nonzero += int(got[br.DERIVED_SLOT_V2] > 0.0)
+    assert nonzero > 0, "czwarty slot wyszedł zerem — test nie sprawdził dopełnienia"
+
+
+def test_sekcje_v2_sa_wyrownane_do_osmiu_bajtow(packed_v2: Path) -> None:
+    """Każdy offset sekcji jest wielokrotnością ośmiu — także sekcja ε.
+
+    Wyrównanie jest częścią specyfikacji, a nie estetyką: bez niego tablice
+    czyta się spod niewyrównanego adresu, a plik przestaje być tym, co opisuje
+    dokument. Bez tej asercji jeden bajt wstawiony zamiast dopełnienia
+    przechodzi całą bramkę (F6 audytu POKER-57).
+    """
+    br = _import_reader()
+    raw = packed_v2.read_bytes()
+    header = br.HEADER_STRUCT.unpack(raw[: br.HEADER_STRUCT.size])
+    n_layers, directory_offset = header[4], header[9]
+    assert directory_offset % 8 == 0
+    checked = 0
+    for index in range(n_layers):
+        fields = br.LAYER_V2_STRUCT.unpack_from(
+            raw, directory_offset + index * br.LAYER_RECORD_SIZE_V2
+        )
+        for offset in fields[6:]:
+            assert offset % 8 == 0, f"warstwa {fields[0]}: offset {offset} niewyrównany"
+            checked += int(offset > 0)
+    assert checked >= 2 * 4 + 2, "za mało niezerowych offsetów, żeby test coś sprawdzał"
+
+
+def test_kwantyzacja_rozstrzyga_remis_numerem_slotu() -> None:
+    """Remis części ułamkowej bierze slot o NIŻSZYM numerze — porządek stabilny.
+
+    Determinizm zapisu („bajt w bajt ten sam plik") stoi na tej regule: przy
+    sortowaniu niestabilnym remis rozstrzygałaby implementacja sortowania,
+    a nie format (dług POKER-51 domknięty w POKER-57, F7 audytu).
+    """
+    pk = _load("pack_blueprint")
+    tie = np.array([[0.5, 0.5, 0.0]], dtype=np.float64)
+    assert pk.quantize_chunk(tie, 255).tolist() == [[128, 127, 0]]
+    assert pk.quantize_chunk(tie, 65535).tolist() == [[32768, 32767, 0]]
+    four = np.array([[0.25, 0.25, 0.25, 0.25]], dtype=np.float64)
+    assert pk.quantize_chunk(four, 255).tolist() == [[64, 64, 64, 63]]
+    # Ten wiersz ROZRÓŻNIA sposób sortowania: przy `kind="quicksort"` resztę
+    # bierze slot 3, a nie 2. Trzy pierwsze wiersze przeżywają podmianę, bo dla
+    # trzech i czterech elementów numpy i tak sortuje wstawianiem — pinujemy
+    # więc REGUŁĘ (niższy numer slotu bierze remis), a nie sposób sortowania.
+    straddling = np.array([[0.2, 0.4, 0.1, 0.3]], dtype=np.float64)
+    assert pk.quantize_chunk(straddling, 255).tolist() == [[51, 102, 26, 76]]
+
+
+def test_v2_z_kwantyzacja_uint8_jest_legalne_i_dziala(
+    v2_run: dict[str, Any], tmp_path: Path
+) -> None:
+    """uint8 zostaje legalne w nagłówku v2 — więc jest pod testem, a nie tylko w tabeli."""
+    pk = _load("pack_blueprint")
+    br = _import_reader()
+    sg = v2_run["sg"]
+    packed = tmp_path / "v2_u8.bpk"
+    summary = pk.pack(v2_run["out_dir"], packed, quant_bits=8, version=2)
+    assert summary["quant_bits"] == 8 and summary["version"] == 2
+    layers = sg.load_layers(v2_run["out_dir"])
+    worst = 0.0
+    with packed.open("rb") as handle:
+        reader = br.BlueprintReader(handle)
+        assert reader.quant_bits == 8 and reader.n_slots == 4
+        for hand, layer in layers.items():
+            for position, row in enumerate(layer["states"].tolist()):
+                stacks = (int(row[0]), int(row[1]), int(row[2]))
+                block = reader.state(hand, stacks)
+                for node in block.nodes():
+                    for klass, got in enumerate(block.policy_table(node)):
+                        assert got[br.DERIVED_SLOT_V2] == 0.0
+                        for slot in range(3):
+                            delta = abs(got[slot] - float(layer["sigma"][position, node,
+                                                                        klass, slot]))
+                            worst = max(worst, delta)
+    assert 0.0 < worst < 1.0 / 255.0

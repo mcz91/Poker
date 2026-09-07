@@ -69,7 +69,14 @@ N_SLOTS_V2 = 4
 # Skala marginesu indyferencji: uint8 na skali stanu (float32 w bloku).
 # Zapis jest ZGRUBNY z wyboru (decyzja 29 pkt 3): pole ma odpowiadać na
 # pytanie „czy ta komórka jest bliska obojętności", a nie nieść EV.
-MARGIN_LEVELS = 255
+# Bajt 0 jest ZAREZERWOWANY na „margines nieokreślony" (klasa, która przy tym
+# profilu nigdy do węzła nie dociera — nie ma dwóch akcji do porównania),
+# więc wartość liczbowa to (q - 1) / 254 skali. Bez tej rezerwy „nie
+# policzono" czytałoby się jako 0,0, czyli jako NAJSILNIEJSZY sygnał
+# obojętności — dokładnie ta pomyłka, przed którą maska węzłów broni na
+# piętro wyżej (F3 audytu POKER-57).
+MARGIN_LEVELS = 254
+MARGIN_UNDEFINED = 0
 
 # Flagi nagłówka v2: które sekcje opcjonalne plik w ogóle niesie.
 # O pojedynczej warstwie rozstrzyga jej rekord katalogu, nie flaga.
@@ -148,6 +155,14 @@ class SectionMissing(BlueprintLookupError):
     dla którego tamte są rozróżnialne między sobą: „nie policzono" to co innego
     niż „policzono zero", a konsument bramkujący wysyłkę profilu ograniczonego
     (P-13) musi te dwa przypadki rozdzielić.
+    """
+
+
+class MarginUndefined(BlueprintLookupError):
+    """Infoset bez marginesu: klasa nie dociera przy tym profilu do tego węzła.
+
+    Nie ma dwóch wartości akcji do odjęcia, więc nie ma marginesu — a zero
+    znaczyłoby „doskonała obojętność", czyli coś przeciwnego do prawdy.
     """
 
 
@@ -348,8 +363,14 @@ class MarginBlock:
     dochodzą. Zapis jest zgrubny (uint8 na skali stanu), bo pole ma rozstrzygać
     „czy ta komórka jest bliska obojętności", a nie zastępować EV.
 
-    Maska jest WĘŻSZA niż maska strategii: węzeł, w którym drzewo zostawia
-    jedną legalną akcję, nie ma marginesu (nie ma wyboru), a nie margines zero.
+    Trzy stany, nie dwa. Maska jest WĘŻSZA niż maska strategii: węzeł, w którym
+    drzewo zostawia jedną legalną akcję, nie ma marginesu (nie ma wyboru), a nie
+    margines zero. W węźle, który decyzją jest, klasa nieosiągalna przy tym
+    profilu ma bajt `MARGIN_UNDEFINED` i podnosi `MarginUndefined` — też nie
+    zero. Zero czytelnik dostaje wyłącznie wtedy, gdy margines naprawdę zmieścił
+    się poniżej pół kroku skali TEGO stanu; skala jest wspólna dla całego stanu,
+    więc klasa o marginesie o rzędy wielkości większym od reszty potrafi
+    zepchnąć realne marginesy sąsiadów do zera — patrz blok POKER-57 pkt 4.
     """
 
     hand: int
@@ -377,16 +398,33 @@ class MarginBlock:
         return rank * self.n_classes + klass
 
     def quantized(self, node: int, klass: int) -> int:
-        """Surowa wartość skwantowana marginesu (0..MARGIN_LEVELS)."""
+        """Surowy bajt marginesu: `MARGIN_UNDEFINED` albo 1 + wartość na skali."""
         return self.payload[self._offset(node, klass)]
 
     def margin(self, node: int, klass: int) -> float:
         """Margines indyferencji infosetu po dekwantyzacji skalą stanu."""
-        return self.quantized(node, klass) * self.scale / MARGIN_LEVELS
+        raw = self.quantized(node, klass)
+        if raw == MARGIN_UNDEFINED:
+            raise MarginUndefined(
+                f"klasa {klass} nie dociera do węzła {node} stanu {self.stacks} "
+                f"ręki {self.hand} — margines nieokreślony, a nie zerowy"
+            )
+        return (raw - 1) * self.scale / MARGIN_LEVELS
 
-    def margin_table(self, node: int) -> tuple[float, ...]:
-        """Marginesy wszystkich klas węzła — tą samą drogą co `margin`, nie jej kopią."""
-        return tuple(self.margin(node, klass) for klass in range(self.n_classes))
+    def margin_table(self, node: int) -> tuple[float | None, ...]:
+        """Marginesy wszystkich klas węzła; `None` = nieokreślony.
+
+        Ta sama droga co `margin` (nie jej kopia); nieokreśloność jest tu
+        `None`, a nie wyjątkiem, bo tabela ma opisać CAŁY węzeł — konsument
+        pytający o jedną komórkę dostaje wyjątek i nie może go przeoczyć.
+        """
+        out: list[float | None] = []
+        for klass in range(self.n_classes):
+            try:
+                out.append(self.margin(node, klass))
+            except MarginUndefined:
+                out.append(None)
+        return tuple(out)
 
 
 class BlueprintReader:
