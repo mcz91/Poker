@@ -22,9 +22,9 @@ Protokół (koszt czytelnika > koszt pisarza):
   `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
   przed scaleniem; raporty researchu w scratchpadzie sesji architekta
   (decyzje 25/29 streszczają; synteza: `…/scratchpad/research/synteza.md`).
-- 2026-09-04 arch: artefakty produkcyjne żyją w scratchpadzie sesji
-  `…/scratchpad/prod/` (tensor + grid2 + blueprint.bpk — ten ostatni
-  to wejście POKER-52); regeneracja = AC–AH i BA z CURRENT_STATE.
+- 2026-09-07 arch: POKER-58 plaster 1 zatwierdzony (instrument P-3:
+  exact_reach + verify_identity). Solve luki = drugi plaster, BRAK PROD.
+  Gałąź robocza: `grok/poker-58-instrument`.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
