@@ -1487,6 +1487,7 @@ def _boundary(
     manifest: dict[str, Any] | None = None,
     manifest_path: Path | None = None,
     cycle_limit: int | None = None,
+    session_deadline: float | None = None,
 ) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]], bool]:
     """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
 
@@ -1549,6 +1550,8 @@ def _boundary(
         if deltas[-1] <= config.tail_tol:
             return current, deltas, stats, True
         if cycle_limit is not None and len(deltas) >= cycle_limit:
+            return current, deltas, stats, False
+        if session_deadline is not None and time.perf_counter() >= session_deadline:
             return current, deltas, stats, False
     return current, deltas, stats, True
 
@@ -1796,6 +1799,7 @@ def solve(
     layers_limit: int | None = None,
     boundary_from: Path | None = None,
     horizon_cycles_limit: int | None = None,
+    session_deadline: float | None = None,
 ) -> dict[str, Any]:
     tensors = load_tensors(tensor_dir, config.classes)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1883,10 +1887,15 @@ def solve(
                 manifest=manifest,
                 manifest_path=manifest_path,
                 cycle_limit=horizon_cycles_limit,
+                session_deadline=session_deadline,
             )
             source = {"kind": "computed"}
             if not horizon_done:
-                manifest["status"] = "partial"
+                manifest["status"] = (
+                    "aborted-session"
+                    if session_deadline is not None and time.perf_counter() >= session_deadline
+                    else "partial"
+                )
                 if "horizon" in manifest:
                     manifest["horizon"]["complete"] = False
                 artifacts.write_json(manifest_path, manifest)
@@ -2005,6 +2014,10 @@ def solve(
         print(json.dumps(progress, ensure_ascii=False), flush=True)
         v_next_states, v_next = states_here, layer["v"]
         computed += 1
+        if session_deadline is not None and time.perf_counter() >= session_deadline:
+            manifest["status"] = "aborted-session"
+            artifacts.write_json(manifest_path, manifest)
+            return manifest
     manifest["status"] = "done"
     manifest["seconds_total_this_run"] = round(time.perf_counter() - started, 3)
     artifacts.write_json(manifest_path, manifest)
@@ -2044,6 +2057,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="limit bezpiecznika kosztu w rdzenio-godzinach; 0 wyłącza")
     parser.add_argument("--jobs", type=int, default=defaults.jobs)
     parser.add_argument("--layers-limit", type=int, default=None)
+    parser.add_argument(
+        "--session-hours",
+        type=float,
+        default=None,
+        help="bezpiecznik ściany sesji (Colab); 10 to domyślny budżet runnera",
+    )
     return parser
 
 
@@ -2069,9 +2088,20 @@ def main(argv: Any = None) -> int:
         cost_limit_core_hours=args.cost_limit,
         jobs=args.jobs,
     )
+    deadline = (
+        time.perf_counter() + args.session_hours * 3600.0
+        if args.session_hours is not None
+        else None
+    )
     try:
-        manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit,
-                         boundary_from=args.boundary_from)
+        manifest = solve(
+            config,
+            args.tensor,
+            args.out,
+            layers_limit=args.layers_limit,
+            boundary_from=args.boundary_from,
+            session_deadline=deadline,
+        )
     except CostFuseExceeded as fuse:
         print(json.dumps({"status": "aborted-cost-fuse", "cost_fuse": fuse.report},
                          ensure_ascii=False))

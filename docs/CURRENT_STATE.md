@@ -3236,12 +3236,21 @@ Następne kroki:
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
    **POKER-58** plaster 1 (instrument P-3) dostarczony → **POKER-59**
-   (P-4, checkpoint horyzontu) dostarczony → drugi plaster P-3 (solve luki)
-   czeka na katalog `PROD` → POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
-   sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
-   potwierdzeniu tabeli tierów przez operatora — z wyjątkiem P-7,
-   odblokowanego [decyzją 30](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md),
-   bo nie bierze z tabeli nic); bramka decyzji 29
+   (P-4, checkpoint horyzontu) dostarczony → **POKER-69** (runner Colab,
+   decyzja 31) dostarczony. Trening rdzenia na Colabie:
+
+   ```
+   OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+     python tools/blueprint/colab_run.py solve \
+       --tensor TENSOR --out OUT --session-hours 10 --jobs 4 --allow-fresh
+   python tools/blueprint/colab_run.py pack --run OUT --bpk OUT/blueprint_v2.bpk
+   ```
+
+   Po restarcie sesji ta sama komenda `solve` bez `--allow-fresh`.
+   Notes: `tools/blueprint/colab/train_gto.ipynb`. GPU nie liczy artefaktu.
+   Drugi plaster P-3 (solve luki) czeka na `PROD` → POKER-53 (AIVAT) → POKER-60
+   (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
+   Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu
    rozstrzygnięta decyzją 30: repozytorium jest publiczne, więc artefakt
    nie wchodzi do dystrybucji przez repo, a w repo żyje manifest
