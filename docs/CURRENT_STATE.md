@@ -3253,8 +3253,21 @@ Następne kroki:
    Po restarcie sesji ta sama komenda `solve` bez `--allow-fresh`.
    Notes: `tools/blueprint/colab/train_gto.ipynb`. GPU nie liczy artefaktu.
    Drugi plaster P-3 (solve luki) czeka na `PROD` → **POKER-53 plaster 1
-   (AIVAT)** dostarczony (`poker.aivat`, bramki na zabawce, `on_hand_end`)
-   → drugi plaster P-53 (SD na parach 55, N=320) → POKER-60
+   (AIVAT)** dostarczony → **POKER-60 plaster 1** (sonda kroku siatki)
+   dostarczony. Audyt algorytmu 2026-09-08: drzewo bez flat-call (A1),
+   T-DEEP to 1% volume (A2), ε < szum modelu (A3), kwantyzacja potrafi
+   zmienić tryb `deep`/`jamfold` (A4 — (85,50,15)→(86,50,14) przy BB=2).
+   Komenda spisu flipów:
+
+   ```
+   python tools/blueprint/grid_probes.py --n 300 --step 2 --seed 60
+   ```
+
+   Wyzwalacz kroku 1: import > 5e-4 lub flip na próbce.
+   Spis `--n 300 --seed 60 --step 2`: **12 flipów trybu (4%)** —
+   `step1=TAK` na regule flipu (ε importu produkcji nie liczone, plaster 2).
+   Próbka jest jednostajna po wektorach poza siatką, nie po reach areny.
+   → drugi plaster P-53 / P-60 (b,c, 300 solve) → P-7 WTA@25bb
    (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
    Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu

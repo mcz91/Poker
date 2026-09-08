@@ -1,0 +1,32 @@
+{
+  "id": "POKER-60",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Plaster 1 sondy P-6(a): narzędzie i prerejestrowana reguła czytania błędu kroku siatki — flip trybu drzewa i ε importu. Pomiar 300 stanów produkcji i sondy (b)(c) = plaster 2.",
+  "context": "Zatwierdzony po audycie algorytmu 2026-09-08 (A4). Decyzja 29 P-6. src/poker nietknięte.",
+  "acceptance": [
+    "tools/blueprint/grid_probes.py: sample_off_grid, mode_flip, import_gap, reading_rule; IMPORT_TRIGGER = 5e-4.",
+    "Reguła: max import > 5e-4 LUB flip trybu na próbce → step1=TAK — pod testem.",
+    "Istnieje stan dokładny, na którym quantize_stacks(..., 2) zmienia is_jam_fold_depth — pod testem.",
+    "CLI census działa; CURRENT_STATE notuje A4 i komendę sondy.",
+    "src/poker nietknięte."
+  ],
+  "non_goals": [
+    "300 stanów produkcji z solve (plaster 2).",
+    "Sondy (b) i (c).",
+    "Krok 1 siatki, zmiana drzewa."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-60.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-08T00:45:00Z",
+    "basis": "audyt A4; decyzja 29 P-6; mandat 2026-08-09"
+  }
+}
