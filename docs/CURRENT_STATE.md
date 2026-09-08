@@ -3264,10 +3264,19 @@ Następne kroki:
    ```
 
    Wyzwalacz kroku 1: import > 5e-4 lub flip na próbce.
-   Spis `--n 300 --seed 60 --step 2`: **12 flipów trybu (4%)** —
-   `step1=TAK` na regule flipu (ε importu produkcji nie liczone, plaster 2).
-   Próbka jest jednostajna po wektorach poza siatką, nie po reach areny.
-   → drugi plaster P-53 / P-60 (b,c, 300 solve) → P-7 WTA@25bb
+   Spis `--n 300 --seed 60 --step 2`: **12 flipów trybu (4%)**.
+   Plaster 2 (ε importu na łańcuchu kontrolnym, V_next=ICM po kwancie,
+   n=16 seed=60, 34 żetony, BB=2): **16/16 trigger**, mediana 1,93e−2,
+   maks 0,225 na (31,2,1)→(30,2,2). own_eps rzędu 1e−4. To nie V DAG-u
+   produkcji i nie 169 klas — ale próg 5e−4 przekroczony ~40× już na
+   ICM. `step1=TAK` dwoma niezależnymi sondami.
+
+   ```
+   python tools/blueprint/grid_probes.py --measure \
+     --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
+   ```
+
+   → P-60 (b,c) / 300 stanów na V produkcji → P-7 WTA@25bb
    (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
    Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu

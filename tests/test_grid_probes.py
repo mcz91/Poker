@@ -1,4 +1,4 @@
-"""Sonda P-6(a): krok siatki vs tryb drzewa (POKER-60 plaster 1)."""
+"""Sonda P-6(a): krok siatki vs tryb drzewa i ε importu (POKER-60)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "tools" / "blueprint" / "grid_probes.py"
+TENSOR = REPO / "tools" / "blueprint" / "control" / "tensor"
 
 
 def _load():
@@ -69,3 +70,44 @@ def test_spis_flipow_cli() -> None:
     assert "flips" in report
     assert report["reading"]["threshold"] == 5e-4
     assert report["reading"]["step1"] in {"TAK", "NIE"}
+
+
+def test_import_flip_ma_eps_none() -> None:
+    probes = _load()
+    sg_spec = importlib.util.spec_from_file_location(
+        "solve_grid", REPO / "tools" / "blueprint" / "solve_grid.py"
+    )
+    assert sg_spec is not None and sg_spec.loader is not None
+    if "solve_grid" not in sys.modules:
+        module = importlib.util.module_from_spec(sg_spec)
+        sys.modules["solve_grid"] = module
+        sg_spec.loader.exec_module(module)
+    cc_spec = importlib.util.spec_from_file_location(
+        "control_chain", REPO / "tools" / "blueprint" / "control_chain.py"
+    )
+    assert cc_spec is not None and cc_spec.loader is not None
+    if "control_chain" not in sys.modules:
+        module = importlib.util.module_from_spec(cc_spec)
+        sys.modules["control_chain"] = module
+        cc_spec.loader.exec_module(module)
+    sg = sys.modules["solve_grid"]
+    cc = sys.modules["control_chain"]
+    config = cc.control_config(jobs=1)
+    tensors = sg.load_tensors(TENSOR, config.classes)
+    row = probes.import_gap(tensors, config, (85, 50, 15), 0, (1, 2))
+    assert row["flipped"]
+    assert row["import_eps"] is None
+    assert row["triggers_step1"]
+
+
+def test_import_na_kontroli_nie_wywraca_sie() -> None:
+    probes = _load()
+    report = probes.measure_import(
+        TENSOR, n=1, seed=60, hand=0, blinds=(1, 2), jobs=1
+    )
+    assert report["n"] == 1
+    assert report["reading"]["threshold"] == 5e-4
+    assert report["v_next"] == "icm-quantized"
+    row = report["rows"][0]
+    assert list(row["exact"]) != list(row["grid"])
+    assert "triggers_step1" in row

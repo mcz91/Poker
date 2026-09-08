@@ -1,15 +1,9 @@
-"""Sondy błędu modelu P-6(a) — krok siatki (POKER-60 plaster 1).
+"""Sondy błędu modelu P-6(a) — krok siatki (POKER-60).
 
-ε solvera nie widzi kwantyzacji przejść. Ta sonda liczy dwie rzeczy,
-które metryka gubi:
+Plaster 1: flip trybu drzewa. Plaster 2: ε importu σ sąsiada na stanie
+dokładnym (V_next = ICM po kwancie — nie pełne V DAG-u produkcji).
 
-- czy `quantize_stacks` zmienia tryb drzewa (`deep` ↔ `jamfold`);
-- ε importu strategii sąsiada siatki na stanie dokładnym (to samo V=ICM).
-
-Reguła czytania (prerejestrowana, decyzja 29 P-6):
-maks importu > 5e−4 (= 10 × tolerancja etapowa 5e−5) → krok 1
-uzasadniony. Flip trybu na żywym BB też jest sygnałem — to nie jest
-szum 0,1%, tylko zmiana gry etapowej.
+Reguła: maks importu > 5e−4 LUB flip trybu → krok 1 = TAK.
 """
 
 from __future__ import annotations
@@ -18,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import random
+import statistics
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -30,7 +25,7 @@ from poker.spin import JAM_FOLD_BB, is_jam_fold_depth
 
 STAGE_TOL = 5e-5
 READ_K = 10
-IMPORT_TRIGGER = STAGE_TOL * READ_K  # 5e-4
+IMPORT_TRIGGER = STAGE_TOL * READ_K
 
 
 def _sibling(name: str) -> ModuleType:
@@ -62,7 +57,6 @@ def sample_off_grid(
     n: int,
     seed: int,
 ) -> list[tuple[int, int, int]]:
-    """Stany z dwiema składowymi poza siatką; suma stała, ≥2 żywych."""
     rng = random.Random(seed)
     found: list[tuple[int, int, int]] = []
     seen: set[tuple[int, int, int]] = set()
@@ -125,7 +119,7 @@ def import_gap(
     hand: int,
     blinds: tuple[int, int],
 ) -> dict[str, Any]:
-    """ε BR na stanie dokładnym przy σ sąsiada siatki; V_next = ICM po kwancie."""
+    """ε BR na stanie dokładnym przy σ sąsiada; V_next = ICM po kwancie."""
     solve_grid = _sibling("solve_grid")
     neighbor = solve_grid.quantize_stacks(exact, config.grid_step)
     sb, bb_amt = blinds
@@ -134,28 +128,28 @@ def import_gap(
         snapped = solve_grid.quantize_stacks(target, config.grid_step)
         return np.asarray(icm_equities(snapped, config.prizes), dtype=np.float64)
 
-    exact_p, _exact_roles, exact_mode = solve_grid.build_stage_problem(
+    exact_p, _roles, exact_mode = solve_grid.build_stage_problem(
         tensors, config, exact, hand, sb, bb_amt, lookup
     )
-    near_p, _near_roles, near_mode = solve_grid.build_stage_problem(
+    near_p, _near, near_mode = solve_grid.build_stage_problem(
         tensors, config, neighbor, hand, sb, bb_amt, lookup
     )
     flipped = exact_mode != near_mode
-    if exact_p.n_roles == 3:
-        sigma_near, _, _ = solve_grid._fp_solve(near_p, config)
-        _sigma_own, own_eps, _ = solve_grid._fp_solve(exact_p, config)
-    else:
-        sigma_near, _, _ = solve_grid._cfr_plus_solve(near_p, config)
-        _sigma_own, own_eps, _ = solve_grid._cfr_plus_solve(exact_p, config)
+    solver = (
+        solve_grid._fp_solve if exact_p.n_roles == 3 else solve_grid._cfr_plus_solve
+    )
+    sigma_near, _, _ = solver(near_p, config)
+    _own, own_eps, _ = solver(exact_p, config)
     imported = {
         node_id: sigma_near[node_id]
         for node_id in exact_p.nodes
         if node_id in sigma_near
     }
-    if len(imported) != len(exact_p.nodes):
+    if flipped or len(imported) != len(exact_p.nodes):
         gap = float("inf")
     else:
         gap = float(solve_grid._internal_eps(exact_p, imported))
+    finite = gap != float("inf")
     return {
         "exact": list(exact),
         "grid": list(neighbor),
@@ -163,8 +157,25 @@ def import_gap(
         "mode_grid": near_mode,
         "flipped": flipped,
         "own_eps": float(own_eps),
-        "import_eps": gap,
-        "triggers_step1": flipped or (gap != float("inf") and gap > IMPORT_TRIGGER),
+        "import_eps": gap if finite else None,
+        "triggers_step1": flipped or (finite and gap > IMPORT_TRIGGER),
+    }
+
+
+def summarize_imports(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    finite = [float(row["import_eps"]) for row in rows if row["import_eps"] is not None]
+    flips = sum(1 for row in rows if row["flipped"])
+    max_import = max(finite) if finite else 0.0
+    return {
+        "n": len(rows),
+        "flips": flips,
+        "n_finite": len(finite),
+        "max_import": max_import,
+        "median_import": statistics.median(finite) if finite else 0.0,
+        "n_trigger": sum(1 for row in rows if row["triggers_step1"]),
+        "v_next": "icm-quantized",
+        "reading": reading_rule(max_import, flips),
+        "rows": rows,
     }
 
 
@@ -179,6 +190,31 @@ def reading_rule(max_import: float, flips: int) -> dict[str, Any]:
     }
 
 
+def measure_import(
+    tensor_dir: Path,
+    *,
+    n: int,
+    seed: int,
+    hand: int,
+    blinds: tuple[int, int],
+    jobs: int = 1,
+) -> dict[str, Any]:
+    """ε importu na łańcuchu kontrolnym (4 klasy, 34 żetony, krok 2)."""
+    solve_grid = _sibling("solve_grid")
+    control = _sibling("control_chain")
+    config = control.control_config(jobs=jobs)
+    tensors = solve_grid.load_tensors(tensor_dir, config.classes)
+    states = sample_off_grid(config.total_chips, config.grid_step, n=n, seed=seed)
+    rows = [import_gap(tensors, config, state, hand, blinds) for state in states]
+    report = summarize_imports(rows)
+    report["total"] = config.total_chips
+    report["step"] = config.grid_step
+    report["seed"] = seed
+    report["hand"] = hand
+    report["blinds"] = list(blinds)
+    return report
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--total", type=int, default=150)
@@ -186,14 +222,38 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n", type=int, default=300)
     parser.add_argument("--seed", type=int, default=60)
     parser.add_argument("--blinds", default="2,4,6,8,10,16,20")
+    parser.add_argument(
+        "--measure",
+        action="store_true",
+        help="ε importu (wymaga --tensor); default to spis flipów",
+    )
+    parser.add_argument("--tensor", type=Path, default=None)
+    parser.add_argument("--hand", type=int, default=0)
+    parser.add_argument("--sb", type=int, default=1)
+    parser.add_argument("--bb", type=int, default=2)
+    parser.add_argument("--jobs", type=int, default=1)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    blinds = tuple(int(part) for part in args.blinds.split(","))
+    if args.measure:
+        if args.tensor is None:
+            raise SystemExit("--measure wymaga --tensor")
+        blinds = (args.sb, args.bb)
+        report = measure_import(
+            args.tensor,
+            n=args.n,
+            seed=args.seed,
+            hand=args.hand,
+            blinds=blinds,
+            jobs=args.jobs,
+        )
+        print(json.dumps(report, ensure_ascii=False))
+        return 0
+    blinds_all = tuple(int(part) for part in args.blinds.split(","))
     states = sample_off_grid(args.total, args.step, n=args.n, seed=args.seed)
-    report = census_mode_flips(states, args.step, blinds)
+    report = census_mode_flips(states, args.step, blinds_all)
     report["reading"] = reading_rule(0.0, report["flips"])
     print(json.dumps(report, ensure_ascii=False))
     return 0
