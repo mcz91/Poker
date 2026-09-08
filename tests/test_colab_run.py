@@ -34,7 +34,10 @@ def test_notes_ma_trzy_kroki_i_nie_importuje_gpu() -> None:
     sources = "\n".join("".join(cell.get("source", [])) for cell in payload["cells"])
     assert "allow-fresh" in sources
     assert "session-hours" in sources
-    assert "colab_run.py pack" in sources
+    assert "{hours}" not in sources
+    assert "subprocess.check_call" in sources
+    assert "colab_run.py" in sources
+    assert '"pack"' in sources
     assert "identity" in sources
     assert "cupy" not in sources.lower()
     assert "cuda" not in sources.lower() or "CPU" in sources
