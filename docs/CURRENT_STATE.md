@@ -3276,7 +3276,13 @@ Następne kroki:
      --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
    ```
 
-   → P-60 (b,c) / 300 stanów na V produkcji → P-7 WTA@25bb
+   → **POKER-68** (decyzja 31): spike call w slocie 3, 17→23 liści,
+   drzewo solvera zamrożone. Wiring = POKER-68b, potem WTA@25bb na
+   **nowym** drzewie — nie na T-DEEP 80/20.
+
+   ```
+   python tools/blueprint/tree_spike.py
+   ```
    (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
    Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu
