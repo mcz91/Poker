@@ -115,12 +115,18 @@ rollout_tensor = _sibling("rollout_tensor")
     N_B_VS_U_JAM_T_CALL,
 ) = range(14)
 N_NODES = 14
+# call-v0: BB po T call UTG; UTG vs jam BB (T już w puli).
+N_B_VS_U_OPEN_T_CALL = 14
+N_U_VS_B_JAM_T_CALL = 15
+N_NODES_CALL = 16
 
 # Węzły HU (endgame po odpadnięciu gracza) — zapisywane w slotach 0..3.
 H_ROOT, H_B_VS_OPEN, H_N_VS_3BET, H_B_VS_JAM = range(4)
 
-# Sloty akcji: 0 = fold, 1 = open (w korzeniach) albo call/jam-continue, 2 = jam w korzeniach.
-SLOT_FOLD, SLOT_MID, SLOT_JAM = 0, 1, 2
+# Sloty: 0 fold, 1 open/3bet, 2 jam, 3 call (tylko tree_id=call-v0, dopełnienie v2).
+SLOT_FOLD, SLOT_MID, SLOT_JAM, SLOT_CALL = 0, 1, 2, 3
+TREE_ISO = "iso"
+TREE_CALL = "call-v0"
 
 MODE_NAMES = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
@@ -174,6 +180,8 @@ class GridConfig:
     # 0 wyłącza. Nie wpływa na wynik, więc nie wchodzi do hasha konfiguracji.
     cost_limit_core_hours: float = 140.0
     jobs: int = 1
+    # iso = drzewo 17 liści (hash kontroli). call-v0 = slot 3, checkdown (decyzja 31).
+    tree_id: str = TREE_ISO
 
     def __post_init__(self) -> None:
         total = sum(self.prizes)
@@ -184,6 +192,8 @@ class GridConfig:
                 "multiplikator w wektorze po cichu podzieliłby ε i próg blokujący przez siebie. "
                 "Multiplikator żyje w tabeli tierów (poker.spin.TIERS), nie tutaj"
             )
+        if self.tree_id not in (TREE_ISO, TREE_CALL):
+            raise ValueError(f"tree_id {self.tree_id!r} — oczekiwano iso albo call-v0")
 
 
 def config_from_dict(payload: dict[str, Any]) -> GridConfig:
@@ -210,6 +220,7 @@ def config_from_dict(payload: dict[str, Any]) -> GridConfig:
         boundary_perturb_kind=payload["boundary_perturb_kind"],
         cost_limit_core_hours=payload["cost_limit_core_hours"],
         jobs=payload["jobs"],
+        tree_id=payload.get("tree_id", TREE_ISO),
     )
 
 
@@ -241,13 +252,16 @@ def config_fingerprint(config: GridConfig) -> dict[str, Any]:
         levels=config_levels(config),
         hands_per_level=config.hands_per_level,
         grid_step=config.grid_step,
+        **({"tree_id": config.tree_id} if config.tree_id != TREE_ISO else {}),
     )
 
 
 def config_hash(config: GridConfig, tensor_manifest: dict[str, Any]) -> str:
     fields = asdict(config)
-    del fields["jobs"]  # liczba procesów nie wpływa na wynik — wznowienie jej nie pilnuje
-    del fields["cost_limit_core_hours"]  # bezpiecznik przerywa, nie zmienia wyniku
+    del fields["jobs"]
+    del fields["cost_limit_core_hours"]
+    if fields.get("tree_id") == TREE_ISO:
+        del fields["tree_id"]
     payload = {
         "config": fields,
         "tensor_sha256": tensor_manifest["sha256"],
@@ -392,8 +406,18 @@ _LEAF_DEFS_HU: tuple[LeafDef, ...] = (
     ("sd", (0, 1)),  # 5 N jam, B call
 )
 
+_LEAF_DEFS_3_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_3 + (
+    ("sd", (1, 2)),  # 17 B call T open
+    ("sd", (0, 2)),  # 18 B call U open T fold
+    ("sd", (0, 1)),  # 19 T call U open B fold
+    ("sd", (0, 1, 2)),  # 20 T call U open B call
+    ("sd", (1, 2)),  # 21 T call, B jam, U fold
+    ("sd", (0, 1, 2)),  # 22 T call, B jam, U call
+)
+_LEAF_DEFS_HU_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_HU + (("sd", (0, 1)),)
 
-def _tree_3max(deep: bool) -> Tree:
+
+def _tree_3max(deep: bool, call: bool = False) -> Tree:
     after_u_fold = _node(
         N_T_FI,
         1,
@@ -416,6 +440,7 @@ def _tree_3max(deep: bool) -> Tree:
                                         ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
                                     ),
                                 ),
+                                *(((SLOT_CALL, _leaf(17)),) if call else ()),
                             ),
                         ),
                     ),
@@ -448,6 +473,7 @@ def _tree_3max(deep: bool) -> Tree:
                                 ((SLOT_FOLD, _leaf(7)), (SLOT_MID, _leaf(8))),
                             ),
                         ),
+                        *(((SLOT_CALL, _leaf(18)),) if call else ()),
                     ),
                 ),
             ),
@@ -476,6 +502,22 @@ def _tree_3max(deep: bool) -> Tree:
                     ),
                 ),
             ),
+            *(((SLOT_CALL, _node(
+                N_B_VS_U_OPEN_T_CALL,
+                2,
+                (
+                    (SLOT_FOLD, _leaf(19)),
+                    (SLOT_CALL, _leaf(20)),
+                    (
+                        SLOT_JAM,
+                        _node(
+                            N_U_VS_B_JAM_T_CALL,
+                            0,
+                            ((SLOT_FOLD, _leaf(21)), (SLOT_CALL, _leaf(22))),
+                        ),
+                    ),
+                ),
+            )),) if call else ()),
         ),
     )
     after_u_jam = _node(
@@ -507,29 +549,23 @@ def _tree_3max(deep: bool) -> Tree:
     return _node(N_U_ROOT, 0, tuple(children))
 
 
-def _tree_hu(deep: bool) -> Tree:
+def _tree_hu(deep: bool, call: bool = False) -> Tree:
     children = [(SLOT_FOLD, _leaf(0))]
     if deep:
-        children.append(
+        bb_kids: list[tuple[int, Tree]] = [
+            (SLOT_FOLD, _leaf(1)),
             (
                 SLOT_MID,
                 _node(
-                    H_B_VS_OPEN,
-                    1,
-                    (
-                        (SLOT_FOLD, _leaf(1)),
-                        (
-                            SLOT_MID,
-                            _node(
-                                H_N_VS_3BET,
-                                0,
-                                ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
-                            ),
-                        ),
-                    ),
+                    H_N_VS_3BET,
+                    0,
+                    ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
                 ),
-            )
-        )
+            ),
+        ]
+        if call:
+            bb_kids.append((SLOT_CALL, _leaf(6)))
+        children.append((SLOT_MID, _node(H_B_VS_OPEN, 1, tuple(bb_kids))))
     children.append(
         (SLOT_JAM, _node(H_B_VS_JAM, 1, ((SLOT_FOLD, _leaf(4)), (SLOT_MID, _leaf(5)))))
     )
@@ -698,6 +734,11 @@ class StageProblem:
     deal: np.ndarray  # (C^r,) f32
     total_weight: float
     count: int
+    n_slots: int = 3
+
+
+def _slot_matrix(problem: StageProblem) -> np.ndarray:
+    return np.zeros((problem.count, problem.n_slots), dtype=np.float32)
 
 
 @dataclass
@@ -854,7 +895,7 @@ def _init_profile(problem: StageProblem, style: str) -> dict[int, np.ndarray]:
     sigma: dict[int, np.ndarray] = {}
     for node_id in problem.nodes:
         allowed = problem.allowed[node_id]
-        matrix = np.zeros((problem.count, 3), dtype=np.float32)
+        matrix = _slot_matrix(problem)
         if len(allowed) == 1:
             matrix[:, allowed[0]] = 1.0
         elif style == "tight":
@@ -883,7 +924,7 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
             for node_id in problem.nodes:
                 allowed = problem.allowed[node_id]
                 if len(allowed) > 1:
-                    matrix = np.zeros((problem.count, 3), dtype=np.float32)
+                    matrix = _slot_matrix(problem)
                     matrix[:, allowed[-1]] = 0.8
                     for slot in allowed[:-1]:
                         matrix[:, slot] = 0.2 / (len(allowed) - 1)
@@ -905,7 +946,7 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
                     allowed = problem.allowed[node_id]
                     stacked = np.stack(values, axis=0)
                     choice = np.argmax(stacked, axis=0)
-                    matrix = np.zeros((problem.count, 3), dtype=np.float32)
+                    matrix = _slot_matrix(problem)
                     for position, slot in enumerate(allowed):
                         matrix[:, slot] = (choice == position).astype(np.float32)
                     reply[node_id] = matrix
@@ -948,10 +989,10 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
     w PI-FP.
     """
     regrets = {
-        node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
+        node_id: _slot_matrix(problem) for node_id in problem.nodes
     }
     average = {
-        node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
+        node_id: _slot_matrix(problem) for node_id in problem.nodes
     }
     reach_sum = {
         node_id: np.zeros(problem.count, dtype=np.float32) for node_id in problem.nodes
@@ -961,7 +1002,7 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
         sigma: dict[int, np.ndarray] = {}
         for node_id in problem.nodes:
             allowed = problem.allowed[node_id]
-            matrix = np.zeros((problem.count, 3), dtype=np.float32)
+            matrix = _slot_matrix(problem)
             positive = np.zeros((problem.count, len(allowed)), dtype=np.float32)
             for position, slot in enumerate(allowed):
                 positive[:, position] = np.maximum(regrets[node_id][:, slot], 0.0)
@@ -980,7 +1021,7 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
         for node_id in problem.nodes:
             allowed = problem.allowed[node_id]
             totals = reach_sum[node_id]
-            matrix = np.zeros((problem.count, 3), dtype=np.float32)
+            matrix = _slot_matrix(problem)
             uniform = np.float32(1.0 / len(allowed))
             for slot in allowed:
                 matrix[:, slot] = np.where(
@@ -1075,6 +1116,24 @@ def _contribs_3max(stacks_roles: tuple[int, int, int], sb_amt: int, bb_amt: int,
     )
 
 
+def _contribs_3max_call(
+    stacks_roles: tuple[int, int, int],
+    sb_amt: int,
+    bb_amt: int,
+    open_u: int,
+    open_t: int,
+) -> tuple[tuple[int, int, int], ...]:
+    s_u, s_t, s_b = stacks_roles
+    return _contribs_3max(stacks_roles, sb_amt, bb_amt, open_u, open_t) + (
+        (0, open_t, min(s_b, open_t)),
+        (open_u, sb_amt, min(s_b, open_u)),
+        (open_u, min(s_t, open_u), bb_amt),
+        (open_u, min(s_t, open_u), min(s_b, open_u)),
+        (open_u, min(s_t, open_u), s_b),
+        (min(s_u, s_b), min(s_t, s_b), s_b),
+    )
+
+
 def _contribs_hu(stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int,
                  open_n: int) -> tuple[tuple[int, int], ...]:
     s_n, s_b = stacks_roles
@@ -1085,6 +1144,15 @@ def _contribs_hu(stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int,
         (min(s_n, s_b), s_b),
         (s_n, bb_amt),
         (s_n, min(s_b, s_n)),
+    )
+
+
+def _contribs_hu_call(
+    stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int, open_n: int
+) -> tuple[tuple[int, int], ...]:
+    s_n, s_b = stacks_roles
+    return _contribs_hu(stacks_roles, sb_amt, bb_amt, open_n) + (
+        (open_n, min(s_b, open_n)),
     )
 
 
@@ -1157,9 +1225,14 @@ def build_stage_problem(
         bb_posted = min(s_b, bb_amt)
         open_u = min(open_amount(bb_amt), s_u)
         open_t = min(open_amount(bb_amt), s_t)
-        tree = _tree_3max(deep=not jamfold)
-        contribs = _contribs_3max((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
-        leaf_defs = _LEAF_DEFS_3
+        call = config.tree_id == TREE_CALL and not jamfold
+        tree = _tree_3max(deep=not jamfold, call=call)
+        contribs = (
+            _contribs_3max_call((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
+            if call
+            else _contribs_3max((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
+        )
+        leaf_defs = _LEAF_DEFS_3_CALL if call else _LEAF_DEFS_3
         n_roles = 3
         mode = "jamfold" if jamfold else "deep"
         allowed = {
@@ -1200,6 +1273,25 @@ def build_stage_problem(
                 (SLOT_MID,) if min(s_b, s_u) <= bb_posted else (SLOT_FOLD, SLOT_MID)
             ),
         }
+        if call:
+            def _add_call(base: tuple[int, ...]) -> tuple[int, ...]:
+                if len(base) <= 1:
+                    return base
+                return (*base, SLOT_CALL)
+
+            allowed[N_B_VS_T_OPEN] = _add_call(allowed[N_B_VS_T_OPEN])
+            allowed[N_B_VS_U_OPEN] = _add_call(allowed[N_B_VS_U_OPEN])
+            allowed[N_T_VS_U_OPEN] = _add_call(allowed[N_T_VS_U_OPEN])
+            allowed[N_B_VS_U_OPEN_T_CALL] = (
+                (SLOT_CALL,)
+                if s_b == bb_posted
+                else (SLOT_FOLD, SLOT_CALL, SLOT_JAM)
+            )
+            allowed[N_U_VS_B_JAM_T_CALL] = (
+                (SLOT_CALL,)
+                if min(s_u, s_b) <= open_u
+                else (SLOT_FOLD, SLOT_CALL)
+            )
         deal = tensors.deal3
         total_weight = float(tensors.deal3.sum())
     else:
@@ -1212,9 +1304,14 @@ def build_stage_problem(
         sb_posted = min(s_n, sb)
         bb_posted = min(s_b, bb_amt)
         open_n = min(open_amount(bb_amt), s_n)
-        tree = _tree_hu(deep=not jamfold)
-        contribs = _contribs_hu((s_n, s_b), sb_posted, bb_posted, open_n)
-        leaf_defs = _LEAF_DEFS_HU
+        call = config.tree_id == TREE_CALL and not jamfold
+        tree = _tree_hu(deep=not jamfold, call=call)
+        contribs = (
+            _contribs_hu_call((s_n, s_b), sb_posted, bb_posted, open_n)
+            if call
+            else _contribs_hu((s_n, s_b), sb_posted, bb_posted, open_n)
+        )
+        leaf_defs = _LEAF_DEFS_HU_CALL if call else _LEAF_DEFS_HU
         n_roles = 2
         mode = "hu-jamfold" if jamfold else "hu-deep"
         allowed = {
@@ -1231,6 +1328,8 @@ def build_stage_problem(
                 (SLOT_MID,) if min(s_b, s_n) <= bb_posted else (SLOT_FOLD, SLOT_MID)
             ),
         }
+        if call and len(allowed[H_B_VS_OPEN]) > 1:
+            allowed[H_B_VS_OPEN] = (*allowed[H_B_VS_OPEN], SLOT_CALL)
         deal = tensors.deal2
         total_weight = float(tensors.deal2.sum())
     leaf_kind: list[str] = []
@@ -1281,6 +1380,7 @@ def build_stage_problem(
         deal=deal,
         total_weight=total_weight,
         count=tensors.count,
+        n_slots=4 if config.tree_id == TREE_CALL and not jamfold else 3,
     )
     return problem, role_seats, mode
 
@@ -1315,7 +1415,10 @@ def solve_single_state(
     values = np.full(3, prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    sigma_out = np.zeros((N_NODES, tensors.count, 3), dtype=np.float32)
+    sigma_out = np.zeros(
+        (max(N_NODES, max(problem.nodes, default=-1) + 1), tensors.count, problem.n_slots),
+        dtype=np.float32,
+    )
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     return StageResult(sigma=sigma_out, values=values, eps=eps,
@@ -1390,7 +1493,8 @@ def _solve_state_job(
     values = np.full(3, config.prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    sigma_out = np.zeros((N_NODES, tensors.count, 3), dtype=np.float32)
+    n_nodes = N_NODES_CALL if problem.n_slots == 4 else N_NODES
+    sigma_out = np.zeros((n_nodes, tensors.count, problem.n_slots), dtype=np.float32)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     # Rekurencyjne domknięcia przechodu tworzą cykle trzymające tensory wypłat

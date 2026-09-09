@@ -3276,9 +3276,8 @@ Następne kroki:
      --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
    ```
 
-   → **POKER-68** (decyzja 31): spike call w slocie 3, 17→23 liści,
-   drzewo solvera zamrożone. Wiring = POKER-68b, potem WTA@25bb na
-   **nowym** drzewie — nie na T-DEEP 80/20.
+   → **POKER-68b**: `tree_id=call-v0` (23 liście, slot 3). Domyślne iso
+   nie rusza hasha kontroli. Agent areny jeszcze bez call.
 
    ```
    python tools/blueprint/tree_spike.py

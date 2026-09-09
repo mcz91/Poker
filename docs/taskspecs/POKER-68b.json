@@ -1,0 +1,29 @@
+{
+  "id": "POKER-68b",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Drzewo call-v0 za GridConfig.tree_id: 23 liście 3-max, slot 3, checkdown. Domyślne iso = 17 liści i hash kontroli b30a1755. src/poker nietknięte.",
+  "context": "S13 po POKER-68. Decyzja 31. Agent areny nie czyta call-v0 w tym plastrze.",
+  "acceptance": [
+    "tree_id iso | call-v0; brak pola albo iso nie zmienia config_hash kontroli.",
+    "call-v0: 23 liście 3-max osiągalne, SLOT_CALL w allowed BB vs open (deep), n_slots=4.",
+    "iso: len(_LEAF_DEFS_3)==17, n_slots=3, hash == chain_control.json.",
+    "Jedno _fp_solve call-v0 na tensorze kontrolnym kończy się skończonym ε.",
+    "src/poker nietknięte."
+  ],
+  "non_goals": ["Agent/arena call", "WTA", "pack produkcji", "postflop", "UTG limp"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-68b.json",
+    "docs/decisions/31-drzewo-call-checkdown.md"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-10T00:30:00Z",
+    "basis": "decyzja 31 S13; mandat 2026-08-09"
+  }
+}

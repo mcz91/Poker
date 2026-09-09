@@ -30,7 +30,7 @@ EXTRA_3 = (
     ("B_call_U_open_T_fold", "sd2"),
     ("T_call_U_open_B_fold", "sd2"),
     ("T_call_U_open_B_call", "sd3"),
-    ("T_call_U_open_B_jam_U_fold", "fold"),
+    ("T_call_U_open_B_jam_U_fold", "sd2"),
     ("T_call_U_open_B_jam_U_call", "sd2"),
 )
 EXTRA_HU = (("B_call_N_open", "sd2"),)
