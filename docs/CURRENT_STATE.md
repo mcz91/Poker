@@ -516,12 +516,10 @@ wektor wypłat nie da się pomylić z multiplikatorem, artefakty niosą odcisk
 przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
 POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie z ~262 do
 ~172 rdzenio-h, przy jawnych założeniach z pkt 4 i 4a). Kolejne
-w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
-1–5 przez osiągalność łańcucha DOKŁADNEGO, budżet 2–10 rdzenio-h wg decyzji
-29 — wycena tego kontraktu jej nie zmienia; poprawione **47,9 rdzenio-h** to
-GÓRNE ograniczenie: cena domknięcia do PEŁNEJ siatki, czyli opcji, którą
-decyzja 29 odrzuciła, i tyle zastępuje błędne ~13,4 z bloków POKER-52/55)
-i **P-4 POKER-59** (checkpoint horyzontu). **P-2 POKER-57 jest
+w mapie: **P-2 POKER-57** (`.bpk` v2, zamknięty), **P-3 POKER-58** plaster
+instrumentu (dostarczony), **P-4 POKER-59** (checkpoint horyzontu —
+dostarczony, test wznowienia per cykl). Drugi plaster P-3 (solve luki)
+czeka na katalog `PROD`. **P-2 POKER-57 jest
 dostarczony** (blok niżej): format `.bpk` v2 zdejmuje trzy sufity v1, więc
 poszerzenie drzewa (P-14) i profile DBR (P-13) nie czekają już na format —
 czekają na swoje rekordy decyzyjne i na korpus. Pierwszy przebieg TIEROWY
@@ -1212,8 +1210,10 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
 6. **Liczby na artefakcie produkcyjnym (BN, BO).** Bieg `PROD/grid2`
    (49 765 stanów-warstw + 2 923 stany warunku brzegowego, 169 klas,
    22 warstwy, `expost.npz` z POKER-50 obok):
-   **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** w v1 —
-   **2,13×**; zapis trwa **32,0 s** (drugi przebieg po naprawach audytu:
+   **40 490 256 B (38,6 MiB)** wobec **19 016 752 B (18,1 MiB)** v1
+   z 4 września (wpis `blueprint.bpk` w `prod_identity.json`; przed
+   fingerprintem POKER-56) — **2,13×**. Repack v1 kodem po POKER-56 daje
+   **19 016 824 B** (pkt 9). Zapis v2 trwa **32,0 s** (drugi przebieg po naprawach audytu:
    27,3 s przy identycznym pliku co do bajtu — czas ścienny na współdzielonym
    kontenerze nie jest deterministyczny, rozmiar jest; v1: 24,0 s). Panel decyzji 29 szacował
    ~34 MiB i liczył wyłącznie podwojenie bitów; różnica to **trzeci
@@ -2745,8 +2745,8 @@ i status `aborted-cost-fuse` w manifeście).
    25,2 wobec 18,5 przy pięciu; warstwy tańsze od ekstrapolacji).
    (b) **Koszt faktyczny przedsięwzięcia**: bieg był dwukrotnie
    przerwany restartami kontenera; pierwszy zabił horyzont
-   w 4. cyklu — horyzont nie ma checkpointu per cykl, więc przepadło
-   14 552 s ściennych × 4 = **16,2 rdzenio-h**; drugi kosztował jedną
+   w 4. cyklu — horyzont nie miał wtedy checkpointu per cykl, więc przepadło
+   14 552 s ściennych × 4 = **16,2 rdzenio-h** (limit zamknięty w POKER-59); drugi kosztował jedną
    częściową warstwę (≤2,8 rdzenio-h: między końcem warstwy 6
    a restartem minęły 42,5 min ścienne, śmierć kontenera nie zostawia
    znacznika) — razem **92,8–95,6 rdzenio-h**. Zegarowo całość
@@ -2809,13 +2809,12 @@ i status `aborted-cost-fuse` w manifeście).
    `boundary.npz` + warstwy wznowiły się po obu restartach zgodnie
    z projektem: bieg sklejony z trzech sesji zakończył się statusem
    `done` bez rozjazdu manifestu, a identyczność bajt w bajt wznowień
-   na kroku 2 trzyma test wycinka (AD). Świadomie zostawione:
-   **horyzont nie ma checkpointu per cykl** — restart w trakcie
-   horyzontu kosztuje cały dotychczasowy postęp cykli (zmierzone:
-   16,2 rdzenio-h; przy dzisiejszej stabilności kontenera to ryzyko
-   ~4–6 h ściennych na bieg). Wycena domknięcia: zapis `boundary
-   partial` per cykl tym samym mechanizmem co warstwy — osobny,
-   mały kontrakt, jeśli planowane są kolejne pełne biegi.
+   na kroku 2 trzyma test wycinka (AD). **POKER-59 zamyka limit horyzontu:**
+   po każdym cyklu ogona `boundary.npz` i rekord cyklu (numer, delta,
+   hash konfiguracji, kompletność) zapisują się atomowo; wznowienie od
+   ostatniego kompletnego cyklu jest bajt w bajt z biegiem nieprzerwanym
+   pod testem na wycinku, dla dwóch `jobs`. Historyczny koszt restartu
+   w 4. cyklu (16,2 rdzenio-h) zostaje jako pomiar, nie jako otwarty limit.
 
 **POKER-49 (kotwice `wt2_fold`, horyzont, CFR+, ślepota brzegu) zamknięty.**
 Liczby zmierzone na 4 rdzeniach, numpy 2.5.2, venv z extras `train`;
@@ -3236,19 +3235,60 @@ Następne kroki:
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
    decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
-   **POKER-58** (P-3, domknięcie warstw 1–5 łańcuchem dokładnym; szkic
-   w `docs/taskspecs/drafts/`) → POKER-59 (P-4, checkpoint horyzontu —
-   wymagany przed każdym przebiegiem dłuższym niż sesja Colab) →
-   POKER-53 (P-5, AIVAT na naprawionym przyrządzie) → POKER-60 (P-6,
-   sondy rozstrzygające bramkę STOP) → przebiegi tierowe (P-7 po
-   potwierdzeniu tabeli tierów przez operatora — z wyjątkiem P-7,
-   odblokowanego [decyzją 30](decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md),
-   bo nie bierze z tabeli nic); bramka decyzji 29
+   **POKER-58** plaster 1 (instrument P-3) dostarczony → **POKER-59**
+   (P-4, checkpoint horyzontu) dostarczony → **POKER-69** (runner Colab,
+   decyzja 31) dostarczony. Trening rdzenia na Colabie:
+
+   ```
+   OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+     python tools/blueprint/colab_run.py solve \
+       --profile smoke --tensor TENSOR --out OUT --session-hours 0.25 --allow-fresh
+   python tools/blueprint/colab_run.py status --out OUT
+   ```
+
+   Produkcja WTA: `--profile wta25 --session-hours 9` i tensor z Drive.
+   Profile: `smoke` / `tdeep` (krok 2, 80/20) / `wta25` (krok 2, 1,0,0).
+   Nie wołaj solvera bez profilu — milczący krok siatki to 5.
+
+   Po restarcie sesji ta sama komenda `solve` bez `--allow-fresh`.
+   Notes: `tools/blueprint/colab/train_gto.ipynb`. GPU nie liczy artefaktu.
+   Drugi plaster P-3 (solve luki) czeka na `PROD` → **POKER-53 plaster 1
+   (AIVAT)** dostarczony → **POKER-60 plaster 1** (sonda kroku siatki)
+   dostarczony. Audyt algorytmu 2026-09-08: drzewo bez flat-call (A1),
+   T-DEEP to 1% volume (A2), ε < szum modelu (A3), kwantyzacja potrafi
+   zmienić tryb `deep`/`jamfold` (A4 — (85,50,15)→(86,50,14) przy BB=2).
+   Komenda spisu flipów:
+
+   ```
+   python tools/blueprint/grid_probes.py --n 300 --step 2 --seed 60
+   ```
+
+   Wyzwalacz kroku 1: import > 5e-4 lub flip na próbce.
+   Spis `--n 300 --seed 60 --step 2`: **12 flipów trybu (4%)**.
+   Plaster 2 (ε importu na łańcuchu kontrolnym, V_next=ICM po kwancie,
+   n=16 seed=60, 34 żetony, BB=2): **16/16 trigger**, mediana 1,93e−2,
+   maks 0,225 na (31,2,1)→(30,2,2). own_eps rzędu 1e−4. To nie V DAG-u
+   produkcji i nie 169 klas — ale próg 5e−4 przekroczony ~40× już na
+   ICM. `step1=TAK` dwoma niezależnymi sondami.
+
+   ```
+   python tools/blueprint/grid_probes.py --measure \
+     --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
+   ```
+
+   → **POKER-68e**: round-trip call-v0 (solve→pack v2→agent). Notebook
+   `POKER_TREE_ID`; call-v0 ma osobny OUT. WTA nadal czeka na tensor 169.
+
+   ```
+   python tools/blueprint/colab_run.py solve --profile smoke --tree-id call-v0 ...
+   ```
+   (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
+   Bramka decyzji 29
    „pomiar przed tierami" — wykonana w POKER-55. Dystrybucja artefaktu
    rozstrzygnięta decyzją 30: repozytorium jest publiczne, więc artefakt
    nie wchodzi do dystrybucji przez repo, a w repo żyje manifest
    tożsamości `tools/blueprint/control/prod_identity.json` (sha256
-   32 plików), pod który POKER-58 dokłada narzędzie weryfikacji.
+   32 plików) i narzędzie `tools/blueprint/verify_identity.py`.
    Przekazanie pracy nowej drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
@@ -3258,8 +3298,10 @@ Następne kroki:
    decyzja o cenie, nie dwie, i uruchamia się wyłącznie przy ε > 5e−4
    (werdykt architekta 2026-08-30). Format
    artefaktu przestał być szacunkiem: napisany i zmierzony w POKER-51
-   plik produkcyjny ma **19 016 752 B** (szacunek z danych `grid5b`
-   mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB), bo 60% komórek to
+   plik produkcyjny z 4 września ma **19 016 752 B** (tożsamość w
+   `prod_identity.json`); regeneracja v1 po fingerprintcie POKER-56
+   daje **19 016 824 B** (blok POKER-57 pkt 9). Szacunek z danych `grid5b`
+   mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB, bo 60% komórek to
    węzły nieosiągalne i nie trafiają do pliku wcale. Kwantyzacja do
    uint8 daje maksymalny błąd 0,0026 **w przestrzeni
    prawdopodobieństw akcji** — to inna jednostka niż ε (udział sumy wypłat)

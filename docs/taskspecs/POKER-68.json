@@ -1,0 +1,32 @@
+{
+  "id": "POKER-68",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Wyceniony spike gałęzi call (decyzja 31 / P-14): 17→23 liści, slot 3, koszt 1,6× deep, asercja pamięci extra 3-way. Drzewo solvera nietknięte.",
+  "context": "Zatwierdzony 2026-09-10. POKER-60 zapalił krok 1; A1 mówi że krok 1 bez calla to zła gra. src/poker nietknięte.",
+  "acceptance": [
+    "docs/decisions/31-drzewo-call-checkdown.md obowiązuje.",
+    "tools/blueprint/tree_spike.py: CURRENT 17/6, PROPOSED 23/7, SLOT_CALL=3=DERIVED_SLOT_V2, squeeze=4, extra 3-way < 80 MiB przy C=169.",
+    "Iloraz liści 3-max w [1.30, 1.45]; CLI JSON.",
+    "len(_LEAF_DEFS_3)==17 — solver nie poszerzony.",
+    "src/poker nietknięte."
+  ],
+  "non_goals": [
+    "Wiring drzewa (POKER-68b).",
+    "Solve, pack, WTA, DBR, postflop."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/decisions/31-drzewo-call-checkdown.md",
+    "docs/taskspecs/POKER-68.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-10T00:00:00Z",
+    "basis": "P-60 step1=TAK; A1; decyzja 29 P-14; mandat 2026-08-09"
+  }
+}

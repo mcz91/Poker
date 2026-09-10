@@ -115,12 +115,18 @@ rollout_tensor = _sibling("rollout_tensor")
     N_B_VS_U_JAM_T_CALL,
 ) = range(14)
 N_NODES = 14
+# call-v0: BB po T call UTG; UTG vs jam BB (T już w puli).
+N_B_VS_U_OPEN_T_CALL = 14
+N_U_VS_B_JAM_T_CALL = 15
+N_NODES_CALL = 16
 
 # Węzły HU (endgame po odpadnięciu gracza) — zapisywane w slotach 0..3.
 H_ROOT, H_B_VS_OPEN, H_N_VS_3BET, H_B_VS_JAM = range(4)
 
-# Sloty akcji: 0 = fold, 1 = open (w korzeniach) albo call/jam-continue, 2 = jam w korzeniach.
-SLOT_FOLD, SLOT_MID, SLOT_JAM = 0, 1, 2
+# Sloty: 0 fold, 1 open/3bet, 2 jam, 3 call (tylko tree_id=call-v0, dopełnienie v2).
+SLOT_FOLD, SLOT_MID, SLOT_JAM, SLOT_CALL = 0, 1, 2, 3
+TREE_ISO = "iso"
+TREE_CALL = "call-v0"
 
 MODE_NAMES = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
@@ -174,6 +180,8 @@ class GridConfig:
     # 0 wyłącza. Nie wpływa na wynik, więc nie wchodzi do hasha konfiguracji.
     cost_limit_core_hours: float = 140.0
     jobs: int = 1
+    # iso = drzewo 17 liści (hash kontroli). call-v0 = slot 3, checkdown (decyzja 31).
+    tree_id: str = TREE_ISO
 
     def __post_init__(self) -> None:
         total = sum(self.prizes)
@@ -184,6 +192,8 @@ class GridConfig:
                 "multiplikator w wektorze po cichu podzieliłby ε i próg blokujący przez siebie. "
                 "Multiplikator żyje w tabeli tierów (poker.spin.TIERS), nie tutaj"
             )
+        if self.tree_id not in (TREE_ISO, TREE_CALL):
+            raise ValueError(f"tree_id {self.tree_id!r} — oczekiwano iso albo call-v0")
 
 
 def config_from_dict(payload: dict[str, Any]) -> GridConfig:
@@ -210,6 +220,7 @@ def config_from_dict(payload: dict[str, Any]) -> GridConfig:
         boundary_perturb_kind=payload["boundary_perturb_kind"],
         cost_limit_core_hours=payload["cost_limit_core_hours"],
         jobs=payload["jobs"],
+        tree_id=payload.get("tree_id", TREE_ISO),
     )
 
 
@@ -241,13 +252,16 @@ def config_fingerprint(config: GridConfig) -> dict[str, Any]:
         levels=config_levels(config),
         hands_per_level=config.hands_per_level,
         grid_step=config.grid_step,
+        **({"tree_id": config.tree_id} if config.tree_id != TREE_ISO else {}),
     )
 
 
 def config_hash(config: GridConfig, tensor_manifest: dict[str, Any]) -> str:
     fields = asdict(config)
-    del fields["jobs"]  # liczba procesów nie wpływa na wynik — wznowienie jej nie pilnuje
-    del fields["cost_limit_core_hours"]  # bezpiecznik przerywa, nie zmienia wyniku
+    del fields["jobs"]
+    del fields["cost_limit_core_hours"]
+    if fields.get("tree_id") == TREE_ISO:
+        del fields["tree_id"]
     payload = {
         "config": fields,
         "tensor_sha256": tensor_manifest["sha256"],
@@ -392,8 +406,16 @@ _LEAF_DEFS_HU: tuple[LeafDef, ...] = (
     ("sd", (0, 1)),  # 5 N jam, B call
 )
 
+_LEAF_DEFS_3_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_3 + (
+    ("sd", (1, 2)),  # 17 B call T open
+    ("sd", (0, 2)),  # 18 B call U open T fold
+    ("sd", (0, 1)),  # 19 T call U open B fold
+    ("sd", (0, 1, 2)),  # 20 T call U open B call (checkdown; bez jamu BB — F2)
+)
+_LEAF_DEFS_HU_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_HU + (("sd", (0, 1)),)
 
-def _tree_3max(deep: bool) -> Tree:
+
+def _tree_3max(deep: bool, call: bool = False) -> Tree:
     after_u_fold = _node(
         N_T_FI,
         1,
@@ -416,6 +438,7 @@ def _tree_3max(deep: bool) -> Tree:
                                         ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
                                     ),
                                 ),
+                                *(((SLOT_CALL, _leaf(17)),) if call else ()),
                             ),
                         ),
                     ),
@@ -448,6 +471,7 @@ def _tree_3max(deep: bool) -> Tree:
                                 ((SLOT_FOLD, _leaf(7)), (SLOT_MID, _leaf(8))),
                             ),
                         ),
+                        *(((SLOT_CALL, _leaf(18)),) if call else ()),
                     ),
                 ),
             ),
@@ -476,6 +500,11 @@ def _tree_3max(deep: bool) -> Tree:
                     ),
                 ),
             ),
+            *(((SLOT_CALL, _node(
+                N_B_VS_U_OPEN_T_CALL,
+                2,
+                ((SLOT_FOLD, _leaf(19)), (SLOT_CALL, _leaf(20))),
+            )),) if call else ()),
         ),
     )
     after_u_jam = _node(
@@ -507,29 +536,23 @@ def _tree_3max(deep: bool) -> Tree:
     return _node(N_U_ROOT, 0, tuple(children))
 
 
-def _tree_hu(deep: bool) -> Tree:
+def _tree_hu(deep: bool, call: bool = False) -> Tree:
     children = [(SLOT_FOLD, _leaf(0))]
     if deep:
-        children.append(
+        bb_kids: list[tuple[int, Tree]] = [
+            (SLOT_FOLD, _leaf(1)),
             (
                 SLOT_MID,
                 _node(
-                    H_B_VS_OPEN,
-                    1,
-                    (
-                        (SLOT_FOLD, _leaf(1)),
-                        (
-                            SLOT_MID,
-                            _node(
-                                H_N_VS_3BET,
-                                0,
-                                ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
-                            ),
-                        ),
-                    ),
+                    H_N_VS_3BET,
+                    0,
+                    ((SLOT_FOLD, _leaf(2)), (SLOT_MID, _leaf(3))),
                 ),
-            )
-        )
+            ),
+        ]
+        if call:
+            bb_kids.append((SLOT_CALL, _leaf(6)))
+        children.append((SLOT_MID, _node(H_B_VS_OPEN, 1, tuple(bb_kids))))
     children.append(
         (SLOT_JAM, _node(H_B_VS_JAM, 1, ((SLOT_FOLD, _leaf(4)), (SLOT_MID, _leaf(5)))))
     )
@@ -698,6 +721,18 @@ class StageProblem:
     deal: np.ndarray  # (C^r,) f32
     total_weight: float
     count: int
+    n_slots: int = 3
+
+
+def _slot_matrix(problem: StageProblem) -> np.ndarray:
+    return np.zeros((problem.count, problem.n_slots), dtype=np.float32)
+
+
+def _sigma_canvas(config: GridConfig, count: int) -> np.ndarray:
+    """Jednakowy kształt σ w warstwie: call-v0 zawsze 16×4, iso 14×3 (F1)."""
+    if config.tree_id == TREE_CALL:
+        return np.zeros((N_NODES_CALL, count, 4), dtype=np.float32)
+    return np.zeros((N_NODES, count, 3), dtype=np.float32)
 
 
 @dataclass
@@ -854,7 +889,7 @@ def _init_profile(problem: StageProblem, style: str) -> dict[int, np.ndarray]:
     sigma: dict[int, np.ndarray] = {}
     for node_id in problem.nodes:
         allowed = problem.allowed[node_id]
-        matrix = np.zeros((problem.count, 3), dtype=np.float32)
+        matrix = _slot_matrix(problem)
         if len(allowed) == 1:
             matrix[:, allowed[0]] = 1.0
         elif style == "tight":
@@ -883,7 +918,7 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
             for node_id in problem.nodes:
                 allowed = problem.allowed[node_id]
                 if len(allowed) > 1:
-                    matrix = np.zeros((problem.count, 3), dtype=np.float32)
+                    matrix = _slot_matrix(problem)
                     matrix[:, allowed[-1]] = 0.8
                     for slot in allowed[:-1]:
                         matrix[:, slot] = 0.2 / (len(allowed) - 1)
@@ -905,7 +940,7 @@ def _fp_solve(problem: StageProblem, config: GridConfig,
                     allowed = problem.allowed[node_id]
                     stacked = np.stack(values, axis=0)
                     choice = np.argmax(stacked, axis=0)
-                    matrix = np.zeros((problem.count, 3), dtype=np.float32)
+                    matrix = _slot_matrix(problem)
                     for position, slot in enumerate(allowed):
                         matrix[:, slot] = (choice == position).astype(np.float32)
                     reply[node_id] = matrix
@@ -948,10 +983,10 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
     w PI-FP.
     """
     regrets = {
-        node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
+        node_id: _slot_matrix(problem) for node_id in problem.nodes
     }
     average = {
-        node_id: np.zeros((problem.count, 3), dtype=np.float32) for node_id in problem.nodes
+        node_id: _slot_matrix(problem) for node_id in problem.nodes
     }
     reach_sum = {
         node_id: np.zeros(problem.count, dtype=np.float32) for node_id in problem.nodes
@@ -961,7 +996,7 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
         sigma: dict[int, np.ndarray] = {}
         for node_id in problem.nodes:
             allowed = problem.allowed[node_id]
-            matrix = np.zeros((problem.count, 3), dtype=np.float32)
+            matrix = _slot_matrix(problem)
             positive = np.zeros((problem.count, len(allowed)), dtype=np.float32)
             for position, slot in enumerate(allowed):
                 positive[:, position] = np.maximum(regrets[node_id][:, slot], 0.0)
@@ -980,7 +1015,7 @@ def _cfr_plus_solve(problem: StageProblem, config: GridConfig,
         for node_id in problem.nodes:
             allowed = problem.allowed[node_id]
             totals = reach_sum[node_id]
-            matrix = np.zeros((problem.count, 3), dtype=np.float32)
+            matrix = _slot_matrix(problem)
             uniform = np.float32(1.0 / len(allowed))
             for slot in allowed:
                 matrix[:, slot] = np.where(
@@ -1075,6 +1110,22 @@ def _contribs_3max(stacks_roles: tuple[int, int, int], sb_amt: int, bb_amt: int,
     )
 
 
+def _contribs_3max_call(
+    stacks_roles: tuple[int, int, int],
+    sb_amt: int,
+    bb_amt: int,
+    open_u: int,
+    open_t: int,
+) -> tuple[tuple[int, int, int], ...]:
+    _s_u, s_t, s_b = stacks_roles
+    return _contribs_3max(stacks_roles, sb_amt, bb_amt, open_u, open_t) + (
+        (0, open_t, min(s_b, open_t)),
+        (open_u, sb_amt, min(s_b, open_u)),
+        (open_u, min(s_t, open_u), bb_amt),
+        (open_u, min(s_t, open_u), min(s_b, open_u)),
+    )
+
+
 def _contribs_hu(stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int,
                  open_n: int) -> tuple[tuple[int, int], ...]:
     s_n, s_b = stacks_roles
@@ -1085,6 +1136,15 @@ def _contribs_hu(stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int,
         (min(s_n, s_b), s_b),
         (s_n, bb_amt),
         (s_n, min(s_b, s_n)),
+    )
+
+
+def _contribs_hu_call(
+    stacks_roles: tuple[int, int], sb_amt: int, bb_amt: int, open_n: int
+) -> tuple[tuple[int, int], ...]:
+    s_n, s_b = stacks_roles
+    return _contribs_hu(stacks_roles, sb_amt, bb_amt, open_n) + (
+        (open_n, min(s_b, open_n)),
     )
 
 
@@ -1157,9 +1217,14 @@ def build_stage_problem(
         bb_posted = min(s_b, bb_amt)
         open_u = min(open_amount(bb_amt), s_u)
         open_t = min(open_amount(bb_amt), s_t)
-        tree = _tree_3max(deep=not jamfold)
-        contribs = _contribs_3max((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
-        leaf_defs = _LEAF_DEFS_3
+        call = config.tree_id == TREE_CALL and not jamfold
+        tree = _tree_3max(deep=not jamfold, call=call)
+        contribs = (
+            _contribs_3max_call((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
+            if call
+            else _contribs_3max((s_u, s_t, s_b), sb_posted, bb_posted, open_u, open_t)
+        )
+        leaf_defs = _LEAF_DEFS_3_CALL if call else _LEAF_DEFS_3
         n_roles = 3
         mode = "jamfold" if jamfold else "deep"
         allowed = {
@@ -1200,6 +1265,18 @@ def build_stage_problem(
                 (SLOT_MID,) if min(s_b, s_u) <= bb_posted else (SLOT_FOLD, SLOT_MID)
             ),
         }
+        if call:
+            def _add_call(base: tuple[int, ...]) -> tuple[int, ...]:
+                if len(base) <= 1:
+                    return base
+                return (*base, SLOT_CALL)
+
+            allowed[N_B_VS_T_OPEN] = _add_call(allowed[N_B_VS_T_OPEN])
+            allowed[N_B_VS_U_OPEN] = _add_call(allowed[N_B_VS_U_OPEN])
+            allowed[N_T_VS_U_OPEN] = _add_call(allowed[N_T_VS_U_OPEN])
+            allowed[N_B_VS_U_OPEN_T_CALL] = (
+                (SLOT_CALL,) if s_b == bb_posted else (SLOT_FOLD, SLOT_CALL)
+            )
         deal = tensors.deal3
         total_weight = float(tensors.deal3.sum())
     else:
@@ -1212,9 +1289,14 @@ def build_stage_problem(
         sb_posted = min(s_n, sb)
         bb_posted = min(s_b, bb_amt)
         open_n = min(open_amount(bb_amt), s_n)
-        tree = _tree_hu(deep=not jamfold)
-        contribs = _contribs_hu((s_n, s_b), sb_posted, bb_posted, open_n)
-        leaf_defs = _LEAF_DEFS_HU
+        call = config.tree_id == TREE_CALL and not jamfold
+        tree = _tree_hu(deep=not jamfold, call=call)
+        contribs = (
+            _contribs_hu_call((s_n, s_b), sb_posted, bb_posted, open_n)
+            if call
+            else _contribs_hu((s_n, s_b), sb_posted, bb_posted, open_n)
+        )
+        leaf_defs = _LEAF_DEFS_HU_CALL if call else _LEAF_DEFS_HU
         n_roles = 2
         mode = "hu-jamfold" if jamfold else "hu-deep"
         allowed = {
@@ -1231,6 +1313,8 @@ def build_stage_problem(
                 (SLOT_MID,) if min(s_b, s_n) <= bb_posted else (SLOT_FOLD, SLOT_MID)
             ),
         }
+        if call and len(allowed[H_B_VS_OPEN]) > 1:
+            allowed[H_B_VS_OPEN] = (*allowed[H_B_VS_OPEN], SLOT_CALL)
         deal = tensors.deal2
         total_weight = float(tensors.deal2.sum())
     leaf_kind: list[str] = []
@@ -1281,6 +1365,7 @@ def build_stage_problem(
         deal=deal,
         total_weight=total_weight,
         count=tensors.count,
+        n_slots=4 if config.tree_id == TREE_CALL else 3,
     )
     return problem, role_seats, mode
 
@@ -1315,7 +1400,7 @@ def solve_single_state(
     values = np.full(3, prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    sigma_out = np.zeros((N_NODES, tensors.count, 3), dtype=np.float32)
+    sigma_out = _sigma_canvas(config, tensors.count)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     return StageResult(sigma=sigma_out, values=values, eps=eps,
@@ -1390,7 +1475,7 @@ def _solve_state_job(
     values = np.full(3, config.prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    sigma_out = np.zeros((N_NODES, tensors.count, 3), dtype=np.float32)
+    sigma_out = _sigma_canvas(config, tensors.count)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     # Rekurencyjne domknięcia przechodu tworzą cykle trzymające tensory wypłat
@@ -1475,22 +1560,37 @@ def _merge_mode_stats(
 
 
 def _boundary(
-    tensors: Tensors, config: GridConfig, states: tuple[tuple[int, int, int], ...]
-) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]]]:
+    tensors: Tensors,
+    config: GridConfig,
+    states: tuple[tuple[int, int, int], ...],
+    *,
+    current: np.ndarray | None = None,
+    deltas: list[float] | None = None,
+    stats: dict[str, dict[str, float]] | None = None,
+    out_dir: Path | None = None,
+    digest: str | None = None,
+    manifest: dict[str, Any] | None = None,
+    manifest_path: Path | None = None,
+    cycle_limit: int | None = None,
+    session_deadline: float | None = None,
+) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]], bool]:
     """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
 
-    Zwraca deltę każdego cyklu, nie samą ostatnią — z tego ciągu bierze się
-    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol` —
-    oraz tempo per tryb dla bezpiecznika kosztu.
+    Po każdym cyklu zapisuje `boundary.npz` atomowo i dopisuje rekord cyklu
+    do `manifest["horizon"]`, żeby wznowienie nie liczyło ogona od zera
+    (POKER-59). Zwraca też, czy horyzont dobiegł (tolerancja albo sufit).
     """
     total = n_hands(config)
     sb, bb_amt = level_blinds(config, total)
-    current = np.stack(
-        [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
-    )
-    deltas: list[float] = []
-    stats: dict[str, dict[str, float]] = {}
-    for _ in range(config.tail_max_cycles):
+    if current is None:
+        current = np.stack(
+            [np.asarray(icm_equities(state, config.prizes), dtype=np.float64) for state in states]
+        )
+    if deltas is None:
+        deltas = []
+    if stats is None:
+        stats = {}
+    for _ in range(config.tail_max_cycles - len(deltas)):
         cycle_started = time.perf_counter()
         next_v = current
         for offset in (2, 1, 0):
@@ -1501,6 +1601,7 @@ def _boundary(
             next_v = layer["v"]
         deltas.append(float(np.max(np.abs(next_v - current))))
         current = next_v
+        seconds = time.perf_counter() - cycle_started
         print(
             json.dumps(
                 {
@@ -1508,15 +1609,99 @@ def _boundary(
                     "cycle": len(deltas),
                     "n_states": len(states),
                     "delta": deltas[-1],
-                    "seconds": round(time.perf_counter() - cycle_started, 3),
+                    "seconds": round(seconds, 3),
                 },
                 ensure_ascii=False,
             ),
             flush=True,
         )
+        if out_dir is not None and digest is not None and manifest is not None:
+            artifacts.write_npz(
+                out_dir / "boundary.npz",
+                {"states": np.array(states, dtype=np.int16), "v": current},
+            )
+            _commit_horizon_cycle(
+                manifest,
+                digest=digest,
+                cycle=len(deltas),
+                delta=deltas[-1],
+                seconds=seconds,
+                jobs=config.jobs,
+                modes=stats,
+                complete=False,
+            )
+            if manifest_path is not None:
+                artifacts.write_json(manifest_path, manifest)
         if deltas[-1] <= config.tail_tol:
-            break
-    return current, deltas, stats
+            return current, deltas, stats, True
+        if cycle_limit is not None and len(deltas) >= cycle_limit:
+            return current, deltas, stats, False
+        if session_deadline is not None and time.perf_counter() >= session_deadline:
+            return current, deltas, stats, False
+    return current, deltas, stats, True
+
+
+def _commit_horizon_cycle(
+    manifest: dict[str, Any],
+    *,
+    digest: str,
+    cycle: int,
+    delta: float,
+    seconds: float,
+    jobs: int,
+    modes: dict[str, dict[str, float]],
+    complete: bool,
+) -> None:
+    """Rekord jednego cyklu ogona — bez znaczników czasu w payloadzie."""
+    wall = round(seconds * jobs, 3)
+    record = {
+        "cycle": cycle,
+        "delta": delta,
+        "seconds": round(seconds, 3),
+        "core_seconds_wall": wall,
+        "config_hash": digest,
+        "complete": True,
+    }
+    horizon = manifest.setdefault(
+        "horizon",
+        {
+            "config_hash": digest,
+            "complete": False,
+            "cycles_done": 0,
+            "deltas": [],
+            "cycles": [],
+            "core_seconds_wall": 0.0,
+            "modes": {},
+        },
+    )
+    if horizon.get("config_hash") not in (None, digest):
+        raise ValueError(
+            "hash konfiguracji checkpointu horyzontu różni się od bieżącej — "
+            "odmowa wznowienia na obcym stanie"
+        )
+    horizon["config_hash"] = digest
+    horizon["cycles_done"] = cycle
+    horizon["deltas"] = list(horizon.get("deltas", []))
+    if len(horizon["deltas"]) < cycle:
+        horizon["deltas"].append(delta)
+    else:
+        horizon["deltas"][cycle - 1] = delta
+    horizon["cycles"] = list(horizon.get("cycles", []))
+    if len(horizon["cycles"]) < cycle:
+        horizon["cycles"].append(record)
+    else:
+        horizon["cycles"][cycle - 1] = record
+    horizon["core_seconds_wall"] = round(
+        sum(float(row["core_seconds_wall"]) for row in horizon["cycles"]), 3
+    )
+    horizon["modes"] = {
+        mode: {
+            "n_states": stats["n_states"],
+            "core_seconds": round(stats["core_seconds"], 3),
+        }
+        for mode, stats in sorted(modes.items())
+    }
+    horizon["complete"] = complete
 
 
 PERTURB_KINDS = ("tilt", "noise")
@@ -1638,6 +1823,18 @@ def _cost_fuse_report(
 ) -> dict[str, Any]:
     """Raport bezpiecznika z danych manifestu (odporny na wznowienia)."""
     plan: list[dict[str, int]] = []
+    horizon = manifest.get("horizon") or {}
+    boundary_done = manifest.get("boundary") is not None
+    if not boundary_done:
+        remaining_cycles = config.tail_max_cycles - int(horizon.get("cycles_done", 0))
+        if remaining_cycles > 0:
+            _, bb_amt = level_blinds(config, n_hands(config))
+            per_cycle: dict[str, int] = {}
+            for state in grid_states(config.total_chips, config.grid_step):
+                mode = solver_mode(state, bb_amt)
+                per_cycle[mode] = per_cycle.get(mode, 0) + 1
+            for _ in range(remaining_cycles * 3):
+                plan.append(dict(per_cycle))
     for hand in range(n_hands(config)):
         if str(hand) in manifest["layers"]:
             continue
@@ -1650,22 +1847,32 @@ def _cost_fuse_report(
             counts[mode] = counts.get(mode, 0) + 1
         plan.append(counts)
     measured: dict[str, dict[str, float]] = {}
-    _merge_mode_stats(measured, manifest["boundary"]["modes"])
-    spent = float(manifest["boundary"]["core_seconds_wall"])
+    spent = 0.0
+    if manifest.get("boundary") is not None:
+        _merge_mode_stats(measured, manifest["boundary"]["modes"])
+        spent += float(manifest["boundary"]["core_seconds_wall"])
+    elif horizon:
+        _merge_mode_stats(measured, horizon.get("modes") or {})
+        spent += float(horizon.get("core_seconds_wall") or 0.0)
     for entry in manifest["layers"].values():
         _merge_mode_stats(measured, entry["modes"])
         spent += float(entry["core_seconds_wall"])
     report = extrapolate_cost(plan, measured, spent)
     report["limit_core_hours"] = config.cost_limit_core_hours
+    report["horizon_cycles_done"] = int(horizon.get("cycles_done", 0)) if horizon else (
+        int(manifest["boundary"]["cycles"]) if manifest.get("boundary") else 0
+    )
     if config.cost_limit_core_hours <= 0:
         report["verdict"] = "disabled"
         return report
     exceeded = report["extrapolated_core_hours"] > config.cost_limit_core_hours
     report["verdict"] = "exceeded" if exceeded else "ok"
     if exceeded:
+        done_layers = len(manifest["layers"])
         report["reason"] = (
             "ekstrapolowany koszt całości przekracza limit — bieg przerwany po "
-            f"{len(manifest['layers'])} warstwach zamiast palić budżet"
+            f"{done_layers} warstwach i {report['horizon_cycles_done']} cyklach "
+            "horyzontu zamiast palić budżet"
         )
     return report
 
@@ -1676,6 +1883,8 @@ def solve(
     out_dir: Path,
     layers_limit: int | None = None,
     boundary_from: Path | None = None,
+    horizon_cycles_limit: int | None = None,
+    session_deadline: float | None = None,
 ) -> dict[str, Any]:
     tensors = load_tensors(tensor_dir, config.classes)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1717,12 +1926,65 @@ def solve(
     full_states = grid_states(config.total_chips, config.grid_step)
     started = time.perf_counter()
     boundary_path = out_dir / "boundary.npz"
-    if manifest["boundary"] is None or not boundary_path.exists():
+    if manifest.get("horizon") and manifest["horizon"].get("config_hash") not in (
+        None,
+        digest,
+    ):
+        raise ValueError(
+            "hash konfiguracji checkpointu horyzontu różni się od bieżącej — "
+            "odmowa wznowienia na obcym stanie"
+        )
+    if manifest["boundary"] is not None and boundary_path.exists():
+        loaded = artifacts.read_npz(boundary_path)
+        boundary_v = loaded["v"]
+    else:
         boundary_started = time.perf_counter()
         boundary_stats: dict[str, dict[str, float]] = {}
         if boundary_from is None:
-            fixed_point, deltas, boundary_stats = _boundary(tensors, config, full_states)
-            source: dict[str, Any] = {"kind": "computed"}
+            resume_v = None
+            resume_deltas: list[float] = []
+            resume_stats: dict[str, dict[str, float]] = {}
+            horizon = manifest.get("horizon") or {}
+            if (
+                horizon.get("cycles_done", 0) > 0
+                and boundary_path.exists()
+                and not horizon.get("complete")
+            ):
+                loaded = artifacts.read_npz(boundary_path)
+                resume_v = loaded["v"]
+                resume_deltas = list(horizon.get("deltas") or [])
+                resume_stats = {
+                    mode: {
+                        "n_states": float(row["n_states"]),
+                        "core_seconds": float(row["core_seconds"]),
+                    }
+                    for mode, row in (horizon.get("modes") or {}).items()
+                }
+            fixed_point, deltas, boundary_stats, horizon_done = _boundary(
+                tensors,
+                config,
+                full_states,
+                current=resume_v,
+                deltas=resume_deltas,
+                stats=resume_stats,
+                out_dir=out_dir,
+                digest=digest,
+                manifest=manifest,
+                manifest_path=manifest_path,
+                cycle_limit=horizon_cycles_limit,
+                session_deadline=session_deadline,
+            )
+            source = {"kind": "computed"}
+            if not horizon_done:
+                manifest["status"] = (
+                    "aborted-session"
+                    if session_deadline is not None and time.perf_counter() >= session_deadline
+                    else "partial"
+                )
+                if "horizon" in manifest:
+                    manifest["horizon"]["complete"] = False
+                artifacts.write_json(manifest_path, manifest)
+                return manifest
         else:
             # Pomiar wrażliwości na brzeg ma zmieniać wyłącznie brzeg: punkt stały
             # przejmujemy z biegu odniesienia, żeby porównanie nie mieszało do
@@ -1746,6 +2008,8 @@ def solve(
             {"states": np.array(full_states, dtype=np.int16), "v": boundary_v},
         )
         boundary_seconds = time.perf_counter() - boundary_started
+        if manifest.get("horizon"):
+            manifest["horizon"]["complete"] = True
         manifest["boundary"] = {
             "file": "boundary.npz",
             "sha256": artifacts.sha256_file(boundary_path),
@@ -1772,9 +2036,6 @@ def solve(
             ),
         }
         artifacts.write_json(manifest_path, manifest)
-    else:
-        loaded = artifacts.read_npz(boundary_path)
-        boundary_v = loaded["v"]
     reachable = _reachable_sets(config)
     v_next_states: tuple[tuple[int, int, int], ...] = full_states
     v_next = boundary_v
@@ -1838,6 +2099,10 @@ def solve(
         print(json.dumps(progress, ensure_ascii=False), flush=True)
         v_next_states, v_next = states_here, layer["v"]
         computed += 1
+        if session_deadline is not None and time.perf_counter() >= session_deadline:
+            manifest["status"] = "aborted-session"
+            artifacts.write_json(manifest_path, manifest)
+            return manifest
     manifest["status"] = "done"
     manifest["seconds_total_this_run"] = round(time.perf_counter() - started, 3)
     artifacts.write_json(manifest_path, manifest)
@@ -1877,6 +2142,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="limit bezpiecznika kosztu w rdzenio-godzinach; 0 wyłącza")
     parser.add_argument("--jobs", type=int, default=defaults.jobs)
     parser.add_argument("--layers-limit", type=int, default=None)
+    parser.add_argument(
+        "--session-hours",
+        type=float,
+        default=None,
+        help="bezpiecznik ściany sesji (Colab); 10 to domyślny budżet runnera",
+    )
     return parser
 
 
@@ -1902,14 +2173,33 @@ def main(argv: Any = None) -> int:
         cost_limit_core_hours=args.cost_limit,
         jobs=args.jobs,
     )
+    deadline = (
+        time.perf_counter() + args.session_hours * 3600.0
+        if args.session_hours is not None
+        else None
+    )
     try:
-        manifest = solve(config, args.tensor, args.out, layers_limit=args.layers_limit,
-                         boundary_from=args.boundary_from)
+        manifest = solve(
+            config,
+            args.tensor,
+            args.out,
+            layers_limit=args.layers_limit,
+            boundary_from=args.boundary_from,
+            session_deadline=deadline,
+        )
     except CostFuseExceeded as fuse:
         print(json.dumps({"status": "aborted-cost-fuse", "cost_fuse": fuse.report},
                          ensure_ascii=False))
         return 3
-    boundary = manifest["boundary"]
+    boundary = manifest.get("boundary")
+    if boundary is None:
+        horizon = manifest.get("horizon") or {}
+        print(json.dumps({
+            "status": manifest["status"],
+            "horizon_cycles": horizon.get("cycles_done", 0),
+            "horizon_complete": horizon.get("complete", False),
+        }, ensure_ascii=False))
+        return 0
     print(json.dumps({
         "status": manifest["status"],
         "boundary_cycles": boundary["cycles"],

@@ -1,0 +1,31 @@
+{
+  "id": "POKER-60",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Sondy P-6(a): flip trybu i ε importu na łańcuchu kontrolnym. 300 stanów na V produkcji i sondy (b)(c) = plaster 3.",
+  "context": "Plaster 2 po dymie Colab 2026-09-08. V_next = ICM po kwancie, 4 klasy. src/poker nietknięte.",
+  "acceptance": [
+    "Plaster 1: census flipów, IMPORT_TRIGGER=5e-4, (85,50,15) zmienia jamfold.",
+    "Plaster 2: --measure na tensorze kontrolnym; import_eps flipu jest None; n=1 nie wywraca się.",
+    "Zmierzony n=16 seed=60: 16/16 trigger, max≥0.2, mediana>5e-4 → step1=TAK w CURRENT_STATE.",
+    "src/poker nietknięte."
+  ],
+  "non_goals": [
+    "300 stanów na V produkcji.",
+    "Sondy (b) i (c).",
+    "Krok 1 siatki, zmiana drzewa."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-60.json"
+  ],
+  "verification": ["ruff check .", "mypy", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-08T19:30:00Z",
+    "basis": "dym Colab zielony; A4; mandat 2026-08-09"
+  }
+}

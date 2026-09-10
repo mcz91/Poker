@@ -32,6 +32,7 @@ from poker.blueprint_agent import (
     N_B_VS_U_JAM_T_CALL,
     N_B_VS_U_JAM_T_FOLD,
     N_B_VS_U_OPEN,
+    N_B_VS_U_OPEN_T_CALL,
     N_B_VS_U_OPEN_T_JAM,
     N_T_FI,
     N_T_VS_U_JAM,
@@ -44,6 +45,7 @@ from poker.blueprint_agent import (
     ORDER_SWAP,
     ROOTS_3MAX,
     ROOTS_HU,
+    SLOT_CALL,
     SLOT_FOLD,
     SLOT_JAM,
     SLOT_MID,
@@ -515,6 +517,8 @@ def _slot_of(action: str, root: bool) -> int:
     if action == "open":
         assert root, "open poza korzeniem nie istnieje w drzewie"
         return SLOT_MID
+    if action == "call":
+        return SLOT_CALL
     return SLOT_JAM if root else SLOT_MID
 
 
@@ -752,8 +756,9 @@ def test_wejscie_za_darmo_areny_to_akcja_wymuszona_maska_treningu() -> None:
 
 
 def test_tablica_wezlow_pokrywa_caly_model_i_nic_ponadto() -> None:
-    """Tablica slotów opisuje dokładnie 14 węzłów 3-max i 4 węzły HU."""
-    assert sorted(NODES_3MAX.values()) == list(range(14))
+    """Tablica slotów: 14 węzłów iso + N_B_VS_U_OPEN_T_CALL oraz 4 HU."""
+    assert sorted(NODES_3MAX.values()) == list(range(15))
+    assert N_B_VS_U_OPEN_T_CALL in NODES_3MAX.values()
     assert sorted(NODES_HU.values()) == list(range(4))
     assert set(NODES_3MAX_OUT_OF_ORDER) & set(NODES_3MAX) == set()
 
@@ -1697,3 +1702,26 @@ def test_licznik_trybu_opisuje_komorke_artefaktu_a_nie_arene(mini_artifact: Path
     assert not is_jam_fold_depth(flipped.stacks, flipped.bb)
     assert state_keys(flipped, 15, 50)[0] == (100, 0, 50)
     assert agent.decision_mode(flipped) == "hu-jamfold"
+
+
+def test_node_slot_call_po_open_utg() -> None:
+    # button=0 → UTG=2, BTN=0, BB=1. BB pyta po open UTG i call BTN.
+    view = _view(
+        seat=1,
+        button=0,
+        contrib=(5, 2, 5),
+        actions=((2, "open"), (0, "call")),
+        opened=True,
+    )
+    node, reason = node_slot(view)
+    assert node == N_B_VS_U_OPEN_T_CALL
+    assert reason is None
+
+
+def test_sample_umie_call() -> None:
+    import random
+
+    rng = random.Random(0)
+    seen = {sample({"fold": 0.0, "call": 1.0, "jam": 0.0}, rng) for _ in range(8)}
+    assert seen == {"call"}
+

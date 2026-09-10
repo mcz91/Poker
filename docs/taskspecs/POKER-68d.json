@@ -1,0 +1,29 @@
+{
+  "id": "POKER-68d",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Arena i agent: call vs open (slot 3). SeatBook nadal fold/jam vs open. Iso: masa call = 0.",
+  "context": "S13.2 po POKER-68c. legal_actions ⊇ pick. Checkdown gdy wszyscy callują.",
+  "acceptance": [
+    "opened ∧ ¬jammed ∧ ¬jamfold → legal {fold, call, jam}.",
+    "pick ⊆ legal; SeatBook nie zwraca call.",
+    "node_slot (BB po UTG open + T call) = N_B_VS_U_OPEN_T_CALL.",
+    "sample rozumie call. _play_hand checkdown bez jamu.",
+    "iso: SLOT_CALL nie dostaje masy z 3-slotowego policy."
+  ],
+  "non_goals": ["WTA", "pack call-v0", "DBR", "postflop"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin_arena.py",
+    "src/poker/blueprint_agent.py",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-68d.json"
+  ],
+  "verification": ["ruff check .", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-10T04:00:00Z",
+    "basis": "mapa S13.2; mandat 2026-08-09"
+  }
+}

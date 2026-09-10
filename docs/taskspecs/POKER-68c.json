@@ -1,0 +1,29 @@
+{
+  "id": "POKER-68c",
+  "spec_version": 1,
+  "class_hint": "bugfix",
+  "goal": "F1: call-v0 σ zawsze 16×4 (warstwa deep+jamfold). F2: bez jamu BB po T-call. --tree-id w colab_run. 21 liści 3-max.",
+  "context": "Audyt 2026-09-10 po POKER-68b. src/poker nietknięte.",
+  "acceptance": [
+    "_sigma_canvas(call-v0)=(16,C,4) także na jamfold.",
+    "_solve_layer dwóch stanów (deep+jamfold) składa się; kształt (2,16,C,4).",
+    "21 liści deep; węzeł N_U_VS_B_JAM_T_CALL nieosiągalny.",
+    "iso hash kontroli nietknięty; --tree-id default iso.",
+    "src/poker nietknięte."
+  ],
+  "non_goals": ["Agent slot 3", "WTA", "węzeł T vs jam"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/decisions/31-drzewo-call-checkdown.md",
+    "docs/taskspecs/POKER-68c.json"
+  ],
+  "verification": ["ruff check .", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-10T02:30:00Z",
+    "basis": "audyt F1/F2; mandat 2026-08-09"
+  }
+}

@@ -25,7 +25,7 @@ a role areny — jak zawsze — z rotacji guzika areny):
    treningu pod testem zgodności).
 3. **Kontekst licytacji → slot węzła.** Drzewo areny (fold / open 2.2x /
    jam, potem fold / call-jam) jest tym samym drzewem, które solver opisuje
-   14 slotami przy trzech żywych i 4 slotami w endgame'ie HU. Węzeł liczy
+   14 slotami iso (albo 16 przy call-v0) przy trzech żywych i 4 slotami w endgame'ie HU. Węzeł liczy
    się z ról i akcji już podjętych w ręce; miejsce all-in z samego blinda
    rozgrywacz pomija, a trening wymusza mu wejście maską akcji, więc agent
    dolicza mu akcję wymuszoną, inaczej trafiłby w zły slot. Gdy kwantyzacja
@@ -125,10 +125,11 @@ CYCLE_LENGTH = HANDS_PER_LEVEL
     N_B_VS_U_JAM_T_FOLD,
     N_B_VS_U_JAM_T_CALL,
 ) = range(14)
+N_B_VS_U_OPEN_T_CALL = 14
 H_ROOT, H_B_VS_OPEN, H_N_VS_3BET, H_B_VS_JAM = range(4)
 
-# Sloty akcji artefaktu: 0 = fold, 1 = open (w korzeniach) albo call, 2 = jam.
-SLOT_FOLD, SLOT_MID, SLOT_JAM = 0, 1, 2
+# Sloty: 0 fold, 1 open/3bet, 2 jam, 3 call (v2 dopełnienie; iso = 0).
+SLOT_FOLD, SLOT_MID, SLOT_JAM, SLOT_CALL = 0, 1, 2, 3
 
 # Korzenie: tam slot środkowy to podbicie 2.2x, w pozostałych węzłach — call.
 ROOTS_3MAX = frozenset({N_U_ROOT, N_T_FI})
@@ -149,6 +150,7 @@ NODES_3MAX: dict[Key3, int] = {
     (2, "fold", "jam", None): N_B_VS_T_JAM,
     (2, "open", "fold", None): N_B_VS_U_OPEN,
     (2, "open", "jam", None): N_B_VS_U_OPEN_T_JAM,
+    (2, "open", "call", None): N_B_VS_U_OPEN_T_CALL,
     (2, "jam", "fold", None): N_B_VS_U_JAM_T_FOLD,
     (2, "jam", "jam", None): N_B_VS_U_JAM_T_CALL,
 }
@@ -635,6 +637,8 @@ class BlueprintAgent:
             mass["open"] = probs[SLOT_MID]
         else:
             mass["jam"] += probs[SLOT_MID]
+        if len(probs) > SLOT_CALL:
+            mass["call"] = probs[SLOT_CALL]
         legal = legal_actions(view)
         if mass.get("open", 0.0) > 0.0 and "open" not in legal:
             self.mode_mismatches += 1
@@ -661,7 +665,7 @@ def sample(mass: dict[str, float], rng: random.Random) -> str:
     point = rng.random() * total
     seen = 0.0
     chosen = "fold"
-    for action in ("fold", "open", "jam"):
+    for action in ("fold", "open", "call", "jam"):
         if action not in mass:
             continue
         chosen = action

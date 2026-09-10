@@ -429,9 +429,8 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
                 quantized = raw.astype(dtype)
                 # (stan, węzeł, slot, klasa) — slot całą kolumną, bo sąsiednie
                 # klasy jednego slotu są podobne i zlib pakuje je ciaśniej.
-                # v2 zapisuje wszystkie trzy sloty dzisiejszego drzewa, a jego
-                # czwarty slot wychodzi z dopełnienia zerem: miejsce jest
-                # w formacie, akcji w drzewie jeszcze nie ma.
+                # v2 zapisuje trzy sloty; czwarty (call, slot 3) wychodzi
+                # z dopełnienia. Iso: dopełnienie zero. call-v0: masa flata.
                 stored = quantized[..., :n_stored]
                 columns = np.ascontiguousarray(stored.transpose(0, 1, 3, 2))
                 flat = columns.reshape(n_states, n_nodes, n_stored * n_classes).view(np.uint8)
