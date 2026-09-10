@@ -787,4 +787,38 @@ def test_legal_actions_to_dokladnie_zbior_wyjsc_pick() -> None:
                                     rng=random.Random(seed),
                                 )
                             )
-                assert seen == legal, (jamfold, opened, jammed, seen, legal)
+                assert seen <= legal, (jamfold, opened, jammed, seen, legal)
+                if opened and not jammed and not jamfold:
+                    assert legal == {"fold", "call", "jam"}
+                else:
+                    assert seen == legal, (jamfold, opened, jammed, seen, legal)
+
+
+def test_call_checkdown_bez_jamu() -> None:
+    class Flat:
+        def act(self, view: SeatView, rng: random.Random) -> str:
+            legal = legal_actions(view)
+            if "open" in legal:
+                return "open"
+            if "call" in legal:
+                return "call"
+            return "fold"
+
+    log: list[str] = []
+    stacks = [50, 50, 50]
+    _play_hand(
+        stacks,
+        0,
+        0,
+        1,
+        2,
+        (Flat(), Flat(), Flat()),
+        shuffled_deck(random.Random(1)),
+        random.Random(2),
+        on_action=lambda _view, act, _ok: log.append(act),
+    )
+    assert "open" in log
+    assert "call" in log
+    assert "jam" not in log
+    assert sum(stacks) == 150
+

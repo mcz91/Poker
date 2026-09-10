@@ -128,13 +128,15 @@ def speaking_order(order: Sequence[int], last_actor: int) -> tuple[int, ...]:
 
 
 def legal_actions(view: SeatView) -> tuple[str, ...]:
-    """Akcje zamrożonego drzewa w tym kontekście — dokładnie zbiór wyjść `pick`.
+    """Akcje drzewa w tym kontekście — `pick` ⊆ ten zbiór.
 
-    Jedno źródło prawdy o legalności: rozgrywacz sprawdza nim decyzję agenta,
-    a agent nim przycina rozkład z artefaktu.
+    `call` vs open (nie jam) jest w drzewie call-v0 (slot 3). Książki
+    SeatBook nigdy nie flatują — `pick` vs open zostaje fold/jam.
     """
-    if view.jammed or view.opened or view.jamfold:
+    if view.jammed or view.jamfold:
         return ("fold", "jam")
+    if view.opened:
+        return ("fold", "call", "jam")
     return ("fold", "open", "jam")
 
 
@@ -425,6 +427,8 @@ def _play_hand(
         elif act == "open":
             contrib[seat] = max(contrib[seat], min(stacks[seat], open_amount(bb)))
             opened = True
+        elif act == "call":
+            contrib[seat] = min(stacks[seat], max(contrib))
         else:
             contrib[seat] = stacks[seat]
             jammed = True

@@ -3276,8 +3276,8 @@ Następne kroki:
      --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
    ```
 
-   → **POKER-68c**: call-v0 warstwa 16×4 (F1), bez jamu BB po T-call (F2),
-   `--tree-id` w `colab_run` (domyślnie iso). Agent nadal bez slotu 3.
+   → **POKER-68d**: arena `call` vs open; agent slot 3; SeatBook bez flata.
+   Iso masa call = 0. WTA nadal czeka na tensor.
 
    ```
    python tools/blueprint/colab_run.py solve --profile smoke --tree-id call-v0 ...
