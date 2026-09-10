@@ -410,9 +410,7 @@ _LEAF_DEFS_3_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_3 + (
     ("sd", (1, 2)),  # 17 B call T open
     ("sd", (0, 2)),  # 18 B call U open T fold
     ("sd", (0, 1)),  # 19 T call U open B fold
-    ("sd", (0, 1, 2)),  # 20 T call U open B call
-    ("sd", (1, 2)),  # 21 T call, B jam, U fold
-    ("sd", (0, 1, 2)),  # 22 T call, B jam, U call
+    ("sd", (0, 1, 2)),  # 20 T call U open B call (checkdown; bez jamu BB — F2)
 )
 _LEAF_DEFS_HU_CALL: tuple[LeafDef, ...] = _LEAF_DEFS_HU + (("sd", (0, 1)),)
 
@@ -505,18 +503,7 @@ def _tree_3max(deep: bool, call: bool = False) -> Tree:
             *(((SLOT_CALL, _node(
                 N_B_VS_U_OPEN_T_CALL,
                 2,
-                (
-                    (SLOT_FOLD, _leaf(19)),
-                    (SLOT_CALL, _leaf(20)),
-                    (
-                        SLOT_JAM,
-                        _node(
-                            N_U_VS_B_JAM_T_CALL,
-                            0,
-                            ((SLOT_FOLD, _leaf(21)), (SLOT_CALL, _leaf(22))),
-                        ),
-                    ),
-                ),
+                ((SLOT_FOLD, _leaf(19)), (SLOT_CALL, _leaf(20))),
             )),) if call else ()),
         ),
     )
@@ -739,6 +726,13 @@ class StageProblem:
 
 def _slot_matrix(problem: StageProblem) -> np.ndarray:
     return np.zeros((problem.count, problem.n_slots), dtype=np.float32)
+
+
+def _sigma_canvas(config: GridConfig, count: int) -> np.ndarray:
+    """Jednakowy kształt σ w warstwie: call-v0 zawsze 16×4, iso 14×3 (F1)."""
+    if config.tree_id == TREE_CALL:
+        return np.zeros((N_NODES_CALL, count, 4), dtype=np.float32)
+    return np.zeros((N_NODES, count, 3), dtype=np.float32)
 
 
 @dataclass
@@ -1123,14 +1117,12 @@ def _contribs_3max_call(
     open_u: int,
     open_t: int,
 ) -> tuple[tuple[int, int, int], ...]:
-    s_u, s_t, s_b = stacks_roles
+    _s_u, s_t, s_b = stacks_roles
     return _contribs_3max(stacks_roles, sb_amt, bb_amt, open_u, open_t) + (
         (0, open_t, min(s_b, open_t)),
         (open_u, sb_amt, min(s_b, open_u)),
         (open_u, min(s_t, open_u), bb_amt),
         (open_u, min(s_t, open_u), min(s_b, open_u)),
-        (open_u, min(s_t, open_u), s_b),
-        (min(s_u, s_b), min(s_t, s_b), s_b),
     )
 
 
@@ -1283,14 +1275,7 @@ def build_stage_problem(
             allowed[N_B_VS_U_OPEN] = _add_call(allowed[N_B_VS_U_OPEN])
             allowed[N_T_VS_U_OPEN] = _add_call(allowed[N_T_VS_U_OPEN])
             allowed[N_B_VS_U_OPEN_T_CALL] = (
-                (SLOT_CALL,)
-                if s_b == bb_posted
-                else (SLOT_FOLD, SLOT_CALL, SLOT_JAM)
-            )
-            allowed[N_U_VS_B_JAM_T_CALL] = (
-                (SLOT_CALL,)
-                if min(s_u, s_b) <= open_u
-                else (SLOT_FOLD, SLOT_CALL)
+                (SLOT_CALL,) if s_b == bb_posted else (SLOT_FOLD, SLOT_CALL)
             )
         deal = tensors.deal3
         total_weight = float(tensors.deal3.sum())
@@ -1380,7 +1365,7 @@ def build_stage_problem(
         deal=deal,
         total_weight=total_weight,
         count=tensors.count,
-        n_slots=4 if config.tree_id == TREE_CALL and not jamfold else 3,
+        n_slots=4 if config.tree_id == TREE_CALL else 3,
     )
     return problem, role_seats, mode
 
@@ -1415,10 +1400,7 @@ def solve_single_state(
     values = np.full(3, prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    sigma_out = np.zeros(
-        (max(N_NODES, max(problem.nodes, default=-1) + 1), tensors.count, problem.n_slots),
-        dtype=np.float32,
-    )
+    sigma_out = _sigma_canvas(config, tensors.count)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     return StageResult(sigma=sigma_out, values=values, eps=eps,
@@ -1493,8 +1475,7 @@ def _solve_state_job(
     values = np.full(3, config.prizes[2], dtype=np.float64)
     for role, seat in enumerate(role_seats):
         values[seat] = role_values[role]
-    n_nodes = N_NODES_CALL if problem.n_slots == 4 else N_NODES
-    sigma_out = np.zeros((n_nodes, tensors.count, problem.n_slots), dtype=np.float32)
+    sigma_out = _sigma_canvas(config, tensors.count)
     for node_id, matrix in sigma.items():
         sigma_out[node_id] = matrix
     # Rekurencyjne domknięcia przechodu tworzą cykle trzymające tensory wypłat

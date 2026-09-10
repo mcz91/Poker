@@ -3276,11 +3276,11 @@ Następne kroki:
      --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
    ```
 
-   → **POKER-68b**: `tree_id=call-v0` (23 liście, slot 3). Domyślne iso
-   nie rusza hasha kontroli. Agent areny jeszcze bez call.
+   → **POKER-68c**: call-v0 warstwa 16×4 (F1), bez jamu BB po T-call (F2),
+   `--tree-id` w `colab_run` (domyślnie iso). Agent nadal bez slotu 3.
 
    ```
-   python tools/blueprint/tree_spike.py
+   python tools/blueprint/colab_run.py solve --profile smoke --tree-id call-v0 ...
    ```
    (sondy STOP) → P-7 WTA@25bb (decyzja 30, nie czeka na tabelę tierów).
    Bramka decyzji 29

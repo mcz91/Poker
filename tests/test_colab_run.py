@@ -78,6 +78,9 @@ def test_hash_lancucha_kontrolnego_z_runnera() -> None:
     assert wta.grid_step == 2
     assert tdeep.prizes == (0.8, 0.2, 0.0)
     assert wta.prizes == (1.0, 0.0, 0.0)
+    assert tdeep.tree_id == "iso"
+    call = runner.config_for_profile("smoke", jobs=1, tree_id="call-v0")
+    assert call.tree_id == "call-v0"
     assert runner.FORBIDDEN_GPU == ("cupy", "cudf", "pycuda")
 
 

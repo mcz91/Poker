@@ -20,18 +20,16 @@ CURRENT_LEAVES_3 = 17
 CURRENT_LEAVES_HU = 6
 PROD_CLASSES = 169
 PAYLOAD_CAP = 80 * 1024 * 1024
-LEAF_RATIO_LO = 1.30
+LEAF_RATIO_LO = 1.20
 LEAF_RATIO_HI = 1.45
 DEEP_COST = 1.6
 
-# +6 liści 3-max. Kolejność = dokument decyzji 31.
+# +4 liście 3-max. Jam BB po T-call wycięty (audyt F2).
 EXTRA_3 = (
     ("B_call_T_open", "sd2"),
     ("B_call_U_open_T_fold", "sd2"),
     ("T_call_U_open_B_fold", "sd2"),
     ("T_call_U_open_B_call", "sd3"),
-    ("T_call_U_open_B_jam_U_fold", "sd2"),
-    ("T_call_U_open_B_jam_U_call", "sd2"),
 )
 EXTRA_HU = (("B_call_N_open", "sd2"),)
 SQUEEZE = frozenset(name for name, _kind in EXTRA_3 if name.startswith("T_call_"))

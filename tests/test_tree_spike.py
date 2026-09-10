@@ -35,9 +35,9 @@ def test_slot_call_to_dopelnienie_v2() -> None:
 def test_liczby_lisci_i_koszt() -> None:
     payload = _load().report()
     assert payload["current_leaves_3"] == 17
-    assert payload["proposed_leaves_3"] == 23
+    assert payload["proposed_leaves_3"] == 21
     assert payload["proposed_leaves_hu"] == 7
-    assert payload["squeeze_leaves"] == 4
+    assert payload["squeeze_leaves"] == 2
     assert payload["ok_ratio"]
     assert payload["ok_payload"]
     assert payload["wired"] is False

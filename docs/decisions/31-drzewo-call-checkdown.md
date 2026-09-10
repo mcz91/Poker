@@ -22,10 +22,13 @@ Status: obowiązuje. 2026-09-10. Po dymie Colab i POKER-60.
 
 ## Spike (liczby wiążące)
 
-3-max: 17 → **23** liście (+6: 4× sd 2-way, 1× sd 3-way, 1× fold).
-HU: 6 → **7**. Iloraz liści 23/17 ≈ 1,35. Koszt `deep` (arytmetyka +
-strumień, decyzja 29): **1,6×**. Squeeze (T call U, BB działa) = 4 z 6
-nowych liści. Extra 3-way przy C=169: ~55 MiB payloadu — asercja < 80 MiB.
+3-max: 17 → **21** liści (+4: 3× sd 2-way, 1× sd 3-way). Jam BB po T-call
+**wycięty** (audyt F2: T nie miał decyzji vs jam). HU: 6 → **7**.
+Iloraz 21/17 ≈ 1,24. Koszt `deep` ~1,6×. Squeeze = BB fold/call po T call
+(2 liście). Extra 3-way przy C=169: ~55 MiB, asercja < 80 MiB.
+
+Warstwa call-v0: σ zawsze `(16, C, 4)` — deep i jamfold w jednym `np.stack`
+(F1). Iso: `(14, C, 3)`.
 
 ## Mapa sprintów (do RTA)
 

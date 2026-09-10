@@ -60,15 +60,24 @@ def default_jobs() -> int:
     return max(1, int(os.cpu_count() or 1))
 
 
-def config_for_profile(profile: str, jobs: int) -> Any:
+def config_for_profile(profile: str, jobs: int, tree_id: str = "iso") -> Any:
     """smoke = łańcuch kontrolny; tdeep/wta25 = siatka produkcyjna, krok 2."""
     if profile not in PROFILES:
         raise SystemExit(f"--profile musi być jednym z {PROFILES}")
-    if profile == "smoke":
-        return _sibling("control_chain").control_config(jobs=jobs)
-    prizes = (1.0, 0.0, 0.0) if profile == "wta25" else (0.8, 0.2, 0.0)
     solve_grid = _sibling("solve_grid")
-    return solve_grid.GridConfig(prizes=prizes, grid_step=PROD_GRID_STEP, jobs=jobs)
+    if tree_id not in (solve_grid.TREE_ISO, solve_grid.TREE_CALL):
+        raise SystemExit("--tree-id: iso albo call-v0")
+    if profile == "smoke":
+        config = _sibling("control_chain").control_config(jobs=jobs)
+        if tree_id != solve_grid.TREE_ISO:
+            from dataclasses import replace
+
+            return replace(config, tree_id=tree_id)
+        return config
+    prizes = (1.0, 0.0, 0.0) if profile == "wta25" else (0.8, 0.2, 0.0)
+    return solve_grid.GridConfig(
+        prizes=prizes, grid_step=PROD_GRID_STEP, jobs=jobs, tree_id=tree_id
+    )
 
 
 def run_solve(
@@ -79,6 +88,7 @@ def run_solve(
     session_hours: float = 10.0,
     jobs: int | None = None,
     allow_fresh: bool = False,
+    tree_id: str = "iso",
 ) -> dict[str, Any]:
     """Solve z resume. Pusty katalog wymaga --allow-fresh."""
     assert_cpu_only()
@@ -91,7 +101,9 @@ def run_solve(
         raise SystemExit(
             f"{out} nie ma solve_manifest.json — nowy bieg wymaga --allow-fresh"
         )
-    config = config_for_profile(profile, jobs if jobs is not None else default_jobs())
+    config = config_for_profile(
+        profile, jobs if jobs is not None else default_jobs(), tree_id=tree_id
+    )
     deadline = time.perf_counter() + session_hours * 3600.0
     manifest = solve_grid.solve(config, tensor, out, session_deadline=deadline)
     return {
@@ -103,6 +115,7 @@ def run_solve(
         "boundary": manifest.get("boundary") is not None,
         "layers": len(manifest.get("layers") or {}),
         "horizon_cycles": (manifest.get("horizon") or {}).get("cycles_done", 0),
+        "tree_id": config.tree_id,
     }
 
 
@@ -144,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     solve.add_argument("--session-hours", type=float, default=10.0)
     solve.add_argument("--jobs", type=int, default=None)
     solve.add_argument("--allow-fresh", action="store_true")
+    solve.add_argument("--tree-id", choices=("iso", "call-v0"), default="iso")
     status = sub.add_parser("status", help="stan manifestu biegu")
     status.add_argument("--out", type=Path, required=True)
     pack = sub.add_parser("pack", help="pack v2 z katalogu biegu")
@@ -165,6 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             session_hours=args.session_hours,
             jobs=args.jobs,
             allow_fresh=args.allow_fresh,
+            tree_id=args.tree_id,
         )
         print(json.dumps(report, ensure_ascii=False))
         return 0 if report["status"] in {"done", "partial", "aborted-session"} else 1
