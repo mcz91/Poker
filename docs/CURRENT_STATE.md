@@ -3276,8 +3276,8 @@ Następne kroki:
      --tensor tools/blueprint/control/tensor --n 16 --seed 60 --sb 1 --bb 2
    ```
 
-   → **POKER-68d**: arena `call` vs open; agent slot 3; SeatBook bez flata.
-   Iso masa call = 0. WTA nadal czeka na tensor.
+   → **POKER-68e**: round-trip call-v0 (solve→pack v2→agent). Notebook
+   `POKER_TREE_ID`; call-v0 ma osobny OUT. WTA nadal czeka na tensor 169.
 
    ```
    python tools/blueprint/colab_run.py solve --profile smoke --tree-id call-v0 ...

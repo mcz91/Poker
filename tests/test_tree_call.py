@@ -137,3 +137,62 @@ def test_call_v0_warstwa_sklada_deep_i_jamfold() -> None:
         sg.MODE_NAMES.index("deep"),
         sg.MODE_NAMES.index("jamfold"),
     }
+
+
+def test_call_v0_roundtrip_pack_agent(tmp_path: Path) -> None:
+    """Solve kontroli call-v0 → v2 .bpk → agent ma call vs open i węzeł 14."""
+    from poker.blueprint_agent import (
+        N_B_VS_T_OPEN,
+        N_B_VS_U_OPEN_T_CALL,
+        BlueprintAgent,
+    )
+    from poker.blueprint_reader import FORMAT_VERSION_V2, BlueprintReader
+    from poker.spin_arena import SeatView
+
+    sg = _load("solve_grid")
+    cc = _load("control_chain")
+    pk = _load("pack_blueprint")
+    config = dataclasses.replace(
+        cc.control_config(jobs=1),
+        tree_id=sg.TREE_CALL,
+        fp_max_iters=8,
+        fp_check_every=4,
+        fp_restarts=1,
+        cfr_iters=16,
+        cfr_check_every=8,
+    )
+    run_dir = tmp_path / "run"
+    packed = tmp_path / "call.bpk"
+    manifest = sg.solve(config, TENSOR, run_dir)
+    assert manifest["status"] == "done"
+    import numpy as np
+
+    sigma = np.load(run_dir / "layer_00.npz")["sigma"]
+    assert sigma.shape[1:] == (sg.N_NODES_CALL, len(config.classes), 4)
+    pk.pack(run_dir, packed, version=FORMAT_VERSION_V2)
+    reader = BlueprintReader(packed.open("rb"))
+    assert reader.format_version == FORMAT_VERSION_V2
+    assert reader.n_slots == 4
+    agent = BlueprintAgent(reader, grid_step=config.grid_step, classes=config.classes)
+    view = SeatView(
+        hand=0,
+        seat=1,
+        button=0,
+        stacks=(12, 10, 12),
+        contrib=(2, 1, 0),
+        actions=((2, "fold"), (0, "open")),
+        bb=1,
+        klass=cc.class_index("AA"),
+        jamfold=False,
+        opened=True,
+        jammed=False,
+    )
+    mass = agent.action_mass(view)
+    assert "call" in mass
+    assert mass["call"] >= 0.0
+    assert set(mass) <= {"fold", "call", "jam"}
+    block = agent.state_block(view, 0)
+    assert block.has_node(N_B_VS_T_OPEN)
+    assert block.has_node(N_B_VS_U_OPEN_T_CALL)
+    assert len(block.policy(N_B_VS_T_OPEN, agent.column[view.klass])) == 4
+

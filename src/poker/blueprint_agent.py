@@ -25,7 +25,7 @@ a role areny — jak zawsze — z rotacji guzika areny):
    treningu pod testem zgodności).
 3. **Kontekst licytacji → slot węzła.** Drzewo areny (fold / open 2.2x /
    jam, potem fold / call-jam) jest tym samym drzewem, które solver opisuje
-   14 slotami przy trzech żywych i 4 slotami w endgame'ie HU. Węzeł liczy
+   14 slotami iso (albo 16 przy call-v0) przy trzech żywych i 4 slotami w endgame'ie HU. Węzeł liczy
    się z ról i akcji już podjętych w ręce; miejsce all-in z samego blinda
    rozgrywacz pomija, a trening wymusza mu wejście maską akcji, więc agent
    dolicza mu akcję wymuszoną, inaczej trafiłby w zły slot. Gdy kwantyzacja

@@ -1,0 +1,29 @@
+{
+  "id": "POKER-68e",
+  "spec_version": 1,
+  "class_hint": "feature",
+  "goal": "Round-trip call-v0: solve kontroli → pack v2 → agent czyta slot 3 i węzeł 14. Notebook --tree-id, osobny OUT.",
+  "context": "S13.3 po POKER-68d. Bez WTA, bez tensora 169.",
+  "acceptance": [
+    "solve(control, tree_id=call-v0) status done; σ warstw (N,16,C,4).",
+    "pack version=2; n_slots=4; agent action_mass BB vs open ma call.",
+    "has_node(N_B_VS_U_OPEN_T_CALL) na stanie deep.",
+    "Notebook POKER_TREE_ID i --tree-id; iso OUT nietknięty.",
+    "src/poker: tylko docstring/komentarz jeśli trzeba."
+  ],
+  "non_goals": ["WTA 169", "DBR", "RTA lookup", "jam po T-call"],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/CURRENT_STATE.md",
+    "docs/taskspecs/POKER-68e.json",
+    "src/poker/blueprint_agent.py"
+  ],
+  "verification": ["ruff check .", "pytest"],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-10T20:30:00Z",
+    "basis": "mapa S13.3; mandat 2026-08-09"
+  }
+}
