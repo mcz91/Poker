@@ -5,6 +5,11 @@
   `tools/docs/mk_pdf.py` poza bramką).
 - [`CURRENT_STATE.md`](CURRENT_STATE.md) — stan bieżący, bramka,
   następny krok.
+- [`AUDYT_KODU_2026-09-12.md`](AUDYT_KODU_2026-09-12.md) — audyt całego
+  repozytorium na commicie `16dc6f8` dla czytelnika nietechnicznego: co
+  sprawdzono i czym (własne testy niezależne od bramki), findingi z dowodami,
+  komendy do odtworzenia pomiarów. Nie jest audytem kontraktowym pojedynczego
+  TaskSpeca ani źródłem statusu produktu.
 
 ## Dokumenty decyzji
 
