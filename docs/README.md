@@ -136,6 +136,13 @@
     i bitowej zgodności z `prod_identity.json`), GTO Wizard Benchmark
     + Slumbot jako zewnętrzny miernik HU z AIVAT, otwarty korpus
     hand histories (MIT) do maszynerii eksploatacji bez twierdzeń o polu.
+    **Pkt 9 (budżet, 2026-09-14):** rdzenio-godziny zmierzone ponownie
+    fixture'em repo — mapa planowana ~257, najgorszy przypadek ~520; compute
+    na całość kosztuje **0–46 $** u każdego dostawcy i przy obu przeliczeniach
+    vCPU, więc nigdy nie był ograniczeniem. Jedyna pozycja z realną ceną to
+    **własne historie Spin** (150–250 $ na walidację maszynerii, 350–800 $
+    i ~170 h gry na model populacyjny); HRC Classic 119,90 $/rok opcjonalnie.
+    Prawdziwy koszt to ~12 kontraktów i godziny przy stole, nie pieniądze.
 
 ## TaskSpeki
 

@@ -7,7 +7,7 @@ i modele komercyjne. Wybierz. Nie mamy środków na testy") po audycie kodu
 z 2026-09-12 ([`docs/AUDYT_KODU_2026-09-12.md`](../AUDYT_KODU_2026-09-12.md)).
 Research: źródła pierwotne z 2026-09-13 (arXiv, dokumentacja GitHub i Oracle,
 strony cenowe producentów, kod klientów API); każde twierdzenie ma numer
-i link w pkt 9. Gdzie źródło pierwotne było niedostępne, stoi `BRAK`
+i link w pkt 10. Budżet (pkt 9) dopisany 2026-09-14. Gdzie źródło pierwotne było niedostępne, stoi `BRAK`
 i źródło wtórne jest tak nazwane. Kontekst: decyzje
 [04](04-reguly-dzis-ml-docelowo.md), [07](07-c2-mccfr-na-abstrakcji-strategia-mieszana.md),
 [22](22-arena-roi.md), [25](25-blueprint-po-dagu-zegara-pifp-cfrplus.md),
@@ -58,10 +58,11 @@ jest wyborem, bo:
    nie polityką.
 5. **Koszt jest cykliczny**, a przesłanka operatora brzmi „nie mamy środków".
 
-**Co komercja daje za darmo i co bierzemy:** GTO Wizard Benchmark (pkt 3),
-Slumbot (pkt 3) oraz — gdyby kiedykolwiek pojawiły się środki — HRC Pro
-(359,90 $/rok) jako próbkowy sanity-check pierwszych akcji Spina, w roli
-przewidzianej już przez decyzję 25 („sanity-check, nie ground truth").
+**Co komercja daje za darmo i co bierzemy:** GTO Wizard Benchmark (pkt 3)
+i Slumbot (pkt 3). Jedyna pozycja, którą warto rozważyć za pieniądze, to
+**HRC Classic** (119,90 $/rok — nie Pro) jako próbkowy sanity-check pierwszych
+akcji Spina, w roli przewidzianej już przez decyzję 25 („sanity-check, nie
+ground truth"); wycena i uzasadnienie w pkt 9.4.
 Otwarte solvery (TexasSolver, postflop-solver) odpadają niezależnie od ceny:
 AGPL-3.0 wobec licencji `Proprietary` w `pyproject.toml`, rozwój zawieszony,
 i liczą postflop cash HU — nie naszą grę [S7].
@@ -254,7 +255,118 @@ nie wprowadza żadnej zależności do pakietu `poker` (klienci HTTP i workflow
 przesądza, że GitHub Actions pozostanie darmowe — pkt 3.3 nazywa to
 ryzykiem i wskazuje plan zapasowy.
 
-## 9. Źródła (dostęp 2026-09-13)
+## 9. Budżet: ile pieniędzy trzeba, żeby to zrobić porządnie
+
+Dopisane 2026-09-14 na pytanie operatora („ile pieniędzy potrzebujemy"). Liczby
+rdzenio-godzin **zmierzone ponownie** uruchomieniem fixture'a repozytorium
+(`python tools/blueprint/mode_census.py table`), nie przepisane z dokumentacji.
+
+### 9.1. Ile pracy zostało do policzenia
+
+| pozycja | solver [rdzenio-h] | z tensorem [rdzenio-h] |
+|---|---:|---:|
+| P-7 WTA@25bb (kill-check tezy tierowej) | 64,3 | 75,5 |
+| P-8 T-MODAL | 17,8 | 29,0 |
+| P-9 T-MID (warunkowy) | 36,4 | 47,6 |
+| P-13 pełny DBR na T-MODAL | 53,5 | 64,7 |
+| P-3/P-4/P-5/P-6 (drobne) | ~40 | ~40 |
+| **Mapa planowana** | **~212** | **~257** |
+| krok 1 siatki — tylko gdy zadziała bramka STOP | 252,1 | 263,3 |
+| **Najgorszy przypadek** | **~464** | **~520** |
+
+### 9.2. Ile to kosztuje — compute
+
+Przeliczenie rdzenio-godzin na rachunek zależy od jednego założenia: czy vCPU
+dostawcy to pół rdzenia (wątek), czy cały. **Podaję oba, bo wniosek jest wobec
+tego założenia odporny** — w każdym wariancie i u każdego dostawcy rachunek jest
+poniżej 50 $.
+
+| dostawca | mapa planowana | najgorszy przypadek |
+|---|---:|---:|
+| GitHub Actions, repo publiczne (pkt 3) | **0** | **0** |
+| AWS `c7i.4xlarge` spot (~−70%) | 3–7 $ | 7–14 $ |
+| Hetzner CCX43 (16 dedyk. vCPU, 0,4423 €/h) | 7–14 € | 14–29 € |
+| AWS `c7i.4xlarge` on-demand (0,714 $/h) | 11–23 $ | 23–**46 $** |
+| Hetzner AX52 (Ryzen 7 7700, 8 rdzeni fizycznych) | **64 €/mies. ryczałt** | ten sam |
+
+AX52 za 64 €/mies. daje 5 840 rdzenio-h miesięcznie — **11–22× więcej, niż
+potrzeba na całą mapę**, i rozwiązuje przy okazji problem z pkt 3.1: na własnej
+maszynie artefakt nigdzie nie wychodzi, więc ceremonia szyfrowania i ryzyko
+regulaminowe znikają. Dla porównania: blueprint Pluribusa policzono za ~144 $
+[S29] — nasza mapa jest tańsza od niego.
+
+**Wniosek 9.2: compute nigdy nie był ograniczeniem. Cała pozostała mapa
+kosztuje od 0 do 46 $, zależnie wyłącznie od wygody.**
+
+### 9.3. Ile to kosztuje — dane (jedyna pozycja z realną ceną)
+
+Twardą blokadą P-10…P-13 jest, wg decyzji 29 pkt 6, **korpus realnych hand
+histories Spin & Go**. Otwarty korpus z pkt 5 daje maszynerię, nie pole.
+Jedyna droga zgodna z regulaminami serwisów: **zebrać własne historie, grając
+samemu**. Rachunek przy 0,50 $ wpisowego i 7% rake'u [S30]:
+
+| wolumen | rake | realny koszt netto | czas gry (4 stoły) | co daje |
+|---:|---:|---:|---:|---|
+| 3 000 turniejów | ~105 $ | **150–250 $** | ~50 h | walidacja maszynerii P-10/P-11 |
+| 10 000 turniejów | ~350 $ | **350–800 $** | ~170 h | model populacyjny do P-12/P-13 |
+
+`BRAK`: liczby rąk na turniej dla tej stawki i tego serwisu nie znalazłem
+w źródle pierwotnym (jedyna liczba w wynikach dotyczyła innego serwisu) —
+kolumna „czas gry" to oszacowanie z długości turnieju (2–6 min), nie pomiar.
+Widełki kosztu netto mieszczą rake plus typowy wynik gracza; wariancja Spinów
+bierze się z mnożników i przy 10 tys. turniejów jest już uśredniona.
+
+**Granica, której ta pozycja nie przekracza:** zbieranie własnych historii
+własną grą jest normalną praktyką gracza. Uruchomienie bota na serwisie
+na prawdziwe pieniądze łamie regulamin każdego dużego serwisu, a kupowanie
+cudzych historii z data miningu łamie go tak samo. Budżet dotyczy wyłącznie
+pierwszego przypadku.
+
+### 9.4. Narzędzie kontrolne — opcjonalne, nie blokujące
+
+**HRC Classic, 119,90 $/rok** [S1] (nie Pro za 359,90 $): limit „stacki do
+30 bb" pokrywa cały zegar Spina (start 25 bb), a 50 tys. węzłów wystarcza na
+trójosobowe drzewo preflopowe. Wartość: niezależne złapanie grubego błędu
+w pierwszych akcjach. Decyzja 25 już określa tę rolę — „sanity-check pierwszych
+akcji, nie ground truth" — i wprost odrzuca traktowanie publicznych solucji jako
+prawdy (rozjazd do 9,4× w węzłach po dwóch agresjach). Uzasadnienie zakupu jest
+jedno i konkretne: własna PUŁAPKA repozytorium mówi, że **tabela permutacji
+w złą stronę przeżyła 343 testy** (POKER-46) — na taką klasę błędu niezależny
+przyrząd jest tańszy niż jego przeoczenie. Nadal: **nie blokuje niczego.**
+
+### 9.5. Suma
+
+| co | kwota | co odblokowuje |
+|---|---:|---|
+| Compute na całą pozostałą mapę | **0–46 $** | P-3…P-9, P-13 — wszystko, co dziś stoi |
+| Pomiar zewnętrzny HU (benchmark + Slumbot) | **0** | werdykt dla linii c2/ML |
+| Otwarty korpus (MIT) | **0** | maszyneria P-10/P-11 |
+| HRC Classic — opcjonalne | 119,90 $/rok | nic; ubezpieczenie od błędu osi |
+| Własne historie Spin, 3 000 turniejów | 150–250 $ | walidacja maszynerii na realnych decyzjach |
+| Własne historie Spin, 10 000 turniejów | 350–800 $ | P-12/P-13 — jedyna gałąź bijąca pole |
+
+- **Żeby odblokować wszystko, co dziś stoi: ~50 $** (a przy GitHub Actions: 0).
+- **Żeby zrobić to porządnie, z warstwą eksploatacyjną na realnych danych:
+  ~500–950 $ w pierwszym roku** — z czego 90% to wpisowe do turniejów, które
+  w dużej części wracają, a nie opłata za narzędzia.
+
+### 9.6. Czego pieniądze nie kupią
+
+Trzech rzeczy, i to one są prawdziwym kosztem:
+
+1. **Naprawa przyrządu** (findingi 5.1 i 5.3 audytu). Kosztuje 0 zł i jest
+   warunkiem, żeby jakikolwiek wydatek na solver miał sens — dziś arena nie
+   umie odróżnić lepszego bota od gorszego.
+2. **Godziny kontraktów.** Zostało ~12 kontraktów (naprawy audytu, workflow,
+   P-3…P-7, klient benchmarku, P-10/P-11). Historia repozytorium: 57 TaskSpeców
+   między 2026-08-08 a 2026-09-12, czyli ~1,6 kontraktu dziennie — więc ~1–2
+   tygodnie pracy nadzorowanej. To jest największa pozycja w tym budżecie
+   i jedyna, której nie da się kupić za 50 $.
+3. **~170 godzin przy stole**, jeśli warstwa eksploatacyjna ma stać na realnym
+   polu. Tego nie da się zlecić ani przyspieszyć pieniędzmi bez łamania
+   regulaminów.
+
+## 10. Źródła (dostęp 2026-09-13 i 2026-09-14)
 
 - [S1] HRC — cennik: <https://www.holdemresources.net/hrc/pricing>
 - [S2] ICMIZER — recenzja z cenami (wtórne): <https://www.vip-grinders.com/poker-tools/icmizer-review/>; <https://www.gipsyteam.com/poker/software/icmizer-3>
@@ -285,3 +397,7 @@ ryzykiem i wskazuje plan zapasowy.
 - [S27] phh-dataset (MIT): <https://github.com/uoftcprg/phh-dataset>
 - [S28] Zenodo 17136841 (v3, wrzesień 2025): <https://zenodo.org/records/17136841>
 - [S29] Pluribus — koszt blueprintu (~144 $, 8 dni; Science 2019 via Wikipedia): <https://en.wikipedia.org/wiki/Pluribus_(poker_bot)>
+- [S30] PokerStars Spin & Go — poziomy wpisowego i 7% rake (wtórne, 2026): <https://www.pokernews.com/strategy/spin-and-go-poker-36231.htm>; struktura: <https://pokerfuse.com/online-poker/guides/jackpot-sngs/>
+- [S31] Hetzner — ceny po podwyżce 15.06.2026, CCX43 0,4423 €/h i AX52 64 €/mies. (wtórne): <https://northflank.com/blog/hetzner-cloud-server-price-increases>; <https://www.achromatic.dev/blog/hetzner-server-comparison>; cennik: <https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/>
+- [S32] AWS EC2 — `c7i.4xlarge` on-demand 0,714 $/h (16 vCPU): <https://instances.vantage.sh/aws/ec2/c7i.4xlarge>; spot: <https://aws.amazon.com/ec2/spot/pricing/>
+- [S33] Wycena rdzenio-godzin: uruchomienie `python tools/blueprint/mode_census.py table` na commicie `e5c49ce` (fixture repozytorium, nie źródło zewnętrzne)
