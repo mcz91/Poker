@@ -124,6 +124,18 @@
     pomiary zamiast je powtarzać; P-7 (WTA@25bb) odblokowane bez
     potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
     zablokowane.
+31. [`31-nauka-nie-komercja-compute-i-pomiar-za-zero.md`](decisions/31-nauka-nie-komercja-compute-i-pomiar-za-zero.md)
+    — **PROJEKT, czeka na zatwierdzenie operatora.** Research 2026-09-13
+    „nauka vs modele komercyjne" przy zerowym budżecie na testy: żaden
+    model komercyjny nie wchodzi do produktu (nieosadzalne, regulaminy,
+    repo publiczne, INV-P8, zła gra); linia neuronowa i LLM odrzucone
+    świeżymi liczbami 2026; algorytm bez zmian (nasycenie z decyzji 29).
+    Brak środków rozwiązują trzy darmowe dźwignie: runnery GitHub Actions
+    publicznego repozytorium (4 vCPU, 6 h/job, 20 równoległych — cała mapa
+    w dobie, pod warunkiem szyfrowania artefaktów zgodnie z decyzją 30
+    i bitowej zgodności z `prod_identity.json`), GTO Wizard Benchmark
+    + Slumbot jako zewnętrzny miernik HU z AIVAT, otwarty korpus
+    hand histories (MIT) do maszynerii eksploatacji bez twierdzeń o polu.
 
 ## TaskSpeki
 
