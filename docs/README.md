@@ -143,6 +143,18 @@
     **własne historie Spin** (150–250 $ na walidację maszynerii, 350–800 $
     i ~170 h gry na model populacyjny); HRC Classic 119,90 $/rok opcjonalnie.
     Prawdziwy koszt to ~12 kontraktów i godziny przy stole, nie pieniądze.
+32. [`32-koncepcja-algo-uczacego-boardy-model-pola.md`](decisions/32-koncepcja-algo-uczacego-boardy-model-pola.md)
+    — **PROJEKT, czeka na zatwierdzenie operatora.** Koncepcja uczenia po
+    zapowiedzi korpusu ~1 mln rąk operatora: nie ma drugiego algorytmu —
+    ta sama pętla PI-FP + CFR+, trzy wejścia (drzewo, tensor kart, model pola)
+    i pokrętło `P_max` (0 = równowaga, >0 = DBR); zero sieci neuronowych.
+    Boardy „jak w Pio": 22 100 flopów → **1 755 klas** izomorficznych, ważony
+    k-means + medoid; **zmierzone**: K=49 daje błąd L1 0,019, K=184 — 0,006,
+    a klastrowanie bije losowy podzbiór tej samej wielkości 2–4×. Dane pola
+    są w jam/fold **nieobciążone** (sprawdzający nie zna kart jamującego),
+    więc zakresy odtwarza się z częstości + showdownów. Cztery pytania do
+    operatora o korpus (format, stawki, wiek, Spin czy cash) rozstrzygają,
+    którą linię model zasila — nie zmieniają maszynerii.
 
 ## TaskSpeki
 
