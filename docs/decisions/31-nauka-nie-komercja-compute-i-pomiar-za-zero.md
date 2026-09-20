@@ -354,9 +354,13 @@ przyrząd jest tańszy niż jego przeoczenie. Nadal: **nie blokuje niczego.**
 
 Trzech rzeczy, i to one są prawdziwym kosztem:
 
-1. **Naprawa przyrządu** (findingi 5.1 i 5.3 audytu). Kosztuje 0 zł i jest
-   warunkiem, żeby jakikolwiek wydatek na solver miał sens — dziś arena nie
-   umie odróżnić lepszego bota od gorszego.
+1. **Naprawa przyrządu** (findingi **6.1 i 6.3** audytu — numeracja z
+   `docs/AUDYT_KODU_2026-09-12.md`; wcześniejsze wydanie tej decyzji pisało
+   5.1/5.3 za numeracją artefaktu i było niezgodne z dokumentem w repo).
+   Kosztuje 0 zł i jest warunkiem, żeby jakikolwiek wydatek na solver miał
+   sens. **Uwaga o zakresie:** 6.1 dotyczy areny HU (`src/poker/arena.py`),
+   a NIE areny Spin, która od decyzji 22/26 liczy ROI w buy-inach na blokach
+   rotacji; dla linii Spin realny do naprawy jest wyłącznie 6.3.
 2. **Godziny kontraktów.** Zostało ~12 kontraktów (naprawy audytu, workflow,
    P-3…P-7, klient benchmarku, P-10/P-11). Historia repozytorium: 57 TaskSpeców
    między 2026-08-08 a 2026-09-12, czyli ~1,6 kontraktu dziennie — więc ~1–2

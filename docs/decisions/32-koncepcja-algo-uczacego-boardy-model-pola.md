@@ -160,7 +160,7 @@ wchodzi. Dwie asercje: prior modelu == blueprint przy `n=0`; `0 < P_max < 1`.
 
 | # | krok | koszt | zależy od |
 |---|---|---:|---|
-| 1 | Naprawa przyrządu (findingi 5.1, 5.3 audytu) | 0 | — |
+| 1 | Naprawa przyrządu (finding **6.3** audytu dla linii Spin; 6.1 dotyczy areny HU) | 0 | — |
 | 2 | **P-16** generator podzbioru flopów + bramka błędu na realnych zakresach | 0 rdzenio-h | — |
 | 3 | P-10 parser historii + model pola + licznik `n(I)` | 0 | dane operatora |
 | 4 | P-14 szew `_settle()` i flat call w drzewie (wymaga rekordu decyzyjnego) | ~5 | P-16 |

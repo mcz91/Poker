@@ -155,6 +155,19 @@
     więc zakresy odtwarza się z częstości + showdownów. Cztery pytania do
     operatora o korpus (format, stawki, wiek, Spin czy cash) rozstrzygają,
     którą linię model zasila — nie zmieniają maszynerii.
+33. [`33-droga-do-dobrego-bota-gto-kroki-i-koszt.md`](decisions/33-droga-do-dobrego-bota-gto-kroki-i-koszt.md)
+    — **PROJEKT, czeka na zatwierdzenie operatora.** Mapa drogowa po ustaleniach
+    operatora (korpus = Spin & Go, tiery 3-paid, explo jako deterministyczne
+    odchyły): **18 kroków, 153,3 rdzenio-h, ~17 kontraktów, poniżej 50 USD**.
+    Siedem pierwszych kroków kosztuje zero rdzenio-godzin i może unieważnić
+    resztę mapy. Cel zdefiniowany liczbowo w ośmiu warunkach, z jednostką progu
+    **ε_span** (nie ε_pool — przy trzech płatnych miejscach 3·p3 puli jest
+    martwe) i progiem 4,9e−4 wyprowadzonym z kotwicy Ganzfrieda–Sandholma.
+    Odrzucenia oszczędzają **430,8 rdzenio-h** (krok 1 siatki 252,1; P-7 64,3;
+    P-13 61,5; P-3 47,9; P-5 5,0). Sprawdzone uruchomieniem: **żaden wiersz
+    `TIERS` nie płaci trzeciego miejsca**, `sum(volume_share)=0,97`,
+    `tier_config("T-25X")` → `KeyError`. Pkt 8 nazywa rozjazd 171,7 vs 293–301
+    vs 153,3 i naprawia numerację findingów audytu w decyzjach 31/32.
 
 ## TaskSpeki
 
