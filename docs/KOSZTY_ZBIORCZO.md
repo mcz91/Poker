@@ -49,11 +49,12 @@ nośniku kosztuje 0 $ i **2,1 roku**, czyli jest nieosiągalny czasem, nie ceną
 | Korpus operatora (~1 mln rąk, już posiadany) | d.32 | **0 $** | wymaga metadanych: format, stawka, data |
 | Zbieranie własnych historii: 3 000 turniejów | d.31 9.3 | 150–250 $ | ~50 h gry; waliduje maszynerię |
 | Zbieranie własnych historii: 10 000 turniejów | d.31 9.3 | 350–800 $ | ~170 h gry; model populacyjny |
-| **HRC Classic — przyrząd kontrolny** | d.31 9.4 | **119,90 $/rok** | zalecany, **nie blokuje niczego** |
-| HRC Pro | d.31 1 | 359,90 $/rok | niepotrzebny |
+| **HRC Classic — kontrola preflopu ICM** | d.31 9.4 | **0 $** | **trial 14 dni, bez karty**; potem 16,66 $/mies. |
+| **TexasSolver — kontrola postflopu chipEV** | d.31 9.4 | **0 $** | AGPL, uruchamiany osobno; 0,015% różnicy wobec Pio |
+| HRC Pro | d.31 1 | 49,99 $/mies. | niepotrzebny |
 | ICMIZER Pro | d.31 1 | ~159,99 $/rok | alternatywa dla HRC |
 | GTO Wizard | d.31 1 | 26–116 $/mies. | zły format (cash HU/6-max) |
-| PioSOLVER Pro / Edge | d.31 1 | 450 / 800 € jednorazowo | zła gra |
+| PioSOLVER Pro / Edge | d.31 9.4 | 450 / 800 € wieczyste | **zbędny** — TexasSolver robi to samo za 0 $ |
 | MonkerSolver | d.31 1 | 499 € jednorazowo | zła gra |
 | **Godziny kontraktów** | d.34 6 | **`BRAK` wyceny** | ~15 kontraktów; przepustowość nieustalona |
 

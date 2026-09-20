@@ -63,9 +63,30 @@ i Slumbot (pkt 3). Jedyna pozycja, którą warto rozważyć za pieniądze, to
 **HRC Classic** (119,90 $/rok — nie Pro) jako próbkowy sanity-check pierwszych
 akcji Spina, w roli przewidzianej już przez decyzję 25 („sanity-check, nie
 ground truth"); wycena i uzasadnienie w pkt 9.4.
-Otwarte solvery (TexasSolver, postflop-solver) odpadają niezależnie od ceny:
-AGPL-3.0 wobec licencji `Proprietary` w `pyproject.toml`, rozwój zawieszony,
-i liczą postflop cash HU — nie naszą grę [S7].
+> **POPRAWKA 2026-09-20 (konstytucja pkt 1).** Pierwsze wydanie tego akapitu
+> brzmiało: „Otwarte solvery (TexasSolver, postflop-solver) odpadają niezależnie
+> od ceny: AGPL-3.0 wobec licencji `Proprietary` w `pyproject.toml`, rozwój
+> zawieszony, i liczą postflop cash HU — nie naszą grę". Dwie z trzech przesłanek
+> były fałszywe albo przestały obowiązywać:
+>
+> 1. **„Rozwój zawieszony" był błędem rzeczowym.** Napis
+>    `[Development suspended]` nosi `b-inary/wasm-postflop`, a NIE
+>    `bupticybee/TexasSolver`, którego README (sprawdzone 2026-09-20) mówi, że
+>    wersja C++ „still works", ma 322 commity i wydania, a rozwój przeniósł się
+>    na `TexasSolverGPU`. Dwa różne projekty zostały zlane w jeden [S7, S31].
+> 2. **„Nie nasza gra" odwróciło się wraz z decyzją 35.** Warstwa postflopowa
+>    jest z założenia liczona w przestrzeni żetonów — ICM wchodzi dopiero na
+>    liściach preflopu szwem `_settle()` — więc nasz postflop **jest** chipEV HU,
+>    czyli dokładnie tym, co te solvery liczą.
+> 3. **AGPL-3.0 zostaje w mocy, ale tylko dla OSADZENIA.** Copyleft AGPL
+>    uruchamia dystrybucja dzieła pochodnego albo udostępnianie go przez sieć.
+>    Uruchomienie programu jako **osobnego narzędzia**, żeby sprawdzić własne
+>    liczby, bez linkowania i bez dystrybucji, nie uruchamia żadnego z tych
+>    warunków. To jest lektura, nie opinia prawna — **do potwierdzenia przez
+>    operatora, jeśli kiedykolwiek miałoby wyjść poza rolę kontrolną.**
+>
+> Wniosek po poprawce: **jako komponent produktu — nadal nie. Jako przyrząd
+> kontrolny warstwy postflopowej — tak, i to pierwszy wybór** (pkt 9.4).
 
 ## 2. Dlaczego nie „nauka" w wersji neuronowej ani LLM
 
@@ -324,7 +345,29 @@ pierwszego przypadku.
 
 ### 9.4. Narzędzie kontrolne — opcjonalne, nie blokujące
 
-**HRC Classic, 119,90 $/rok** [S1] (nie Pro za 359,90 $): limit „stacki do
+> **AKTUALIZACJA 2026-09-20 na uwagę operatora.** Są dwa różne przedmioty
+> kontroli i każdy ma inny właściwy przyrząd — oba **za 0 zł**:
+>
+> | co kontrolujemy | przyrząd | koszt |
+> |---|---|---:|
+> | preflop ICM (dzisiejszy blueprint) | **HRC Classic — trial 14 dni, bez podawania karty** [S1] | **0 $** (potem 16,66 $/mies.) |
+> | postflop chipEV (warstwa z decyzji 35) | **TexasSolver** (AGPL, uruchamiany osobno) [S7] | **0 $** |
+>
+> **PioSOLVER do tej roli nie jest potrzebny.** Własny benchmark TexasSolvera
+> wobec Pio na identycznych ustawieniach (SPR 10, gra flopowa, 6 wątków):
+> 172 s wobec 242 s, różnica wyniku **0,015%** [S31] — dla przyrządu
+> kontrolnego to jest dokładnie to, czego się oczekuje. Pio Pro **€450**
+> (licencja wieczysta, rok aktualizacji) liczy wyłącznie postflop; preflop
+> wymaga Edge **€800** i ≥64 GB RAM [S4-prim]. Wersja darmowa Pio istnieje,
+> ale producent pisze wprost: „we don't offer trials of the full version",
+> a zakres ograniczeń **nie jest podany w źródle pierwotnym** — `BRAK`.
+>
+> **Czego nie sprawdzi żaden z nich:** szwu `_settle()`, czyli przejścia
+> z chipEV postflopu na ICM preflopu. To jest nasza własna konstrukcja i nie
+> ma dla niej zewnętrznego wzorca — kontrola tam musi być wewnętrzna
+> (łańcuch kontrolny, `prod_identity.json`).
+
+**HRC Classic** [S1]: limit „stacki do
 30 bb" pokrywa cały zegar Spina (start 25 bb), a 50 tys. węzłów wystarcza na
 trójosobowe drzewo preflopowe. Wartość: niezależne złapanie grubego błędu
 w pierwszych akcjach. Decyzja 25 już określa tę rolę — „sanity-check pierwszych
@@ -378,7 +421,9 @@ Trzech rzeczy, i to one są prawdziwym kosztem:
 - [S4] PioSOLVER/MonkerSolver — ceny (wtórne): <https://www.vip-grinders.com/poker-tools/piosolver-review/>; <https://pokerfuse.com/learn-poker/tools/poker-solvers/>
 - [S5] GTO Wizard — regulamin: <https://gtowizard.com/terms/>
 - [S6] GTO Wizard Benchmark — regulamin: <https://gtowizard.com/benchmark/terms>
-- [S7] TexasSolver (AGPL-3.0): <https://github.com/bupticybee/TexasSolver>; postflop-solver (AGPL-3.0): <https://github.com/b-inary/postflop-solver>
+- [S7] TexasSolver (AGPL-3.0, **rozwijany** — README 2026-09-20: wersja C++ „still works", 322 commity; następca `TexasSolverGPU`): <https://github.com/bupticybee/TexasSolver>; postflop-solver: <https://github.com/b-inary/postflop-solver>; **wasm-postflop — to TEN projekt nosi `[Development suspended]`**: <https://github.com/b-inary/wasm-postflop>
+- [S31] TexasSolver — benchmark wobec PioSOLVERA (SPR 10, gra flopowa, 6 wątków: 172 s vs 242 s, różnica wyniku 0,015%), README projektu, sprawdzone 2026-09-20
+- [S4-prim] PioSOLVER — źródło PIERWOTNE cennika i licencji (Pro €450, Edge €800, wieczyste, rok aktualizacji; „we don't offer trials of the full version"): <https://piosolver.com/products/>, <https://piosolver.com/docs/faq/licenses/>, sprawdzone 2026-09-20
 - [S8] AlphaHoldem, AAAI 2022: <https://ojs.aaai.org/index.php/AAAI/article/view/20394> (PDF: <https://cdn.aaai.org/ojs/20394/20394-13-24407-1-2-20220628.pdf>)
 - [S9] GTO Wizard Benchmark, arXiv 2603.23660: <https://arxiv.org/abs/2603.23660>
 - [S10] PokerNews, 2026-04: <https://www.pokernews.com/news/2026/04/gto-wizard-ai-outperforms-gpt-5-and-grok-4-in-new-benchmark-51020.htm>
