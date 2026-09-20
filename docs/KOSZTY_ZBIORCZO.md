@@ -39,6 +39,12 @@ Czas ścienny liczony zachowawczo (240 rdz-h na okno Actions).
 270 rdzenio-h, ~7 h ściennych, 0 $ na Actions, ~3 $ na własnym serwerze,
 14–30 $ u dostawcy chmurowego.**
 
+> **Zastrzeżenie (d.35 pkt 10.4):** wiersze postflopowe zakładają **2 pętle
+> uzgodnienia preflop↔postflop**. Liczba pętli nie jest stałą, tylko warunkiem
+> stopu — przy 6 pętlach szczebel rekomendowany rośnie z 52,1 do **156,3 rdz-h**
+> (nadal poniżej jednego okna), a wariant 184 flopy z 195,5 do 586,5 rdz-h
+> (2,4 okna). Cena zalecanego zestawu jest wobec tej niepewności odporna.
+
 Wiersz „skala Pio" jest w tabeli po to, żeby pokazać granicę: na darmowym
 nośniku kosztuje 0 $ i **2,1 roku**, czyli jest nieosiągalny czasem, nie ceną.
 

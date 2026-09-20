@@ -191,3 +191,79 @@ sama zmiana drzewa widziana z drugiej strony szwu.
 - Liczba węzłów drzewa, tempo jądra CFR+, tabele kosztu i rozmiaru: własne
   wyliczenie i pomiar z 2026-09-20; skrypty w scratchpadzie sesji — do repo
   wchodzą kontraktem P-2/P-4, nie tą decyzją.
+
+---
+
+## 10. Uzupełnienie 2026-09-20: sprzężenie preflop↔postflop
+
+Uwaga operatora: **„w NLH strategie pre i postflop się łączą".** Jest trafna
+i obala jedno z założeń tej decyzji. Trzy ustalenia, wszystkie sprawdzone
+w kodzie, nie wywnioskowane.
+
+### 10.1. Dziś sprzężenia nie ma wcale — nie jest przybliżone, jest nieobecne
+
+`_LEAF_DEFS_3` w `tools/blueprint/solve_grid.py:366`: **wszystkie 17 liści to
+`("fold", zwycięzca)` albo `("sd", uczestnicy)`**, a `_settle` (tamże:1091)
+rozstrzyga je przez `award_allin(contribs, ranks)`. Tensor z
+`rollout_tensor.py` jest opisany wprost jako **„tensor rozstrzygnięć all-in
+preflop"** — rozkład 13 słabych porządków trzech rąk na pełnym boardzie.
+
+Znaczy to, że dzisiejszy blueprint buduje zakresy preflop tak, **jakby każdy
+sprawdzony pot szedł all-in już przed flopem**. Nosi więc **equity surowe**,
+nie zrealizowane. Różnica jest dokładnie tym, o czym mówi uwaga: 76s i K2o
+o zbliżonym equity surowym realizują je zupełnie inaczej, a dzisiejsze
+drzewo nie ma czym tego wyrazić.
+
+### 10.2. Dobra wiadomość: interfejs ma właściwą rozdzielczość
+
+Tensor jest indeksowany **trójką klas rąk**, nie samym zakresem. Realizacja
+equity per klasa **da się** w nim wyrazić — brakuje wartości, nie miejsca na
+nie. Szew `_settle()` nie wymaga przebudowy, tylko innego wypełnienia.
+
+### 10.3. Szczegół, który decyzja 29 pkt 3C pominęła
+
+„Rozstrzyganie rozegranego pota zmienia wyłącznie alfabet K" jest prawdziwe
+tylko po uogólnieniu typu ładunku liścia. Pot rozegrany **nie jest** rozkładem
+po porządkach showdownu: ktoś pasuje na turnie, tracąc część stacka, i żaden
+porządek rąk tego nie opisuje. `award_allin(contribs, ranks)` takiego wyniku
+nie wyrazi. **Ładunek liścia rozegranego to rozkład po wektorach żetonów,
+a nie po rangach** — to jest zmiana typu, nie tylko rozmiaru alfabetu.
+
+### 10.4. Luka w tej decyzji: `OUTER = 2` było stałą bez uzasadnienia
+
+Pkt 3 przyjął **2 pętle uzgodnienia preflop↔postflop** jako założenie wyceny.
+To był właściwy mechanizm i niewłaściwa dyscyplina: naprzemienna najlepsza
+odpowiedź między warstwami **nie ma gwarancji zbieżności**, a stage game
+preflopu jest trójosobowy, gdzie fikcyjna gra gwarancji nie ma w ogóle
+(projekt to wie i dlatego mierzy ε ex-post zamiast się na gwarancję powoływać
+— decyzja 25).
+
+**Poprawka:** liczba pętli nie jest stałą, tylko **warunkiem stopu na
+zmianie wartości liści**, a jakość całości orzeka **ε ex-post policzone na
+strategii łącznej** (preflop + postflop razem), nie na żadnej z warstw
+osobno. Jeśli pętla oscyluje zamiast zbiegać, to jest wynik do zaraportowania,
+a nie do przeczekania.
+
+Koszt wobec liczby pętli (przeliczone z pkt 3):
+
+| wariant | ×1 | **×2 (przyjęte)** | ×4 | ×6 | ×10 |
+|---|---:|---:|---:|---:|---:|
+| minimalna / 49 flopów | 2,9 h | **5,7 h** | 11,4 h | 17,1 h | 28,5 h |
+| **standardowa / 49 flopów** | 26,1 h | **52,1 h** | 104,2 h | **156,3 h** | 260,5 h |
+| standardowa / 184 flopy | 97,8 h | 195,5 h | 391,0 h | 586,5 h | 977,5 h |
+
+**Wniosek co do ceny jest odporny:** nawet przy sześciu pętlach rekomendowany
+szczebel to 156 rdzenio-h, czyli **nadal poniżej jednego okna darmowych
+runnerów**. Zmienia się liczba, nie decyzja. Dopiero ×10 przekracza okno.
+
+### 10.5. Szczebel pośredni, którego nie było w menu
+
+Między „nic" a pełnym punktem stałym leży rzecz tania i dobrze znana:
+**współczynniki realizacji equity** — jedna liczba na (klasa, pozycja),
+równa (EV w rozegranym pocie) / (equity surowe). Niesie większość sprzężenia
+z pkt 10.1 przy koszcie bliskim zeru i **jest mierzalna wobec pełnego
+rozwiązania**, więc nadaje się na pierwszy szczebel krzywej z kroku P-4.
+
+Kolejność po tej poprawce: **realizacja equity → punkt stały z warunkiem
+stopu → ε ex-post na strategii łącznej.** Krok P-3 z pkt 8 obejmuje pierwszy
+człon, P-5 drugi, a trzeci jest nowym warunkiem wejścia do Fazy 2 decyzji 34.
