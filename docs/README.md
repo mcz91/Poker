@@ -169,6 +169,25 @@
     `tier_config("T-25X")` → `KeyError`. Pkt 8 nazywa rozjazd 171,7 vs 293–301
     vs 153,3 i naprawia numerację findingów audytu w decyzjach 31/32.
 
+34. [`34-najkrotsza-droga-do-bota-bijacego-field.md`](decisions/34-najkrotsza-droga-do-bota-bijacego-field.md)
+    — **PROJEKT, czeka na zatwierdzenie operatora.** Przestawia kolejność
+    decyzji 33 pod inny cel: nie ε, a **ROI wobec pola**. Cel wyprowadzony
+    z ekonomii formatu (`E[M] = 3(1−rake)`, `ROI = P(win)·E[M] − 1`), więc
+    **pojedynczy tier nie jest oceniany w ROI** — break-even w 2x to 50%,
+    w 4x 25%. Przyrząd to **odsetek wygranych turniejów**, nie pieniądze:
+    usuwa wariancję losowania mnożnika i sprowadza próbkę do **4 706
+    turniejów** dla ROI +3,2%. Uruchomione: tabela `TIERS` **nie domyka się
+    rachunkowo** — najłagodniejsze założenia dają implikowany rake 1,67%,
+    każde inne rake ujemny; **błąd progu 1,94 pp jest większy niż szukana
+    przewaga 1,16 pp**, więc bot o `P(win)=35,5%` raportowałby +4,7% ROI
+    tracąc realnie 1,0%. Kolejność po wolumenie z fixture'a: T-MODAL 87%
+    za 17,8 rdz-h (0,20 rdz-h/pp), T-DEEP 1% za 64,3 (64,31 rdz-h/pp) —
+    **314× różnicy**, a policzony jest ten drugi. Dwie bramki: S1 (ε
+    z decyzji 29) i **S2 — ROI dodatnie na modelach pola zaburzonych ±20%**.
+    15 kontraktów, ~218 rdzenio-h, 0–46 USD. Pkt 7 podaje test obalający
+    własną przesłankę o kolejności; pkt 8 nazywa, że pomiaru na żywym
+    serwisie ten plan nie planuje; tempo kontraktów oznaczone `BRAK`.
+
 ## TaskSpeki
 
 Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
