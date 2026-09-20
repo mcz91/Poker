@@ -11,6 +11,10 @@
   komendy do odtworzenia pomiarów. Nie jest audytem kontraktowym pojedynczego
   TaskSpeca ani źródłem statusu produktu.
 
+## Koszty
+
+[`KOSZTY_ZBIORCZO.md`](KOSZTY_ZBIORCZO.md) — rollup wszystkich wycen (compute, dane, narzędzia komercyjne, linia neuronowa) z 2026-09-20. **Zestawienie, nie źródło**: każdy wiersz wskazuje dokument źródłowy, przy rozbieżności obowiązuje źródło. Zalecany zestaw = **270 rdzenio-h, ~7 h ściennych, 0 $ na darmowych runnerach**; skala PioSOLVERA = 747 000 rdzenio-h, czyli 2,1 roku i dlatego nieosiągalna czasem, nie ceną. Jeden przebieg treningowy klasy AlphaHoldem wyceniony na **353–1 362 $** — cena nie jest blokadą linii neuronowej, blokadą są brak wzorca, brak przyrządu i INV-P8.
+
 ## Dokumenty decyzji
 
 1. [`01-trzy-produkty-jeden-rdzen.md`](decisions/01-trzy-produkty-jeden-rdzen.md)
