@@ -188,6 +188,26 @@
     własną przesłankę o kolejności; pkt 8 nazywa, że pomiaru na żywym
     serwisie ten plan nie planuje; tempo kontraktów oznaczone `BRAK`.
 
+35. [`35-warstwa-postflopowa-spr-jest-prezentem-pamiec-jest-sciana.md`](decisions/35-warstwa-postflopowa-spr-jest-prezentem-pamiec-jest-sciana.md)
+    — **PROJEKT, czeka na zatwierdzenie operatora.** Rozszerza decyzję 34
+    o postflop. Zmierzone: po open 2,2× + call SPR wynosi **4,65 / 2,61 /
+    1,59** przy 25/15/10 bb wobec ~11 w cashu 100 bb, więc drzewo licytacji
+    jest **3,3× mniejsze przy 25 bb i 21× przy 10 bb**. Tempo jądra CFR+
+    zmierzone na maszynie: **7,03 mln aktualizacji infosetu/rdzenio-s**;
+    narzut ×5 przyjęty jako założenie z jawną wrażliwością (×3→31 h,
+    ×20→208 h). Menu kosztu od 1,5 h (13 flopów, minimalna) do **747 000
+    rdzenio-h** (bogata/dokładna/1755 — skala Pio, 85 rdzenio-lat).
+    **Wniosek odwracający kierunek: compute jest tani, ścianą jest pamięć** —
+    szczebel rekomendowany (standardowa/zgrubna/49 flopów) to 52,1 rdzenio-h,
+    ale **791 MB** artefaktu (395 MB w uint8), a pełne 1755 flopów to 28,3 GB.
+    Trafia dokładnie w górną granicę prognozy 0,25–1 GB z decyzji 25 pkt 6.
+    Rozdziela dwa produkty: **(A)** preflop świadomy postflopu (kilobajty,
+    naprawia rozliczanie sprawdzonego pota jak check-downu) przed **(B)** grą
+    postflop. Pkt 6: **to jest pierwszy raz, gdy przesłanka odrzucająca sieci
+    neuronowe się zmienia** — 0,8–28 GB to problem kompresji, czyli SD-CFR
+    z decyzji 25, z bramką INV-P8 na czasie decyzji. Pkt 7 nazywa cztery
+    rzeczy poza zakresem, z flopami 3-way na czele.
+
 ## TaskSpeki
 
 Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
