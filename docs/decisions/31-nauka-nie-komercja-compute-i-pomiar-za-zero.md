@@ -159,7 +159,7 @@ mówi o 9 h sesji) — nie liczymy na nie.
 
 ## 4. Dźwignia 2 — pomiar za zero: zewnętrzny miernik HU z AIVAT
 
-Audyt (5.1) pokazał, że arena BB/100 nie mierzy tempa wygrywania (mediana
+Audyt (6.1) pokazał, że arena BB/100 nie mierzy tempa wygrywania (mediana
 1 rozdanie na mecz). Zamiast budować przyrząd od nowa dla linii HU, bierzemy
 gotowy, cudzy i darmowy:
 
@@ -189,8 +189,8 @@ Granica uczciwości: to **HU cash 200 bb**, nie Spin. Nasza linia HU (c2, stacki
 50 bb, rozmiary `half`/`pot`) dostanie tam liczbę bardzo ujemną — i to jest
 właściwy, zewnętrzny wyrok dla linii c2 zamiast wewnętrznej areny, która
 wyroku wydać nie umie. **Dla Spina 3-max nie istnieje żaden zewnętrzny
-miernik** (oba benchmarki są HU) — tam obowiązują naprawy przyrządu
-z audytu (5.1, 5.3) i AIVAT w przestrzeni nagród (P-5 POKER-53).
+miernik** (oba benchmarki są HU) — tam obowiązuje naprawa przyrządu
+z audytu (6.3; 6.1 dotyczy areny HU, nie Spina) i AIVAT w przestrzeni nagród (P-5 POKER-53).
 
 ## 5. Dźwignia 3 — dane za zero: otwarty korpus dla maszynerii eksploatacji
 
@@ -212,10 +212,10 @@ Spin) **pozostaje** przy operatorze.
 
 ## 6. Kolejność prac za zero złotych (zmienia mapę decyzji 29 wyłącznie co do kolejności i nośnika)
 
-1. **Przyrząd przed pomiarem** (0 rdzenio-h): audyt 5.1 — arena HU raportuje
+1. **Przyrząd przed pomiarem** (0 rdzenio-h): audyt 6.1 — arena HU raportuje
    statystykę zdefiniowaną dla meczów kończących się bustem (odsetek
    wygranych meczów, jak w audycie) albo resetuje stosy co rozdanie;
-   audyt 5.3 — `play_spin` odmawia punktowania turnieju z powodem
+   audyt 6.3 — `play_spin` odmawia punktowania turnieju z powodem
    `"guard"`; P-5 AIVAT (POKER-53).
 2. **Bramka i łańcuch kontrolny na Actions** (≈0 rdzenio-h solvera):
    pierwszy workflow = `ruff`/`mypy`/`pytest` + odtworzenie łańcucha

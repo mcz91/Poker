@@ -252,4 +252,9 @@ się do findingów audytu jako „5.1/5.3", podczas gdy
 przeniesiona z artefaktu. Dodatkowo **finding 6.1 dotyczy areny HU
 (`src/poker/arena.py`), a nie areny Spin**, która od decyzji 22/26 liczy ROI
 w buy-inach na blokach rotacji; dla linii Spin realny do naprawy jest wyłącznie
-6.3. Oba odwołania poprawione tym samym commitem (konstytucja pkt 1).
+6.3. Poprawka weszła w dwóch commitach: 94ea03e naprawił przypisy w §9.6
+decyzji 31 i w decyzji 32, ale **przeoczył cztery odwołania w korpusie
+decyzji 31** (§4, §4 granica uczciwości, §6 pkt 1 dwa razy) — domknięte
+commitem następnym. Pierwsze wydanie tego akapitu twierdziło, że oba
+odwołania poprawiono jednym commitem; to było nieprawdą i dlatego
+zdanie zostało tu zastąpione (konstytucja pkt 1).
