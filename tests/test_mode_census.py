@@ -38,6 +38,19 @@ def census_table() -> dict[str, Any]:
     return dict(_load("mode_census").table())
 
 
+# Bieg produkcyjny POKER-50 domykał horyzont jeszcze cyklem trzech rąk: 6 cykli
+# = 18 warstw pełnej siatki. Kalibracja porównuje z nim tę samą liczbę WARSTW
+# (w rachunku cyklu sześciu rąk z POKER-74 to 3 cykle), nie tę samą liczbę cykli.
+MEASURED_BOUNDARY_LAYERS = 18
+
+
+def _measured_run_report() -> dict[str, Any]:
+    mc, sg = _load("mode_census"), _load("solve_grid")
+    assert MEASURED_BOUNDARY_LAYERS % sg.BOUNDARY_CYCLE_HANDS == 0
+    cycles = MEASURED_BOUNDARY_LAYERS // sg.BOUNDARY_CYCLE_HANDS
+    return dict(mc.report(mc.presets()["prod-10x"], cycles))
+
+
 def test_formula_stanow_siatki_zgadza_sie_z_decyzja_29() -> None:
     """(u+1)(u+2)/2 − 3 na trzech siatkach: 2 923 / 11 473 / 1 078 (decyzja 29 pkt 1)."""
     sg = _load("solve_grid")
@@ -52,7 +65,7 @@ def test_populacje_trybow_odtwarzaja_bieg_produkcyjny(census_table: dict[str, An
 
     To jest jedyny wiersz tabeli, dla którego istnieje POMIAR, więc jedyny, który
     sprawdza sam fixture: zgadzają się i rozmiary warstw przyciętych osiągalnością,
-    i populacje czterech trybów, i mieszanka horyzontu.
+    i populacje czterech trybów, i mieszanka horyzontu (18 warstw biegu POKER-50).
     """
     row = census_table["rows"]["prod-10x"]
     assert row["states_per_layer"] == [1, 18, 147, 691, 2143, 2920] + [2923] * 15
@@ -63,24 +76,34 @@ def test_populacje_trybow_odtwarzaja_bieg_produkcyjny(census_table: dict[str, An
         "hu-deep": 932,
         "hu-jamfold": 3085,
     }
-    # Horyzont: sześć cykli po trzy warstwy pełnej siatki przy blindach 10/20 —
-    # przy 150 żetonach żaden stan nie jest głęboki, więc dwa tryby są zerami.
-    assert row["boundary_modes"] == {
+    # Horyzont biegu: 18 warstw pełnej siatki przy blindach 10/20 — przy 150
+    # żetonach żaden stan nie jest głęboki, więc dwa tryby są zerami.
+    assert _measured_run_report()["boundary_modes"] == {
         "deep": 0,
         "jamfold": 48618,
         "hu-deep": 0,
         "hu-jamfold": 3996,
+    }
+    # Wycena regeneracji (6 cykli po sześć rąk = 36 warstw) to dwa razy tyle.
+    assert row["boundary_cycles"] == 6
+    assert row["boundary_modes"] == {
+        "deep": 0,
+        "jamfold": 97236,
+        "hu-deep": 0,
+        "hu-jamfold": 7992,
     }
 
 
 def test_wycena_zgadza_sie_ze_zmierzonym_kosztem_biegu(census_table: dict[str, Any]) -> None:
     """Kalibracja na jedynym biegu, który naprawdę zapłacono (POKER-50 pkt 4a).
 
-    Zmierzono: warstwy 40,2 rdzenio-h, horyzont 25,2, solver razem 65,4, całość
-    z tensorem 76,6. Tempa per stan nie niosą narzutu forka (1,018), więc wycena
-    ma być tuż PONIŻEJ pomiaru — kilka procent, nie kilkadziesiąt.
+    Zmierzono: warstwy 40,2 rdzenio-h, horyzont 25,2 (18 warstw), solver razem
+    65,4, całość z tensorem 76,6. Tempa per stan nie niosą narzutu forka (1,018),
+    więc wycena tych samych warstw ma być tuż PONIŻEJ pomiaru — kilka procent,
+    nie kilkadziesiąt.
     """
-    row = census_table["rows"]["prod-10x"]
+    row = _measured_run_report()
+    assert row["layers_core_hours"] == census_table["rows"]["prod-10x"]["layers_core_hours"]
     for predicted, measured in (
         (row["layers_core_hours"], 40.2),
         (row["boundary_core_hours"], 25.2),
@@ -116,20 +139,22 @@ def test_populacje_pelnej_siatki_zgadzaja_sie_z_liczbami_decyzji_29() -> None:
 
 
 def test_wycena_tierow_i_kroku_jeden_wchodzi_do_dokumentu(census_table: dict[str, Any]) -> None:
-    """Liczby wierszy tabeli wyceny — te same, które niesie blok POKER-56."""
+    """Liczby wierszy tabeli wyceny bloku POKER-56 — horyzont od POKER-74 w cyklach
+    sześciu rąk (6 cykli = 36 warstw), więc kolumna horyzontu jest dwa razy
+    większa niż przed POKER-74, a warstwy bez zmian."""
     rows = census_table["rows"]
     expected = {
-        "T-MODAL": (9.2, 8.7, 17.8),
-        "T-MID": (20.8, 15.7, 36.4),
-        "WTA@25bb": (39.6, 24.7, 64.3),
-        "krok-1": (151.2, 100.9, 252.1),
+        "T-MODAL": (9.2, 17.3, 26.5),
+        "T-MID": (20.8, 31.3, 52.1),
+        "WTA@25bb": (39.6, 49.5, 89.0),
+        "krok-1": (151.2, 201.9, 353.0),
     }
     for name, (layers, boundary, solver) in expected.items():
         row = rows[name]
         assert row["layers_core_hours"] == pytest.approx(layers, abs=0.05), name
         assert row["boundary_core_hours"] == pytest.approx(boundary, abs=0.05), name
         assert row["solver_core_hours"] == pytest.approx(solver, abs=0.05), name
-    assert rows["krok-1"]["with_tensor_core_hours"] == pytest.approx(263.3, abs=0.05)
+    assert rows["krok-1"]["with_tensor_core_hours"] == pytest.approx(364.2, abs=0.05)
     # Kolumny „stany-warstwy" i „deep" tej samej tabeli w dokumencie.
     populations = {
         "prod-10x": (49765, 1198),
@@ -143,8 +168,8 @@ def test_wycena_tierow_i_kroku_jeden_wchodzi_do_dokumentu(census_table: dict[str
         assert sum(modes.values()) == states == sum(rows[name]["states_per_layer"]), name
         assert modes["deep"] == deep, name
     # DBR seat-restricted to trzy przebiegi hero na TYM SAMYM tensorze.
-    assert rows["DBR-T-MODAL"]["solver_core_hours"] == pytest.approx(53.5, abs=0.05)
-    assert rows["DBR-T-MODAL"]["with_tensor_core_hours"] == pytest.approx(64.7, abs=0.05)
+    assert rows["DBR-T-MODAL"]["solver_core_hours"] == pytest.approx(79.5, abs=0.05)
+    assert rows["DBR-T-MODAL"]["with_tensor_core_hours"] == pytest.approx(90.7, abs=0.05)
 
 
 def test_domkniecie_warstw_1_5_jest_glebokie_a_nie_proporcjonalne(
@@ -196,6 +221,36 @@ def test_populacje_trybow_nie_zaleza_od_wektora_wyplat(census_table: dict[str, A
     assert rows["WTA@25bb"]["states_per_layer"] == rows["prod-10x"]["states_per_layer"]
     assert rows["WTA@25bb"]["prizes"] == [1.0, 0.0, 0.0]
     assert rows["prod-10x"]["prizes"] == [0.8, 0.2, 0.0]
+
+
+def test_wycena_horyzontu_liczy_warstwy_cyklu_brzegu_solvera() -> None:
+    """Wycena horyzontu liczy na cykl tyle warstw, ile rozwiązuje `_boundary` (POKER-74).
+
+    Stan modelu na ostatnim poziomie ma okres lcm(3, 2) = 6 rąk (role trzech żywych
+    z ręki mod 3, guzik HU z ręki mod 2), więc cykl brzegu ma sześć warstw pełnej
+    siatki. Mieszanka trybów z wyceny ma być co do sztuki tą, którą brzeg naprawdę
+    rozwiązał — inaczej rozjazd stałych dałby wycenę innego biegu niż ten, który
+    pójdzie.
+    """
+    mc, sg, cc = _load("mode_census"), _load("solve_grid"), _load("control_chain")
+    config = sg.GridConfig(
+        levels=((1, 2),), hands_per_level=1, total_chips=30, start_stacks=(10, 10, 10),
+        grid_step=10, classes=cc.control_classes(), fp_max_iters=2, fp_check_every=2,
+        fp_restarts=1, cfr_iters=2, cfr_check_every=2, tail_max_cycles=2, tail_tol=0.0,
+    )
+    per_layer = mc.full_grid_census(config, sg.n_hands(config))
+    for cycles in (1, 2):
+        assert mc.boundary_census(config, cycles) == {
+            mode: count * 6 * cycles for mode, count in per_layer.items()
+        }
+    tensors = sg.load_tensors(REPO_ROOT / "tools" / "blueprint" / "control" / "tensor",
+                              config.classes)
+    states = sg.grid_states(config.total_chips, config.grid_step)
+    _, deltas, stats = sg._boundary(tensors, config, states)
+    assert len(deltas) == config.tail_max_cycles
+    solved = {mode: int(stats.get(mode, {"n_states": 0})["n_states"]) for mode in per_layer}
+    assert solved == mc.boundary_census(config, len(deltas))
+    assert sum(solved.values()) == len(states) * sg.BOUNDARY_CYCLE_HANDS * len(deltas)
 
 
 def test_nazwy_trybow_solvera_sa_jednym_formatem_co_do_kolejnosci() -> None:

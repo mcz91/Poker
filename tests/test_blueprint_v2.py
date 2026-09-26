@@ -55,9 +55,9 @@ QUANT_STEP_U16 = 1.0 / 65535.0
 # z zapasem na inną wersję zlib, a nie na inny sposób odczytu — tak jak
 # sufity v1 w POKER-51. Blok v2 jest większy od v1 (uint16 i trzeci slot),
 # więc sufit stanu jest wyższy niż 160 B z POKER-51.
-# Zmierzone najgorsze przypadki na całym artefakcie: 180 B na stan, 56 B na V,
-# 42 B na ε, 97 B na marginesy; sufity mają ~1,4x zapasu, tyle samo co sufity
-# v1 w POKER-51 (116 -> 160 B).
+# Zmierzone najgorsze przypadki na całym artefakcie: 191 B na stan, 56 B na V,
+# 42 B na ε, 95 B na marginesy; sufity mają ~1,35x zapasu, tyle samo co sufity
+# v1 w POKER-51 (119 -> 160 B).
 CONTROL_V2_STATE_READ_MAX_BYTES = 260
 CONTROL_V2_VALUE_READ_MAX_BYTES = 72
 CONTROL_V2_EPS_READ_MAX_BYTES = 60
@@ -74,15 +74,15 @@ CONTROL_INFOSETS = 416
 # osiągalne o jednej akcji. Rozkład marginesów artefaktu kontrolnego cytuje blok
 # POKER-57 w docs/CURRENT_STATE.md, więc stoi tu jako niezmiennik.
 CONTROL_MARGIN_INFOSETS = 376
-CONTROL_MARGIN_MAX = 0.3027213513851166
-CONTROL_MARGIN_MEDIAN = 0.07704192772507668
+CONTROL_MARGIN_MAX = 0.3206641972064972
+CONTROL_MARGIN_MEDIAN = 0.07054141163825989
 # Margines akcji dominującej w konstrukcji jam/fold WTA, klasa AA — liczba
 # zmierzona, próg MARGIN_DOMINANT_MIN ma wobec niej dziesięciokrotny zapas.
 MARGIN_AA_JAMFOLD_WTA = 0.5239
-# Korzeń UTG artefaktu kontrolnego: AA MIESZA (0,898 open / 0,101 jam) przy
-# marginesie 0,011568, a KK gra niemal czysto przy marginesie 0,000981.
-CONTROL_ROOT_MARGIN_AA = 0.011567593552172184
-CONTROL_ROOT_MARGIN_KK = 0.0009811840718612075
+# Korzeń UTG artefaktu kontrolnego: AA MIESZA (0,915 open / 0,084 jam) przy
+# marginesie 0,009267, a KK gra niemal czysto przy marginesie 0,000041.
+CONTROL_ROOT_MARGIN_AA = 0.009266819804906845
+CONTROL_ROOT_MARGIN_KK = 4.099151192349382e-05
 
 
 class _CountingStream:

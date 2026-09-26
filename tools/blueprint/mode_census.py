@@ -19,10 +19,12 @@ Trzy rzeczy, których ta wycena NIE zgaduje:
 3. **Tempo.** `MEASURED_RATES` to tempa ZMIERZONE w biegu produkcyjnym
    (POKER-50 pkt 3), a nie priory pilota z bezpiecznika kosztu.
 
-Kalibracja: na konfiguracji biegu produkcyjnego wycena daje 64,3 rdzenio-h
-solvera wobec 65,4 zmierzonych (−1,7%); różnicę robi narzut forka i zbiórki,
-którego tempa per stan nie niosą. Ta kalibracja dowodzi RACHUNKOWOŚCI
-(osiągalność → mieszanka trybów → horyzont = 3 × cykle × pełna siatka), a nie
+Kalibracja: bieg produkcyjny POKER-50 domykał horyzont jeszcze cyklem trzech
+rąk (6 cykli = 18 warstw pełnej siatki); wycena tych samych 18 warstw (3 cykle
+po `solve_grid.BOUNDARY_CYCLE_HANDS` rąk) daje 64,3 rdzenio-h solvera wobec
+65,4 zmierzonych (−1,7%); różnicę robi narzut forka i zbiórki, którego tempa
+per stan nie niosą. Ta kalibracja dowodzi RACHUNKOWOŚCI (osiągalność →
+mieszanka trybów → horyzont = warstwy cyklu × cykle × pełna siatka), a nie
 przenośności temp: tempa pochodzą z tego samego biegu, więc −1,7% to narzut
 forka, nie błąd predykcji.
 
@@ -40,6 +42,7 @@ Uruchomienie (venv z extras train, z katalogu repozytorium):
 
     python tools/blueprint/mode_census.py table
     python tools/blueprint/mode_census.py table --preset T-MODAL
+    python tools/blueprint/mode_census.py table --preset prod-10x --tail-cycles 3  # kalibracja
 """
 
 import argparse
@@ -82,9 +85,11 @@ MEASURED_RATES: dict[str, float] = {
     "hu-jamfold": 0.018,
 }
 
-# Horyzont zbiegł w 6 cyklach na siatce 2 (POKER-50 pkt 2) — liczba cykli jest
-# własnością zbieżności, nie siatki, więc dla innej konfiguracji to założenie,
-# a nie pomiar; dlatego jest parametrem, a nie stałą wpisaną w koszt.
+# Horyzont biegu produkcyjnego zbiegł w 6 cyklach TRZECH rąk (POKER-50 pkt 2,
+# siatka 2, 18 warstw). Liczby cykli sześciu rąk (POKER-74) na produkcji nikt nie
+# zmierzył, więc 6 jest tu założeniem, jak dla każdej innej konfiguracji — liczba
+# cykli jest własnością zbieżności, nie siatki; dlatego jest parametrem, a nie
+# stałą wpisaną w koszt.
 PRODUCTION_TAIL_CYCLES = 6
 
 # Tensor rolloutów jest kartowy: nie zależy od siatki stacków ani od wypłat,
@@ -146,14 +151,16 @@ def full_grid_census(config: Any, hand: int) -> dict[str, int]:
 
 
 def boundary_census(config: Any, cycles: int = PRODUCTION_TAIL_CYCLES) -> dict[str, int]:
-    """Horyzont: `cycles` cykli po trzy warstwy pełnej siatki przy blindach ostatniego poziomu."""
+    """Horyzont: `cycles` cykli po `solve_grid.BOUNDARY_CYCLE_HANDS` warstw pełnej siatki
+    przy blindach ostatniego poziomu — tyle, ile rozwiązuje `solve_grid._boundary`."""
     if cycles < 1:
         raise ValueError(f"horyzont liczy co najmniej jeden cykl: {cycles}")
     total = solve_grid.n_hands(config)
     _, bb_amt = solve_grid.level_blinds(config, total)
     states = solve_grid.grid_states(config.total_chips, config.grid_step)
     per_layer = _count_modes(states, bb_amt)
-    return {mode: count * 3 * cycles for mode, count in per_layer.items()}
+    layers = solve_grid.BOUNDARY_CYCLE_HANDS * cycles
+    return {mode: count * layers for mode, count in per_layer.items()}
 
 
 def census(config: Any, cycles: int = PRODUCTION_TAIL_CYCLES) -> Census:

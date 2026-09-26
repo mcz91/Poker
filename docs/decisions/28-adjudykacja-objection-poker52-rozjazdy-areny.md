@@ -102,6 +102,49 @@ awaryjnej po POKER-55 nieodróżnialny od zera w CI), ale liczbę w
 dokumentach podaje się zmierzoną, nie z rzędu wielkości. Decyzja:
 wprowadzić w POKER-55, z licznikiem odczytów cyklicznych osobno od
 odczytów wprost (rozróżnialność zostaje).
+**KOREKTA (POKER-74, 2026-09-26; finding B7
+[audytu całego kodu](../AUDYT_2026-09-26.md),
+[decyzja 31](31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)):** warunek
+„ręce ≥ 21 żyją w tym samym stacjonarnym cyklu 3 rąk" był w modelu
+treningu fałszywy. Role trzech żywych liczą się z ręki mod 3, ale guzik
+HU (`sorted(żywi)[ręka % 2]`) z ręki mod 2, więc stan modelu na ostatnim
+poziomie ma okres lcm(3, 2) = 6 rąk. Brzeg horyzontu domykany cyklem
+3 rąk był punktem stałym innej gry (na zawinięciu ten sam gracz HU był
+guzikiem dwie ręce z rzędu), a delta zbieżności ogona mierzy zbieżność
+iteracji, nie błąd domknięcia — zdanie „odczyt cykliczny jest ścisły
+z dokładnością do zmierzonej delty zbieżności ogona" jest nieprawdziwe.
+Od POKER-74 `_boundary` liczy cykl 6 rąk
+(`solve_grid.BOUNDARY_CYCLE_HANDS`; manifest niesie
+`boundary.scheme = "cycle6"`, a wznowienie i import brzegu innego
+schematu są odmawiane). Artefakt produkcyjny policzono starym brzegiem;
+jego regeneracja jest wejściem operatora (decyzja 31 pkt 3). Zmierzono
+(komendy w raporcie commita POKER-74; odniesienie: punkt stały cyklu
+6 rąk):
+
+a) **Wiersze HU, konfiguracja produkcyjna podgry HU** — 169 klas, część
+   HU tensora produkcyjnego odtworzona co do zliczenia (60 000 prób na
+   parę, seed 50; kotwica (AA, 72o) zgodna z `chain_control.json`),
+   150 żetonów, krok 2, 10/20, wypłaty 0,8/0,2/0, CFR+ 512/5e−5; podgra
+   HU jest zamknięta, więc brzeg liczy się na samych 222 stanach HU:
+   stary brzeg odchyla się o **maks 1,37e−3, średnio 7,2e−4** udziału
+   sumy wypłat (≈2,7× `tail_tol`); nowy o 4,0e−6.
+b) **Wiersze 3-way, siatka testu horyzontu w bramce** (100 żetonów, krok
+   25, 25/50, tensor syntetyczny, 0 przejść HU niesymetrycznych na
+   zamianę etykiet): stary brzeg **maks 1,74e−3, średnio 9,7e−4**
+   (HU 1,24e−3); nowy 8,6e−8. Na siatce e60 przeglądu kontraktu (60
+   żetonów, krok 2, 10/20, tensor kontrolny, budżety domyślne): 3-way
+   maks 1,9e−2, średnio 6,5e−4 (HU maks 1,3e−3) — tam odniesieniem jest
+   brzeg cyklu 6 po 14 cyklach, który sam stoi na delcie ~1,3e−3, więc
+   te liczby niosą szum tego rzędu.
+c) **Odczyt cykliczny agenta `18 + (ręka − 18) mod 3` jest dla trzech
+   żywych przybliżeniem**, nie odczytem ścisłym: w modelu stan ma okres
+   6, więc warstwa t i t+3 opisują przy trzech żywych różne gry (inny
+   guzik HU po wybiciu). Wielkość przybliżenia |V_t − V_{t+3}| w punkcie
+   stałym cyklu 6 w wierszach 3-way: siatka testu horyzontu **maks
+   1,96e−3, średnio 1,03e−3**; siatka e60 maks 1,6e−2, średnio 9,7e−4
+   (z tym samym zastrzeżeniem szumu co w b).
+   Poprawka agenta i jego docstringów oraz reguła guzika HU po wybiciu
+   (model ≠ arena) — sprint B (decyzja 31 pkt 2).
 
 ## 4. Kolejność linii (aktualizacja mapy)
 

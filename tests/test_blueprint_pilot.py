@@ -658,8 +658,9 @@ def test_kryteria_stopu_solverow_maja_ten_sam_ksztalt_i_te_same_wartosci_w_cli()
 
     Tolerancja CFR+ jest ta sama co PI-FP, bo dług obu solverów sumuje się
     w tym samym DAG-u i mierzy go ta sama metryka ex-post. Sufity pochodzą
-    z krzywych POKER-49: horyzont 12 cykli przy tolerancji 5e−4 (delta ma
-    podłogę ~2e−4, więc niżej zejść nie może), CFR+ 512 iteracji przy
+    z krzywych POKER-49: horyzont 12 cykli przy tolerancji 5e−4 (krzywa cyklu
+    trzech rąk miała podłogę ~2e−4; cykl sześciu rąk z POKER-74 dziedziczy te
+    wartości do pomiaru swojej krzywej produkcyjnej), CFR+ 512 iteracji przy
     tolerancji 5e−5 (osiąga ją 128, sufit daje zapas).
     """
     sg = _load("solve_grid")
@@ -700,6 +701,212 @@ def test_horyzont_konczy_na_tolerancji_a_nie_na_sufcie(tmp_path: Path) -> None:
     assert strict["converged"] is False
     assert strict["cycles"] == tight.tail_max_cycles == len(strict["deltas"])
     assert strict["delta"] > 0.0
+
+
+# Okres stanu modelu na ostatnim poziomie zegara: role trzech żywych liczą się
+# z ręki mod 3 (`roles(hand % 3)`), guzik HU z ręki mod 2 (`sorted(żywi)[hand % 2]`).
+MODEL_PERIOD_HANDS = math.lcm(3, 2)
+
+
+def _horizon_config(sg: Any) -> Any:
+    """Siatka testu horyzontu: krok 25, 100 żetonów, ostatni poziom 25/50.
+
+    Blindy i stacki są wielokrotnościami kroku, więc przejścia HU kwantyzują się
+    równoważnie na zamianę etykiet żywych (test to asertuje), a fold przesuwa stan
+    o cały krok. Przy blindach 2/4 kwantyzacja wchłania fold, stan stoi w miejscu
+    i cykl zbiega o rzędy wolniej (delta 2e−4 po 40 cyklach), więc test nie
+    zmieściłby się w czasie bramki.
+    """
+    return _toy_config(
+        sg, levels=((1, 2), (25, 50)), total_chips=100, start_stacks=(25, 50, 25),
+        tail_max_cycles=8, tail_tol=1e-5,
+    )
+
+
+def _hu_label_swap(state: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Permutacja P zamieniająca etykiety dwóch żywych miejsc stanu HU (wybite stoi)."""
+    alive = [seat for seat in range(3) if state[seat] > 0]
+    perm = [0, 1, 2]
+    perm[alive[0]], perm[alive[1]] = alive[1], alive[0]
+    return (perm[0], perm[1], perm[2])
+
+
+def _asymmetric_hu_transitions(sg: Any, config: Any) -> tuple[int, int]:
+    """(przejścia HU, przejścia niesymetryczne): kwantyzacja przemienna z P albo nie.
+
+    Przejście to surowy wektor stacków po rozstrzygnięciu liścia, zanim trafi do
+    kwantyzacji — dokładnie to, co gra etapowa podaje do odczytu V ręki następnej.
+    """
+    np = sg.np
+    total = sg.n_hands(config)
+    sb, bb_amt = sg.level_blinds(config, total)
+    checked = asymmetric = 0
+    for hand in range(total, total + MODEL_PERIOD_HANDS):
+        for state in sg.grid_states(config.total_chips, config.grid_step):
+            if sum(1 for value in state if value > 0) != 2:
+                continue
+            raw: list[tuple[int, int, int]] = []
+
+            def record(target: tuple[int, int, int], raw: list[Any] = raw) -> Any:
+                raw.append(target)
+                return np.zeros(3)
+
+            sg.build_stage_problem(sg._transition_tensors(), config, state, hand, sb, bb_amt,
+                                   record)
+            perm = _hu_label_swap(state)
+            for target in raw:
+                checked += 1
+                quantized = sg.quantize_stacks(target, config.grid_step)
+                swapped = sg.quantize_stacks(
+                    (target[perm[0]], target[perm[1]], target[perm[2]]), config.grid_step
+                )
+                if (quantized[perm[0]], quantized[perm[1]], quantized[perm[2]]) != swapped:
+                    asymmetric += 1
+    return checked, asymmetric
+
+
+def _model_fixed_point(
+    sg: Any, tensors: Any, config: Any, states: tuple[tuple[int, int, int], ...],
+    max_cycles: int,
+) -> tuple[dict[int, Any], list[float]]:
+    """Punkt stały gry modelu na ostatnim poziomie, liczony w teście wprost.
+
+    Niezależnie od `_boundary` i jej pętli warstw: operator jednej ręki składa się
+    tu z prymitywów gry etapowej (`build_stage_problem`, FP/CFR+, wartości
+    profilu), a okres stanu (`MODEL_PERIOD_HANDS`) wynika z reguł ról modelu, nie
+    ze stałej modułu. Iteracja od ICM, aż cykl nic nie zmienia (zero maszynowe)
+    albo skończy się `max_cycles`; zwraca V każdej ręki ostatniego cyklu i deltę
+    każdego cyklu.
+    """
+    np = sg.np
+    total = sg.n_hands(config)
+    sb, bb_amt = sg.level_blinds(config, total)
+    index = {state: row for row, state in enumerate(states)}
+
+    def hand_values(hand: int, v_next: Any) -> Any:
+        out = np.zeros((len(states), 3))
+        for row, state in enumerate(states):
+            problem, role_seats, _ = sg.build_stage_problem(
+                tensors, config, state, hand, sb, bb_amt,
+                lambda target: v_next[index[sg.quantize_stacks(target, config.grid_step)]],
+            )
+            solver = sg._fp_solve if problem.n_roles == 3 else sg._cfr_plus_solve
+            sigma, _, _ = solver(problem, config)
+            role_values = sg._profile_values(problem, sigma)
+            out[row] = config.prizes[2]
+            for role, seat in enumerate(role_seats):
+                out[row, seat] = role_values[role]
+        return out
+
+    current = np.stack([np.asarray(icm_equities(state, config.prizes)) for state in states])
+    deltas: list[float] = []
+    layers: dict[int, Any] = {}
+    for _ in range(max_cycles):
+        values = current
+        for hand in range(total + MODEL_PERIOD_HANDS - 1, total - 1, -1):
+            values = hand_values(hand, values)
+            layers[hand] = values
+        deltas.append(float(np.max(np.abs(values - current))))
+        current = values
+        if deltas[-1] <= 1e-15:
+            break
+    return layers, deltas
+
+
+def test_brzeg_horyzontu_to_punkt_staly_cyklu_szesciu_rak(tmp_path: Path) -> None:
+    """Brzeg horyzontu jest punktem stałym gry modelu na ostatnim poziomie (POKER-74, B7).
+
+    Role trzech żywych zależą od ręki mod 3, a guzik HU od ręki mod 2, więc stan
+    modelu wraca po sześciu rękach. Cykl trzech rąk czytał na zawinięciu V(total)
+    jako V(total+3): ten sam gracz HU był guzikiem dwie ręce z rzędu, a wiersze
+    3-way dziedziczyły błąd przez przejścia do HU. Siatka testu jest równoważna na
+    zamianę etykiet żywych HU (0 przejść niesymetrycznych), więc punkt stały
+    liczony w teście zbiega (zmierzone: zero maszynowe w siódmym cyklu) i spełnia
+    niezmiennik naprzemiennego guzika V_h(s) = P·V_{h+1}(P·s); wynik `_boundary`
+    ma się z nim zgadzać dla wszystkich wierszy z tolerancją 2·tail_tol. Brzeg
+    cyklu trzech rąk odchyla się na tej siatce o 1,7e−3 (HU 1,2e−3), czyli ~90×
+    ponad tolerancję; brzeg cyklu sześciu rąk o 9,6e−8.
+    """
+    sg = _load("solve_grid")
+    np = sg.np
+    config = _horizon_config(sg)
+    assert config.tail_max_cycles >= 4
+    checked, asymmetric = _asymmetric_hu_transitions(sg, config)
+    assert checked > 0
+    assert asymmetric == 0
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    tensors = sg.load_tensors(tensor_dir, config.classes)
+    states = sg.grid_states(config.total_chips, config.grid_step)
+    hu_rows = np.array([sum(1 for value in state if value > 0) == 2 for state in states])
+    assert bool(hu_rows.any()) and bool((~hu_rows).any())
+    total = sg.n_hands(config)
+    layers, fixed_deltas = _model_fixed_point(sg, tensors, config, states, max_cycles=16)
+    # Gry etapowe liczą wypłaty liści w float32, więc zbieżność i niezmiennik
+    # naprzemiennego guzika trzymają się z dokładnością f32, nie f64 (zmierzone:
+    # delta 0,0 w siódmym cyklu, niezmiennik 2,4e−8); progi są o rzędy poniżej
+    # tolerancji porównania 2·tail_tol = 2e−5.
+    assert fixed_deltas[-1] <= 1e-7, fixed_deltas
+    index = {state: row for row, state in enumerate(states)}
+    for hand in range(total, total + MODEL_PERIOD_HANDS):
+        following = layers[hand + 1] if hand + 1 in layers else layers[total]
+        for row, state in enumerate(states):
+            if not hu_rows[row]:
+                continue
+            perm = _hu_label_swap(state)
+            mirrored = following[index[(state[perm[0]], state[perm[1]], state[perm[2]])]]
+            for seat in range(3):
+                assert layers[hand][row, seat] == pytest.approx(
+                    mirrored[perm[seat]], abs=1e-6
+                ), (hand, state, seat)
+    fixed = layers[total]
+    boundary, deltas, stats = sg._boundary(tensors, config, states)
+    gap = np.abs(boundary - fixed)
+    assert float(gap.max()) <= 2 * config.tail_tol, (
+        f"HU {float(gap[hu_rows].max()):.3e}, 3-way {float(gap[~hu_rows].max()):.3e}"
+    )
+    assert deltas[-1] <= config.tail_tol
+    assert len(deltas) <= config.tail_max_cycles
+    solved = sum(int(entry["n_states"]) for entry in stats.values())
+    assert solved == len(states) * MODEL_PERIOD_HANDS * len(deltas)
+
+
+def test_wznowienie_i_import_odmawiaja_brzegu_innego_schematu(tmp_path: Path) -> None:
+    """Brzeg liczony innym schematem domknięcia opisuje inną grę (POKER-74).
+
+    Manifest biegu niesie identyfikator schematu brzegu. Bieg sprzed POKER-74
+    (manifest bez identyfikatora, brzeg cyklu trzech rąk) albo z innym schematem
+    nie wolno ani wznowić, ani zaimportować jego brzegu (`--boundary-from`) —
+    komunikat odsyła do decyzji 31 pkt 3, a odmowa niczego nie liczy ani nie zapisuje.
+    """
+    sg = _load("solve_grid")
+    tensor_dir = _synthetic_artifacts(tmp_path, _toy_classes())
+    config = _toy_config(sg)
+    fresh = tmp_path / "fresh"
+    manifest = sg.solve(config, tensor_dir, fresh, layers_limit=0)
+    assert manifest["boundary"]["scheme"] == "cycle6"
+    resumed = sg.solve(config, tensor_dir, fresh, layers_limit=0)
+    assert resumed["boundary"] == manifest["boundary"]
+    for legacy in (None, "cycle3"):
+        stale_dir = tmp_path / f"stale-{legacy}"
+        stale_dir.mkdir()
+        for path in fresh.iterdir():
+            (stale_dir / path.name).write_bytes(path.read_bytes())
+        stale = json.loads((fresh / "solve_manifest.json").read_text())
+        if legacy is None:
+            del stale["boundary"]["scheme"]
+        else:
+            stale["boundary"]["scheme"] = legacy
+        written = json.dumps(stale)
+        (stale_dir / "solve_manifest.json").write_text(written)
+        with pytest.raises(ValueError, match="decyzja 31 pkt 3"):
+            sg.solve(config, tensor_dir, stale_dir)
+        assert (stale_dir / "solve_manifest.json").read_text() == written
+        assert not list(stale_dir.glob("layer_*.npz"))
+        importing = tmp_path / f"import-{legacy}"
+        with pytest.raises(ValueError, match="decyzja 31 pkt 3"):
+            sg.solve(config, tensor_dir, importing, boundary_from=stale_dir)
+        assert not (importing / "boundary.npz").exists()
+        assert not (importing / "solve_manifest.json").exists()
 
 
 def test_zaburzenie_brzegu_jest_zerosumowe_i_deterministyczne() -> None:
@@ -1193,17 +1400,21 @@ def test_bezpiecznik_domyslnie_140_w_cli_i_poza_hashem_konfiguracji() -> None:
     assert sg.config_hash(dataclasses.replace(defaults, fp_tol=1.0), stub) != base
 
 
-def test_wznowienie_bajt_w_bajt_na_wycinku_produkcyjnym(tmp_path: Path) -> None:
+def test_wznowienie_bajt_w_bajt_na_wycinku_produkcyjnym(
+    control_run: dict[str, Any], tmp_path: Path
+) -> None:
     """Wycinek konfiguracji produkcyjnej: siatka 2 żetony, prawdziwy tensor kontrolny,
     wszystkie cztery tryby solvera; przerwanie po warstwie i wznowienie daje pliki
-    bajt w bajt, a manifest raportuje postęp per warstwa (czas, stany, tryby)."""
+    bajt w bajt, a manifest raportuje postęp per warstwa (czas, stany, tryby).
+    Biegiem ciągłym jest wspólny bieg kontrolny (`control_run`) — ta sama
+    konfiguracja i ten sam tensor, liczone w bramce raz zamiast dwa."""
     sg = _load("solve_grid")
     cc = _load("control_chain")
     config = cc.control_config()
     assert config.grid_step == cc.PROD_GRID_STEP == 2
     tensor_dir = CONTROL_DIR / "tensor"
-    full_dir = tmp_path / "full"
-    sg.solve(config, tensor_dir, full_dir)
+    full_dir = control_run["out_dir"]
+    assert control_run["manifest"]["config"] == dataclasses.asdict(config)
     resumed_dir = tmp_path / "resumed"
     sg.solve(config, tensor_dir, resumed_dir, layers_limit=1)
     sg.solve(config, tensor_dir, resumed_dir)
@@ -1353,14 +1564,14 @@ QUANT_STEP_U8 = 1.0 / 255.0
 # Koszt kwantyzacji w ε na artefakcie kontrolnym z repo (POKER-51, pomiar
 # w bramce). Kwantyzacja tego artefaktu nie kosztuje — ex-post ε maleje;
 # liczby cytuje blok POKER-51 w docs/CURRENT_STATE.md.
-CONTROL_QUANT_EPS_MAX = 0.003691128770597185
-CONTROL_QUANT_EPS_MEDIAN = 0.00010865383906707993
-CONTROL_QUANT_DELTA_SHARE = -0.0366
+CONTROL_QUANT_EPS_MAX = 0.0027331054058626902
+CONTROL_QUANT_EPS_MEDIAN = 9.310887757135733e-05
+CONTROL_QUANT_DELTA_SHARE = -0.0356
 
 # Odczyt jednego stanu i jednej wartości V z artefaktu kontrolnego (190 stanów,
-# 4 klasy, 8 328 B): sufity bajtów przeczytanych ze strumienia. Wyszukiwanie
+# 4 klasy, 8 408 B): sufity bajtów przeczytanych ze strumienia. Wyszukiwanie
 # binarne to ceil(log2 n) kluczy po 6 B, blok stanu jest jeden i skompresowany.
-# Zmierzone najgorsze przypadki na całym artefakcie: 116 B na stan, 56 B na V;
+# Zmierzone najgorsze przypadki na całym artefakcie: 119 B na stan, 56 B na V;
 # sufity mają zapas na inną wersję zlib, a nie na inny sposób odczytu.
 CONTROL_STATE_READ_MAX_BYTES = 160
 CONTROL_VALUE_READ_MAX_BYTES = 72
@@ -1386,9 +1597,10 @@ class _CountingStream:
 def control_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     """Bieg solvera na artefakcie kontrolnym z repo — wejście testów formatu.
 
-    Ten sam wycinek produkcyjny co test wznowienia: krok siatki 2, cztery tryby
-    solvera, prawdziwy tensor kontrolny. Format testujemy na artefakcie, który
-    repo umie odtworzyć, a nie na syntetycznej zabawce.
+    Wycinek produkcyjny: krok siatki 2, cztery tryby solvera, prawdziwy tensor
+    kontrolny; test wznowienia bierze go jako bieg ciągły. Format testujemy na
+    artefakcie, który repo umie odtworzyć, a nie na syntetycznej zabawce. Testy
+    niczego do jego katalogu nie dopisują — kopiują albo pakują obok.
     """
     sg = _load("solve_grid")
     cc = _load("control_chain")
