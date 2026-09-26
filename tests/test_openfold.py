@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from poker.openfold import solve, threebet
-from poker.preflop import ALL_CLASSES
+import pytest
+
+from poker.cards import Rank
+from poker.openfold import N_HANDS, solve, threebet, threebet_vs_range
+from poker.preflop import ALL_CLASSES, CLASS_INDEX, PreflopClass
 from poker.spin import PAYOUTS
 
 JUNK_72O = next(
@@ -11,6 +14,8 @@ JUNK_72O = next(
     for i, cls in enumerate(ALL_CLASSES)
     if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
 )
+K2O = CLASS_INDEX[PreflopClass(Rank.KING, Rank.TWO, suited=False)]
+J2O = CLASS_INDEX[PreflopClass(Rank.JACK, Rank.TWO, suited=False)]
 
 
 def test_utg_otwiera_nie_shoveuje_na_25bb() -> None:
@@ -35,3 +40,43 @@ def test_threebet_ciasny_nie_artefakt() -> None:
     assert hit.btn_vs_open[JUNK_72O] < 0.25
     tight = threebet((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=10)
     assert tight.btn_vs_open_pct <= hit.btn_vs_open_pct
+
+
+def test_koniec_turnieju_nie_zalezy_od_numeracji_miejsc() -> None:
+    """BTN all-in z samego SB odpada razem z przegranym all-in UTG–BB.
+
+    Te same role i stacki (UTG, BTN, BB) = (89, 1, 60) pod dwiema numeracjami
+    miejsc dają tę samą strategię, bo drugie miejsce bierze większy stack
+    wejściowy, nie niższy indeks miejsca. Przed POKER-70 (finding I-21 audytu
+    09-26) BB 3-betował tu szeroki open w 8,7% przy guziku 1 i w 39,7% przy
+    guziku 2.
+    """
+    prizes = PAYOUTS["10x"].prizes
+    first = solve((89, 1, 60), prizes, button=1, iterations=4)
+    assert first == solve((60, 89, 1), prizes, button=2, iterations=4)
+    wide = [1.0] * N_HANDS
+    assert threebet_vs_range(wide, (89, 1, 60), prizes, button=1) == threebet_vs_range(
+        wide, (60, 89, 1), prizes, button=2
+    )
+
+
+def test_bb_odpadajacy_razem_z_btn_bierze_drugie_miejsce() -> None:
+    """(UTG, BTN, BB) = (89, 1, 60): BTN ma tylko SB, więc gdy BB przegra all-in
+    z pokrywającym go UTG, obaj kończą rękę bez żetonów (150, 0, 0), a drugie
+    miejsce (2,0) bierze większy stack wejściowy — BB, nie podział (1,0).
+
+    3-bet BB przeciw otwarciu 100% z kontynuacją 100%: fold daje ICM
+    (92, 0, 58) = 4,32, wygrana ICM (29, 0, 121) = 6,84, więc próg equity to
+    (4,32 − 2) / (6,84 − 2) ≈ 0,479; przy podziale byłby ≈ 0,568. K2o (equity
+    0,504 wobec dowolnych dwóch) jamuje, J2o (0,445) folduje. W pełnym drzewie
+    BB 3-betuje open w 47,63% (przy podziale 11,63%, przy ICM z indeksem
+    sprzed POKER-70 5,55%).
+    """
+    prizes = PAYOUTS["10x"].prizes
+    against_any = threebet_vs_range(
+        [1.0] * N_HANDS, (89, 1, 60), prizes, button=1, continue_frac=1.0
+    )
+    assert against_any.bb_vs_open[K2O] == 1.0
+    assert against_any.bb_vs_open[J2O] == 0.0
+    tree = solve((89, 1, 60), prizes, button=1, iterations=4)
+    assert tree.bb_vs_open_pct == pytest.approx(47.632, abs=1e-3)

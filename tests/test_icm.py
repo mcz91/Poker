@@ -61,6 +61,45 @@ def test_odrzuca_ujemny_stack_i_rozjazd_nagrod() -> None:
         icm_equities((10, 10), (1.0, 0.0, 0.0))
 
 
+@pytest.mark.parametrize("stacks", [(0, 0, 150), (0, 150, 0), (150, 0, 0), (0, 0, 5, 5)])
+def test_wiecej_niz_jeden_zerowy_stack_odrzucany(stacks: tuple[int, ...]) -> None:
+    """Kolejność kilku wybitych nie wynika ze stacków końcowych — ICM jej nie zgaduje.
+
+    Przed POKER-70 niższy indeks miejsca brał wyższe miejsce (finding I-21);
+    miejsca wybitych należą do reguły `poker.spin.place_payouts`.
+    """
+    prizes = (8.0, 2.0) + (0.0,) * (len(stacks) - 2)
+    with pytest.raises(ValueError, match="więcej niż jeden zerowy stack"):
+        place_probabilities(stacks)
+    with pytest.raises(ValueError, match="więcej niż jeden zerowy stack"):
+        icm_equities(stacks, prizes)
+
+
+def _jeden_zero_najwyzej(total: int) -> list[tuple[int, int, int]]:
+    grid = [(a, b, total - a - b) for a in range(total + 1) for b in range(total + 1 - a)]
+    return [stacks for stacks in grid if stacks.count(0) <= 1]
+
+
+@pytest.mark.parametrize(
+    "stacks",
+    _jeden_zero_najwyzej(12) + [(5000, 3000, 2000), (1, 0, 149), (40, 25, 10), (0, 1, 1)],
+)
+def test_wta_to_dokladnie_icm_z_jedna_nagroda(stacks: tuple[int, int, int]) -> None:
+    """Tożsamość z docstringu `wta_equities` na jej dziedzinie: suma > 0, najwyżej jedno zero."""
+    for prize in (1.0, 2.0, 3.0):
+        assert wta_equities(stacks, prize) == icm_equities(stacks, (prize, 0.0, 0.0))
+
+
+@pytest.mark.parametrize("stacks", [(0,), (0, 0), (0, 0, 0)])
+def test_wektor_o_sumie_zero_odrzucany_przez_wta_i_icm(stacks: tuple[int, ...]) -> None:
+    """Bez żetonów nie ma udziału ani miejsc: WTA nie dzieli już puli po równo."""
+    prizes = (3.0,) + (0.0,) * (len(stacks) - 1)
+    with pytest.raises(ValueError, match="suma stacków musi być dodatnia"):
+        wta_equities(stacks, 3.0)
+    with pytest.raises(ValueError, match="suma stacków musi być dodatnia"):
+        icm_equities(stacks, prizes)
+
+
 def test_chip_shares_sumuja_sie_do_jedynki() -> None:
     shares = chip_shares((15, 25, 35))
     assert sum(shares) == pytest.approx(1.0)

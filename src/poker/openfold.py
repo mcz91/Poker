@@ -8,7 +8,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from poker.icm import icm_equities
 from poker.preflop import ALL_CLASSES
 from poker.preflop_equity import equity as class_equity
 from poker.spin import (
@@ -17,6 +16,7 @@ from poker.spin import (
     award_allin,
     open_amount,
     roles,
+    terminal_equities,
 )
 
 N_HANDS = len(ALL_CLASSES)
@@ -140,7 +140,7 @@ def solve(
     opened_btn = _put(stacks, blinds, btn, size)
 
     def money(state: tuple[int, int, int]) -> tuple[float, ...]:
-        return icm_equities(state, prizes)
+        return terminal_equities(stacks, state, prizes)
 
     fold_both = money(_take(stacks, blinds, bb))
     steal_utg = money(_take(stacks, opened_utg, utg))
@@ -392,7 +392,7 @@ def _threebet_from_open(
     opened = _put(stacks, blinds, utg, size)
 
     def money(state: tuple[int, int, int]) -> tuple[float, ...]:
-        return icm_equities(state, prizes)
+        return terminal_equities(stacks, state, prizes)
 
     steal = money(_take(stacks, opened, utg))
     btn_wins = money(_take(stacks, _put(stacks, opened, btn, stacks[btn]), btn))
