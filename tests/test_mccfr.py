@@ -2,6 +2,7 @@
 
 import importlib.util
 import io
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,22 @@ def narzedzie_treningu() -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def komendy_treningu(tekst: str) -> list[list[str]]:
+    """Argumenty każdej komendy `python tools/train_mccfr.py` z tekstu (linie łamane '\\')."""
+    komendy: list[list[str]] = []
+    linie = iter(tekst.splitlines())
+    for linia in linie:
+        if not linia.strip().startswith("python tools/train_mccfr.py"):
+            continue
+        czesci = [linia]
+        while czesci[-1].endswith("\\"):
+            czesci[-1] = czesci[-1].removesuffix("\\")
+            czesci.append(next(linie))
+        tokeny = shlex.split(" ".join(czesci))
+        komendy.append(tokeny[2:])
+    return komendy
 
 
 def widok(
@@ -103,6 +120,59 @@ def test_artefakt_ma_pochodzenie_i_poprawne_rozklady() -> None:
         assert all(weight >= 0 for _, weight in distribution)
         for action_name, _ in distribution:
             assert action_key(action_from_key(action_name)) == action_name
+
+
+# Opcje biegu, nie pochodzenia: ścieżka wyniku i mechanika wznowień nie zmieniają
+# artefaktu (wznowienie daje bajt w bajt bieg ciągły — POKER-24).
+OPCJE_BEZ_POCHODZENIA = {"help", "output", "checkpoint", "checkpoint_every", "resume"}
+STALA_OPCJI = {"stack": "STACKS"}
+
+
+def test_komenda_z_naglowka_artefaktu_odtwarza_jego_stale_pochodzenia() -> None:
+    from poker import strategy_table
+
+    assert strategy_table.AVERAGING in ("linear", "uniform")
+    assert strategy_table.__doc__ is not None
+    [argv] = komendy_treningu(strategy_table.__doc__)
+    parser = narzedzie_treningu().build_parser()
+    args = parser.parse_args(argv)
+    assert args.iterations == strategy_table.ITERATIONS
+    assert args.seed == strategy_table.SEED
+    assert args.averaging == strategy_table.AVERAGING
+    assert args.preflop_buckets == strategy_table.PREFLOP_BUCKETS
+    assert args.postflop_buckets == strategy_table.POSTFLOP_BUCKETS
+    assert tuple(args.bet_sizes) == strategy_table.BET_SIZES
+    assert args.small_blind == strategy_table.SMALL_BLIND
+    assert args.big_blind == strategy_table.BIG_BLIND
+    assert tuple(args.stack) == strategy_table.STACKS
+    assert args.button == strategy_table.BUTTON
+
+    # Opcja pominięta w nagłówku psuje przepis po cichu: regeneracja wzięłaby
+    # jej bieżącą wartość domyślną, a nie tę, z którą powstał artefakt.
+    for akcja in parser._actions:
+        if akcja.dest in OPCJE_BEZ_POCHODZENIA:
+            continue
+        stala = STALA_OPCJI.get(akcja.dest, akcja.dest.upper())
+        assert hasattr(strategy_table, stala), f"{akcja.option_strings}: brak stałej {stala}"
+        assert set(akcja.option_strings) & set(argv), f"{akcja.option_strings}: brak w nagłówku"
+        wartosc = getattr(args, akcja.dest)
+        if isinstance(wartosc, list):
+            wartosc = tuple(wartosc)
+        assert wartosc == getattr(strategy_table, stala), akcja.option_strings
+
+
+def test_komendy_z_dokumentacji_nie_nadpisuja_artefaktu_inna_strategia() -> None:
+    from poker import strategy_table
+
+    tool = narzedzie_treningu()
+    parser = tool.build_parser()
+    assert strategy_table.__doc__ is not None
+    [naglowek] = komendy_treningu(strategy_table.__doc__)
+    readme = komendy_treningu((REPO / "README.md").read_text(encoding="utf-8"))
+    assert naglowek in readme, "README ma podawać komendę regeneracji z nagłówka artefaktu"
+    for argv in [*readme, *komendy_treningu(tool.__doc__)]:
+        if parser.parse_args(argv).output == parser.get_default("output"):
+            assert argv == naglowek, f"komenda nadpisuje artefakt inną strategią: {argv}"
 
 
 def test_reprodukcja_kontrolnego_biegu_bajt_w_bajt(tmp_path: Path) -> None:

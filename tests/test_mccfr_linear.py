@@ -27,8 +27,17 @@ def test_liniowe_rozni_sie_od_jednostajnego(tmp_path: Path) -> None:
     assert tool.main([*MALY_BIEG, "--averaging", "linear", "--output", str(lin)]) == 0
     assert tool.main([*MALY_BIEG, "--averaging", "uniform", "--output", str(uni)]) == 0
     assert lin.read_bytes() != uni.read_bytes()
-    assert "AVERAGING = 'linear'" in lin.read_text(encoding="utf-8")
-    assert "AVERAGING = 'uniform'" in uni.read_text(encoding="utf-8")
+    lin_tekst = lin.read_text(encoding="utf-8")
+    uni_tekst = uni.read_text(encoding="utf-8")
+    assert "AVERAGING = 'linear'" in lin_tekst
+    assert "AVERAGING = 'uniform'" in uni_tekst
+    # Docstring artefaktu opisuje jego własne uśrednianie, nie oba warianty narzędzia.
+    assert "uśredniana liniowo (waga iteracji t)" in lin_tekst
+    assert "waga iteracji 1" not in lin_tekst
+    assert "uśredniana jednostajnie (waga iteracji 1)" in uni_tekst
+    assert "waga iteracji t" not in uni_tekst
+    for tekst in (lin_tekst, uni_tekst):
+        assert "żale sumowane bez wagi" in tekst
 
 
 def test_liniowe_wznowienie_identyczne_z_ciaglym(tmp_path: Path) -> None:
