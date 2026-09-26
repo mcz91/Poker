@@ -59,6 +59,7 @@ zarezerwowane mapą decyzji 29).
 | I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | sprint B |
 | nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora) | sprint B |
 | docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | sprint B |
+| nowy (POKER-74 r2): podłoga szumu PI-FP w ogonie brzegu (~1e−3 na e60 > tail_tol) | warunkowo — tylko gdy regeneracja produkcji nie zbiegnie do tail_tol: solver ogona 3-way ciągły w V (decyzja 25) | sprint B (warunkowy) |
 | I-17 | już zatwierdzone — POKER-28; uśpione (decyzja 18) | bez zmian |
 | N-04 | odłóż — walidacja semantyczna eksportu przy pierwszym konsumencie niezaufanych historii (korpus HH, P-10) | dług |
 | N-12 | zbuduj razem z I-28 (widok a mutacja w miejscu) | sprint B |
@@ -82,7 +83,9 @@ przy niej):
 - **open/3bet openfold** (B6) — liczby decyzji 20 i 21 oraz książki areny
   oparte na openfold; przeliczane w POKER-73;
 - **artefakt produkcyjny blueprintu** (B7) — liczony starym brzegiem
-  horyzontu. Regeneracja (ok. 76,6 rdzenio-h, poza tym środowiskiem) jest
+  horyzontu. Regeneracja (przed POKER-74 ok. 76,6 rdzenio-h; po nim wycena
+  `mode_census` dla prod-10x: solver 64,3 → 89,0 rdzenio-h, bo horyzont
+  cyklu 6 kosztuje ~2× na cykl; poza tym środowiskiem) jest
   **wejściem operatora**; do niej pomiary BF/BG/BH i `prod_identity.json`
   opisują artefakt, którego obecny kod już nie produkuje.
 
@@ -107,8 +110,11 @@ OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
 
 - **POKER-74 — cykl 6 rąk.** W modelu role 3-way zależą od ręki mod 3,
   a guzik HU od ręki mod 2, więc stan ma okres 6. Zamiana etykiet naprawia
-  tylko wiersze HU i psuje zbieżność; cykl 6 zbiega do zera maszynowego.
-  Koszt: ok. +68 s bramki i ok. 2× czasu horyzontu produkcyjnego na cykl
+  tylko wiersze HU i psuje zbieżność; cykl 6 zbiega do zera maszynowego
+  na siatce równoważnej na P przy budżetach testu (na siatkach bliższych
+  produkcji — patrz rozstrzygnięcie OBJECTION niżej).
+  Koszt: zmierzone +55,5 s bramki (szacunek przeglądu +68 s) i ok. 2×
+  czasu horyzontu produkcyjnego na cykl
   (wycena w `mode_census` po zmianie) — przyjęty, bo regeneracja i tak jest
   wejściem operatora.
 - **POKER-69 — `--serve-seed` przybija wyłącznie kody stołów.** Seed meczu
@@ -130,6 +136,26 @@ OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
   z cyklu 1 per stan; stały budżet równy medianie cyklu 1) i wybiera
   najtańszy osiągający tail_tol na obu siatkach — bez zmiany tail_tol
   i bez nowego pola `GridConfig`; żaden → `BLOCKED` z krzywymi.
+- **POKER-74 — rozstrzygnięcie OBJECTION z rundy 2 (2026-09-26):
+  opcja B.** Pomiary obaliły przesłankę rozstrzygnięcia BRAK: podłogę
+  delty robi szum PI-FP (także argmax najlepszej odpowiedzi), nie sam stop
+  na tolerancji. Na e60 (12 cykli) stop na fp_tol stoi na ~1,1–1,5e−3,
+  fp_tol/3 i fp_tol/10 nie schodzą trwale pod 5e−4, budżet zamrożony
+  i stały sufit 384 oscylują; zbiega wyłącznie krótki stały budżet
+  (mediana cyklu 1), ale do punktu stałego słabszego solvera (ε gier
+  etapowych ogona do 9,0e−4 wobec 2,8e−4; odchylenie od dokładniejszych
+  iteratów do 5,5e−3 — więcej niż naprawiany B7). `converged=True`
+  poświadczyłby dokładność, której brzeg nie ma. **Decyzja:** integrowany
+  jest cykl 6 z dotychczasowym stopem PI-FP na tolerancji; tail_tol bez
+  zmian; flaga `converged` zostaje uczciwa. Cykl 6 usuwa błąd strukturalny
+  B7 (wiersze HU dokładne, okres modelu właściwy), a jego podłoga szumu na
+  e60 (~1e−3) jest niższa niż starego cyklu 3 na tej samej siatce
+  (1,9–2,9e−3). Czy siatka produkcyjna (169 klas) zbiega do tail_tol, pokaże
+  regeneracja (wejście operatora); jeśli nie — kontrakt warunkowy
+  sprintu B: solver ogona 3-way ciągły w V (np. CFR+ o stałej liczbie
+  iteracji, jak w HU, gdzie każdy wariant zbiega), w obszarze decyzji 25.
+  Gałąź propozycji opcji A (`sprint-a/POKER-74-r2-fpmedian-propozycja`)
+  zostaje nieintegrowana jako zapis pomiaru.
 - **Obserwacje z raportów fali 1 do sprintu C:** decyzja 12:21-22
   („~+0,05 BI") wobec pomiaru +0,037 na (16, 50, 84) — rozjazd sprzed
   POKER-70; openfold nie daje blindowi all-in z samego SB szansy na pulę
