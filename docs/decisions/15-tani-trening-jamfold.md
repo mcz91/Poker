@@ -6,6 +6,12 @@ fictitious play w przeglądarce (macierz vs-field) albo próg equity
 vs `rule` (20 par, decyzja 07/09). To jest przegrywająca strategia
 w złej grze.
 
+**KOREKTA (POKER-72):** artefakt `strategy_table` to HU cash MCCFR
+z uśrednianiem jednostajnym (sprzed POKER-29; `AVERAGING = 'uniform'`),
+nie „Linear MCCFR”; −329 BB/100 (−328,92) zmierzono na tym artefakcie
+i pomiar pozostaje ważny. POKER-29 to MCCFR z liniowo ważoną średnią
+strategii i nieważonymi żalami.
+
 Metryka, którą obraliśmy (decyzja 04/07): **BB/100** na lustrzanych
 rozdańiach HU. Do Spina $1 jest zła jednostka. Spin liczy się w
 **ROI / $EV turnieju** i w exploitability drzewa jam/fold (BI).

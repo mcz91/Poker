@@ -1,13 +1,18 @@
 """Trener MCCFR (external sampling) na abstrakcji c2a — plastry c2b/c2c decyzji 07.
 
-Domyślne uśrednianie strategii jest liniowe (Linear CFR, Brown & Sandholm):
-waga iteracji t wynosi t. Flaga --averaging uniform przywraca klasyczne
-sumowanie jednostajne (porównanie A/B).
+To external-sampling MCCFR z ważoną średnią strategii: żale są sumowane
+bez wagi, a waga iteracji dotyczy wyłącznie średniej strategii. Domyślne
+uśrednianie jest liniowe (--averaging linear: waga iteracji t);
+--averaging uniform sumuje jednostajnie (waga 1) — tak powstał artefakt
+produkcyjny src/poker/strategy_table.py, a jego nagłówek podaje komendę
+regeneracji z każdą opcją pochodzenia jawnie.
 
-Uruchomienie (z korzenia repozytorium, w venv z zainstalowanym pakietem):
+Uruchomienie (z korzenia repozytorium, w venv z zainstalowanym pakietem;
+bez --output wynik nadpisuje artefakt produkcyjny):
 
     python tools/train_mccfr.py --iterations 50000 --seed 7 \
-        --checkpoint checkpoint.json --checkpoint-every 1000
+        --checkpoint checkpoint.json --checkpoint-every 1000 \
+        --output strategia-50k.py
 
 Trening jest w pełni seedowany i deterministyczny: losowość iteracji
 zależy wyłącznie od pary (seed, numer iteracji), więc bieg przerwany
@@ -25,6 +30,7 @@ numpy, dozwolony decyzją 06 w tools/, nie był potrzebny.
 import argparse
 import json
 import random
+import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -273,18 +279,36 @@ def render_module(
     seed: int,
     averaging: Averaging = "linear",
 ) -> str:
+    # Każda opcja pochodzenia jawnie: przepis nie może zależeć od wartości
+    # domyślnych narzędzia, które zmieniają się między kontraktami (POKER-29).
+    command = (
+        ("python", "tools/train_mccfr.py", "--iterations", str(iterations),
+         "--seed", str(seed), "--averaging", averaging),
+        ("--small-blind", str(config.small_blind), "--big-blind", str(config.big_blind),
+         "--stack", *(str(stack) for stack in config.stacks), "--button", str(config.button)),
+        ("--preflop-buckets", str(abstraction.preflop_buckets),
+         "--postflop-buckets", str(abstraction.postflop_buckets),
+         "--bet-sizes", *abstraction.bet_sizes),
+    )
+    weighting = {
+        "linear": "liniowo (waga iteracji t)",
+        "uniform": "jednostajnie (waga iteracji 1)",
+    }[averaging]
     lines = [
-        '"""Wygenerowana strategia MCCFR (POKER-23/29) — nie edytować ręcznie.',
+        'r"""Wygenerowana strategia MCCFR — nie edytować ręcznie.',
         "",
         "Pełny przepis pochodzenia w stałych poniżej; regeneracja od zera",
         "wyłącznie z tego repozytorium:",
         "",
-        f"    python tools/train_mccfr.py --iterations {iterations} --seed {seed}"
-        f" --averaging {averaging}",
+        f"    {shlex.join(command[0])} \\",
+        f"      {shlex.join(command[1])} \\",
+        f"      {shlex.join(command[2])}",
+        "",
+        "External-sampling MCCFR: żale sumowane bez wagi, średnia strategia",
+        f"uśredniana {weighting}.",
         "",
         "STRATEGY: infoset abstrakcji c2a -> krotka (klucz akcji, waga);",
         "wagi sumują się dokładnie do DENOMINATOR.",
-        "Uśrednianie: Linear CFR (waga iteracji t) albo uniform.",
         '"""',
         "",
         f"ABSTRACTION_VERSION = {ABSTRACTION_VERSION}",
@@ -311,7 +335,7 @@ def render_module(
     return "\n".join(lines) + "\n"
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--iterations", type=int, default=50000,
                         help="łączna liczba iteracji MCCFR (domyślnie 50000)")
@@ -338,7 +362,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="rozmiary zakładów abstrakcji (domyślnie half pot)")
     parser.add_argument("--output", type=Path, default=Path("src/poker/strategy_table.py"),
                         help="ścieżka generowanego artefaktu strategii")
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     config = HandConfig(
         small_blind=args.small_blind,
         big_blind=args.big_blind,

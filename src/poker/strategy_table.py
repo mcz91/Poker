@@ -1,9 +1,14 @@
-"""Wygenerowana strategia MCCFR (POKER-23) — nie edytować ręcznie.
+r"""Wygenerowana strategia MCCFR — nie edytować ręcznie.
 
 Pełny przepis pochodzenia w stałych poniżej; regeneracja od zera
 wyłącznie z tego repozytorium:
 
-    python tools/train_mccfr.py --iterations 1000 --seed 7
+    python tools/train_mccfr.py --iterations 1000 --seed 7 --averaging uniform \
+      --small-blind 1 --big-blind 2 --stack 100 100 --button 0 \
+      --preflop-buckets 8 --postflop-buckets 9 --bet-sizes half pot
+
+External-sampling MCCFR: żale sumowane bez wagi, średnia strategia
+uśredniana jednostajnie (waga iteracji 1).
 
 STRATEGY: infoset abstrakcji c2a -> krotka (klucz akcji, waga);
 wagi sumują się dokładnie do DENOMINATOR.
@@ -12,6 +17,7 @@ wagi sumują się dokładnie do DENOMINATOR.
 ABSTRACTION_VERSION = 1
 ITERATIONS = 1000
 SEED = 7
+AVERAGING = 'uniform'
 DENOMINATOR = 10000
 PREFLOP_BUCKETS = 8
 POSTFLOP_BUCKETS = 9

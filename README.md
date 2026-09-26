@@ -176,22 +176,40 @@ python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
 
 ### Strategia MCCFR (self-play)
 
+Regeneracja artefaktu produkcyjnego `src/poker/strategy_table.py` (ta
+sama komenda stoi w jego nagłówku) i pomiar agenta w arenie:
+
 ```bash
-python tools/train_mccfr.py --iterations 1000 --seed 7 \
-  --averaging linear --checkpoint checkpoint.json --checkpoint-every 100
-python tools/train_mccfr.py --iterations 1000 --seed 7 \
-  --averaging linear --checkpoint checkpoint.json --resume
+python tools/train_mccfr.py --iterations 1000 --seed 7 --averaging uniform \
+  --small-blind 1 --big-blind 2 --stack 100 100 --button 0 \
+  --preflop-buckets 8 --postflop-buckets 9 --bet-sizes half pot
 python -m poker.adapters.cli --series 20 --hands 100 --seed 7 \
   --agent0 mccfr --agent1 rule
 ```
 
+Trening z uśrednianiem liniowym, checkpointem i wznowieniem — do
+osobnego pliku, bo bez `--output` wynik nadpisałby artefakt produkcyjny
+inną strategią:
+
+```bash
+python tools/train_mccfr.py --iterations 1000 --seed 7 \
+  --averaging linear --checkpoint checkpoint.json --checkpoint-every 100 \
+  --output strategia-linear.py
+python tools/train_mccfr.py --iterations 1000 --seed 7 \
+  --averaging linear --checkpoint checkpoint.json --resume \
+  --output strategia-linear.py
+```
+
 Trener MCCFR (external sampling) gra self-play na abstrakcji c2a
-i zapisuje uśrednioną strategię jako moduł `src/poker/strategy_table.py`
-z pełnym przepisem pochodzenia (wersja abstrakcji, seed, iteracje,
-sposób uśredniania, parametry kubełków i rozmiarów zakładów).
+i zapisuje uśrednioną strategię jako moduł (domyślnie
+`src/poker/strategy_table.py`, inaczej `--output`) z pełnym przepisem
+pochodzenia (wersja abstrakcji, seed, iteracje, sposób uśredniania,
+parametry kubełków i rozmiarów zakładów, blindy, stacki, button)
+i komendą regeneracji podającą każdą z tych opcji jawnie. Żale są
+sumowane bez wagi; waga iteracji dotyczy wyłącznie średniej strategii.
 Domyślne uśrednianie jest liniowe (`--averaging linear`: waga iteracji
-t, Linear CFR). `--averaging uniform` przywraca klasyczne sumowanie
-jednostajne — do porównań A/B. Trening jest w całości seedowany —
+t); `--averaging uniform` sumuje jednostajnie (waga 1) — tak powstał
+artefakt produkcyjny (sprzed POKER-29). Trening jest w całości seedowany —
 losowość iteracji zależy wyłącznie od pary (seed, numer
 iteracji), więc ta sama komenda odtwarza artefakt bajt w bajt, a bieg
 przerwany i wznowiony z `--checkpoint ... --resume` daje wynik

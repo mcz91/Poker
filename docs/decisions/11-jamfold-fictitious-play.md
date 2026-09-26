@@ -11,6 +11,11 @@ POKER-30 dał $EV. Operator kazał iść w Spin dalej, nie wracać do HU.
 2. **Solver: fictitious play z wagą liniową t.** To ta sama idea
    uśredniania co Linear CFR (POKER-29), nie nowy wynalazek.
    Brown 1951 / papier Ganzfrieda na grze wewnętrznej.
+
+   **KOREKTA (POKER-72):** POKER-29 to nie Linear CFR, lecz MCCFR
+   z liniowo ważoną średnią strategii (waga t) i nieważonymi żalami —
+   z pkt 2 łączy go wyłącznie waga t średniej. Artefakt `strategy_table`
+   to MCCFR z uśrednianiem jednostajnym (sprzed POKER-29).
 3. **Equity HU z macierzy POKER-12.** 3-way: iloczyn parami,
    znormalizowany. Blockery wyłączone (jawne).
 4. **Nie otwiera INV-P5.** Drzewo to jam/fold, nie NL. `HeadsUpHand`
