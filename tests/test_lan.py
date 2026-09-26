@@ -136,6 +136,26 @@ def mecz_silnika(seed: int, hand_limit: int, wejscie: str) -> MatchResult:
     )
 
 
+def mecz_silnika_ludzi(seed: int, hand_limit: int) -> MatchResult:
+    """Ten sam mecz lokalnie: człowiek na każdym miejscu, każdy pasuje na każdy prompt."""
+    return play_match(
+        MatchConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0,
+                    hand_limit=hand_limit),
+        seed=seed,
+        agents=[
+            HumanAgent(input_stream=io.StringIO("fold\n" * hand_limit),
+                       output_stream=io.StringIO())
+            for _ in range(2)
+        ],
+    )
+
+
+def pasuj_do_zamkniecia(stub: Stub) -> None:
+    while (message := stub.next_message()) is not None:
+        if message["type"] == "prompt":
+            stub.send({"v": PROTOCOL_VERSION, "type": "input", "text": "fold"})
+
+
 def karty_z_eksportu(path: Path) -> list[tuple[int, tuple[str, ...]]]:
     return [
         (event.seat, tuple(card_token(card) for card in event.cards))
@@ -182,6 +202,47 @@ def test_kolejne_stoly_dostaja_kolejne_seedy_wstrzyknietego_generatora(tmp_path:
         oczekiwany = mecz_silnika(wzorzec.getrandbits(64), hand_limit=2, wejscie="fold\n" * 2)
         eksport = (tmp_path / f"{kod}.json").read_text(encoding="utf-8")
         assert eksport == serialize_match_history(oczekiwany.histories)
+
+
+def test_stol_ludzi_dostaje_seed_z_kolejnosci_create_nie_dolaczen(tmp_path: Path) -> None:
+    # Przy stole z agentem create i start meczu to ten sam moment; stół ludzi rusza dopiero po
+    # dołączeniu. Dołączenia w odwrotnej kolejności niż create (drugi stół rozegrany w całości
+    # przed pierwszym) odróżniają losowanie przy create od losowania przy starcie albo przy join.
+    server = TableServer(export_directory=tmp_path, match_rng=random.Random(2027))
+    tworcy: list[Stub] = []
+    kody: list[object] = []
+    try:
+        _, port = server.start()
+        for _ in range(2):
+            stub = Stub(port)
+            stub.send(create_message(opponent="human", hand_limit=2))
+            kody.append(stub.recv()["code"])
+            tworcy.append(stub)
+        for numer in (1, 0):
+            dolaczajacy = Stub(port)
+            dolaczajacy.send({"v": PROTOCOL_VERSION, "type": "join", "code": kody[numer]})
+            watki = [
+                threading.Thread(target=pasuj_do_zamkniecia, args=(stub,))
+                for stub in (tworcy[numer], dolaczajacy)
+            ]
+            for watek in watki:
+                watek.start()
+            for watek in watki:
+                watek.join(timeout=15)
+            dolaczajacy.close()
+            tworcy[numer].close()
+    finally:
+        server.close()
+    wzorzec = random.Random(2027)
+    oczekiwane = [
+        serialize_match_history(
+            mecz_silnika_ludzi(wzorzec.getrandbits(64), hand_limit=2).histories
+        )
+        for _ in kody
+    ]
+    assert oczekiwane[0] != oczekiwane[1]
+    eksporty = [(tmp_path / f"{kod}.json").read_text(encoding="utf-8") for kod in kody]
+    assert eksporty == oczekiwane
 
 
 def test_domyslny_generator_meczow_to_64_bity_csprng_systemu(
