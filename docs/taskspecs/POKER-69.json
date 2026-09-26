@@ -1,0 +1,41 @@
+{
+  "id": "POKER-69",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Talię rozdań przy stole z człowiekiem wyznacza seed, którego gracz nie zna: serwer LAN losuje seed meczu sam, a lokalna gra człowieka bez jawnego --seed bierze seed z entropii systemu i ujawnia go dopiero po meczu.",
+  "context": "Finding B1 (+ I-04) audytu docs/AUDYT_2026-09-26.md; OBJECTION wobec POKER-21 (acceptance 1) i POKER-10 uznany decyzją 31 pkt 1. Dziś lan_server.py:209 bierze seed meczu z pola 'seed' żądania create, cli.py:45 ma --seed domyślnie 0 także w trybie człowieka, a talia każdego rozdania jest czystą funkcją seeda meczu (table.py:64,78 → betting.py:176). Silnik (INV-P1) zostaje bez zmian: seed jest wstrzykiwany z adaptera jak dotąd.",
+  "acceptance": [
+    "Protokół LAN ma PROTOCOL_VERSION = 2; żądanie create nie zawiera pola seed, a create z polem seed jest odrzucane komunikatem error, którego treść zawiera słowo 'seed'; klient/serwer innej wersji odrzucany jak dotąd — każdy z tych przypadków pod testem z asercją treści komunikatu.",
+    "Seed meczu stołu LAN pochodzi wyłącznie z generatora serwera: TableServer(seed=S) daje odtwarzalne seedy meczów z S (osobny strumień — sekwencja kodów stołu dla danego S identyczna jak dziś, testy POKER-25 nietknięte i zielone), a bez seeda serwera — z entropii systemu. Test: dwa stoły z identycznym żądaniem create na tym samym serwerze rozdają różne karty.",
+    "CLI: --connect nie wysyła seeda; --connect podane razem z jawnym --seed kończy się rc=2 i komunikatem o tym, że seed stołu LAN losuje serwer — pod testem.",
+    "CLI lokalne: --human bez jawnego --seed bierze seed meczu z entropii systemu (dwa uruchomienia z tym samym wejściem rozdają różne karty — test), a po meczu wypisuje użyty seed; uruchomienie z --seed równym wypisanej wartości i tym samym wejściem daje eksport identyczny bajt w bajt (test). Jawny --seed w trybie człowieka i wszystkie tryby bez człowieka zachowują dotychczasowe zachowanie (domyślny seed 0 bez --human, bajtowa odtwarzalność z README).",
+    "Test 'dwa stoły bez pomieszania' (tests/test_lan.py) przepisany bez alternatywy tautologicznej: pełny strumień wiadomości każdego klienta obu stołów (z pominięciem kodu stołu) równa się przebiegowi referencyjnemu tego samego stołu granego pojedynczo, a oba stoły mają różne wyniki. Mutanty z raportu audytu (serwer raportujący wszystkim wynik pierwszego zakończonego stołu; tekst stołu wysyłany twórcom innych stołów) czerwienią ten test — dowód mutacyjny w raporcie commita.",
+    "Test przecieku bajtów do klienta LAN obejmuje seed meczu: klient nie wysyła seeda, a pełny strumień do klienta nie zawiera ani seeda meczu, ani seedów rozdań przed końcem meczu.",
+    "README (sekcje gry człowieka i LAN) opisuje stan po zmianie: skąd pochodzi seed; że jawny --seed w trybie człowieka czyni talię wyliczalną dla każdego, kto zna seed; przykład --connect bez --seed.",
+    "Pełna bramka zielona."
+  ],
+  "non_goals": [
+    "Odporność serwera na wadliwych klientów, limity linii i wycieki stołów (sprint B).",
+    "Szyfrowanie, uwierzytelnianie, praca poza LAN (decyzja 08 pkt 5).",
+    "Jakakolwiek zmiana silnika (table.py, betting.py, dealing.py) — seed dalej wstrzykiwany z adaptera (INV-P1).",
+    "Edycja decyzji 03/08, CURRENT_STATE.md i indeksu dokumentacji (architekt — decyzja 31)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/adapters/lan_server.py",
+    "src/poker/adapters/lan_client.py",
+    "src/poker/adapters/protocol.py",
+    "src/poker/adapters/cli.py",
+    "tests/test_lan.py",
+    "tests/test_lan_codes.py",
+    "tests/test_cli.py",
+    "tests/test_human.py",
+    "README.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

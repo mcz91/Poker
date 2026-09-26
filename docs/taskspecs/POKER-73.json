@@ -1,0 +1,37 @@
+{
+  "id": "POKER-73",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Model open/fold wycenia każdą akcję terminalem, w którym decydujący gracz faktycznie uczestniczy, i raportuje miarę zbieżności, a eksportowane zakresy open/3bet i liczby decyzji 20/21 pochodzą z poprawionego, zmierzonego modelu.",
+  "context": "Findingi B6 i I-25 audytu. openfold.py:258-263 wycenia overcall BB (BB_VS_OJ) terminalem hu_uo_b — showdownem UTG–BTN, w którym BB ma tylko blind, więc decyzja nie zależy od ręki BB (10x: overcall 100% rąk; 3x: rozstrzyga szum floatów); ten sam brak terminala BTN–BB z martwym openem UTG psuje gałąź overcallu jamu BTN (:238-240) i fold UTG (:218). solve() gra stałą liczbę iteracji FP bez miary zbieżności (eksport 16, arena 12); na 3x 25 bb wynik zależy silnie od liczby iteracji. Zależność: po POKER-71 (openfold._sd).",
+  "acceptance": [
+    "Terminal showdownu BTN–BB z martwym openem UTG; BB_VS_OJ wycenia call nim (equity BB wobec zakresu BTN_VS_OPEN), gałąź overcallu jamu BTN — equity BTN wobec zakresu BB_VS_OJ, fold UTG po jamie i overcallu — showdownem BTN–BB. Testy czerwone na bazie: przy 10x AA overcalluje, a 72o nie; przy 3x decyzja BB_VS_OJ jest monotoniczna w equity ręki i niezależna od szumu zmiennoprzecinkowego.",
+    "Jeśli call UTG po jamie i overcallu pozostaje przybliżeniem heads-up, docstring nazywa to przybliżenie wprost; żaden terminal nie wycenia akcji gracza showdownem, w którym on nie uczestniczy.",
+    "solve() zwraca miarę zbieżności (zysk z best response per węzeł/miejsce albo równoważną); krzywa miary względem liczby iteracji (co najmniej 8…512) na poziomach eksportowanych zmierzona i wpisana do raportu commita z komendą; liczba iteracji eksportu (tools/export_open_nash.py) i areny (tools/run_arena.py) wybrana z krzywej i uzasadniona.",
+    "Eksport przeliczony; liczby decyzji 20 i 21 (open UTG ≈ 23%, jam ≈ 1%, 10x 3bet 7,2%, '3bet Nash 35–100%') dostają adnotację 'KOREKTA (POKER-73)' z nowymi wartościami i komendą; słowo 'Nash' zostaje tylko przy wartościach, których miara zbieżności jest poniżej wybranej tolerancji.",
+    "Liczby areny zależne od książek openfold (hero_book, exploit_book) w docs/: raport commita wymienia plik:linia; przeliczone te, których komenda z dokumentu trwa ≤ 15 min, pozostałe wypisane jako unieważnione.",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 30 s."
+  ],
+  "non_goals": [
+    "Pełny terminal 3-way z side potami dla calla UTG (poza jawnym opisem przybliżenia).",
+    "Rozszerzenie drzewa open/fold i zmiana progu push/fold 7 bb (decyzja 19).",
+    "Edycja CURRENT_STATE.md (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/openfold.py",
+    "tools/export_open_nash.py",
+    "tools/run_arena.py",
+    "tests/",
+    "docs/decisions/20-open-tree.md",
+    "docs/decisions/21-threebet-spot.md",
+    "docs/decisions/22-arena-roi.md",
+    "docs/decisions/23-field-exploit.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

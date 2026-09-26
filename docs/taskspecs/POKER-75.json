@@ -1,0 +1,31 @@
+{
+  "id": "POKER-75",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Regenerację artefaktu blueprintu da się potwierdzić porównaniem tożsamości: dwie bezbłędne regeneracje tym samym kodem dają identyczną tożsamość, a manifest tożsamości opisuje wyłącznie to, co obecny kod naprawdę produkuje.",
+  "context": "Finding B5 audytu. Manifesty biegu niosą pola ulotne (solve_grid.py:1698-1703 tensor_dir bezwzględny i cpu_model; :1760/1770/1807-1819/1842 czasy ścienne; rollout_tensor.py:447-452; eps_curve.py:606 ścieżka bezwzględna 'run'), a pack_blueprint.py:355-356 wkleja cały run_manifest do metadanych .bpk — dwie regeneracje nigdy nie dają tego samego sha dla 4–5 z 32 pozycji prod_identity.json, w tym obu .bpk. Wpis blueprint.bpk opisuje plik sprzed POKER-56, pole 'pochodzenie' jest puste. Zależność: po POKER-74 (solve_grid.py, tools/blueprint/control/).",
+  "acceptance": [
+    "Konwerter pakuje do metadanych .bpk kanoniczną projekcję manifestu biegu bez pól ulotnych (czasy ścienne i rdzeniowe, cpu_model, ścieżki bezwzględne). Test w bramce: dwie regeneracje biegu kontrolnego w dwóch różnych katalogach dają bajt w bajt identyczne .bpk v1 i v2.",
+    "Tożsamość manifestów JSON liczona funkcją kanonicznej projekcji z tools/blueprint (jedna funkcja, pod testem), a eps_decomposition nie zapisuje ścieżek bezwzględnych; test: dwie regeneracje w różnych katalogach dają tę samą tożsamość każdej pozycji łańcucha kontrolnego.",
+    "tools/blueprint/control/prod_identity.json opisuje mechanizm zgodnie z kodem; żaden wpis nie podaje sha pliku, którego obecny kod nie produkuje — pozycje wymagające regeneracji artefaktu produkcyjnego są jawnie oznaczone jako do przeliczenia (z odwołaniem do decyzji 31 pkt 3); pole 'pochodzenie' wypełnione albo usunięte.",
+    "Decyzja 30 (pkt 2) dostaje adnotację 'KOREKTA (POKER-75)': co obecny mechanizm potwierdza i czego nie; docstring pack_blueprint.py zgodny z kodem.",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 60 s."
+  ],
+  "non_goals": [
+    "Regeneracja artefaktu produkcyjnego i wyliczenie jego nowej tożsamości (wejście operatora).",
+    "Zmiana formatu .bpk poza treścią metadanych.",
+    "Edycja CURRENT_STATE.md i PRZEKAZANIE.md (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/",
+    "tests/",
+    "docs/decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

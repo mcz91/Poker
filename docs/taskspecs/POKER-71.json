@@ -1,0 +1,36 @@
+{
+  "id": "POKER-71",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Każdy side pot wygrywa najlepsza ręka spośród uprawnionych, a spasowany gracz nigdy nie odzyskuje wkładu — w showdownie areny Spin i w modelach rozliczających all-in (spin.utg_shove_called, jamfold, openfold._sd).",
+  "context": "Finding B3 audytu. spin_arena.py:446-448 spłaszcza ranking do {najlepszy=0, reszta=1}, więc side pot 3-way dzieli się po równo między przegranych puli głównej; spin.py:281-283 i openfold.py:113-117 dają spasowanemu rangę przegranego. Sam award_allin jest poprawny (200 000 przypadków bez rozjazdu z referencją). Zależność: po POKER-70 (wspólne spin.py/spin_arena.py/jamfold.py).",
+  "acceptance": [
+    "Showdown areny: rangi z pełnego słabego porządku evaluate_best (lepsza ręka — niższa ranga, remis — ta sama), spasowani poza pulą. Test czerwony na bazie: stacki (10, 30, 50), karty AA / KK / 72o, wszyscy all-in → stacki po ręce (30, 40, 20) (na bazie (30, 20, 40)); test remisu dwóch przegranych puli głównej dzielącego side pot.",
+    "Modele: spasowany gracz nigdy nie odzyskuje wkładu — utg_shove_called((50, 1, 50), …) z wygraną BTN daje (50, 3, 48) (na bazie (49, 3, 49)); analogiczny test dla openfold._sd; jamfold._terminal_states korzysta z poprawionej funkcji.",
+    "Test właściwościowy w bramce: rozliczenie ręki areny zgodne z niezależną referencją brute force (side poty warstwami po jednym żetonie, pełny ranking) na co najmniej 2000 seedowanych rąk z nierównymi stackami; czas testu ≤ 10 s na maszynie bramki.",
+    "Liczby areny w docs/, które zmieniła poprawka: raport commita wymienia plik:linia i podaje wartości przeliczone komendą z dokumentu (odtwarzalne bez artefaktu produkcyjnego) albo oznacza je jako unieważnione; przybite w testach liczby zmienione przez poprawkę zaktualizowane z uzasadnieniem w raporcie.",
+    "Stała suma żetonów i legalność wkładów — dotychczasowe testy zielone bez osłabiania asercji.",
+    "Pełna bramka zielona."
+  ],
+  "non_goals": [
+    "Model drugiego miejsca przy trzech żywych w jamfold._three_way (sprint B).",
+    "Semantyka 'call = all-in całego stacku' w arenie (I-24; drzewo zamrożone decyzją 27).",
+    "Edycja CURRENT_STATE.md (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin_arena.py",
+    "src/poker/spin.py",
+    "src/poker/jamfold.py",
+    "src/poker/openfold.py",
+    "tools/run_arena.py",
+    "tests/",
+    "docs/decisions/",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

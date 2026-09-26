@@ -1,0 +1,42 @@
+{
+  "id": "POKER-70",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Miejsca i nagrody przy eliminacji w Spin są przyznawane regułą turniejową — później wybity wyżej, w jednej ręce większy stack wejściowy wyżej, przy równych stackach podział nagród — w grywalnej arenie i w modelu jam/fold, jedną funkcją w poker.spin.",
+  "context": "Findingi B2 i I-21 audytu. spin_arena.py:284-288 szereguje wybitych indeksem miejsca (stack końcowy 0 u obu), icm.py:35-39 robi to samo wśród zerowych stacków, a jamfold wycenia terminale bez stacków wejściowych. Reguła poprawna istnieje już w tools/blueprint/solve_grid.py:1030-1051 (_game_over_payout) i jest zgodna z regułą TDA jednoczesnych eliminacji. Decyzja 27 pkt 3: rozliczenia areny wyłącznie przez poker.spin. Wypłaty WTA (2x/3x) nie zależą od kolejności wybitych.",
+  "acceptance": [
+    "Jedna publiczna funkcja reguły miejsc w poker.spin, używana przez spin_arena.play_spin (run_spin albo jego wariant udostępnia kolejność wybicia: numer ręki i stack wejściowy ręki) oraz przez wycenę terminali poker.jamfold.",
+    "Testy 10x czerwone na bazie: (a) books (field_exploit, dollar_fish, dollar_fish), seed 5 — miejsce 0 wybite w ręce 0, miejsce 1 w ręce 2 — play_spin zwraca (0.0, 2.0, 8.0); (b) dwie eliminacje w jednej ręce przy nierównych stackach wejściowych — 2. nagroda dla większego stacku wejściowego; (c) przy równych stackach wejściowych — podział (1.0, 1.0).",
+    "Kotwica krzyżowa pod testem: reguła z poker.spin daje te same wypłaty co tools/blueprint/solve_grid._game_over_payout na pełnej siatce przypadków eliminacji trzech graczy (w tym remisy stacków wejściowych).",
+    "Żaden kod w repozytorium nie rozstrzyga kolejności miejsc wśród wybitych indeksem miejsca: poker.icm przy więcej niż jednym zerowym stacku albo rzuca ValueError (test z match), albo przyjmuje jawną kolejność — wybór wykonawcy, opisany w docstringu; wszyscy wywołujący zaktualizowani. Niespójność icm_equities((0,0,0),(1,0,0)) z wta_equities rozstrzygnięta i pod testem.",
+    "Jamfold 10x: podwójna eliminacja przy równych stackach wejściowych daje podział 2. i 3. nagrody (przypadki (150,0,0), (0,150,0), (0,0,150) ze stanu (50,50,50) pod testem). Liczby z decyzji zawierających wyniki jam/fold 10x, które się zmieniły, dostają adnotację 'KOREKTA (POKER-70)' z nową wartością i komendą.",
+    "Wyniki WTA (2x/3x) areny i jamfold bez zmian bajt w bajt na tych samych seedach (dowód w raporcie commita: porównanie przed/po).",
+    "Raport commita wymienia każde miejsce w docs/ (plik:linia) z liczbą areny Spin przy wypłatach 10x; dla liczb odtwarzalnych bez artefaktu produkcyjnego podaje wartość przeliczoną komendą z dokumentu; liczby wymagające artefaktu wypisuje jako unieważnione.",
+    "Pełna bramka zielona."
+  ],
+  "non_goals": [
+    "Rangi side potów (POKER-71).",
+    "Zmiany tools/blueprint/solve_grid.py poza testem kotwicy (reguła solvera jest poprawna).",
+    "Regeneracja artefaktu blueprintu i pomiary wymagające artefaktu produkcyjnego.",
+    "Edycja CURRENT_STATE.md (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/spin.py",
+    "src/poker/spin_arena.py",
+    "src/poker/icm.py",
+    "src/poker/jamfold.py",
+    "src/poker/openfold.py",
+    "tools/run_arena.py",
+    "tools/export_clock_nash.py",
+    "tools/export_open_nash.py",
+    "tests/",
+    "docs/decisions/",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

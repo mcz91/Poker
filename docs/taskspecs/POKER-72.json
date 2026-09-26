@@ -1,0 +1,34 @@
+{
+  "id": "POKER-72",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Artefakt src/poker/strategy_table.py niesie przepis pochodzenia, który go odtwarza, a opis metody treningu odpowiada kodowi (liniowo ważona średnia strategia, żale nieważone).",
+  "context": "Findingi B4 i I-20 audytu. Nagłówek strategy_table.py każe regenerować komendą bez --averaging; od POKER-29 domyślne jest linear, a artefakt powstał z uniform (sekcja STRATEGY bajt w bajt = --averaging uniform, zweryfikowane regeneracją). train_mccfr.py:3,287 nazywa metodę Linear CFR (Brown & Sandholm), choć waży przez t tylko średnią (:138-140), a żale sumuje bez wagi (:168).",
+  "acceptance": [
+    "strategy_table.py zregenerowany komendą z jawnym --averaging uniform: nagłówek podaje tę komendę, moduł ma stałą AVERAGING = 'uniform', sekcja 'STRATEGY: dict' identyczna bajt w bajt jak przed zmianą (dowód w raporcie commita) — pomiar −328,92 BB/100 pozostaje ważny.",
+    "Test pochodzenia czerwony na bazie: artefakt w repo musi mieć AVERAGING, a komenda regeneracji w jego nagłówku musi zawierać każdy parametr wpisany do stałych pochodzenia (w tym --averaging), zgodny co do wartości.",
+    "Etykieta metody zgodna z kodem w tools/train_mccfr.py (docstring modułu i docstring generowanego artefaktu) oraz w README.md: liniowe ważenie średniej strategii (waga t), żale nieważone — bez przypisywania metodzie nazwy Linear CFR / LCFR. Decyzja 15 dostaje adnotację 'KOREKTA (POKER-72)': artefakt jest MCCFR z uśrednianiem jednostajnym.",
+    "Pełna bramka zielona."
+  ],
+  "non_goals": [
+    "Wiązanie checkpointu z parametrami biegu (POKER-28).",
+    "Zmiana algorytmu (ważenie żali) i regeneracja artefaktu uśrednianiem liniowym.",
+    "Edycja CURRENT_STATE.md, docs/README.md i niemutowalnego POKER-29.json (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "src/poker/strategy_table.py",
+    "tools/train_mccfr.py",
+    "tests/test_mccfr.py",
+    "tests/test_mccfr_linear.py",
+    "tests/test_mccfr_scale.py",
+    "README.md",
+    "docs/decisions/15-tani-trening-jamfold.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}

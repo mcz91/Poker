@@ -123,6 +123,13 @@
     pomiary zamiast je powtarzać; P-7 (WTA@25bb) odblokowane bez
     potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
     zablokowane.
+31. [`31-audyt-calego-kodu-kwalifikacja-i-sprinty.md`](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
+    — kwalifikacja 56 findingów audytu całego kodu; OBJECTION wobec
+    POKER-21/10 uznany (seed talii nie pochodzi od gracza: serwer LAN
+    losuje go sam, lokalny tryb człowieka domyślnie z entropii); pomiary
+    unieważnione do przeliczenia (punktacja 10x, side poty areny,
+    openfold, brzeg horyzontu); sprinty A (POKER-69…75), B i C z
+    porządkiem integracji i nadzorem koder → audyt → integracja.
 
 ## TaskSpeki
 

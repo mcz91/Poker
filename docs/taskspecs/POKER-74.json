@@ -1,0 +1,33 @@
+{
+  "id": "POKER-74",
+  "spec_version": 1,
+  "class_hint": "fix",
+  "goal": "Brzeg horyzontu solvera blueprintu jest punktem stałym tej gry, w którą gra się od ręki 21 — z guzikiem heads-up zmieniającym się co rękę — a dokumenty opisują jego dokładność zgodnie z pomiarem.",
+  "context": "Finding B7 audytu. tools/blueprint/solve_grid.py:1495-1501 (_boundary) zamyka cykl 3 rąk: warstwa total+2 czyta V(total) jako V(total+3) bez przenumerowania miejsc, a guzik HU to ordered[hand % 2] (:1208), więc na zawinięciu ten sam gracz HU jest guzikiem dwie ręce z rzędu (prawdziwy cykl stacjonarny: 6 rąk). Zmierzony błąd V brzegu HU na konfiguracji produkcyjnej: ~1,46e−3 puli (≈3× tail_tol 5e−4); flaga converged i ex-post ε go nie widzą. Decyzja 28 pkt 3 i blok POKER-55 przypisują niezgodność HU zbieżności i remisom kwantyzatora.",
+  "acceptance": [
+    "_boundary domyka horyzont punktem stałym gry z guzikiem HU zmieniającym się co rękę: przed warstwą total+2 wiersze HU V(total) przechodzą przez zamianę etykiet dwóch żywych miejsc (V'(s) = P·V(P·s)) albo cykl ma 6 rąk — wybór wykonawcy z uzasadnieniem kosztu w raporcie.",
+    "Test niezmiennika czerwony na bazie: na siatce testowej V_{h+1}(s) = P·V_h(P·s) dla stanów HU brzegu i warstw przy zawinięciu, z tolerancją rzędu delty zbieżności; raport commita podaje zmierzone odchylenie na bazie i po zmianie na tej siatce.",
+    "Artefakt kontrolny łańcucha w repozytorium (tools/blueprint/control/) zregenerowany komendą z raportu, jeśli poprawka zmienia jego treść; test zgodności łańcucha kontrolnego i bezpiecznik kosztu zielone.",
+    "Decyzja 28 (pkt 3 i KOREKTA) dostaje adnotację 'KOREKTA (POKER-74)': źródło niezgodności HU (parzystość guzika na zawinięciu brzegu) i zmierzona wielkość błędu starego brzegu z komendą; docstring _boundary zgodny z kodem.",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 30 s."
+  ],
+  "non_goals": [
+    "Regeneracja artefaktu produkcyjnego (~76,6 rdzenio-h) — wejście operatora (decyzja 31 pkt 3).",
+    "Zmiany agenta blueprintu (label_seats jest poprawny) i ex-post ε.",
+    "Tożsamość regeneracji i prod_identity.json (POKER-75).",
+    "Edycja CURRENT_STATE.md (architekt)."
+  ],
+  "operator_inputs": {},
+  "allowed_paths": [
+    "tools/blueprint/solve_grid.py",
+    "tools/blueprint/control/",
+    "tests/",
+    "docs/decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md",
+    "PAMIEC_OPERACYJNA.md"
+  ],
+  "verification": [
+    "ruff check .",
+    "mypy",
+    "pytest"
+  ]
+}
