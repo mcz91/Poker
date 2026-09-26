@@ -18,10 +18,10 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - 2026-08-08 arch: F2 POKER-1 — odstępstwo decyzją operatora;
   regeneracja equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-08-28 arch: gałąź integracyjna =
-  `claude/poker-project-architecture-jw6ukd`; weryfikacja niezależna
-  przed scaleniem; raporty researchu w scratchpadzie sesji architekta
-  (decyzje 25/29 streszczają; synteza: `…/scratchpad/research/synteza.md`).
+- 2026-09-26 arch: sprint A decyzji 31 integruje się na
+  `claude/poker-code-audit-gsfko9` (main = operator; stara gałąź
+  `…architecture-jw6ukd` = main); równolegli agenci — wyłącznie unikalne
+  podkatalogi scratchpadu (kolizja `scratchpad/base` w fali 1).
 - 2026-09-04 arch: artefakty produkcyjne żyją w scratchpadzie sesji
   `…/scratchpad/prod/` (tensor + grid2 + blueprint.bpk — ten ostatni
   to wejście POKER-52); regeneracja = AC–AH i BA z CURRENT_STATE.
@@ -48,8 +48,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - Zamknięcie zadania aktualizuje też „Następny krok" w CURRENT_STATE
   (dryf: POKER-2/8/25, nagłówek 31/32/33) — jednym commitem.
-- Regeneracja artefaktu unieważnia pomiary przy nim, a bramka tego
-  nie łapie (POKER-24).
+- Regeneracja artefaktu unieważnia pomiary przy nim, a przepis oparty
+  na domyślnych narzędzia kłamie po zmianie domyślnej — bramka milczy
+  o obu (POKER-24; B4: każda opcja jawnie w komendzie, parsowana testem).
 - ARCHITEKT: kryterium ilościowe po oszacowaniu budżetu z repo (19/24;
   wzorzec 47: zmierz krzywą, potem próg); cel-pomiar bez asercji =
   liczby bez dowodu (42/43); acceptance to checklista (5).
@@ -58,9 +59,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Asercja werdyktu produkcyjnego, mianownik na replice modelu ani
   monotoniczność z jednej pary punktów nie chronią zachowania (35/37/40).
 - Tabela permutacji w złą stronę przeżywa testy na transpozycjach
-  i kolapsach (inwolucje) — psują się dopiero 3-cykle. Kotwicz każdą oś
-  i KAŻDĄ tablicę osobno: wt2_fold został bez kotwicy, dwie mutacje osi
-  przeżywają 343 testy, equity AA leci 0,917→0,083 (POKER-46, audyt).
+  i inwolucjach — psują się dopiero 3-cykle; kotwicz KAŻDĄ oś i tablicę
+  osobno (wt2_fold bez kotwicy: AA 0,917→0,083 przez 343 testy, POKER-46).
 - ε ex-post warstwy DAG-u to suma długów warstw za nią (stan startowy
   97,5%) — rozłóż ε na etapowe i odziedziczone i znajdź próg wiążący
   (POKER-47: tolerancja, nie sufit iteracji — wbrew diagnozie arch.).

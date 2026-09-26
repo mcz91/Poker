@@ -7,8 +7,8 @@
   następny krok.
 - [`AUDYT_2026-09-26.md`](AUDYT_2026-09-26.md) — audyt całego kodu
   świeżym kontekstem (werdykt FINDINGI: 7 blokujących, 36 istotnych,
-  13 informacyjnych; OBJECTION przeciw POKER-21/10); findingi czekają na
-  kwalifikację architekta.
+  13 informacyjnych; OBJECTION przeciw POKER-21/10); kwalifikacja
+  i sprinty naprawcze — decyzja 31.
 
 ## Dokumenty decyzji
 
@@ -229,8 +229,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   POKER-24/25: wiązanie checkpointu z parametrami biegu, jednokrotne
   parsowanie plików w testach architektury (zatwierdzony; kolejność
   integracji: 28 przed 27).
-- [`POKER-29.json`](taskspecs/POKER-29.json) — Linear weighting
-  w MCCFR (Linear CFR, waga t); `--averaging linear` domyślnie,
+- [`POKER-29.json`](taskspecs/POKER-29.json) — liniowo ważona średnia
+  strategii w MCCFR (waga t, żale nieważone — etykieta „Linear CFR" z
+  kontraktu skorygowana w POKER-72); `--averaging linear` domyślnie,
   artefakt produkcyjny nietknięty (zamknięty, commit `a9f7444`).
 - [`POKER-30.json`](taskspecs/POKER-30.json) — ICM Malmuth–Harville
   i wypłaty Spin 3-max (2×/3× WTA, 10× 80/20), rozliczenie all-in
@@ -304,6 +305,26 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   artefaktu z czytnikiem w czystym stdlib; koszt kwantyzacji mierzony
   w ε z progiem ≤ 10% wartości surowej (zatwierdzony; kolejność
   integracji: po POKER-50).
+
+Sprint A decyzji 31 (naprawy blokujących findingów audytu 2026-09-26;
+fale 1–3, integracja sekwencyjna):
+
+- [`POKER-69.json`](taskspecs/POKER-69.json) — seed talii przy stole
+  z człowiekiem poza zasięgiem gracza; protokół LAN v2 (zamknięty,
+  commit integracji `bca2cc9`; audyt r2: CZYSTY);
+- [`POKER-70.json`](taskspecs/POKER-70.json) — reguła miejsc przy
+  eliminacji w arenie i modelach Spin (fala 1);
+- [`POKER-71.json`](taskspecs/POKER-71.json) — side poty pełnym
+  rankingiem; spasowany nie odzyskuje wkładu (fala 2, po POKER-70);
+- [`POKER-72.json`](taskspecs/POKER-72.json) — przepis pochodzenia
+  `strategy_table.py` i etykieta metody MCCFR (zamknięty, commit
+  integracji `2b2a4ef`; audyt r2: CZYSTY);
+- [`POKER-73.json`](taskspecs/POKER-73.json) — terminale i miara
+  zbieżności openfold (fala 3, po POKER-71);
+- [`POKER-74.json`](taskspecs/POKER-74.json) — brzeg horyzontu solvera
+  cyklem 6 rąk (fala 1);
+- [`POKER-75.json`](taskspecs/POKER-75.json) — tożsamość regeneracji
+  z kanonicznej projekcji manifestów (fala 2, po POKER-74).
 
 ## Operator
 

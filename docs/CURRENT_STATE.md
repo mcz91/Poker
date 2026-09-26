@@ -1,6 +1,12 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · ostatnie zamknięte zadanie: POKER-57 (format
+Wersja pakietu: 0.1.0 · **sprint A decyzji 31 w toku** (naprawy
+blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)); zamknięte
+w nim: POKER-69 (seed talii przy stole z człowiekiem poza zasięgiem
+gracza: serwer LAN losuje seed meczu, protokół v2, lokalny `--human` bez
+`--seed` na entropii) i POKER-72 (przepis pochodzenia `strategy_table.py`
+odtwarza artefakt bajt w bajt; etykieta metody zgodna z kodem); 502 testy
+· wcześniej ostatnie zamknięte zadanie: POKER-57 (format
 `.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
 uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
 infoset, odcisk przebiegu w metadanych; v1 bajt w bajt nietknięty; zero
@@ -32,7 +38,7 @@ blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
 i różnica względem ICM zmierzone);
 POKER-45 (rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady
 legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
-(Linear CFR) zamknięty; POKER-24 (skala) częściowo — patrz
+(MCCFR z liniowo ważoną średnią strategii) zamknięty; POKER-24 (skala) częściowo — patrz
 „Następny krok".
 
 ## Co istnieje
@@ -214,9 +220,13 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   przerywa mecz niezerowym kodem; rozstrzygnięcie każdego rozdania
   (fold/showdown) renderowane na żywo natychmiast po jego końcu —
   przed pierwszą decyzją następnego rozdania (obserwacja `on_hand`
-  stołu), obok zbiorczego przebiegu po meczu; karty bota i seed
-  nieobecne w wyjściu terminala do showdownu, także w wyjściu na
-  żywo — pod testem przecieku i testem kolejności; round-trip
+  stołu), obok zbiorczego przebiegu po meczu; karty bota i seedy
+  rozdań nieobecne w wyjściu terminala do showdownu, także w wyjściu
+  na żywo — pod testem przecieku i testem kolejności; od POKER-69
+  `--human` bez `--seed` bierze seed meczu z CSPRNG systemu (64 bity)
+  i wypisuje go dopiero po meczu (`seed meczu: N`; przy przerwaniu na
+  stderr), a jawny `--seed` czyni talię wyliczalną dla każdego, kto go
+  zna (decyzja 31 pkt 1); tryby bez człowieka zachowują domyślny seed 0; round-trip
   i determinizm eksportu bajt w bajt oraz odtwarzalność meczu przy
   identycznym wejściu człowieka pod testami; `registry` — rejestr
   nazwanych agentów CLI (rule, rule-aggressive), a `corpus` — korpus
@@ -263,18 +273,23 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   — czysty stdlib, numpy niepotrzebny; artefakt `strategy_table` to
   wygenerowany moduł danych (infoset → wagi akcji sumujące się
   dokładnie do `DENOMINATOR`) z kompletnym przepisem pochodzenia
-  (wersja abstrakcji, seed, iteracje, kubełki, rozmiary zakładów,
-  konfiguracja rozdania); dowód dwustopniowy (decyzja 06 pkt 3):
+  (wersja abstrakcji, seed, iteracje, uśrednianie `AVERAGING`,
+  kubełki, rozmiary zakładów, konfiguracja rozdania — od POKER-72
+  komenda z nagłówka artefaktu odtwarza go bajt w bajt, a test parsuje
+  ją parserem narzędzia); dowód dwustopniowy (decyzja 06 pkt 3):
   reprodukcja małego biegu kontrolnego bajt w bajt w bramce (seed
   różnicujący), pełna regeneracja komendą z [`README.md`](../README.md)
   poza bramką; od POKER-24 trening ma deterministyczne wznowienia
   (`--checkpoint`, `--checkpoint-every`, `--resume`): losowość iteracji
   zależy wyłącznie od pary (seed, numer), więc bieg przerwany
   i wznowiony daje artefakt identyczny z ciągłym o tej samej łącznej
-  liczbie iteracji — pod testami; od POKER-29 uśrednianie strategii
-  jest liniowe (Linear CFR: waga iteracji t; `--averaging linear`
-  domyślnie, `uniform` zostawia poprzednie sumowanie) — artefakt
-  produkcyjny `strategy_table.py` nie był regenerowany; trawersacja
+  liczbie iteracji — pod testami; od POKER-29 średnia strategia jest
+  ważona liniowo (waga iteracji t; żale nieważone; `--averaging linear`
+  domyślnie, `uniform` zostawia poprzednie sumowanie); artefakt
+  produkcyjny `strategy_table.py` jest MCCFR z uśrednianiem
+  jednostajnym — w POKER-72 zregenerowany wyłącznie po nagłówek
+  i stałą `AVERAGING = 'uniform'`, sekcja `STRATEGY` bajt w bajt ta sama,
+  pomiar −328,92 BB/100 ważny; trawersacja
   schodzi w dół mutując
   rozdanie w miejscu tam, gdzie stan rodzica nie jest już potrzebny
   (100 iteracji: 13.7 s → 9.1 s); agent `mccfr` (rejestr CLI, gra też przez serwer LAN)
@@ -457,25 +472,33 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   odwzorowania: bloki POKER-52, POKER-54 i POKER-55 niżej.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
-  odrzucana po obu stronach); `poker.adapters.lan_server`
+  odrzucana po obu stronach; od POKER-69 wersja 2 — żądanie `create`
+  bez pola `seed`, `create` z polem `seed` odrzucane); `poker.adapters.lan_server`
   (`TableServer`, CLI `--serve`) — jeden proces prowadzi wiele
   niezależnych stołów heads-up (kod stołu, człowiek vs człowiek albo
   vs agent z rejestru; konfiguracja meczu parametrami tworzenia
   stołu, INV-P6); człowiek zdalny wchodzi portem Agent przez most
   protokołu do istniejącego `HumanAgent` (walidacja wejścia i render
-  wyłącznie z widoku miejsca — INV-P3 egzekwowane na granicy procesu,
-  pod testem pełnego strumienia bajtów klienta: karty przeciwnika
-  i seedy nieobecne przed showdownem); rozłączenie gracza kończy
+  wyłącznie z widoku miejsca — INV-P3 egzekwowane na granicy procesu;
+  od POKER-69 seed meczu losuje serwer z własnego generatora
+  (`TableServer(match_rng=…)`, domyślnie 64 bity `SystemRandom`, k-ty
+  obsłużony `create` dostaje k-ty seed), więc żaden gracz nie wyznacza
+  talii; pod testem pełnego strumienia bajtów OBU klientów stołu ludzi
+  aż do zamknięcia połączenia: seed meczu i seedy rozdań nieobecne,
+  karty przeciwnika nieobecne przed showdownem; serwer zamyka
+  połączenia stołu po `match_end` albo `opponent_left`); rozłączenie gracza kończy
   wyłącznie jego stół komunikatem dla przeciwnika — pod testem;
   opcjonalny eksport historii zakończonych stołów istniejącym
   formatem (round-trip pod testem); kod stołu od POKER-25 jest losowy
   (8 znaków z 31-znakowego alfabetu bez znaków mylących, ~39,6 bita)
   z seedowanego RNG adaptera — `--serve-seed` daje odtwarzalną
-  sekwencję, pominięty nieodtwarzalną; kolizja kodu nie nadpisuje
+  sekwencję kodów (i wyłącznie kodów — talii nie przybija, decyzja 31),
+  pominięty nieodtwarzalną; kolizja kodu nie nadpisuje
   cudzego stołu, a błędny kod nie zdradza liczby ani kodów
   istniejących stołów — pod testami (domknięcie F1 audytu POKER-21);
   `poker.adapters.lan_client`
   (CLI `--connect`, `--join`, `--opponent`) — klient terminalowy;
+  `--connect` z jawnym `--seed` kończy się rc=2 (seed losuje serwer);
   testy sterują serwerem i klientami w procesie (gniazda lokalne,
   porty efemeryczne, bez podprocesów i zegara ściennego); kierunek
   importów pod rozszerzonym testem architektury; silnik, licytacja,
@@ -509,6 +532,18 @@ Sandbox niezaufanych agentów to osobna decyzja, gdy pojawi się agent
 spoza repozytorium.
 
 ## Następny krok
+
+**Sprint A decyzji 31 w toku** (naprawy blokujących findingów
+[audytu całego kodu](AUDYT_2026-09-26.md); kontrakty POKER-69…75,
+nadzór: koder w izolowanym worktree → audyt świeżym kontekstem →
+integracja sekwencyjna z pełną bramką na gałęzi sprintu). Fala 1:
+**POKER-69 zamknięty** (audyt r1 FINDINGI 2 × ISTOTNY → r2 CZYSTY;
++17 testów), **POKER-72 zamknięty** (r1 FINDINGI 1 × ISTOTNY → r2 CZYSTY;
++2 testy); POKER-70 i POKER-74 w toku. Dalej fala 2 (POKER-71, 75)
+i fala 3 (POKER-73), potem kontrakty sprintu B. Pomiary unieważnione do
+przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
+czeka na zamknięcie sprintu A, bo jej pomiary stoją na naprawianych
+rozliczeniach i brzegu horyzontu.
 
 Po POKER-56 higiena tierowa nie blokuje już żadnej gałęzi mapy z
 [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md):
@@ -555,10 +590,12 @@ dzisiejszą bramkę do 16,1 s, ale przy artefakcie na skali nie
 wystarcza. Artefakt w repozytorium pozostaje na 1000 iteracjach,
 przetrenowany nowym trenerem (regeneracja bajt w bajt zweryfikowana).
 
-**POKER-29 (Linear CFR) zamknięty.** Domyślne uśrednianie strategii
-to waga t; `--averaging uniform` zostawia poprzednie sumowanie.
-Artefakt produkcyjny nietknięty — następna regeneracja (POKER-27)
-mierzy już Linear MCCFR.
+**POKER-29 (liniowo ważona średnia strategii w MCCFR) zamknięty.**
+Domyślne uśrednianie strategii to waga t (żale nieważone — to nie jest
+Linear CFR Browna i Sandholma, korekta POKER-72); `--averaging uniform`
+zostawia poprzednie sumowanie. Artefakt produkcyjny strategii nietknięty
+(POKER-72 poprawił wyłącznie jego nagłówek pochodzenia) — następna
+regeneracja (POKER-27) zmierzy MCCFR z ważoną średnią.
 
 **POKER-30 (ICM + Spin 3-max) zamknięty.** Własny Harville i wypłaty
 2×/3×/10×; INV-P5 nietknięte; PokerKit odrzucony (decyzja 10).
