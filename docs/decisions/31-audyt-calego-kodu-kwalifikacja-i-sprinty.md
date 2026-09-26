@@ -120,6 +120,21 @@ OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
   bajt w bajt ta sama — więc nie jest „regeneracją strategii" w rozumieniu
   decyzji 18, a zdania „strategy_table nietknięty" z decyzji 11–23
   pozostają prawdziwe co do strategii i pomiarów.
+- **POKER-74 — rozstrzygnięcie BRAK z rundy 1 (2026-09-26).** Na siatce
+  e60 delta cyklu 6 stoi na 1,05–1,48e−3 (> tail_tol 5e−4), a przy stałej
+  liczbie iteracji PI-FP ten sam cykl zbiega do zera maszynowego: podłogę
+  robi stop PI-FP na tolerancji, który czyni odwzorowanie cyklu
+  nieciągłym. Kryterium ogona dotyczy więc odwzorowania
+  deterministycznego i ciągłego. Wykonawca mierzy krzywe trzech wariantów
+  (tolerancja PI-FP w ogonie × {1, 1/3, 1/10}; budżet iteracji zamrożony
+  z cyklu 1 per stan; stały budżet równy medianie cyklu 1) i wybiera
+  najtańszy osiągający tail_tol na obu siatkach — bez zmiany tail_tol
+  i bez nowego pola `GridConfig`; żaden → `BLOCKED` z krzywymi.
+- **Obserwacje z raportów fali 1 do sprintu C:** decyzja 12:21-22
+  („~+0,05 BI") wobec pomiaru +0,037 na (16, 50, 84) — rozjazd sprzed
+  POKER-70; openfold nie daje blindowi all-in z samego SB szansy na pulę
+  główną w gałęzi steal (uproszczenie modelu, do opisania albo
+  kwalifikacji).
 - **PUŁAPKI przy równoległych gałęziach:** koder zapisuje kandydata do
   PUŁAPEK w raporcie commita; do `PAMIEC_OPERACYJNA.md` przenosi go
   architekt przy integracji (limit 80 linii nie znosi równoległych edycji).

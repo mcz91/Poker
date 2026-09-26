@@ -313,7 +313,8 @@ fale 1–3, integracja sekwencyjna):
   z człowiekiem poza zasięgiem gracza; protokół LAN v2 (zamknięty,
   commit integracji `bca2cc9`; audyt r2: CZYSTY);
 - [`POKER-70.json`](taskspecs/POKER-70.json) — reguła miejsc przy
-  eliminacji w arenie i modelach Spin (fala 1);
+  eliminacji w arenie i modelach Spin (zamknięty, commit integracji
+  `de0f9cb`; audyt r2: CZYSTY);
 - [`POKER-71.json`](taskspecs/POKER-71.json) — side poty pełnym
   rankingiem; spasowany nie odzyskuje wkładu (fala 2, po POKER-70);
 - [`POKER-72.json`](taskspecs/POKER-72.json) — przepis pochodzenia

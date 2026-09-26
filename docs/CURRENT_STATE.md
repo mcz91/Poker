@@ -4,8 +4,12 @@ Wersja pakietu: 0.1.0 · **sprint A decyzji 31 w toku** (naprawy
 blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)); zamknięte
 w nim: POKER-69 (seed talii przy stole z człowiekiem poza zasięgiem
 gracza: serwer LAN losuje seed meczu, protokół v2, lokalny `--human` bez
-`--seed` na entropii) i POKER-72 (przepis pochodzenia `strategy_table.py`
-odtwarza artefakt bajt w bajt; etykieta metody zgodna z kodem); 502 testy
+`--seed` na entropii), POKER-72 (przepis pochodzenia `strategy_table.py`
+odtwarza artefakt bajt w bajt; etykieta metody zgodna z kodem) i POKER-70
+(jedna reguła miejsc Spin `poker.spin.place_payouts` — później wybity
+wyżej, w jednej ręce większy stack wejściowy wyżej, równe dzielą — w
+arenie, jamfold, openfold i `utg_shove_ev`; ICM odrzuca więcej niż jedno
+zero; wyniki WTA bajt w bajt bez zmian); 620 testów
 · wcześniej ostatnie zamknięte zadanie: POKER-57 (format
 `.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
 uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
@@ -539,8 +543,12 @@ nadzór: koder w izolowanym worktree → audyt świeżym kontekstem →
 integracja sekwencyjna z pełną bramką na gałęzi sprintu). Fala 1:
 **POKER-69 zamknięty** (audyt r1 FINDINGI 2 × ISTOTNY → r2 CZYSTY;
 +17 testów), **POKER-72 zamknięty** (r1 FINDINGI 1 × ISTOTNY → r2 CZYSTY;
-+2 testy); POKER-70 i POKER-74 w toku. Dalej fala 2 (POKER-71, 75)
-i fala 3 (POKER-73), potem kontrakty sprintu B. Pomiary unieważnione do
++2 testy), **POKER-70 zamknięty** (r1 FINDINGI 1 × ISTOTNY → r2 CZYSTY;
++118 testów, w tym parametryczna tożsamość WTA = ICM; liczby areny 10x
+bloków BG unieważnione); POKER-74 w rundzie 2 (koder zgłosił BRAK:
+kryterium ogona cyklu 6 — rozstrzygnięty pomiarem wariantów, decyzja 31
+pkt 4); fala 2: POKER-71 w toku, POKER-75 po POKER-74; fala 3: POKER-73;
+potem kontrakty sprintu B. Pomiary unieważnione do
 przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
 czeka na zamknięcie sprintu A, bo jej pomiary stoją na naprawianych
 rozliczeniach i brzegu horyzontu.
@@ -740,7 +748,16 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    UTG jam 15,29% vs 15,26% (zgodność klas 0,953); BTN call 4,60% vs
    3,94% (0,982); BB call vs UTG 5,24% vs 4,49% (0,988); BTN first-in
    jam 39,86% vs 39,42% (0,905); BB call vs BTN 11,02% vs 10,51%
-   (0,988). Rozjazdy to wyłącznie ręce na krawędzi zakresu. Modele
+   (0,988). **Adnotacja POKER-70:** od reguły miejsc w `poker.spin`
+   strona `poker.jamfold` przy tej samej komendzie (`solve((50,50,50),
+   (0.8, 0.2, 0.0), button=1, iterations=80)`, masa jak `jamfold_pct`)
+   daje UTG jam 14,93%, BTN call 3,97%, BB call vs UTG 4,51%, BTN
+   first-in 39,42%, BB call vs BTN 10,51%; strona pilota bez zmian.
+   Zgodności klas wyżej są unieważnione do ponownego E; zdanie „ten sam
+   model co `poker.jamfold`" jest co do końca gry prawdziwe dopiero od
+   POKER-70 (kotwica krzyżowa w `tests/test_spin_places.py`) — wcześniej
+   jamfold szeregował podwójną eliminację indeksem miejsca (I-21 audytu).
+   Rozjazdy to wyłącznie ręce na krawędzi zakresu. Modele
    equity są zgodne bez obciążenia: kontrola na próbce 30 par (equity
    wołającego z `wt2_fold[(1, 2)]` zmarginalizowanego po klasie
    foldującego, obok `poker.preflop_equity.equity`) daje średnią
@@ -758,7 +775,8 @@ E  python tools/blueprint/expost.py sanity --tensor PILOT/tensor
    warstwy; porównywane wyłącznie warstwy w trybie `jamfold`, bo przy
    pełnym drzewie open odbiera część zakresu jamowi. BB call vs jam
    UTG: ręka 9 (6,2 bb) 14,5% vs 16,0%; ręka 12 (5,0 bb) 27,2% vs
-   20,4%; ręka 20 (2,5 bb) **71,5% vs 52,4%**. Kierunek jest zgodny
+   20,4%; ręka 20 (2,5 bb) **71,5% vs 52,4%** (po POKER-70 strona
+   jamfold: 16,3% / 21,5% / 52,0%; strona DAG bez zmian). Kierunek jest zgodny
    z Ganzfriedem, ale nie monotoniczny w jedną stronę: przy głębszych
    stackach DAG bywa ciaśniejszy, a przy 2–3 bb jest wyraźnie szerszy,
    bo w DAG-u fold płaci przyszłe blindy, których ICM „po ręce" nie
@@ -1803,7 +1821,11 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    równowagowy nie eksploatuje 100-procentowego jammera — oczekiwane).
    Zakres zdania bez zmian: `dollar_fish` to skrypt z repozytorium, nie pole
    $1 — **nie wolno** czytać z tego „bijemy field $1" (decyzja 26).
-8. **Pomiar w modelu nagród artefaktu (BG, 10x 80/20).** ROI neutralne
+8. **UNIEWAŻNIONE (POKER-70, decyzja 31 pkt 3):** arena przyznawała
+   przy 10x 2. miejsce według indeksu miejsca, nie kolejności wybicia,
+   więc liczby tego punktu NIE są „w modelu nagród artefaktu"; ponowny
+   pomiar BG wymaga artefaktu produkcyjnego (wejście operatora). Treść
+   historyczna: **Pomiar BG (10x 80/20).** ROI neutralne
    (trzej identyczni gracze) to +233,33%, więc liczby jako różnice sparowane
    wobec `field_exploit`: vs `field_exploit` **+12,14 pp** (CI +8,67..+15,61;
    bootstrap +8,55..+15,79; przed: +8,02 pp), vs `dollar_fish` **+13,25 pp**
@@ -2346,7 +2368,11 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    jest **zdjęte ponownym pomiarem** (blok POKER-55 pkt 7 i 9: reguła
    rozstrzyga 0,850% decyzji, a jej wpływ jest nieodróżnialny od zera).
    Zakaz z decyzji 26 („bijemy field $1") obowiązuje tak samo.
-6. **Pomiar w modelu nagród artefaktu (BG, wypłata 10x 80/20).** Bieg
+6. **UNIEWAŻNIONE (POKER-70, decyzja 31 pkt 3):** arena przyznawała
+   przy 10x 2. miejsce według indeksu miejsca, więc poniższe liczby nie
+   są w modelu nagród artefaktu (zdanie niżej było fałszywe); ponowny
+   pomiar BG wymaga artefaktu produkcyjnego. Treść historyczna:
+   **Pomiar BG (wypłata 10x 80/20).** Bieg
    produkcyjny liczył nagrody (0,8; 0,2; 0), czyli dokładnie 10x — więc
    dopiero ten pomiar jest **w modelu**, a 3x jest poza nim. ROI
    neutralne (trzej identyczni gracze dzielą pulę 10 buy-inów) wynosi tu
