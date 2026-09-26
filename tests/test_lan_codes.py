@@ -11,13 +11,12 @@ from poker.adapters.lan_server import CODE_ALPHABET, CODE_LENGTH, TableServer
 from poker.adapters.protocol import PROTOCOL_VERSION
 
 
-def utworz_stol(port: int, seed_meczu: int = 1) -> tuple[socket.socket, dict[str, Any]]:
+def utworz_stol(port: int) -> tuple[socket.socket, dict[str, Any]]:
     sock = socket.create_connection(("127.0.0.1", port), timeout=10)
     plik = sock.makefile("rwb")
     plik.write(json.dumps({
         "v": PROTOCOL_VERSION, "type": "create", "small_blind": 1, "big_blind": 2,
-        "stacks": [100, 100], "button": 0, "hand_limit": 1, "seed": seed_meczu,
-        "opponent": "human",
+        "stacks": [100, 100], "button": 0, "hand_limit": 1, "opponent": "human",
     }).encode("utf-8") + b"\n")
     plik.flush()
     odpowiedz: dict[str, Any] = json.loads(plik.readline())
@@ -83,6 +82,15 @@ def test_ten_sam_seed_serwera_daje_te_same_kody() -> None:
         finally:
             server.close()
     assert wyniki[0] == wyniki[1]
+
+
+def test_seed_serwera_przybija_literalna_sekwencje_kodow() -> None:
+    server = TableServer(seed=123)
+    try:
+        _, port = server.start()
+        assert kody(port, 3) == ["BJC3QJD5", "76BPUUMM", "6BFEMUMZ"]
+    finally:
+        server.close()
 
 
 def test_bez_seeda_kody_sa_nieodtwarzalne() -> None:

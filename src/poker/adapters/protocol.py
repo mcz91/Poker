@@ -3,7 +3,9 @@
 import json
 from typing import Protocol
 
-PROTOCOL_VERSION = 1
+# v2: żądanie create nie niesie seeda — seed meczu, z którego wynika talia, losuje
+# serwer (decyzja 31 pkt 1); klient v1 jest odrzucany jawnie, nie po cichu.
+PROTOCOL_VERSION = 2
 
 
 class MessageStream(Protocol):
@@ -31,7 +33,9 @@ def read_message(stream: MessageStream) -> dict[str, object] | None:
     if not isinstance(parsed, dict):
         raise ValueError("wiadomość protokołu musi być obiektem JSON")
     if parsed.get("v") != PROTOCOL_VERSION:
-        raise ValueError(f"nieznana wersja protokołu: {parsed.get('v')!r}")
+        raise ValueError(
+            f"nieznana wersja protokołu: {parsed.get('v')!r} (obsługiwana: {PROTOCOL_VERSION})"
+        )
     return parsed
 
 

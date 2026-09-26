@@ -1,4 +1,5 @@
-"""Testy CLI (POKER-9): punkt wejścia w procesie testów, wynik, eksport, błędy."""
+"""Testy CLI (POKER-9, POKER-69): punkt wejścia w procesie testów, wynik, eksport, błędy,
+domyślny seed."""
 
 from pathlib import Path
 
@@ -58,6 +59,34 @@ def test_wybor_agenta_wariantem_progow_zmienia_przebieg(
         == 0
     )
     assert default.read_bytes() != aggressive.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "tryb",
+    [
+        ["--hands", "5", "--export", "{wyjscie}/mecz.json"],
+        ["--series", "2", "--hands", "5"],
+        ["--corpus", "{wyjscie}/korpus", "--matches", "2", "--hands", "5"],
+    ],
+    ids=["mecz-z-eksportem", "seria", "korpus"],
+)
+def test_bez_czlowieka_domyslny_seed_to_zero_bajt_w_bajt(
+    tryb: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    przebiegi = []
+    for nazwa, jawny_seed in (("domyslny", []), ("zero", ["--seed", "0"])):
+        wyjscie = tmp_path / nazwa
+        wyjscie.mkdir()
+        argv = [argument.format(wyjscie=wyjscie) for argument in tryb]
+        assert main([*argv, *jawny_seed]) == 0
+        pliki = {
+            str(plik.relative_to(wyjscie)): plik.read_bytes()
+            for plik in sorted(wyjscie.rglob("*"))
+            if plik.is_file()
+        }
+        przebiegi.append((capsys.readouterr().out.replace(str(wyjscie), "<wyjscie>"), pliki))
+    assert przebiegi[0] == przebiegi[1]
+    assert "seed meczu" not in przebiegi[0][0]
 
 
 def test_bledne_argumenty_daja_niezerowy_kod_i_komunikat(

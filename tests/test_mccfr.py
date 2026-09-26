@@ -190,13 +190,14 @@ def test_agent_w_rejestrze_i_mierzalny_w_arenie(capsys: pytest.CaptureFixture[st
 
 
 def test_agent_gra_przez_serwer_lan(capsys: pytest.CaptureFixture[str]) -> None:
-    server = TableServer()
+    import random
+
+    server = TableServer(match_rng=random.Random(1))
     try:
         _, port = server.start()
         wynik = main(
-            ["--connect", f"127.0.0.1:{port}", "--opponent", "mccfr",
-             "--hands", "1", "--seed", "1"],
-            stdin=io.StringIO("call\n" * 20),
+            ["--connect", f"127.0.0.1:{port}", "--opponent", "mccfr", "--hands", "1"],
+            stdin=io.StringIO("call\ncheck\n" * 20),
         )
         assert wynik == 0
         assert "koniec meczu" in capsys.readouterr().out
