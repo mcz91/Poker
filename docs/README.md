@@ -5,6 +5,10 @@
   `tools/docs/mk_pdf.py` poza bramką).
 - [`CURRENT_STATE.md`](CURRENT_STATE.md) — stan bieżący, bramka,
   następny krok.
+- [`AUDYT_2026-09-26.md`](AUDYT_2026-09-26.md) — audyt całego kodu
+  świeżym kontekstem (werdykt FINDINGI: 7 blokujących, 36 istotnych,
+  13 informacyjnych; OBJECTION przeciw POKER-21/10); findingi czekają na
+  kwalifikację architekta.
 
 ## Dokumenty decyzji
 
