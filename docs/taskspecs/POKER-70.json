@@ -2,23 +2,25 @@
   "id": "POKER-70",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Miejsca i nagrody przy eliminacji w Spin są przyznawane regułą turniejową — później wybity wyżej, w jednej ręce większy stack wejściowy wyżej, przy równych stackach podział nagród — w grywalnej arenie i w modelu jam/fold, jedną funkcją w poker.spin.",
-  "context": "Findingi B2 i I-21 audytu. spin_arena.py:284-288 szereguje wybitych indeksem miejsca (stack końcowy 0 u obu), icm.py:35-39 robi to samo wśród zerowych stacków, a jamfold wycenia terminale bez stacków wejściowych. Reguła poprawna istnieje już w tools/blueprint/solve_grid.py:1030-1051 (_game_over_payout) i jest zgodna z regułą TDA jednoczesnych eliminacji. Decyzja 27 pkt 3: rozliczenia areny wyłącznie przez poker.spin. Wypłaty WTA (2x/3x) nie zależą od kolejności wybitych.",
+  "goal": "Miejsca i nagrody przy eliminacji w Spin są przyznawane regułą turniejową — później wybity wyżej, w jednej ręce większy stack wejściowy wyżej, przy równych stackach podział nagród — w grywalnej arenie i w każdym modelu wyceniającym koniec gry, jedną funkcją w poker.spin.",
+  "context": "Findingi B2 i I-21 audytu. spin_arena.py:284-288 szereguje wybitych indeksem miejsca (stack końcowy 0 u obu), icm.py:35-39 robi to samo wśród zerowych stacków. Stany z co najmniej dwoma zerami wyceniają ICM-em: jamfold (terminale _three_way), spin.utg_shove_ev (spin.py:310-313) i openfold (money, gdy blind jest all-in). Reguła poprawna istnieje w tools/blueprint/solve_grid.py:1030-1051 (_game_over_payout) i zgadza się z regułą TDA jednoczesnych eliminacji. Decyzja 27 pkt 3: rozliczenia areny wyłącznie przez poker.spin. Wypłaty WTA (2x/3x) nie zależą od kolejności wybitych. Konsumenci icm_equities poza allowed_paths (tools/blueprint/solve_grid.py:1302,1489, tools/blueprint/expost.py:217) podają wyłącznie stany z co najmniej dwoma żywymi. Linie wg commita 16dc6f8.",
   "acceptance": [
-    "Jedna publiczna funkcja reguły miejsc w poker.spin, używana przez spin_arena.play_spin (run_spin albo jego wariant udostępnia kolejność wybicia: numer ręki i stack wejściowy ręki) oraz przez wycenę terminali poker.jamfold.",
-    "Testy 10x czerwone na bazie: (a) books (field_exploit, dollar_fish, dollar_fish), seed 5 — miejsce 0 wybite w ręce 0, miejsce 1 w ręce 2 — play_spin zwraca (0.0, 2.0, 8.0); (b) dwie eliminacje w jednej ręce przy nierównych stackach wejściowych — 2. nagroda dla większego stacku wejściowego; (c) przy równych stackach wejściowych — podział (1.0, 1.0).",
-    "Kotwica krzyżowa pod testem: reguła z poker.spin daje te same wypłaty co tools/blueprint/solve_grid._game_over_payout na pełnej siatce przypadków eliminacji trzech graczy (w tym remisy stacków wejściowych).",
-    "Żaden kod w repozytorium nie rozstrzyga kolejności miejsc wśród wybitych indeksem miejsca: poker.icm przy więcej niż jednym zerowym stacku albo rzuca ValueError (test z match), albo przyjmuje jawną kolejność — wybór wykonawcy, opisany w docstringu; wszyscy wywołujący zaktualizowani. Niespójność icm_equities((0,0,0),(1,0,0)) z wta_equities rozstrzygnięta i pod testem.",
-    "Jamfold 10x: podwójna eliminacja przy równych stackach wejściowych daje podział 2. i 3. nagrody (przypadki (150,0,0), (0,150,0), (0,0,150) ze stanu (50,50,50) pod testem). Liczby z decyzji zawierających wyniki jam/fold 10x, które się zmieniły, dostają adnotację 'KOREKTA (POKER-70)' z nową wartością i komendą.",
-    "Wyniki WTA (2x/3x) areny i jamfold bez zmian bajt w bajt na tych samych seedach (dowód w raporcie commita: porównanie przed/po).",
-    "Raport commita wymienia każde miejsce w docs/ (plik:linia) z liczbą areny Spin przy wypłatach 10x; dla liczb odtwarzalnych bez artefaktu produkcyjnego podaje wartość przeliczoną komendą z dokumentu; liczby wymagające artefaktu wypisuje jako unieważnione.",
-    "Pełna bramka zielona."
+    "Jedna publiczna funkcja reguły miejsc w poker.spin. Używają jej: spin_arena.play_spin — run_spin udostępnia kolejność wybicia (numer ręki i stack wejściowy ręki) wartością zwracaną albo obserwatorem wzorem on_deck, bez drugiej pętli turnieju — oraz każdy model w src/ wyceniający koniec gry (najwyżej jeden żywy) ze stackami wejściowymi ręki: jamfold, spin.utg_shove_ev, openfold. Przy końcu turnieju z powodu limitu rąk (HAND_GUARD) żywi szeregowani są stackiem końcowym jak dziś, a wybici poniżej żywych według reguły wybicia — pod testem: always_fold×3, seed 0 → play_spin 10x = (8.0, 0.0, 2.0) bez zmian.",
+    "Testy 10x end-to-end przez play_spin, czerwone na bazie: (a) (field_exploit(), dollar_fish(), dollar_fish()), seed 5 → (0.0, 2.0, 8.0) (miejsce 0 wybite w ręce 0, miejsce 1 w ręce 2; baza (2.0, 0.0, 8.0)); (b) ten sam skład, seed 9 → (0.0, 2.0, 8.0) (miejsca 0 i 1 wybite w ręce 19 ze stackami wejściowymi 12 i 66; baza (2.0, 0.0, 8.0)); (c) ten sam skład, seed 26 → (1.0, 1.0, 8.0) (oba wybite w ręce 0 przy 50/50; baza (2.0, 0.0, 8.0)). Test modelu czerwony na bazie: utg_shove_ev((1, 89, 60), 0, PAYOUTS['10x'].prizes, caller=1, equity=0.0)[2] == 2.0 (baza 0.0).",
+    "Kotwica krzyżowa pod testem: reguła z poker.spin daje te same wypłaty co tools/blueprint/solve_grid._game_over_payout na wszystkich wektorach wejściowych o sumie 150 z krokiem 1 i co najmniej dwoma żywymi, z każdym żywym jako jedynym ocalałym (33 972 przypadki, w tym remisy stacków wejściowych), dla nagród 10x i 3x; równość dokładna; czas testu ≤ 2 s.",
+    "place_probabilities i icm_equities przy więcej niż jednym zerowym stacku rzucają ValueError (test z match); dla wektorów z najwyżej jednym zerem sygnatura i wyniki bez zmian. wta_equities(s, P) == icm_equities(s, (P, 0, 0)) dla każdego s z najwyżej jednym zerem i sumą > 0 (test parametryczny); dla wektora o sumie 0 obie funkcje rzucają ValueError z match; docstring wta_equities nazywa dziedzinę tożsamości.",
+    "Jamfold 10x: przypadki (150,0,0), (0,150,0), (0,0,150) ze stanu (50,50,50) dają podział 2. i 3. nagrody (test). Liczby i zdania porównawcze o jam/fold 10x w decyzjach 11, 12 i 13 sprawdzone komendą; zmienione dostają adnotację 'KOREKTA (POKER-70)' z nową wartością i komendą. Raport commita wymienia każde miejsce w docs/ poza decisions/, docs/AUDYT_*.md i docs/taskspecs/ z liczbą jam/fold przy wypłatach 10x albo (0,8; 0,2; 0) — co najmniej CURRENT_STATE.md:700-705 — z wartością przed i po oraz komendą.",
+    "Wyniki WTA bez zmian — dowód w raporcie commita: sha256 stdout przed i po dla `python tools/run_arena.py 320 3x` i `320 2x`, wierszy pay=3x z tools/export_clock_nash.py oraz listy play_spin(books, PAYOUTS[p].prizes, s) dla s w 0..999, p ∈ {2x, 3x} i składów (always_jam×3), (field_exploit, dollar_fish, dollar_fish), (field_exploit, always_jam, always_jam).",
+    "Raport commita wymienia każde miejsce w docs/ (poza docs/AUDYT_*.md i docs/taskspecs/) z liczbą areny Spin przy wypłatach 10x (plik:linia); liczby wymagające artefaktu produkcyjnego (BG i pochodne) wypisuje jako unieważnione.",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 10 s (pytest --durations nowych testów w raporcie)."
   ],
   "non_goals": [
     "Rangi side potów (POKER-71).",
-    "Zmiany tools/blueprint/solve_grid.py poza testem kotwicy (reguła solvera jest poprawna).",
+    "Zmiany tools/blueprint/ (reguła solvera jest poprawna; kotwica tylko w tests/).",
+    "Regeneracja eksportu dla labu EXPLO poza repozytorium — raport podaje komendę i różnicę wierszy 10x.",
+    "Rozstrzyganie remisu stacków ŻYWYCH przy limicie rąk (zachowanie bez zmian).",
     "Regeneracja artefaktu blueprintu i pomiary wymagające artefaktu produkcyjnego.",
-    "Edycja CURRENT_STATE.md (architekt)."
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
@@ -28,15 +30,19 @@
     "src/poker/jamfold.py",
     "src/poker/openfold.py",
     "tools/run_arena.py",
-    "tools/export_clock_nash.py",
-    "tools/export_open_nash.py",
     "tests/",
-    "docs/decisions/",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/11-jamfold-fictitious-play.md",
+    "docs/decisions/12-one-step-continuation.md",
+    "docs/decisions/13-spin-clock.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2-4; findingi B2+I-21 audytu 2026-09-26; przegląd kontraktu 2026-09-26 (12 poprawek wprowadzonych); mandat autonomii 2026-08-09; kolejność integracji: fala 1, łańcuch Spin 70→71→73"
+  }
 }

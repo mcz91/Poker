@@ -57,6 +57,8 @@ zarezerwowane mapą decyzji 29).
 | I-26, I-27 | zbuduj — jamfold: ε jedną aproksymacją, korekta decyzji 12 | sprint B |
 | I-14 | zbuduj — testy ICM z mocą | sprint B |
 | I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | sprint B |
+| nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora) | sprint B |
+| docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | sprint B |
 | I-17 | już zatwierdzone — POKER-28; uśpione (decyzja 18) | bez zmian |
 | N-04 | odłóż — walidacja semantyczna eksportu przy pierwszym konsumencie niezaufanych historii (korpus HH, P-10) | dług |
 | N-12 | zbuduj razem z I-28 (widok a mutacja w miejscu) | sprint B |
@@ -92,7 +94,35 @@ Zależności wynikają ze wspólnych modułów (konstytucja pkt 14):
   `jamfold.py`, `openfold.py`, `icm.py`);
 - łańcuch blueprintu: POKER-74 → POKER-75 (`solve_grid.py`,
   `tools/blueprint/control/`);
-- niezależne: POKER-69 (adaptery LAN/CLI), POKER-72 (MCCFR).
+- POKER-69 i POKER-72 rozwijane równolegle, scalane w kolejności
+  69 → 72 (wspólne `README.md` i `tests/test_mccfr.py`; właścicielem
+  integracji i bramki wspólnego headu jest architekt).
+
+Fale: **1** — POKER-69, 70, 72, 74; **2** — POKER-71, 75; **3** — POKER-73.
+Każda fala startuje z headu po integracji poprzedniej.
+
+Kontrakty przeszły przegląd w świeżym kontekście (siedmiu recenzentów,
+2026-09-26): 72 poprawki brzmienia wprowadzone przed zatwierdzeniem, jeden
+OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
+
+- **POKER-74 — cykl 6 rąk.** W modelu role 3-way zależą od ręki mod 3,
+  a guzik HU od ręki mod 2, więc stan ma okres 6. Zamiana etykiet naprawia
+  tylko wiersze HU i psuje zbieżność; cykl 6 zbiega do zera maszynowego.
+  Koszt: ok. +68 s bramki i ok. 2× czasu horyzontu produkcyjnego na cykl
+  (wycena w `mode_census` po zmianie) — przyjęty, bo regeneracja i tak jest
+  wejściem operatora.
+- **POKER-69 — `--serve-seed` przybija wyłącznie kody stołów.** Seed meczu
+  losuje generator wstrzykiwany do `TableServer` (testy), domyślnie CSPRNG;
+  kod stołu dostaje każdy gracz, więc seed, z którego wynika kod, nie może
+  wyznaczać talii.
+- **POKER-72 a decyzja 18.** Regeneracja `strategy_table.py` z POKER-72
+  zmienia wyłącznie nagłówek i stałe pochodzenia — sekcja `STRATEGY` jest
+  bajt w bajt ta sama — więc nie jest „regeneracją strategii" w rozumieniu
+  decyzji 18, a zdania „strategy_table nietknięty" z decyzji 11–23
+  pozostają prawdziwe co do strategii i pomiarów.
+- **PUŁAPKI przy równoległych gałęziach:** koder zapisuje kandydata do
+  PUŁAPEK w raporcie commita; do `PAMIEC_OPERACYJNA.md` przenosi go
+  architekt przy integracji (limit 80 linii nie znosi równoległych edycji).
 
 Nadzór każdego kontraktu: koder w izolowanym worktree (własna gałąź,
 commity lokalne, pełna bramka) → audyt świeżym kontekstem wg

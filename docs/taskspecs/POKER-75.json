@@ -2,30 +2,41 @@
   "id": "POKER-75",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Regenerację artefaktu blueprintu da się potwierdzić porównaniem tożsamości: dwie bezbłędne regeneracje tym samym kodem dają identyczną tożsamość, a manifest tożsamości opisuje wyłącznie to, co obecny kod naprawdę produkuje.",
-  "context": "Finding B5 audytu. Manifesty biegu niosą pola ulotne (solve_grid.py:1698-1703 tensor_dir bezwzględny i cpu_model; :1760/1770/1807-1819/1842 czasy ścienne; rollout_tensor.py:447-452; eps_curve.py:606 ścieżka bezwzględna 'run'), a pack_blueprint.py:355-356 wkleja cały run_manifest do metadanych .bpk — dwie regeneracje nigdy nie dają tego samego sha dla 4–5 z 32 pozycji prod_identity.json, w tym obu .bpk. Wpis blueprint.bpk opisuje plik sprzed POKER-56, pole 'pochodzenie' jest puste. Zależność: po POKER-74 (solve_grid.py, tools/blueprint/control/).",
+  "goal": "Regenerację artefaktu blueprintu da się potwierdzić porównaniem tożsamości: dwie bezbłędne regeneracje tym samym kodem w różnych katalogach dają identyczną tożsamość każdej pozycji, a manifest tożsamości opisuje wyłącznie to, co obecny kod naprawdę produkuje.",
+  "context": "Finding B5 audytu. Manifesty biegu niosą pola ulotne, a pack_blueprint wkleja cały run_manifest i sha surowego solve_manifest.json do metadanych .bpk, więc dwie regeneracje nigdy nie dają tego samego sha dla 4–5 z 32 pozycji prod_identity.json. Pola ulotne ZOSTAJĄ w plikach (tensor_dir czytają expost.py:92, margins.py:141, eps_curve.py:355; bezpiecznik kosztu czyta czasy) — tożsamość liczy kanoniczna projekcja. Łańcuch kontrolny ma 2 warstwy, więc nie ma pola cost_fuse (dopisywanego od ≥ 3 warstw), które w produkcji niesie czasy. POKER-75 świadomie zawęża kryterium 1 POKER-51: metadane .bpk niosą projekcję kanoniczną, a pełny przepis pochodzenia (w tym cpu_model i czasy) zostaje w solve_manifest.json obok artefaktu. Wersje python i numpy należą do tożsamości (bitowa identyczność gwarantowana dla przypiętego numpy). Linie wg commita 16dc6f8. Zależność: po POKER-74.",
   "acceptance": [
-    "Konwerter pakuje do metadanych .bpk kanoniczną projekcję manifestu biegu bez pól ulotnych (czasy ścienne i rdzeniowe, cpu_model, ścieżki bezwzględne). Test w bramce: dwie regeneracje biegu kontrolnego w dwóch różnych katalogach dają bajt w bajt identyczne .bpk v1 i v2.",
-    "Tożsamość manifestów JSON liczona funkcją kanonicznej projekcji z tools/blueprint (jedna funkcja, pod testem), a eps_decomposition nie zapisuje ścieżek bezwzględnych; test: dwie regeneracje w różnych katalogach dają tę samą tożsamość każdej pozycji łańcucha kontrolnego.",
-    "tools/blueprint/control/prod_identity.json opisuje mechanizm zgodnie z kodem; żaden wpis nie podaje sha pliku, którego obecny kod nie produkuje — pozycje wymagające regeneracji artefaktu produkcyjnego są jawnie oznaczone jako do przeliczenia (z odwołaniem do decyzji 31 pkt 3); pole 'pochodzenie' wypełnione albo usunięte.",
-    "Decyzja 30 (pkt 2) dostaje adnotację 'KOREKTA (POKER-75)': co obecny mechanizm potwierdza i czego nie; docstring pack_blueprint.py zgodny z kodem.",
-    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 60 s."
+    "Jedna funkcja kanonicznej projekcji w tools/blueprint (pod testem). Pomija dokładnie: tensor_dir; provenance.cpu_model; seconds_total_this_run; cost_fuse (całe pole); boundary.{seconds, core_seconds_wall, modes.*.core_seconds, source.dir}; layers.*.{seconds, seconds_per_state, core_seconds_wall, modes.*.core_seconds}; config.jobs i config.cost_limit_core_hours (spójnie z config_hash); w rollout_manifest: seconds, cpu_model, jobs; w eps_decomposition: ścieżki bezwzględne. Wszystkie pozostałe pola zostają. Klucz run_manifest i pola run_manifest.config.grid_step oraz run_manifest.config.classes zostają w metadanych .bpk bez zmian (konsument tools/run_arena.py:194 poza zakresem nie wymaga edycji).",
+    "Konwerter pakuje do metadanych .bpk projekcję manifestu biegu, a source_sha256['solve_manifest.json'] to sha256 tej samej projekcji. Test w bramce: dwie pełne regeneracje łańcucha kontrolnego od tensora do .bpk w dwóch różnych katalogach głównych (różne ścieżki bezwzględne katalogu tensora I katalogu biegu; druga z jobs=2) dają bajt w bajt identyczne .bpk v1 i v2 oraz tę samą tożsamość każdej z 13 pozycji: tensor/rollout3.npz, tensor/rollout_hu.npz, tensor/rollout_manifest.json, boundary.npz, layer_00.npz, layer_01.npz, solve_manifest.json, expost.npz, expost_report.json, icm_report.json, eps_decomposition.json, blueprint.bpk, blueprint_v2.bpk. Osobny test projekcji na manifeście z polem cost_fuse (syntetycznym albo z biegu ≥ 3 warstw).",
+    "Asercje tests/test_blueprint_pilot.py o pełnym przepisie w metadanych (l.1437-1442 wg 16dc6f8) przechodzą na: meta['run_manifest'] == projekcja(manifest na dysku) oraz brak pól z listy ulotnych; pełny przepis (cpu_model, czasy) sprawdzany w solve_manifest.json.",
+    "Komenda w tools/blueprint (np. identity --run KATALOG) wypisuje tożsamość wszystkich pozycji w formacie prod_identity.json tą samą funkcją projekcji co konwerter i test; każda pozycja ma pole metody (sha256 pliku albo sha256 projekcji). prod_identity.json: 'jak_uzyc' cytuje tę komendę; sha zostaje wyłącznie dla tensor/rollout3.npz i tensor/rollout_hu.npz (kod tensora bez zmian od afc2a12, kotwica production_subset); pozostałe 30 pozycji mają status 'do przeliczenia' z odwołaniem do decyzji 31 pkt 3; 'pochodzenie' — komenda (AC/AE/AF/AG/AH/BA/BN) per pozycja albo pole usunięte. Test strukturalny: każda pozycja ma metodę i status, a zbiór pozycji z danym statusem jest dokładnie taki jak wyżej.",
+    "Decyzja 30 (pkt 2) dostaje adnotację 'KOREKTA (POKER-75)': co obecny mechanizm potwierdza i czego nie; docstring pack_blueprint.py i komentarze/docstringi testów zgodne z kodem.",
+    "Pełna bramka zielona; nowe i zmienione testy łącznie ≤ 45 s wg pytest --durations (setup + call), zmierzone po scaleniu POKER-74 na tej samej maszynie; testy współdzielą fixture value_table i control_run (co najwyżej jedna dodatkowa regeneracja łańcucha kontrolnego); czas pełnej bramki przed i po w raporcie."
   ],
   "non_goals": [
     "Regeneracja artefaktu produkcyjnego i wyliczenie jego nowej tożsamości (wejście operatora).",
-    "Zmiana formatu .bpk poza treścią metadanych.",
-    "Edycja CURRENT_STATE.md i PRZEKAZANIE.md (architekt)."
+    "Porównanie tożsamości z kodem wyjścia (POKER-58); szkic POKER-58 ('po sha256 i rozmiarze') przepisuje architekt.",
+    "Zmiana formatu .bpk poza treścią metadanych; zmiany solve_grid.py (POKER-74) i rollout_tensor.py.",
+    "Specyfikacja metadanych w CURRENT_STATE.md:2462-2470 — architekt.",
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
-    "tools/blueprint/",
+    "tools/blueprint/artifacts.py",
+    "tools/blueprint/pack_blueprint.py",
+    "tools/blueprint/eps_curve.py",
+    "tools/blueprint/identity.py",
+    "tools/blueprint/control/prod_identity.json",
     "tests/",
-    "docs/decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/30-dystrybucja-artefaktu-i-odblokowanie-p7.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2-4; finding B5 audytu 2026-09-26; przegląd kontraktu 2026-09-26 (12 poprawek wprowadzonych; wersje python/numpy w tożsamości, cpu_model poza — decyzja architekta); mandat autonomii 2026-08-09; kolejność integracji: fala 2, po POKER-74"
+  }
 }

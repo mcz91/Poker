@@ -2,18 +2,22 @@
   "id": "POKER-72",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Artefakt src/poker/strategy_table.py niesie przepis pochodzenia, który go odtwarza, a opis metody treningu odpowiada kodowi (liniowo ważona średnia strategia, żale nieważone).",
-  "context": "Findingi B4 i I-20 audytu. Nagłówek strategy_table.py każe regenerować komendą bez --averaging; od POKER-29 domyślne jest linear, a artefakt powstał z uniform (sekcja STRATEGY bajt w bajt = --averaging uniform, zweryfikowane regeneracją). train_mccfr.py:3,287 nazywa metodę Linear CFR (Brown & Sandholm), choć waży przez t tylko średnią (:138-140), a żale sumuje bez wagi (:168).",
+  "goal": "Artefakt src/poker/strategy_table.py niesie przepis pochodzenia, który go odtwarza bajt w bajt, a opis metody treningu odpowiada kodowi (liniowo ważona średnia strategia, żale nieważone).",
+  "context": "Findingi B4 i I-20 audytu. Nagłówek strategy_table.py każe regenerować komendą bez --averaging; od POKER-29 domyślne jest linear, a artefakt powstał z uniform (sekcja STRATEGY bajt w bajt = --averaging uniform, zweryfikowane regeneracją, ok. 1 min 46 s). train_mccfr.py:3,287 nazywa metodę Linear CFR (Brown & Sandholm), choć waży przez t tylko średnią (:138-140), a żale sumuje bez wagi (:168). README.md:160-164 podaje komendę z --averaging linear bez --output, która nadpisuje artefakt inną strategią. Regeneracja z tego kontraktu zmienia wyłącznie nagłówek i stałe pochodzenia — sekcja STRATEGY jest bajt w bajt ta sama — więc NIE jest regeneracją strategii w rozumieniu decyzji 18 i nie narusza zdań 'strategy_table nietknięty' z decyzji 11–23 (decyzja 31 pkt 4). Kolejność integracji: po POKER-69 (wspólne README.md; test LAN w tests/test_mccfr.py należy do POKER-69).",
   "acceptance": [
-    "strategy_table.py zregenerowany komendą z jawnym --averaging uniform: nagłówek podaje tę komendę, moduł ma stałą AVERAGING = 'uniform', sekcja 'STRATEGY: dict' identyczna bajt w bajt jak przed zmianą (dowód w raporcie commita) — pomiar −328,92 BB/100 pozostaje ważny.",
-    "Test pochodzenia czerwony na bazie: artefakt w repo musi mieć AVERAGING, a komenda regeneracji w jego nagłówku musi zawierać każdy parametr wpisany do stałych pochodzenia (w tym --averaging), zgodny co do wartości.",
-    "Etykieta metody zgodna z kodem w tools/train_mccfr.py (docstring modułu i docstring generowanego artefaktu) oraz w README.md: liniowe ważenie średniej strategii (waga t), żale nieważone — bez przypisywania metodzie nazwy Linear CFR / LCFR. Decyzja 15 dostaje adnotację 'KOREKTA (POKER-72)': artefakt jest MCCFR z uśrednianiem jednostajnym.",
-    "Pełna bramka zielona."
+    "Cały plik src/poker/strategy_table.py na końcu gałęzi jest bajt w bajt równy wyjściu komendy z jego nagłówka uruchomionej na tym samym kodzie z --output poza repozytorium (proces poza bramką, decyzja 06 pkt 3; sha256 obu plików w raporcie commita); regeneracja następuje PO poprawie szablonu render_module; `git diff <baza> -- src/poker/strategy_table.py` nie zmienia żadnej linii od 'STRATEGY: dict' w dół. Pomiar −328,92 BB/100 pozostaje ważny.",
+    "Test pochodzenia w tests/test_mccfr.py, czerwony na bazie: (a) artefakt ma stałą AVERAGING; (b) komenda z nagłówka strategy_table.py, sparsowana parserem narzędzia (wydzielonym z main, np. build_parser()) z jego bieżącymi wartościami domyślnymi, daje wartości równe stałym ITERATIONS, SEED, AVERAGING, PREFLOP_BUCKETS, POSTFLOP_BUCKETS, BET_SIZES, SMALL_BLIND, BIG_BLIND, STACKS, BUTTON; (c) każda opcja parsera poza --output, --checkpoint, --checkpoint-every i --resume ma stałą pochodzenia i jawną flagę w komendzie nagłówka, więc nowa opcja bez stałej daje czerwień. Komenda w nagłówku łamana '\\' w granicach line-length 100.",
+    "`grep -nE 'Linear CFR|LCFR|Linear MCCFR|Brown & Sandholm' tools/train_mccfr.py src/poker/strategy_table.py README.md` zwraca pusto. Docstring generowanego artefaktu nazywa uśrednianie TEGO artefaktu według wartości AVERAGING (uniform: waga 1; linear: waga t); docstring modułu train_mccfr.py stwierdza, że żale są sumowane bez wagi (external-sampling MCCFR z ważoną średnią strategii).",
+    "README.md (sekcja Strategia MCCFR) podaje komendę regeneracji artefaktu produkcyjnego identyczną z nagłówkiem strategy_table.py (z --averaging uniform); przykłady z --averaging linear mają jawne --output poza src/poker/strategy_table.py.",
+    "Decyzje 11 (l.11-12) i 15 (l.5) dostają adnotację 'KOREKTA (POKER-72)': POKER-29 to MCCFR z liniowo ważoną średnią strategii i nieważonymi żalami; artefakt strategy_table to MCCFR z uśrednianiem jednostajnym (sprzed POKER-29).",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 5 s."
   ],
   "non_goals": [
     "Wiązanie checkpointu z parametrami biegu (POKER-28).",
-    "Zmiana algorytmu (ważenie żali) i regeneracja artefaktu uśrednianiem liniowym.",
-    "Edycja CURRENT_STATE.md, docs/README.md i niemutowalnego POKER-29.json (architekt)."
+    "Zmiana algorytmu (ważenie żali) i regeneracja strategii uśrednianiem liniowym.",
+    "Test LAN w tests/test_mccfr.py (seed stołu — POKER-69).",
+    "POKER-29.json pozostaje bez zmian (niemutowalny); korekta etykiety w CURRENT_STATE.md i docs/README.md — architekt.",
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
@@ -21,14 +25,18 @@
     "tools/train_mccfr.py",
     "tests/test_mccfr.py",
     "tests/test_mccfr_linear.py",
-    "tests/test_mccfr_scale.py",
     "README.md",
-    "docs/decisions/15-tani-trening-jamfold.md",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/11-jamfold-fictitious-play.md",
+    "docs/decisions/15-tani-trening-jamfold.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2 i 4; findingi B4+I-20 audytu 2026-09-26; przegląd kontraktu 2026-09-26 (10 poprawek wprowadzonych); mandat autonomii 2026-08-09; kolejność integracji: fala 1, po POKER-69"
+  }
 }

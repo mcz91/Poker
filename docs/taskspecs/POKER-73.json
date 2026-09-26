@@ -2,20 +2,24 @@
   "id": "POKER-73",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Model open/fold wycenia każdą akcję terminalem, w którym decydujący gracz faktycznie uczestniczy, i raportuje miarę zbieżności, a eksportowane zakresy open/3bet i liczby decyzji 20/21 pochodzą z poprawionego, zmierzonego modelu.",
-  "context": "Findingi B6 i I-25 audytu. openfold.py:258-263 wycenia overcall BB (BB_VS_OJ) terminalem hu_uo_b — showdownem UTG–BTN, w którym BB ma tylko blind, więc decyzja nie zależy od ręki BB (10x: overcall 100% rąk; 3x: rozstrzyga szum floatów); ten sam brak terminala BTN–BB z martwym openem UTG psuje gałąź overcallu jamu BTN (:238-240) i fold UTG (:218). solve() gra stałą liczbę iteracji FP bez miary zbieżności (eksport 16, arena 12); na 3x 25 bb wynik zależy silnie od liczby iteracji. Zależność: po POKER-71 (openfold._sd).",
+  "goal": "Model open/fold wycenia każdą akcję, po której gracz gra showdown, showdownem z jego udziałem, a wartość foldu — prawdopodobieństwem niezależnym od ręki spasowanego; solve() raportuje miarę zbieżności, a eksportowane zakresy i liczby decyzji 20–23 pochodzą z poprawionego modelu przy liczbie iteracji wybranej z krzywej.",
+  "context": "Findingi B6 i I-25 audytu. Wartość calla BB_VS_OJ w br() liczona jest terminalem hu_uo_b — showdownem UTG–BTN, w którym BB ma tylko blind, więc decyzja nie zależy od ręki BB (10x: overcall 100% rąk; 3x: rozstrzyga szum floatów). Ten sam brak terminala BTN–BB z martwym openem UTG psuje gałąź p_oj w jam_btn_vo i fold UTG po jamie i overcallu (człon p_bvo·p_oj w open_utg). Tej samej klasy defekt jest w fold_btn_vo i fold_btn_vj: equity ręki spasowanego służy za prawdopodobieństwo showdownu dwóch pozostałych (bezwładne tylko przy równych stackach). solve() gra stałą liczbę iteracji FP bez miary (eksport 16, arena 12). Przegląd kontraktu (2026-09-26) zmierzył: FP zależy od N (10x 1/2 po poprawce: UTG open 32,7/27,4/30,6% przy N = 512/768/1024), więc testy zachowania muszą celować w funkcje wyceny, a nie w wynik uciętego FP. Tolerancja miary: 1e-3 × suma nagród (decyzja architekta). Miejsca wskazane nazwami, bo POKER-70/71 przesuwają linie. Zależność: po POKER-71.",
   "acceptance": [
-    "Terminal showdownu BTN–BB z martwym openem UTG; BB_VS_OJ wycenia call nim (equity BB wobec zakresu BTN_VS_OPEN), gałąź overcallu jamu BTN — equity BTN wobec zakresu BB_VS_OJ, fold UTG po jamie i overcallu — showdownem BTN–BB. Testy czerwone na bazie: przy 10x AA overcalluje, a 72o nie; przy 3x decyzja BB_VS_OJ jest monotoniczna w equity ręki i niezależna od szumu zmiennoprzecinkowego.",
-    "Jeśli call UTG po jamie i overcallu pozostaje przybliżeniem heads-up, docstring nazywa to przybliżenie wprost; żaden terminal nie wycenia akcji gracza showdownem, w którym on nie uczestniczy.",
-    "solve() zwraca miarę zbieżności (zysk z best response per węzeł/miejsce albo równoważną); krzywa miary względem liczby iteracji (co najmniej 8…512) na poziomach eksportowanych zmierzona i wpisana do raportu commita z komendą; liczba iteracji eksportu (tools/export_open_nash.py) i areny (tools/run_arena.py) wybrana z krzywej i uzasadniona.",
-    "Eksport przeliczony; liczby decyzji 20 i 21 (open UTG ≈ 23%, jam ≈ 1%, 10x 3bet 7,2%, '3bet Nash 35–100%') dostają adnotację 'KOREKTA (POKER-73)' z nowymi wartościami i komendą; słowo 'Nash' zostaje tylko przy wartościach, których miara zbieżności jest poniżej wybranej tolerancji.",
-    "Liczby areny zależne od książek openfold (hero_book, exploit_book) w docs/: raport commita wymienia plik:linia; przeliczone te, których komenda z dokumentu trwa ≤ 15 min, pozostałe wypisane jako unieważnione.",
-    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 30 s."
+    "Terminal showdownu BTN–BB z martwym openem UTG. Wycena BB_VS_OJ, gałęzi p_oj w jam_btn_vo i foldu UTG po jamie i overcallu używa go; wartości foldu w fold_btn_vo i fold_btn_vj mają prawdopodobieństwo wyniku niezależne od ręki spasowanego (equity zakres–zakres albo jawna stała). Wycena BB_VS_OJ jest czystą funkcją modułu testowalną bez FP: przy ustalonym zakresie BTN_VS_OPEN (np. górne 10%), (50,50,50), 1/2, dla 3x i 10x EV(call) − EV(fold) rośnie ściśle z equity ręki wobec tego zakresu na wszystkich 169 klasach; dla AA ≥ +1e-3·Σnagród, dla 72o ≤ −1e-3·Σnagród (na bazie: 10x Δ = +0,696 stałe, 3x |Δ| ~1e-16).",
+    "Testy funkcji wyceny, czerwone na bazie: przy p_oj = 1 EV(jam BTN) rośnie z equity ręki wobec BB_VS_OJ; fold UTG po jamie i overcallu przy 10x równa ICM showdownu BTN–BB z martwym openem UTG; fold_btn_vo / fold_btn_vj przy nierównych stackach (np. (30,50,70)) nie zależą od ręki spasowanego. Test dymny solve() przy jawnym N=16: bb_vs_oj[AA] ≥ 0,85 i bb_vs_oj[72o] ≤ 0,15 przy 3x i 10x (baza: 3x AA 0,00; 10x 72o 1,00). Dowód mutacyjny w raporcie: przywrócenie starego terminala w każdym miejscu osobno czerwieni co najmniej jeden test.",
+    "Docstring nazywa pozostałe przybliżenia wprost (fold BB pomija call UTG; call BB i call UTG po jamie i overcallu pomijają 3-way z side potami).",
+    "Miara zbieżności: zysk z best response per węzeł i miejsce, w ułamku sumy nagród, liczony tą samą wyceną co BR (≥ 0 z konstrukcji — test; 0 dla strategii będącej własnym BR — test; miara przy N=64 < miara przy N=8 na 3x 3/6 — test). N eksportu (tools/export_open_nash.py) i areny = najmniejszy punkt kontrolny z miarą ≤ 1e-3·Σnagród na wszystkich eksportowanych poziomach; jeśli do N=1024 go nie ma — N=1024 i bez etykiety równowagi. Krzywa (co najmniej 8…1024) i rozrzut każdej eksportowanej liczby na punktach kontrolnych [N/2, N] w raporcie commita z komendą; eksport dopisuje miarę do każdego wiersza JSON.",
+    "hero_book i exploit_book w tools/run_arena.py dostają osobny parametr iteracji openfold (wartość z krzywej); iteracje jamfold w run_arena zostają 12 (zmiana — sprint B). Raport przypisuje zmianę liczb areny wyłącznie książkom openfold.",
+    "Wszystkie liczby, listy rąk i tezy porównawcze decyzji 20 (l.6, 8-10) i 21 (l.3, 5, 8-15) oraz liczby decyzji 22 i 23 zależne od książek openfold dostają adnotację 'KOREKTA (POKER-73)' z wartością przy N z krzywej, rozrzutem i komendą (czas komendy zmierzony i podany); tekst o liczbie iteracji zaktualizowany; teza, której pomiar nie potwierdza, oznaczona jako nietrzymająca się. Dla wartości openfold słowo 'Nash' zastępuje 'punkt stały FP modelu (miara = …)', a przy mierze > tolerancji pada też to określenie. Liczby z CURRENT_STATE.md i innych plików poza allowed_paths trafiają do tabeli plik:linia → nowa wartość w raporcie commita.",
+    "Testy test_openfold.py przy N=10/12 zostają jako testy dymne przy jawnie nazwanym N z komentarzem 'dlaczego'; relacja, której krzywa nie potwierdza przy N produkcyjnym, zmieniona albo usunięta z uzasadnieniem pomiarowym w raporcie — bez osłabiania asercji bez pomiaru.",
+    "Dwa commity behavior: (1) terminale z testami, (2) miara zbieżności i N z krzywej; przeliczenie liczb i dokumentów po (2). Testy w bramce wyłącznie przy stałym N ≤ 24 i na funkcjach wyceny; suma --durations nowych i zmienionych testów ≤ 30 s; pełna bramka zielona."
   ],
   "non_goals": [
-    "Pełny terminal 3-way z side potami dla calla UTG (poza jawnym opisem przybliżenia).",
-    "Rozszerzenie drzewa open/fold i zmiana progu push/fold 7 bb (decyzja 19).",
-    "Edycja CURRENT_STATE.md (architekt)."
+    "Pełny terminal 3-way z side potami (poza jawnym opisem przybliżenia).",
+    "Rozszerzenie drzewa open/fold, zmiana progu push/fold 7 bb (decyzja 19) i zmiana polityki spotu 3bet (architekt).",
+    "Zmiana nazwy tools/export_open_nash.py; etykiety wartości jamfold (sprint B, I-26/I-27).",
+    "Sygnatury WEIGHTS, _hu, _mass i threebet_vs_range bez zmian (konsument spin_arena.py poza allowed_paths).",
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
@@ -26,12 +30,16 @@
     "docs/decisions/20-open-tree.md",
     "docs/decisions/21-threebet-spot.md",
     "docs/decisions/22-arena-roi.md",
-    "docs/decisions/23-field-exploit.md",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/23-field-exploit.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2-4; findingi B6+I-25 audytu 2026-09-26; przegląd kontraktu 2026-09-26 (13 poprawek wprowadzonych, tolerancja miary 1e-3·Σnagród decyzją architekta); mandat autonomii 2026-08-09; kolejność integracji: fala 3, po POKER-71"
+  }
 }

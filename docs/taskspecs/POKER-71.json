@@ -2,20 +2,23 @@
   "id": "POKER-71",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Każdy side pot wygrywa najlepsza ręka spośród uprawnionych, a spasowany gracz nigdy nie odzyskuje wkładu — w showdownie areny Spin i w modelach rozliczających all-in (spin.utg_shove_called, jamfold, openfold._sd).",
-  "context": "Finding B3 audytu. spin_arena.py:446-448 spłaszcza ranking do {najlepszy=0, reszta=1}, więc side pot 3-way dzieli się po równo między przegranych puli głównej; spin.py:281-283 i openfold.py:113-117 dają spasowanemu rangę przegranego. Sam award_allin jest poprawny (200 000 przypadków bez rozjazdu z referencją). Zależność: po POKER-70 (wspólne spin.py/spin_arena.py/jamfold.py).",
+  "goal": "W showdownie areny Spin każdy side pot wygrywa najlepsza ręka spośród uprawnionych, a w modelach all-in (spin.utg_shove_called z terminalami jamfold, openfold._sd) spasowany gracz nigdy nie odzyskuje wkładu.",
+  "context": "Finding B3 audytu. spin_arena.py:446-448 spłaszcza ranking do {najlepszy=0, reszta=1}, więc side pot 3-way dzieli się po równo między przegranych puli głównej; spin.py:281-283 i openfold.py:113-117 dają spasowanemu rangę przegranego. Sam award_allin jest poprawny (200 000 przypadków bez rozjazdu z referencją) i ma konsumenta poza zakresem (tools/blueprint/solve_grid.py:74,1100). W modelach nie ma kart, więc drugie miejsce przy trzech żywych w jamfold._three_way zostaje na sprint B. Przegląd kontraktu (2026-09-26) zmierzył na kopii z poprawką: 13 przybitych asercji w tests/test_spin_arena.py i tests/test_blueprint_agent.py zmienia wartość (np. changed 55→57, (forced_entry, root_fold, free_question, capped_call) (21, 8, 3044, 2)→(19, 6, 3014, 3)); asercje zerowe zostają. Zależność: po POKER-70 (spin.py, spin_arena.py, jamfold.py).",
   "acceptance": [
-    "Showdown areny: rangi z pełnego słabego porządku evaluate_best (lepsza ręka — niższa ranga, remis — ta sama), spasowani poza pulą. Test czerwony na bazie: stacki (10, 30, 50), karty AA / KK / 72o, wszyscy all-in → stacki po ręce (30, 40, 20) (na bazie (30, 20, 40)); test remisu dwóch przegranych puli głównej dzielącego side pot.",
-    "Modele: spasowany gracz nigdy nie odzyskuje wkładu — utg_shove_called((50, 1, 50), …) z wygraną BTN daje (50, 3, 48) (na bazie (49, 3, 49)); analogiczny test dla openfold._sd; jamfold._terminal_states korzysta z poprawionej funkcji.",
-    "Test właściwościowy w bramce: rozliczenie ręki areny zgodne z niezależną referencją brute force (side poty warstwami po jednym żetonie, pełny ranking) na co najmniej 2000 seedowanych rąk z nierównymi stackami; czas testu ≤ 10 s na maszynie bramki.",
-    "Liczby areny w docs/, które zmieniła poprawka: raport commita wymienia plik:linia i podaje wartości przeliczone komendą z dokumentu (odtwarzalne bez artefaktu produkcyjnego) albo oznacza je jako unieważnione; przybite w testach liczby zmienione przez poprawkę zaktualizowane z uzasadnieniem w raporcie.",
+    "Showdown areny: rangi z pełnego słabego porządku evaluate_best (lepsza ręka — niższa ranga, remis — ta sama); spasowani nie wygrywają żadnej puli, a ich wkład zostaje w puli. Test czerwony na bazie: stacki (10, 30, 50), karty AA / KK / 72o (miejsca 0/1/2), board 3♦ 8♥ 9♠ J♣ 4♦, guzik 1, blindy 1/2, wszyscy all-in → stacki po ręce (30, 40, 20) (baza (30, 20, 40)). Test remisu dwóch przegranych puli głównej (zielony na bazie — strażnik przed rozstrzyganiem remisu indeksem).",
+    "Modele: spasowany = miejsce spoza showdownu z żetonami za wkładem (wkład < stack); miejsce all-in z samego blinda jest żywe i dostaje rangę przegranego (model nie zna jego ręki). Testy czerwone na bazie: utg_shove_called((50, 1, 50), button=1, caller=1, winner=1) == (50, 3, 48) (baza (49, 3, 49)); terminal jamfold 'UTG shove, call BTN, wygrywa BTN' dla stacków (50, 1, 50), guzik 1, blindy 1/2 == (50, 3, 48); openfold._sd na stackach (50, 1, 50), wkładach [50, 1, 2] (UTG i BTN all-in, BB spasowany z blindem 2), wygrywa BTN → (50, 3, 48) (raport pokazuje wynik bazy starą sygnaturą, jeśli sygnatura się zmienia). Bez zmian (test): utg_shove_called((50, 1, 2), 1, 1, 1) == (49, 3, 1) oraz terminale _terminal_states przy równych stackach DEPTHS × LEVELS × guzik identyczne jak na bazie.",
+    "Test właściwościowy w bramce, czerwony na bazie (liczba rozbieżności na bazie w raporcie): co najmniej 1000 rąk always_jam i 1000 rąk z książkami z foldami (field_exploit, dollar_fish, wide_call); stacki 1…100, w tym krótsze od blinda; losowy guzik i poziom z LEVELS. Wynik _play_hand porównany z referencją liczoną z wkładów i foldów (odczyt przez on_action albo wydzielona czysta funkcja rozliczenia, której _play_hand używa): dla każdej warstwy jednego żetonu zbiór płacących (wkład ≥ warstwa) i uprawnionych (płacący niespasowani); warstwy o tym samym zbiorze płacących sumowane w jedną pulę; pulę wygrywa najlepsza ręka uprawnionych wg evaluate_best, remis dzieli po równo, niepodzielna reszta puli trafia do zwycięzcy o najniższym indeksie (reguła award_allin); porównanie dokładne na int; czas ≤ 10 s wg pytest --durations.",
+    "Komendy Z/AA/AB z CURRENT_STATE (run_arena.py 320 3x, sd 320 3x, seats 20000 3x; łącznie ok. 5 min) uruchomione na bazie i po zmianie; decyzje 22, 23 i 26 dostają adnotację 'KOREKTA (POKER-71)' z nową wartością i komendą. Raport commita podaje dla każdej liczby plik:linia i trzy wartości: dokument / baza / po zmianie; jako unieważnione wypisuje wyłącznie liczby wymagające artefaktu produkcyjnego (BF/BG/BH).",
+    "Przybite liczby testów zmienione przez poprawkę zaktualizowane, każda z wartością przed/po w raporcie; asercje zerowe i jakościowe (liczniki rozjazdu = 0, zbiór węzłów, (2, 136)) bez zmian; komentarze i docstringi testów cytujące blok CURRENT_STATE przepisane na odwołanie do raportu POKER-71.",
     "Stała suma żetonów i legalność wkładów — dotychczasowe testy zielone bez osłabiania asercji.",
-    "Pełna bramka zielona."
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 15 s (pomiar przed/po w raporcie)."
   ],
   "non_goals": [
-    "Model drugiego miejsca przy trzech żywych w jamfold._three_way (sprint B).",
+    "Drugie miejsce przy trzech żywych w jamfold._three_way (sprint B).",
     "Semantyka 'call = all-in całego stacku' w arenie (I-24; drzewo zamrożone decyzją 27).",
-    "Edycja CURRENT_STATE.md (architekt)."
+    "Zmiana sygnatury i semantyki poker.spin.award_allin (konsument tools/blueprint/solve_grid.py poza zakresem) — poprawka wyłącznie w konstrukcji rang.",
+    "Adnotacja decyzji 30 pkt 2 ('zachowuje wszystkie pomiary … ROI areny') — architekt.",
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
@@ -23,14 +26,19 @@
     "src/poker/spin.py",
     "src/poker/jamfold.py",
     "src/poker/openfold.py",
-    "tools/run_arena.py",
     "tests/",
-    "docs/decisions/",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/22-arena-roi.md",
+    "docs/decisions/23-field-exploit.md",
+    "docs/decisions/26-moc-pomiaru-areny-redukcja-wariancji.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2-4; finding B3 audytu 2026-09-26; przegląd kontraktu 2026-09-26 (14 poprawek wprowadzonych); mandat autonomii 2026-08-09; kolejność integracji: fala 2, po POKER-70"
+  }
 }

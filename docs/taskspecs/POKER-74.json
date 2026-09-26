@@ -2,32 +2,41 @@
   "id": "POKER-74",
   "spec_version": 1,
   "class_hint": "fix",
-  "goal": "Brzeg horyzontu solvera blueprintu jest punktem stałym tej gry, w którą gra się od ręki 21 — z guzikiem heads-up zmieniającym się co rękę — a dokumenty opisują jego dokładność zgodnie z pomiarem.",
-  "context": "Finding B7 audytu. tools/blueprint/solve_grid.py:1495-1501 (_boundary) zamyka cykl 3 rąk: warstwa total+2 czyta V(total) jako V(total+3) bez przenumerowania miejsc, a guzik HU to ordered[hand % 2] (:1208), więc na zawinięciu ten sam gracz HU jest guzikiem dwie ręce z rzędu (prawdziwy cykl stacjonarny: 6 rąk). Zmierzony błąd V brzegu HU na konfiguracji produkcyjnej: ~1,46e−3 puli (≈3× tail_tol 5e−4); flaga converged i ex-post ε go nie widzą. Decyzja 28 pkt 3 i blok POKER-55 przypisują niezgodność HU zbieżności i remisom kwantyzatora.",
+  "goal": "Brzeg horyzontu solvera blueprintu jest punktem stałym gry modelu treningu na ostatnim poziomie blindów (role 3-way = roles(ręka % 3), guzik HU = sorted(żywi)[ręka % 2]) — cyklem 6 rąk — a dokumenty opisują dokładność brzegu i odczytu cyklicznego zgodnie z pomiarem.",
+  "context": "Finding B7 audytu i przegląd kontraktu (2026-09-26, OBJECTION uznany): w modelu wiersze 3-way i HU mają okres lcm(3, 2) = 6 rąk, bo role 3-way zależą od ręki mod 3, a guzik HU (także po wybiciu) od ręki mod 2. _boundary (tools/blueprint/solve_grid.py:1495-1501) domyka cykl 3 rąk. Zamiana etykiet naprawia tylko wiersze HU i psuje zbieżność (delta stoi 2,2e-3 na siatce testowej), więc wybrany jest cykl 6 rąk: na siatce równoważnej na P zbiega do zera maszynowego. Koszt: brzeg control_config 10,4 s → 21,6 s; bramka liczy go 5 razy (≈ +56 s) plus biegi zabawkowe (≈ +12 s); produkcyjny horyzont (mode_census) rośnie ~2× na cykl. Odczyt cykliczny agenta (18 + (ręka−18) mod 3) pozostaje dla wierszy 3-way przybliżeniem — jego wielkość ma być zmierzona i opisana; osobny rozjazd reguły guzika HU po wybiciu model–arena (9/18 przypadków) zakwalifikowany do sprintu B (decyzja 31 pkt 2). Konsumenci poza zakresem: blueprint_agent.py (docstringi o cyklu 3 rąk — sprint B), expost/eps_curve/pack_blueprint (czytają boundary.npz, format bez zmian).",
   "acceptance": [
-    "_boundary domyka horyzont punktem stałym gry z guzikiem HU zmieniającym się co rękę: przed warstwą total+2 wiersze HU V(total) przechodzą przez zamianę etykiet dwóch żywych miejsc (V'(s) = P·V(P·s)) albo cykl ma 6 rąk — wybór wykonawcy z uzasadnieniem kosztu w raporcie.",
-    "Test niezmiennika czerwony na bazie: na siatce testowej V_{h+1}(s) = P·V_h(P·s) dla stanów HU brzegu i warstw przy zawinięciu, z tolerancją rzędu delty zbieżności; raport commita podaje zmierzone odchylenie na bazie i po zmianie na tej siatce.",
-    "Artefakt kontrolny łańcucha w repozytorium (tools/blueprint/control/) zregenerowany komendą z raportu, jeśli poprawka zmienia jego treść; test zgodności łańcucha kontrolnego i bezpiecznik kosztu zielone.",
-    "Decyzja 28 (pkt 3 i KOREKTA) dostaje adnotację 'KOREKTA (POKER-74)': źródło niezgodności HU (parzystość guzika na zawinięciu brzegu) i zmierzona wielkość błędu starego brzegu z komendą; docstring _boundary zgodny z kodem.",
-    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 30 s."
+    "_boundary liczy w każdym cyklu 6 warstw (total+5 … total), a kryterium zbieżności (delta cyklu vs tail_tol) odnosi się do cyklu 6 rąk. Test czerwony na bazie, na siatce, na której kwantyzacja przejść HU jest równoważna na P (test asertuje 0 przejść niesymetrycznych; np. siatka toy krok 25, blindy 2/4), z tail_max_cycles ≥ 4: wynik _boundary zgadza się z punktem stałym cyklu 6 rąk liczonym w teście niezależnie, dla WSZYSTKICH wierszy (HU i 3-way), z tolerancją ≤ 2·tail_tol; raport podaje odchylenie bazy i nowego kodu oraz czas testu (≤ 10 s).",
+    "manifest['boundary'] niesie identyfikator schematu domknięcia (np. 'scheme': 'cycle6'); solve() odmawia wznowienia i importu (--boundary-from) brzegu bez tego identyfikatora albo z innym, z komunikatem odsyłającym do decyzji 31 pkt 3 — test na manifeście starego formatu (z match). Bez zmian GridConfig i config_hash (POKER-75).",
+    "tools/blueprint/mode_census.py: boundary_census liczy warstwy na cykl z tej samej stałej co _boundary (jedno źródło, test); raport commita podaje nową wycenę horyzontu produkcyjnego (rdzenio-h) przed i po.",
+    "Artefakt kontrolny łańcucha (tools/blueprint/control/) zregenerowany komendą `python tools/blueprint/control_chain.py --dir tools/blueprint/control` (albo aktualną komendą z docstringu), różnica pól w raporcie; test zgodności łańcucha kontrolnego i bezpiecznik kosztu zielone.",
+    "Decyzja 28 (pkt 3 i KOREKTA) dostaje adnotację 'KOREKTA (POKER-74)': (a) błąd starego brzegu w wierszach HU zmierzony na konfiguracji produkcyjnej podgry HU (komenda w raporcie); (b) błąd starego brzegu w wierszach 3-way zmierzony na siatce testowej wobec cyklu 6 (komenda); (c) jawne zdanie, że odczyt cykliczny agenta 18 + (ręka−18) mod 3 jest dla trzech żywych przybliżeniem o zmierzonej wielkości (|V_t − V_{t+3}| na siatce testowej), bo w modelu stan ma okres 6. Docstring modułu, docstring _boundary i komentarz tail_tol w solve_grid.py zgodne z kodem; krzywa delta-vs-cykle nowego brzegu w raporcie — jeśli nie zbiega do tail_tol, BRAK, nie cicha zmiana progu.",
+    "Pełna bramka zielona; czas bramki rośnie o nie więcej niż 90 s (zmierzone w przeglądzie ≈ +68 s); wolno współdzielić fixture'y liczące brzeg łańcucha kontrolnego między testami bez osłabiania żadnej asercji; czasy przed/po na tej samej maszynie w raporcie."
   ],
   "non_goals": [
-    "Regeneracja artefaktu produkcyjnego (~76,6 rdzenio-h) — wejście operatora (decyzja 31 pkt 3).",
-    "Zmiany agenta blueprintu (label_seats jest poprawny) i ex-post ε.",
+    "Regeneracja artefaktu produkcyjnego (wejście operatora, decyzja 31 pkt 3).",
+    "Zmiana reguły guzika HU po wybiciu i stan HU z guzikiem (sprint B).",
+    "Zmiany src/poker/blueprint_agent.py (w tym docstringów o cyklu 3 rąk — raport wymienia je jako fałszywe po zmianie; korekta w sprincie B).",
+    "Nazwa i sygnatura _game_over_payout bez zmian (kotwica POKER-70).",
     "Tożsamość regeneracji i prod_identity.json (POKER-75).",
-    "Edycja CURRENT_STATE.md (architekt)."
+    "Edycja docs/CURRENT_STATE.md, docs/PRZEKAZANIE.md (i .pdf), indeksu docs/README.md i PAMIEC_OPERACYJNA.md — architekt przy integracji (decyzja 31 pkt 4); raport commita wymienia plik:linia zdań i liczb, które zmiana czyni fałszywymi, oraz kandydatów do PUŁAPEK."
   ],
   "operator_inputs": {},
   "allowed_paths": [
     "tools/blueprint/solve_grid.py",
-    "tools/blueprint/control/",
+    "tools/blueprint/mode_census.py",
+    "tools/blueprint/control_chain.py",
+    "tools/blueprint/control/chain_control.json",
     "tests/",
-    "docs/decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md",
-    "PAMIEC_OPERACYJNA.md"
+    "docs/decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md"
   ],
   "verification": [
     "ruff check .",
     "mypy",
     "pytest"
-  ]
+  ],
+  "approved": {
+    "by": "ARCHITEKT",
+    "ts": "2026-09-26T21:00:00Z",
+    "basis": "decyzja 31 pkt 2-4 (z uzupełnieniem 2026-09-26: cykl 6 rąk, rozjazd guzika HU do sprintu B); finding B7 audytu; OBJECTION przeglądu kontraktu uznany i rozstrzygnięty wariantem cyklu 6; mandat autonomii 2026-08-09; kolejność integracji: fala 1, łańcuch blueprintu 74→75"
+  }
 }
