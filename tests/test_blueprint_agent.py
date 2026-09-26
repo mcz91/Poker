@@ -1054,8 +1054,9 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
 
     Zero jest niepuste NA TEJ SAMEJ PRÓBCE, a nie na innej (F3 audytu
     POKER-54): ten sam bieg powtórzony z kolejnością sprzed POKER-54 zapala
-    oba liczniki kolejności (2 i 136), a agent odwiedza w nim wszystkie 14
-    węzłów modelu 3-max — w tym 8, 9 i 10, na których rozjazd siedział.
+    oba liczniki kolejności (2 i 136), a z naprawioną kolejnością agent
+    odwiedza na tej próbce 13 z 14 węzłów modelu 3-max (bez 7) — w tym 8, 9
+    i 10, na których rozjazd siedział.
 
     `forced_action_misses` ma na artefakcie bramki wąskie gardło: rozkład
     czyta się dopiero po klasie, a mini-artefakt zna cztery klasy ze 169, więc
