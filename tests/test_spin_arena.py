@@ -13,11 +13,20 @@ import pytest
 
 from poker import spin_arena
 from poker.betting import HeadsUpHand
-from poker.cards import Card
+from poker.cards import FULL_DECK, Card, Rank, Suit
 from poker.dealing import DealtHand, deal_hand, shuffled_deck
+from poker.evaluation import evaluate_best
 from poker.events import ActionType, HandConfig
 from poker.openfold import _mass, threebet_vs_range
-from poker.spin import PAYOUTS, STARTING_CHIPS, is_jam_fold_depth, open_amount, roles
+from poker.spin import (
+    HANDS_PER_LEVEL,
+    LEVELS,
+    PAYOUTS,
+    STARTING_CHIPS,
+    is_jam_fold_depth,
+    open_amount,
+    roles,
+)
 from poker.spin_arena import (
     Seat,
     SeatBook,
@@ -166,8 +175,8 @@ def test_spin_konczy_sie_bustem_bez_utraty_zetonow() -> None:
     [
         # Miejsce 0 odpada w ręce 0, miejsce 1 dopiero w ręce 2: później wybity wyżej.
         (5, ((0, 50), (2, 47), None), (0.0, 2.0, 8.0)),
-        # Oba odpadają w ręce 19; wyżej większy stack wejściowy (66 > 12), nie niższy indeks.
-        (9, ((19, 12), (19, 66), None), (0.0, 2.0, 8.0)),
+        # Oba odpadają w ręce 5; wyżej większy stack wejściowy (44 > 8), nie niższy indeks.
+        (90, ((5, 8), (5, 44), None), (0.0, 2.0, 8.0)),
         # Oba odpadają w ręce 0 przy 50/50: nagrody 2. i 3. miejsca dzielone po równo.
         (26, ((0, 50), (0, 50), None), (1.0, 1.0, 8.0)),
     ],
@@ -202,6 +211,172 @@ def test_kazda_reka_areny_zachowuje_sume_zetonow() -> None:
                 out = _play_hand(list(stacks), 3, button, 2, 4, books, deck, rng)
                 assert sum(out) == sum(stacks), (seed, stacks, button, out)
                 assert all(s >= 0 for s in out)
+
+
+def _stacked_deck(*top: tuple[int, str]) -> tuple[Card, ...]:
+    """Talia z zadanymi kartami na wierzchu; arena rozdaje po dwie żywym miejscom, potem board."""
+    head = [Card(Rank(rank), Suit(suit)) for rank, suit in top]
+    rest = sorted(FULL_DECK - set(head), key=lambda card: (card.rank, card.suit.value))
+    return (*head, *rest)
+
+
+BOARD_3D_8H_9S_JC_4D = ((3, "d"), (8, "h"), (9, "s"), (11, "c"), (4, "d"))
+
+
+def test_side_pot_wygrywa_najlepsza_reka_sposrod_uprawnionych() -> None:
+    """Finding B3 audytu 09-26: pulę główną bierze najkrótszy, side pot — drugi w porządku rąk.
+
+    AA (10 żetonów) / KK (30) / 72o (50), wszyscy all-in: pula główna 30 dla
+    AA, side pot 40 między KK i 72o należy się KK, nadpłata 20 wraca do 72o.
+    Rangi spłaszczone do {najlepszy, reszta} dzieliły side pot po równo między
+    przegranych puli głównej: (30, 20, 40).
+    """
+    deck = _stacked_deck(
+        (14, "h"), (14, "d"), (13, "h"), (13, "d"), (7, "c"), (2, "s"), *BOARD_3D_8H_9S_JC_4D
+    )
+    books = (always_jam(), always_jam(), always_jam())
+    assert _play_hand([10, 30, 50], 0, 1, 1, 2, books, deck, random.Random(0)) == [30, 40, 20]
+
+
+def test_remis_przegranych_puli_glownej_dzieli_side_pot_po_rowno() -> None:
+    """Ta sama ręka co wyżej, ale KQ na miejscach 1 i 2: remis to ta sama ranga.
+
+    Strażnik przed rozstrzyganiem remisu indeksem miejsca (np. rangą z pozycji
+    na liście posortowanej): side pot 40 dzielony 20/20, nie cały dla miejsca 1.
+    """
+    deck = _stacked_deck(
+        (14, "h"), (14, "d"), (13, "h"), (12, "c"), (13, "s"), (12, "d"), *BOARD_3D_8H_9S_JC_4D
+    )
+    books = (always_jam(), always_jam(), always_jam())
+    assert _play_hand([10, 30, 50], 0, 1, 1, 2, books, deck, random.Random(0)) == [30, 20, 40]
+
+
+def _replayed_bets(
+    stacks: Sequence[int],
+    button: int,
+    sb: int,
+    bb: int,
+    events: Sequence[tuple[SeatView, str, bool]],
+) -> tuple[list[int], list[bool]]:
+    """Wkłady i foldy ręki trzech żywych miejsc odtworzone z blindów i logu `on_action`.
+
+    Każdy widok w logu jest stanem SPRZED akcji, więc zgodność odtworzonych
+    wkładów z widokiem sprawdza odtworzenie na każdym kroku poza ostatnim.
+    Wejście za darmo (akcja bez pytania) nie dokłada żetonów.
+    """
+    _, button_seat, bb_seat = roles(button)
+    contrib = [0, 0, 0]
+    contrib[button_seat] = min(stacks[button_seat], sb)
+    contrib[bb_seat] = min(stacks[bb_seat], bb)
+    folded = [False, False, False]
+    for view, act, asked in events:
+        assert view.contrib == tuple(contrib), (view, contrib)
+        if not asked:
+            continue
+        if act == "fold":
+            folded[view.seat] = True
+        elif act == "open":
+            contrib[view.seat] = max(
+                contrib[view.seat], min(stacks[view.seat], open_amount(bb))
+            )
+        else:
+            contrib[view.seat] = stacks[view.seat]
+    return contrib, folded
+
+
+def _reference_settlement(
+    stacks: Sequence[int],
+    contrib: Sequence[int],
+    folded: Sequence[bool],
+    deck: Sequence[Card],
+) -> tuple[list[int], int]:
+    """Stacki po ręce z definicji puli (reguła NLHE) i liczba pul rozgrywanych przez ≥ 2.
+
+    Warstwa jednego żetonu: płacą ją miejsca o wkładzie ≥ warstwa, gra o nią
+    każdy płacący, który nie spasował. Warstwy o tym samym zbiorze płacących
+    tworzą jedną pulę; pulę bierze najlepsza ręka uprawnionych wg
+    `evaluate_best`, remis dzieli po równo, a niepodzielna reszta idzie do
+    zwycięzcy o najniższym indeksie miejsca (reguła `award_allin`). Karty jak
+    w arenie: po dwie każdemu miejscu z żetonami w kolejności miejsc, potem
+    pięć kart boardu.
+    """
+    holes: dict[int, tuple[Card, Card]] = {}
+    for seat in range(3):
+        if stacks[seat] > 0:
+            holes[seat] = (deck[2 * len(holes)], deck[2 * len(holes) + 1])
+    board = tuple(deck[2 * len(holes) : 2 * len(holes) + 5])
+    pots: list[tuple[frozenset[int], int]] = []
+    for layer in range(1, max(contrib) + 1):
+        payers = frozenset(seat for seat in range(3) if contrib[seat] >= layer)
+        if pots and pots[-1][0] == payers:
+            pots[-1] = (payers, pots[-1][1] + len(payers))
+        else:
+            pots.append((payers, len(payers)))
+    won = [0, 0, 0]
+    contested = 0
+    for payers, size in pots:
+        eligible = sorted(seat for seat in payers if not folded[seat])
+        assert eligible, (contrib, folded)
+        contested += len(eligible) >= 2
+        value = {seat: evaluate_best((*holes[seat], *board)) for seat in eligible}
+        best = max(value.values())
+        winners = [seat for seat in eligible if value[seat] == best]
+        share, rest = divmod(size, len(winners))
+        for seat in winners:
+            won[seat] += share
+        won[winners[0]] += rest
+    return [stacks[seat] - contrib[seat] + won[seat] for seat in range(3)], contested
+
+
+def test_rozliczenie_reki_areny_zgadza_sie_z_definicja_puli() -> None:
+    """Właściwość rozliczenia (finding B3): wynik `_play_hand` == rozliczenie z definicji.
+
+    1000 rąk trzech always-jam (showdowny 3-way z side potami) i 1000 rąk
+    z książkami, które foldują (field_exploit, dollar_fish, wide_call w losowym
+    układzie miejsc); stacki 1…100 — także krótsze od blinda — losowy guzik
+    i poziom zegara. Porównanie dokładne na int, wszystkie rozbieżności naraz.
+    """
+    sampler = random.Random(71)
+    jam: tuple[Seat, Seat, Seat] = (always_jam(), always_jam(), always_jam())
+    folding: list[Seat] = [field_exploit(), dollar_fish(), wide_call()]
+    mismatches: list[object] = []
+    side_pots = folded_in_pot = short_of_blind = 0
+    for hand_i in range(2000):
+        if hand_i < 1000:
+            books = jam
+        else:
+            sampler.shuffle(folding)
+            books = (folding[0], folding[1], folding[2])
+        stacks = [sampler.randint(1, 100) for _ in range(3)]
+        button = sampler.randrange(3)
+        level = sampler.randrange(len(LEVELS))
+        sb, bb = LEVELS[level]
+        deck = shuffled_deck(random.Random(sampler.getrandbits(64)))
+        log = _ActionLog()
+        out = _play_hand(
+            list(stacks),
+            level * HANDS_PER_LEVEL,
+            button,
+            sb,
+            bb,
+            books,
+            deck,
+            random.Random(sampler.getrandbits(64)),
+            on_action=log,
+        )
+        contrib, folded = _replayed_bets(stacks, button, sb, bb, log.events)
+        expected, contested = _reference_settlement(stacks, contrib, folded, deck)
+        if out != expected:
+            mismatches.append((hand_i, stacks, button, (sb, bb), contrib, folded, out, expected))
+        side_pots += contested >= 2
+        folded_in_pot += any(folded[seat] and contrib[seat] > 0 for seat in range(3))
+        short_of_blind += min(stacks) < bb
+    # Próbka ma zawierać to, czego dotyczy finding: rozgrywane side poty,
+    # martwe wkłady spasowanych i stacki krótsze od blinda.
+    assert min(side_pots, folded_in_pot, short_of_blind) >= 50, (
+        side_pots, folded_in_pot, short_of_blind,
+    )
+    assert not mismatches, (len(mismatches), mismatches[:3])
 
 
 def test_call_vs_random_to_nie_jest_gto() -> None:
@@ -627,18 +802,18 @@ def test_kolejnosc_od_agresora_jest_neutralna_dystrybucyjnie_dla_ksiazek(
     before = [play_block(hero, villain, prizes, 5000 + i) for i in range(n)]
 
     changed = sum(1 for a, b in zip(after, before, strict=True) if a != b)
-    assert changed == 55, changed  # liczba w bloku POKER-54 CURRENT_STATE
+    assert changed == 57, changed  # raport POKER-71 (blok POKER-54 CURRENT_STATE: 55)
     diffs = [a - b for a, b in zip(after, before, strict=True)]
     mean = sum(diffs) / n
     sd = (sum((d - mean) ** 2 for d in diffs) / (n - 1)) ** 0.5
     se = sd / n**0.5
     assert mean - 1.96 * se <= 0.0 <= mean + 1.96 * se, (mean, se)
     assert mean == pytest.approx(0.0167, abs=5e-4), mean
-    assert (mean - 1.96 * se, mean + 1.96 * se) == pytest.approx((-0.0344, 0.0677), abs=5e-4)
+    assert (mean - 1.96 * se, mean + 1.96 * se) == pytest.approx((-0.0352, 0.0686), abs=5e-4)
     sd_after = (sum((x - sum(after) / n) ** 2 for x in after) / (n - 1)) ** 0.5
     sd_before = (sum((x - sum(before) / n) ** 2 for x in before) / (n - 1)) ** 0.5
     assert abs(sd_after - sd_before) < 0.02 * sd_before, (sd_after, sd_before)
-    assert (sd_after, sd_before) == pytest.approx((0.6426, 0.6340), abs=5e-4)
+    assert (sd_after, sd_before) == pytest.approx((0.6389, 0.6301), abs=5e-4)
 
 
 def test_ksiazki_referencyjne_nie_widza_kolejnosci_wcale(

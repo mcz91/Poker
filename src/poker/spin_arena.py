@@ -449,9 +449,11 @@ def _play_hand(
             hole = holes[s]
             if s in live_now and hole is not None:
                 vals.append((s, evaluate_best((*hole, *board))))
-        top = max((v for _, v in vals), default=None)
+        # Pełny słaby porządek rąk: side pot bez najlepszej ręki stołu
+        # rozstrzyga następna w kolejności, a remis to ta sama ranga.
+        ladder = sorted({val for _, val in vals}, reverse=True)
         for s, val in vals:
-            ranks[s] = 0 if val == top else 1
+            ranks[s] = ladder.index(val)
     awarded = award_allin((contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2]))
     return [
         stacks[0] - contrib[0] + awarded[0],

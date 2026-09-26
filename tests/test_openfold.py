@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from poker.cards import Rank
-from poker.openfold import N_HANDS, solve, threebet, threebet_vs_range
+from poker.openfold import N_HANDS, _sd, solve, threebet, threebet_vs_range
 from poker.preflop import ALL_CLASSES, CLASS_INDEX, PreflopClass
 from poker.spin import PAYOUTS
 
@@ -40,6 +40,16 @@ def test_threebet_ciasny_nie_artefakt() -> None:
     assert hit.btn_vs_open[JUNK_72O] < 0.25
     tight = threebet((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=10)
     assert tight.btn_vs_open_pct <= hit.btn_vs_open_pct
+
+
+def test_showdown_spasowany_bb_nie_odzyskuje_blinda() -> None:
+    """UTG i BTN all-in (BTN z samym SB 1), BB pasuje blind 2, wygrywa BTN.
+
+    Pula główna 3 dla BTN, drugi żeton blinda BB w side pocie, o który gra
+    tylko UTG (finding B3 audytu 09-26). Ranga przegranego dla spasowanego
+    dzieliła ten side pot: (49, 3, 49).
+    """
+    assert _sd((50, 1, 50), [50, 1, 2], (0, 1), 1) == (50, 3, 48)
 
 
 def test_koniec_turnieju_nie_zalezy_od_numeracji_miejsc() -> None:

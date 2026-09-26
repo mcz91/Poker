@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ from poker.jamfold import (
     solve,
 )
 from poker.preflop import ALL_CLASSES
-from poker.spin import LEVELS, PAYOUTS
+from poker.spin import DEPTHS, LEVELS, PAYOUTS
 
 
 def test_call_beats_fold_wta_25bb() -> None:
@@ -117,6 +118,40 @@ def test_kazdy_stan_terminalny_solve_zachowuje_sume_zetonow() -> None:
             for state in _terminal_states(stacks, 1, sb, bb):
                 assert sum(state) == sum(stacks), (stacks, sb, bb, state)
                 assert all(s >= 0 for s in state)
+
+
+def test_terminal_shove_utg_call_btn_spasowany_bb_traci_blind() -> None:
+    """Terminal „UTG shove, call BTN, wygrywa BTN" przy BTN all-in z samego SB.
+
+    BB pasuje blind 2: pula główna 3 dla BTN, a drugi żeton blinda należy do
+    UTG, jedynego uprawnionego do side potu (finding B3 audytu 09-26).
+    """
+    states = _terminal_states((50, 1, 50), 1, 1, 2)
+    assert states[6] == (50, 3, 48)
+
+
+# sha256 repr() listy terminali poniższej siatki, policzony na bazie POKER-71
+# (de0f9cb, rangi przegranego także dla spasowanych).
+EQUAL_STACK_TERMINALS_SHA256 = "c503e5766458e24147ff762796cac65f867c1a6235a0ce04b2cadc9c51ba2185"
+
+
+def test_terminale_przy_rownych_stackach_bez_zmian() -> None:
+    """Poprawka rang spasowanych nie rusza terminali przy równych stackach.
+
+    Przy równych stackach spasowany wkłada najwyżej blind, a zwycięzca all-in
+    cały stack, więc zwycięzca jest uprawniony do każdej warstwy puli i ranga
+    spasowanego niczego nie rozstrzyga. Siatka DEPTHS × LEVELS × guzik obejmuje
+    stany narzędzi eksportu (50/50/50 na całym zegarze) i `jam_vs_depth`.
+    """
+    grid = [
+        _terminal_states(stacks, button, sb, bb)
+        for _, stacks in DEPTHS
+        for sb, bb in LEVELS
+        for button in range(3)
+    ]
+    assert len(grid) == 84
+    digest = hashlib.sha256(repr(grid).encode()).hexdigest()
+    assert digest == EQUAL_STACK_TERMINALS_SHA256
 
 
 def test_allin_dwoch_pelne_stacki_sprzed_blindow() -> None:
