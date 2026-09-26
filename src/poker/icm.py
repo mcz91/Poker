@@ -27,16 +27,27 @@ def chip_shares(stacks: Sequence[int]) -> tuple[float, ...]:
     return tuple(stack / total for stack in stacks)
 
 
+def _require_chips(stacks: Sequence[int]) -> None:
+    if sum(stacks) == 0:
+        raise ValueError("suma stacków musi być dodatnia")
+
+
 def place_probabilities(stacks: Sequence[int]) -> tuple[tuple[float, ...], ...]:
-    """P[i][k] = P(miejsce i kończy na pozycji k), k=0 pierwsze."""
+    """P[i][k] = P(miejsce i kończy na pozycji k), k=0 pierwsze.
+
+    Najwyżej jeden stack zerowy: miejsc kilku wybitych nie wyznaczają stacki
+    końcowe, tylko ręka i stack, z którym odpadli — to reguła miejsc Spin
+    (`poker.spin.place_payouts`), nie model ICM.
+    """
     _validate(stacks)
+    _require_chips(stacks)
+    if sum(1 for stack in stacks if stack == 0) > 1:
+        raise ValueError(f"więcej niż jeden zerowy stack — miejsc wybitych ICM nie zna: {stacks}")
     n = len(stacks)
     matrix = [[0.0] * n for _ in range(n)]
-    out_seats = [i for i, stack in enumerate(stacks) if stack == 0]
-    place = n - 1
-    for seat in reversed(out_seats):
-        matrix[seat][place] = 1.0
-        place -= 1
+    for seat, stack in enumerate(stacks):
+        if stack == 0:
+            matrix[seat][n - 1] = 1.0
     alive = tuple((i, stacks[i]) for i in range(n) if stacks[i] > 0)
     for seat, probs in _remaining(alive).items():
         for k, prob in enumerate(probs):
@@ -46,8 +57,6 @@ def place_probabilities(stacks: Sequence[int]) -> tuple[tuple[float, ...], ...]:
 
 @cache
 def _remaining(active: tuple[tuple[int, int], ...]) -> dict[int, tuple[float, ...]]:
-    if not active:
-        return {}
     if len(active) == 1:
         return {active[0][0]: (1.0,)}
     total = sum(stack for _, stack in active)
@@ -74,8 +83,15 @@ def icm_equities(
 
 
 def wta_equities(stacks: Sequence[int], prize: float) -> tuple[float, ...]:
-    """WTA: $EV = prize * chips / total. Equals ICM with (prize, 0, …, 0)."""
+    """WTA: $EV = prize * chips / total.
+
+    Równe `icm_equities(stacks, (prize, 0, …, 0))` na dziedzinie ICM: suma
+    stacków dodatnia i najwyżej jeden stack zerowy. Przy kilku zerowych WTA
+    nadal ma sens (wybici dostają 0), ale ICM odmawia — tam tożsamość nie
+    obowiązuje.
+    """
     _validate(stacks)
+    _require_chips(stacks)
     if prize < 0:
         raise ValueError("pula nagród nie może być ujemna")
     return tuple(prize * share for share in chip_shares(stacks))

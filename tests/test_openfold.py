@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from poker.openfold import solve, threebet
+from poker.openfold import N_HANDS, solve, threebet, threebet_vs_range
 from poker.preflop import ALL_CLASSES
 from poker.spin import PAYOUTS
 
@@ -35,3 +35,21 @@ def test_threebet_ciasny_nie_artefakt() -> None:
     assert hit.btn_vs_open[JUNK_72O] < 0.25
     tight = threebet((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=10)
     assert tight.btn_vs_open_pct <= hit.btn_vs_open_pct
+
+
+def test_koniec_turnieju_nie_zalezy_od_numeracji_miejsc() -> None:
+    """BTN all-in z samego SB odpada razem z przegranym all-in UTG–BB.
+
+    Te same role i stacki (UTG, BTN, BB) = (89, 1, 60) pod dwiema numeracjami
+    miejsc dają tę samą strategię, bo drugie miejsce bierze większy stack
+    wejściowy, nie niższy indeks miejsca. Przed POKER-70 (finding I-21 audytu
+    09-26) BB 3-betował tu szeroki open w 8,7% przy guziku 1 i w 39,7% przy
+    guziku 2.
+    """
+    prizes = PAYOUTS["10x"].prizes
+    first = solve((89, 1, 60), prizes, button=1, iterations=4)
+    assert first == solve((60, 89, 1), prizes, button=2, iterations=4)
+    wide = [1.0] * N_HANDS
+    assert threebet_vs_range(wide, (89, 1, 60), prizes, button=1) == threebet_vs_range(
+        wide, (60, 89, 1), prizes, button=2
+    )

@@ -1,4 +1,4 @@
-"""Spin & Go: wypłaty 3-max, tabela tierów, role blindów, rozliczenie all-in, EV shove UTG.
+"""Spin & Go: wypłaty i miejsca 3-max, tiery, role blindów, rozliczenie all-in, EV shove UTG.
 
 Dwie różne rzeczy nazywają się tu „wypłatami" i mylenie ich jest kosztowne:
 
@@ -16,6 +16,7 @@ Dwie różne rzeczy nazywają się tu „wypłatami" i mylenie ich jest kosztown
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import groupby
 
 from poker.icm import icm_equities
 
@@ -50,6 +51,9 @@ PAYOUTS: dict[str, SpinPayout] = {
 }
 
 Stacks3 = tuple[int, int, int]
+# Wybicie miejsca: (numer ręki, w której odpadło, stack, z którym tę rękę zaczęło).
+Bust = tuple[int, int]
+Busts3 = tuple[Bust | None, Bust | None, Bust | None]
 
 # Suma wektora wypłat jest jednostką ε, więc odchyłka musi być poniżej progu,
 # przy którym ε zmieniłoby się w ostatniej znaczącej cyfrze raportu (1e-9).
@@ -246,6 +250,63 @@ def award_allin(contributions: tuple[int, ...], ranks: tuple[int, ...]) -> tuple
     return tuple(payouts)
 
 
+def place_payouts(
+    stacks: Stacks3,
+    busts: Busts3,
+    prizes: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Nagrody końca turnieju według miejsc — reguła TDA jednoczesnych eliminacji.
+
+    Żywi (stack > 0) zajmują najwyższe miejsca, szeregowani stackiem końcowym
+    (remis stacków: niższy indeks miejsca — koniec limitem rąk). Wybici są pod
+    nimi: później wybity wyżej, w jednej ręce większy stack wejściowy wyżej,
+    a równe stacki wejściowe jednej ręki dzielą po równo nagrody miejsc, które
+    razem zajmują. Kolejności wybicia nie da się odczytać ze stacków końcowych
+    (wybici mają tam po zerze), dlatego `busts[i]` niesie wybicie miejsca `i`,
+    a żywe miejsce ma None.
+    """
+    if any((stacks[seat] > 0) == (busts[seat] is not None) for seat in range(3)):
+        raise ValueError(f"wybicie ma dokładnie każde miejsce bez żetonów: {stacks}, {busts}")
+    money = [0.0, 0.0, 0.0]
+    alive = sorted(
+        (seat for seat in range(3) if busts[seat] is None), key=lambda s: (-stacks[s], s)
+    )
+    for place, seat in enumerate(alive):
+        money[seat] = prizes[place]
+    place = len(alive)
+    busted = sorted(
+        ((bust, seat) for seat, bust in enumerate(busts) if bust is not None), reverse=True
+    )
+    for _, group in groupby(busted, key=lambda item: item[0]):
+        seats = [seat for _, seat in group]
+        share = sum(prizes[place : place + len(seats)]) / len(seats)
+        for seat in seats:
+            money[seat] = share
+        place += len(seats)
+    return (money[0], money[1], money[2])
+
+
+def terminal_equities(
+    entering: Stacks3,
+    after: Stacks3,
+    prizes: tuple[float, float, float],
+) -> tuple[float, ...]:
+    """$EV stanu `after` po jednej ręce modelu rozegranej ze stackami `entering`.
+
+    Gdy grają dalej co najmniej dwaj — ICM. Gdy ręka kończy turniej — nagrody
+    miejsc (`place_payouts`): wybici w tej ręce mają w niej numer 1 i swój stack
+    wejściowy, a miejsce puste już na wejściu odpadło wcześniej (numer 0);
+    reguła porównuje tylko porządek numerów rąk.
+    """
+    if sum(1 for stack in after if stack > 0) >= 2:
+        return icm_equities(after, prizes)
+    busts = tuple(
+        None if after[seat] > 0 else ((1, entering[seat]) if entering[seat] > 0 else (0, 0))
+        for seat in range(3)
+    )
+    return place_payouts(after, (busts[0], busts[1], busts[2]), prizes)
+
+
 def utg_shove_both_fold(
     stacks: Stacks3,
     button: int,
@@ -307,8 +368,10 @@ def utg_shove_ev(
     behind, pot = post_blinds(stacks, button)
     folded = list(behind)
     folded[bb_seat] += pot
-    fold = icm_equities((folded[0], folded[1], folded[2]), prizes)[utg]
-    shove_fold = icm_equities(utg_shove_both_fold(stacks, button), prizes)[utg]
-    win = icm_equities(utg_shove_called(stacks, button, caller, utg), prizes)[utg]
-    lose = icm_equities(utg_shove_called(stacks, button, caller, caller), prizes)[utg]
+    fold = terminal_equities(stacks, (folded[0], folded[1], folded[2]), prizes)[utg]
+    shove_fold = terminal_equities(stacks, utg_shove_both_fold(stacks, button), prizes)[utg]
+    win = terminal_equities(stacks, utg_shove_called(stacks, button, caller, utg), prizes)[utg]
+    lose = terminal_equities(
+        stacks, utg_shove_called(stacks, button, caller, caller), prizes
+    )[utg]
     return fold, shove_fold, equity * win + (1.0 - equity) * lose

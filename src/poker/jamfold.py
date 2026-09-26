@@ -18,6 +18,7 @@ from poker.spin import (
     award_allin,
     post_blinds,
     roles,
+    terminal_equities,
     utg_shove_both_fold,
     utg_shove_called,
 )
@@ -199,6 +200,34 @@ def _terminal_states(
     )
 
 
+def _payoffs(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int,
+    sb: int,
+    bb_amt: int,
+) -> _Payoffs:
+    """$EV terminali: ICM, gdy grają dalej co najmniej dwaj, a przy końcu
+    turnieju reguła miejsc ze stackami wejściowymi ręki (`terminal_equities`)."""
+    utg, btn, bb = roles(button)
+    m = tuple(
+        terminal_equities(stacks, state, prizes)
+        for state in _terminal_states(stacks, button, sb, bb_amt)
+    )
+    return _Payoffs(
+        utg=utg,
+        btn=btn,
+        bb=bb,
+        utg_b=m[0],
+        btn_b=m[1],
+        bb_b=m[2],
+        hu_utg_bb=(m[3], m[4]),
+        hu_utg_btn=(m[5], m[6]),
+        hu_btn_bb=(m[7], m[8]),
+        tw=(m[9], m[10], m[11]),
+    )
+
+
 def call_beats_fold(equity: float, fold_ev: float, win_ev: float, lose_ev: float) -> bool:
     """Wołający: e·win + (1−e)·lose > fold. e to equity wołającego, nie shovera."""
     if not 0.0 <= equity <= 1.0:
@@ -217,23 +246,7 @@ def solve(
     """Zwraca średnie strategie fictitious play (jam/call ∈ [0, 1] per klasa)."""
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
-    utg, btn, bb = roles(button)
-    m = tuple(
-        icm_equities(state, prizes)
-        for state in _terminal_states(stacks, button, sb, bb_amt)
-    )
-    pay = _Payoffs(
-        utg=utg,
-        btn=btn,
-        bb=bb,
-        utg_b=m[0],
-        btn_b=m[1],
-        bb_b=m[2],
-        hu_utg_bb=(m[3], m[4]),
-        hu_utg_btn=(m[5], m[6]),
-        hu_btn_bb=(m[7], m[8]),
-        tw=(m[9], m[10], m[11]),
-    )
+    pay = _payoffs(stacks, prizes, button, sb, bb_amt)
 
     cum = [[0.0] * N_HANDS for _ in range(N_NODES)]
     weight_sum = 0.0

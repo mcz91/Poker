@@ -153,12 +153,41 @@ def test_sample_seat_mierzy_jedno_miejsce() -> None:
 def test_spin_konczy_sie_bustem_bez_utraty_zetonow() -> None:
     """Powód końca i suma żetonów — nie suma nagród, która jest tożsamością wypłat."""
     books = (always_jam(), always_jam(), always_jam())
-    stacks, reason = run_spin(books, 11)
+    stacks, reason, _ = run_spin(books, 11)
     assert reason == "bust"
     assert sum(stacks) == 3 * STARTING_CHIPS
     assert sorted(stacks) == [0, 0, 3 * STARTING_CHIPS]
     money = play_spin(books, PAYOUTS["3x"].prizes, 11)
     assert money[stacks.index(3 * STARTING_CHIPS)] == 3.0
+
+
+@pytest.mark.parametrize(
+    ("seed", "busts", "money"),
+    [
+        # Miejsce 0 odpada w ręce 0, miejsce 1 dopiero w ręce 2: później wybity wyżej.
+        (5, ((0, 50), (2, 47), None), (0.0, 2.0, 8.0)),
+        # Oba odpadają w ręce 19; wyżej większy stack wejściowy (66 > 12), nie niższy indeks.
+        (9, ((19, 12), (19, 66), None), (0.0, 2.0, 8.0)),
+        # Oba odpadają w ręce 0 przy 50/50: nagrody 2. i 3. miejsca dzielone po równo.
+        (26, ((0, 50), (0, 50), None), (1.0, 1.0, 8.0)),
+    ],
+)
+def test_nagrody_10x_ida_za_kolejnoscia_wybicia(
+    seed: int,
+    busts: tuple[tuple[int, int] | None, ...],
+    money: tuple[float, float, float],
+) -> None:
+    """Reguła turniejowa miejsc, end-to-end przez `play_spin` (finding B2 audytu 09-26)."""
+    books = (field_exploit(), dollar_fish(), dollar_fish())
+    assert play_spin(books, PAYOUTS["10x"].prizes, seed) == money
+    assert run_spin(books, seed)[1:] == ("bust", busts)
+
+
+def test_limit_rak_szereguje_zywych_stackiem_koncowym() -> None:
+    """Koniec przez HAND_GUARD: żywi według stacków końcowych, jak przed regułą wybicia."""
+    books = (always_fold(), always_fold(), always_fold())
+    assert play_spin(books, PAYOUTS["10x"].prizes, 0) == (8.0, 0.0, 2.0)
+    assert run_spin(books, 0) == ((60, 40, 50), "guard", (None, None, None))
 
 
 def test_kazda_reka_areny_zachowuje_sume_zetonow() -> None:

@@ -10,6 +10,7 @@ import pytest
 from poker.icm import icm_equities, wta_equities
 from poker.jamfold import (
     _allin_two,
+    _payoffs,
     _terminal_states,
     _three_way,
     call_beats_fold,
@@ -133,6 +134,17 @@ def test_three_way_wolajacy_wklada_min_stack_shove() -> None:
     assert _three_way((16, 50, 84), 0, 0) == (48, 34, 68)
 
 
+def test_three_way_10x_z_rownych_stackow_dzieli_drugie_i_trzecie_miejsce() -> None:
+    """3-way all-in z 50/50/50 kończy turniej: dwaj przegrani mieli równe stacki
+    wejściowe, więc dzielą nagrody 2. i 3. miejsca — przed POKER-70 ICM dawał
+    drugie miejsce niższemu indeksowi (finding I-21 audytu 09-26)."""
+    stacks = (50, 50, 50)
+    pay = _payoffs(stacks, PAYOUTS["10x"].prizes, 1, 1, 2)
+    ends = [_three_way(stacks, pay.utg, winner) for winner in range(3)]
+    assert ends == [(150, 0, 0), (0, 150, 0), (0, 0, 150)]
+    assert pay.tw == ((8.0, 1.0, 1.0), (1.0, 8.0, 1.0), (1.0, 1.0, 8.0))
+
+
 def test_stany_terminalne_zachowuja_sume_zetonow() -> None:
     for stacks in ((16, 50, 84), (50, 50, 50), (12, 12, 12)):
         total = sum(stacks)
@@ -193,46 +205,11 @@ def test_exploitability_publiczne_api() -> None:
 
 def test_epsilon_odroznia_smieci_od_nasha() -> None:
     """ε≈0 nic nie znaczy bez mianownika. Always-jam wycieka ~0.18 BI."""
-    from poker.icm import icm_equities
-    from poker.jamfold import (
-        N_HANDS,
-        N_NODES,
-        _exploitability,
-        _Payoffs,
-        _take,
-    )
-    from poker.spin import post_blinds, roles, utg_shove_both_fold, utg_shove_called
+    from poker.jamfold import N_HANDS, N_NODES, _exploitability
 
     stacks = (50, 50, 50)
     prizes = PAYOUTS["3x"].prizes
-    utg, btn, bb = roles(1)
-    behind, pot = post_blinds(stacks, 1, 1, 2)
-    blinds = utg_shove_both_fold(stacks, 1, 1, 2)
-
-    def money(state: tuple[int, int, int]) -> tuple[float, ...]:
-        return icm_equities(state, prizes)
-
-    pay = _Payoffs(
-        utg=utg,
-        btn=btn,
-        bb=bb,
-        utg_b=money(blinds),
-        btn_b=money(_take(behind, btn, pot)),
-        bb_b=money(_take(behind, bb, pot)),
-        hu_utg_bb=(
-            money(utg_shove_called(stacks, 1, bb, utg, 1, 2)),
-            money(utg_shove_called(stacks, 1, bb, bb, 1, 2)),
-        ),
-        hu_utg_btn=(
-            money(utg_shove_called(stacks, 1, btn, utg, 1, 2)),
-            money(utg_shove_called(stacks, 1, btn, btn, 1, 2)),
-        ),
-        hu_btn_bb=(
-            money(_allin_two(stacks, btn, bb, btn)),
-            money(_allin_two(stacks, btn, bb, bb)),
-        ),
-        tw=tuple(money(_three_way(stacks, utg, w)) for w in range(3)),
-    )
+    pay = _payoffs(stacks, prizes, 1, 1, 2)
     junk = [[1.0] * N_HANDS for _ in range(N_NODES)]
     nash = solve(stacks, prizes, button=1, iterations=16)
     junk_eps = max(_exploitability(junk, pay))

@@ -39,10 +39,13 @@ from poker.openfold import WEIGHTS, _hu
 from poker.preflop import CLASS_INDEX, classify
 from poker.spin import (
     STARTING_CHIPS,
+    Bust,
+    Busts3,
     award_allin,
     blinds_for_hand,
     is_jam_fold_depth,
     open_amount,
+    place_payouts,
     roles,
 )
 
@@ -240,15 +243,18 @@ def run_spin(
     *,
     on_deck: Callable[[int, tuple[Card, ...]], None] | None = None,
     on_action: OnAction | None = None,
-) -> tuple[tuple[int, int, int], str]:
-    """Stacki końcowe i powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk).
+) -> tuple[tuple[int, int, int], str, Busts3]:
+    """Stacki końcowe, powód końca: "bust" (≤1 żywy) albo "guard" (limit rąk), i wybicia.
 
+    Wybicie miejsca to (numer ręki, stack wejściowy tej ręki), żywe miejsce ma
+    None — z tego `play_spin` przyznaje miejsca (`place_payouts`).
     `on_deck` to czysta obserwacja talii każdej ręki (indeks, talia) —
     bez wpływu na przebieg gry; z niej test dowodzi identyczności kart
     między rotacjami bloku. `on_action` obserwuje licytację (patrz `OnAction`).
     """
     seeds = _hand_seeds(seed)
     stacks = [STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS]
+    busts: list[Bust | None] = [None, None, None]
     button = 1
     hand_i = 0
     first = True
@@ -260,8 +266,9 @@ def run_spin(
         deck = shuffled_deck(random.Random(deck_seed))
         if on_deck is not None:
             on_deck(hand_i, deck)
+        entering = stacks
         stacks = _play_hand(
-            stacks,
+            entering,
             hand_i,
             button,
             sb,
@@ -271,9 +278,12 @@ def run_spin(
             random.Random(act_seed),
             on_action=on_action,
         )
+        for seat in range(3):
+            if entering[seat] > 0 and stacks[seat] == 0:
+                busts[seat] = (hand_i, entering[seat])
         hand_i += 1
     reason = "bust" if len(_alive(stacks)) <= 1 else "guard"
-    return (stacks[0], stacks[1], stacks[2]), reason
+    return (stacks[0], stacks[1], stacks[2]), reason, (busts[0], busts[1], busts[2])
 
 
 def play_spin(
@@ -281,12 +291,9 @@ def play_spin(
     prizes: tuple[float, float, float],
     seed: int,
 ) -> tuple[float, float, float]:
-    stacks, _ = run_spin(books, seed)
-    order = sorted(range(3), key=lambda i: (-stacks[i], i))
-    money = [0.0, 0.0, 0.0]
-    for place, seat in enumerate(order):
-        money[seat] = prizes[place]
-    return (money[0], money[1], money[2])
+    """Nagrody turnieju regułą miejsc `place_payouts` — kolejność wybicia, nie indeks miejsca."""
+    stacks, _, busts = run_spin(books, seed)
+    return place_payouts(stacks, busts, prizes)
 
 
 def _play_hand(

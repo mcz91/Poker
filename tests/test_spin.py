@@ -149,6 +149,16 @@ def test_icm_10x_zmienia_ev_wzgledem_wta() -> None:
     assert wta != icm
 
 
+def test_utg_shove_ev_przegrana_z_dwoma_wybitymi_placi_drugie_miejsce_wiekszemu_stackowi() -> None:
+    """BTN (1 żeton, all-in z SB) i UTG (60) odpadają w jednej ręce po callu BB.
+
+    Drugie miejsce należy się UTG — większemu stackowi wejściowemu — nie
+    niższemu indeksowi miejsca (finding I-21 audytu 09-26).
+    """
+    ev = utg_shove_ev((1, 89, 60), 0, PAYOUTS["10x"].prizes, caller=1, equity=0.0)
+    assert ev[2] == 2.0
+
+
 def test_spin_importuje_wylacznie_icm() -> None:
     path = Path(__file__).resolve().parent.parent / "src" / "poker" / "spin.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
