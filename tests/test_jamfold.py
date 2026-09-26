@@ -145,6 +145,18 @@ def test_three_way_10x_z_rownych_stackow_dzieli_drugie_i_trzecie_miejsce() -> No
     assert pay.tw == ((8.0, 1.0, 1.0), (1.0, 8.0, 1.0), (1.0, 1.0, 8.0))
 
 
+def test_three_way_10x_drugie_miejsce_bierze_wiekszy_stack_wejsciowy() -> None:
+    """UTG 70 pokrywa obu wołających i wygrywa 3-way: BB wszedł w rękę z 50,
+    BTN z 30, więc drugie miejsce bierze BB, choć ma wyższy indeks miejsca.
+    Podział jak przy równych stackach dałby (8, 1, 1), ICM z indeksem sprzed
+    POKER-70 — (8, 2, 0)."""
+    stacks = (70, 30, 50)
+    pay = _payoffs(stacks, PAYOUTS["10x"].prizes, 1, 1, 2)
+    assert (pay.utg, pay.btn, pay.bb) == (0, 1, 2)
+    assert _three_way(stacks, pay.utg, pay.utg) == (150, 0, 0)
+    assert pay.tw[pay.utg] == (8.0, 0.0, 2.0)
+
+
 def test_stany_terminalne_zachowuja_sume_zetonow() -> None:
     for stacks in ((16, 50, 84), (50, 50, 50), (12, 12, 12)):
         total = sum(stacks)
