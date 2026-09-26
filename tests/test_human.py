@@ -1,6 +1,9 @@
-"""Testy interfejsu człowieka (POKER-10): render z PlayerView, walidacja wejścia, przecieki."""
+"""Testy interfejsu człowieka (POKER-10, POKER-69): render z PlayerView, walidacja wejścia,
+przecieki, seed meczu z entropii."""
 
 import io
+import random
+import re
 from pathlib import Path
 
 import pytest
@@ -205,3 +208,89 @@ def test_identyczne_wejscie_daje_odtwarzalny_przebieg(
     out_second = capsys.readouterr().out
     assert out_first.replace(str(first), "") == out_second.replace(str(second), "")
     assert first.read_bytes() == second.read_bytes()
+
+
+def _seed_z_linii(tekst: str) -> tuple[int, int]:
+    """Wartość i pozycja jedynej linii 'seed meczu: N' w tekście."""
+    (trafienie,) = re.finditer(r"^seed meczu: (\d+)$", tekst, flags=re.MULTILINE)
+    return int(trafienie.group(1)), trafienie.start()
+
+
+def _karty(path: Path) -> list[tuple[int, tuple[str, ...]]]:
+    return [
+        (event.seat, tuple(card_token(card) for card in event.cards))
+        for history in deserialize_match_history(path.read_text(encoding="utf-8"))
+        for event in history
+        if isinstance(event, HoleCardsDealt)
+    ]
+
+
+def test_czlowiek_bez_seeda_gra_na_entropii_a_seed_poznaje_po_meczu(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    wejscie = "fold\n" * 3
+    argv = ["--human", "0", "--hands", "3"]
+    eksporty = [tmp_path / "a.json", tmp_path / "b.json"]
+    seedy = []
+    for eksport in eksporty:
+        assert main([*argv, "--export", str(eksport)], stdin=io.StringIO(wejscie)) == 0
+        out = capsys.readouterr().out
+        seed, pozycja = _seed_z_linii(out)
+        # po ostatnim rozdaniu i po liniach wyniku, nigdy wcześniej
+        assert out.rindex("koniec rozdania") < out.index("stacki końcowe: ") < pozycja
+        assert str(seed) not in out[:pozycja]
+        assert 0 <= seed < 2**64
+        seedy.append(seed)
+    assert seedy[0] != seedy[1]
+    assert max(seedy) >= 2**48  # 64 bity entropii, nie 32 (porażka z p = 2**-32)
+    assert _karty(eksporty[0]) != _karty(eksporty[1])
+
+    # replay: jawny --seed równy wypisanemu odtwarza mecz bajt w bajt i nie wypisuje seeda
+    replay = tmp_path / "replay.json"
+    assert main(
+        [*argv, "--seed", str(seedy[0]), "--export", str(replay)], stdin=io.StringIO(wejscie)
+    ) == 0
+    assert "seed meczu" not in capsys.readouterr().out
+    assert replay.read_bytes() == eksporty[0].read_bytes()
+
+
+def test_seed_czlowieka_to_64_bity_csprng_systemu(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Entropia systemu to system zewnętrzny: podstawiamy ją, żeby zobaczyć, czy i ile z niej
+    # CLI bierze.
+    wartosc = 0xFACE_0000_0000_B00C
+    pobrania: list[int] = []
+
+    def entropia(self: random.SystemRandom, k: int) -> int:
+        pobrania.append(k)
+        return wartosc
+
+    monkeypatch.setattr(random.SystemRandom, "getrandbits", entropia)
+    wejscie = "fold\nfold\n"
+    losowy, jawny = tmp_path / "losowy.json", tmp_path / "jawny.json"
+    assert main(
+        ["--human", "1", "--hands", "2", "--export", str(losowy)], stdin=io.StringIO(wejscie)
+    ) == 0
+    assert _seed_z_linii(capsys.readouterr().out)[0] == wartosc
+    assert pobrania == [64]
+    assert main(
+        ["--human", "1", "--hands", "2", "--seed", str(wartosc), "--export", str(jawny)],
+        stdin=io.StringIO(wejscie),
+    ) == 0
+    assert losowy.read_bytes() == jawny.read_bytes()
+
+
+def test_przerwany_mecz_bez_seeda_wypisuje_seed_na_stderr_po_komunikacie(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["--human", "0", "--hands", "2"], stdin=io.StringIO("")) == 1
+    przechwycone = capsys.readouterr()
+    assert "seed meczu" not in przechwycone.out
+    _, pozycja = _seed_z_linii(przechwycone.err)
+    assert przechwycone.err.index("koniec wejścia — mecz przerwany") < pozycja
+
+    # jawny --seed działa jak dotąd: bez linii seeda
+    assert main(["--human", "0", "--hands", "2", "--seed", "5"], stdin=io.StringIO("")) == 1
+    przechwycone = capsys.readouterr()
+    assert "seed meczu" not in przechwycone.out + przechwycone.err

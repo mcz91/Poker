@@ -1,6 +1,7 @@
 """CLI meczu heads-up: adapter terminalowy nad play_match (INV-P7)."""
 
 import argparse
+import random
 import sys
 import threading
 from collections.abc import Callable, Sequence
@@ -42,7 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="pozycja startowa buttona (domyślnie 0)")
     parser.add_argument("--hands", type=int, default=100,
                         help="limit rozdań meczu (domyślnie 100)")
-    parser.add_argument("--seed", type=int, default=0, help="seed meczu (domyślnie 0)")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="seed meczu: talia każdego rozdania jest jego czystą funkcją "
+                             "(domyślnie 0; z --human domyślnie 64 bity entropii systemu, "
+                             "wypisane dopiero po meczu — jawny seed czyni talię wyliczalną "
+                             "dla każdego, kto go zna; nie łączy się z --connect)")
     parser.add_argument("--agent0", choices=agents, default="rule",
                         help="agent miejsca 0 (domyślnie rule)")
     parser.add_argument("--agent1", choices=agents, default="rule",
@@ -75,8 +80,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--serve-host", default="0.0.0.0",
                         help="interfejs nasłuchu serwera (domyślnie 0.0.0.0)")
     parser.add_argument("--serve-seed", type=int, default=None, metavar="SEED",
-                        help="serwer: seed generatora kodów stołu (domyślnie brak — "
-                             "kody nieodtwarzalne między uruchomieniami)")
+                        help="serwer: seed generatora kodów stołu — przybija wyłącznie "
+                             "sekwencję kodów, nie talie (seed meczu każdego stołu serwer "
+                             "losuje z entropii systemu); domyślnie brak — kody "
+                             "nieodtwarzalne między uruchomieniami")
     parser.add_argument("--export-dir", type=Path, default=None, metavar="KATALOG",
                         help="serwer: eksport historii zakończonych stołów do KATALOGU "
                              "(domyślnie wyłączony)")
@@ -121,6 +128,8 @@ def _run_serve_command(args: argparse.Namespace) -> int:
 
 
 def _run_connect_command(args: argparse.Namespace, stdin: TextIO | None) -> int:
+    if args.seed is not None:
+        raise ValueError("--connect nie łączy się z --seed — seed meczu stołu losuje serwer")
     host, _, port_text = args.connect.partition(":")
     if not host or not port_text.isdigit():
         raise ValueError(f"--connect wymaga adresu HOST:PORT, otrzymano {args.connect!r}")
@@ -134,7 +143,6 @@ def _run_connect_command(args: argparse.Namespace, stdin: TextIO | None) -> int:
             "stacks": [args.stack[0], args.stack[1]],
             "button": args.button,
             "hand_limit": args.hands,
-            "seed": args.seed,
             "opponent": args.opponent,
         }
     effective_stdin: TextIO = stdin if stdin is not None else sys.stdin
@@ -220,6 +228,11 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
             return _run_serve_command(args)
         if args.connect is not None:
             return _run_connect_command(args, stdin)
+        # Talia jest czystą funkcją seeda meczu: człowiek przy stole nie może go znać przed
+        # końcem gry. Tryby bez człowieka zachowują bajtową odtwarzalność od seeda 0.
+        seed_from_entropy = args.seed is None and args.human is not None
+        if args.seed is None:
+            args.seed = random.SystemRandom().getrandbits(64) if seed_from_entropy else 0
         if args.dataset is not None:
             return _run_dataset_command(args)
         if args.corpus is not None:
@@ -251,6 +264,8 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
         )
     except InputEnded as error:
         print(f"koniec wejścia — mecz przerwany: {error}", file=sys.stderr)
+        if seed_from_entropy:
+            print(f"seed meczu: {args.seed}", file=sys.stderr)
         return 1
     if args.human is not None:
         print("przebieg rozdań:")
@@ -259,6 +274,8 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     print(f"rozdania: {result.hands_played}")
     print(f"powód zakończenia: {result.reason.value}")
     print(f"stacki końcowe: {result.stacks[0]} {result.stacks[1]}")
+    if seed_from_entropy:
+        print(f"seed meczu: {args.seed}")
     if args.export is not None:
         args.export.write_text(serialize_match_history(result.histories), encoding="utf-8")
         print(f"eksport: {args.export}")

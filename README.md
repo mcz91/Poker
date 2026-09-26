@@ -18,16 +18,17 @@ python -m poker.adapters.cli --seed 7 --hands 50 --export mecz.json
 
 Argumenty (wszystkie z wartościami domyślnymi): `--small-blind 1`,
 `--big-blind 2`, `--stack 100 100`, `--button 0`, `--hands 100`,
-`--seed 0`, `--agent0 rule`, `--agent1 rule` (dostępny wariant progów
-`rule-aggressive`), `--export PLIK` (bez eksportu, gdy pominięty).
-Wynik meczu trafia na standardowe wyjście, a pełna historia rozdań —
-do wersjonowanego pliku JSON, identycznego bajt w bajt dla tych samych
-argumentów.
+`--seed 0` (w meczu agentów, arenie i korpusie; z `--human` domyślny
+seed pochodzi z entropii systemu — niżej), `--agent0 rule`, `--agent1 rule`
+(dostępny wariant progów `rule-aggressive`), `--export PLIK` (bez
+eksportu, gdy pominięty). Wynik meczu trafia na standardowe wyjście,
+a pełna historia rozdań — do wersjonowanego pliku JSON, identycznego
+bajt w bajt dla tych samych argumentów.
 
 ### Gra człowieka z botem
 
 ```bash
-python -m poker.adapters.cli --human 0 --agent1 rule --seed 7
+python -m poker.adapters.cli --human 0 --agent1 rule
 ```
 
 `--human MIEJSCE` (0 albo 1, domyślnie brak) zastępuje agenta
@@ -39,16 +40,26 @@ nielegalne albo nieparsowalne dostaje komunikat i ponowne pytanie, bez
 śladu w historii rozdania; koniec strumienia wejścia przerywa mecz
 z niezerowym kodem wyjścia. Rozstrzygnięcie każdego rozdania (fold albo
 showdown) terminal pokazuje natychmiast po jego zakończeniu, a po meczu
-dodatkowo w zbiorczym przebiegu rozdań. Karty bota i seed pozostają
-niewidoczne do showdownu; po nim widać odkryte karty. Eksport historii
-działa tą samą flagą `--export`.
+dodatkowo w zbiorczym przebiegu rozdań. Karty bota pozostają
+niewidoczne do showdownu; po nim widać odkryte karty. Seedy rozdań nie
+trafiają na terminal. Eksport historii działa tą samą flagą `--export`.
+
+Talia każdego rozdania jest czystą funkcją seeda meczu, więc kto zna
+seed, zna karty bota i board. Dlatego z `--human` bez jawnego `--seed`
+seed meczu pochodzi z entropii systemu (64 bity), a terminal wypisuje
+go dopiero po meczu — linią `seed meczu: N` po liniach wyniku, a przy
+przerwaniu wejścia na stderr, po komunikacie o przerwaniu. Replay jest
+możliwy: `--seed N` z tymi samymi decyzjami odtwarza eksport bajt
+w bajt. Jawny `--seed` w trybie człowieka działa jak dotąd, ale czyni
+talię wyliczalną dla każdego, kto zna seed — to świadomy wybór
+(replay, testy), nie gra z ukrytymi kartami.
 
 ### Gra w sieci lokalnej (pokerroom, krok 1)
 
 ```bash
 python -m poker.adapters.cli --serve 7777            # serwer stołów
 python -m poker.adapters.cli --connect 192.168.0.10:7777 \
-  --opponent human --hands 50 --seed 7               # tworzy stół, drukuje kod
+  --opponent human --hands 50                        # tworzy stół, drukuje kod
 python -m poker.adapters.cli --connect 192.168.0.10:7777 --join K7M2QRXB
 ```
 
@@ -60,17 +71,25 @@ flagami co mecz lokalny) albo dołącza kodem (`--join`); `--opponent`
 Mecz rusza po skompletowaniu dwóch graczy; do klienta wychodzi
 wyłącznie widok jego miejsca (ta sama dyscyplina co w terminalu
 lokalnym — INV-P3 na granicy procesu, pod testem pełnego strumienia
-bajtów). Protokół to typowane, wersjonowane JSON Lines — nieznana
-wersja jest odrzucana po obu stronach. Rozłączenie gracza kończy jego
-stół komunikatem dla przeciwnika, bez wpływu na pozostałe stoły.
+bajtów). Seed meczu, z którego wynika talia, losuje serwer przy
+tworzeniu stołu (64 bity entropii systemu) — żaden gracz go nie podaje
+ani nie poznaje; `--connect` z jawnym `--seed` kończy się błędem (kod
+2). Protokół to typowane, wersjonowane JSON Lines (wersja 2: żądanie
+`create` bez pola seed) — nieznana wersja, w tym klient v1, jest
+odrzucana po obu stronach komunikatem o wersji. Po końcu meczu serwer
+zamyka połączenia stołu. Rozłączenie gracza kończy jego stół
+komunikatem dla przeciwnika, bez wpływu na pozostałe stoły.
 `--export-dir KATALOG` na serwerze zapisuje historie zakończonych
 stołów w formacie eksportu. Sieć lokalna jest zaufana (decyzja 08):
 kod stołu to jedyna kontrola dostępu — dlatego jest losowy, nie
 kolejny: osiem znaków z alfabetu bez znaków mylących
 (`ABCDEFGHJKMNPQRSTUVWXYZ23456789`), czyli ~39,6 bita. `--serve-seed`
-przybija sekwencję kodów (odtwarzalna między uruchomieniami, przydatne
-w testach); pominięty daje kody nieodtwarzalne. To utrudnia trafienie
-w cudzy stół, ale nie jest zabezpieczeniem kryptograficznym.
+przybija wyłącznie sekwencję kodów (odtwarzalna między uruchomieniami,
+przydatne w testach); pominięty daje kody nieodtwarzalne. Talii nie
+przybija: kod stołu dostaje każdy gracz, więc mały seed kodów da się
+odzyskać przeszukaniem — seedy meczów pochodzą z osobnego generatora
+serwera. Losowy kod utrudnia trafienie w cudzy stół, ale nie jest
+zabezpieczeniem kryptograficznym.
 
 ### Arena porównawcza agentów
 

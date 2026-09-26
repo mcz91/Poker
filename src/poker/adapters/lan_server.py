@@ -2,20 +2,22 @@
 
 Serwer jest autorytatywny: do klienta wychodzi wyłącznie to, co
 wyrenderował `HumanAgent` z widoku jego miejsca (INV-P3 na granicy
-procesu) oraz komunikaty protokołu. Każdy stół gra we własnym wątku;
-rozłączenie gracza kończy wyłącznie jego stół.
+procesu) oraz komunikaty protokołu. Seed meczu, z którego wynika talia
+każdego rozdania, losuje serwer — żaden gracz go nie podaje ani nie poznaje
+(decyzja 31 pkt 1). Każdy stół gra we własnym wątku; rozłączenie gracza
+kończy wyłącznie jego stół.
 """
 
 import random
 import socket
 import threading
 from dataclasses import dataclass, field
+from io import BufferedRWPair
 from pathlib import Path
 
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.adapters.protocol import (
-    MessageStream,
     int_field,
     read_message,
     send_message,
@@ -42,7 +44,8 @@ def generate_code(rng: random.Random) -> str:
 
 @dataclass
 class _Client:
-    stream: MessageStream
+    connection: socket.socket
+    stream: BufferedRWPair
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def send(self, message: dict[str, object]) -> None:
@@ -54,6 +57,16 @@ class _Client:
             self.send(message)
         except OSError:
             pass
+
+    def close(self) -> None:
+        # Koniec strumienia do klienta wyznacza serwer: bez jawnego zamknięcia gniazdo
+        # żyje do odśmiecenia, a pętla accept trzyma ostatnie połączenie do następnego.
+        with self.lock:
+            try:
+                self.stream.close()
+            except OSError:
+                pass
+            self.connection.close()
 
 
 class _ProtocolIO:
@@ -112,6 +125,7 @@ class TableServer:
         port: int = 0,
         export_directory: Path | None = None,
         seed: int | None = None,
+        match_rng: random.Random | None = None,
     ) -> None:
         self._host = host
         self._port = port
@@ -119,10 +133,13 @@ class TableServer:
         self._listener: socket.socket | None = None
         self._tables: dict[str, _Table] = {}
         self._tables_lock = threading.Lock()
-        # Seed podany jawnie daje odtwarzalną sekwencję kodów; pominięty —
-        # kody nieodtwarzalne między uruchomieniami. Losowość żyje wyłącznie
-        # tutaj, w adapterze (INV-P1).
-        self._rng = random.Random(seed)
+        # Losowość żyje wyłącznie tutaj, w adapterze (INV-P1), w dwóch generatorach.
+        # Kody stołów: seed podany jawnie daje odtwarzalną sekwencję, pominięty —
+        # nieodtwarzalną. Seedy meczów: osobny generator, domyślnie CSPRNG systemu —
+        # kod stołu dostaje każdy gracz, więc mały seed kodów da się odzyskać przeszukaniem
+        # i nie może wyznaczać talii; wstrzyknięty generator przybija talie w testach.
+        self._code_rng = random.Random(seed)
+        self._match_rng = match_rng if match_rng is not None else random.SystemRandom()
         self._closing = False
 
     def start(self) -> tuple[str, int]:
@@ -148,8 +165,8 @@ class TableServer:
             ).start()
 
     def _serve_client(self, connection: socket.socket) -> None:
-        stream: MessageStream = connection.makefile("rwb")
-        client = _Client(stream=stream)
+        stream = connection.makefile("rwb")
+        client = _Client(connection=connection, stream=stream)
         try:
             message = read_message(stream)
         except ValueError as error:
@@ -172,6 +189,8 @@ class TableServer:
             connection.close()
 
     def _handle_create(self, client: _Client, message: dict[str, object]) -> None:
+        if "seed" in message:
+            raise ValueError("pole 'seed' nie należy do żądania create: seed meczu losuje serwer")
         stacks_value = message.get("stacks")
         if not isinstance(stacks_value, list) or len(stacks_value) != 2 or not all(
             isinstance(item, int) and not isinstance(item, bool) for item in stacks_value
@@ -195,7 +214,7 @@ class TableServer:
                 (
                     candidate
                     for candidate in (
-                        generate_code(self._rng) for _ in range(CODE_ATTEMPTS)
+                        generate_code(self._code_rng) for _ in range(CODE_ATTEMPTS)
                     )
                     if candidate not in self._tables
                 ),
@@ -206,7 +225,7 @@ class TableServer:
             table = _Table(
                 code=code,
                 config=config,
-                seed=int_field(message, "seed"),
+                seed=self._match_rng.getrandbits(64),
                 creator=client,
                 opponent_name=opponent,
             )
@@ -265,6 +284,8 @@ class TableServer:
         finally:
             with self._tables_lock:
                 self._tables.pop(table.code, None)
+            for seat_client in clients:
+                seat_client.close()
 
     def _finish(self, table: _Table, clients: list[_Client], result: MatchResult) -> None:
         for seat_client in clients:
