@@ -60,11 +60,13 @@ DECISION_LABELS: tuple[str, ...] = (
 # Tolerancja miary zbieżności w ułamku sumy nagród (decyzja architekta, POKER-73).
 CONVERGENCE_TOL = 1e-3
 CURVE_CHECKPOINTS: tuple[int, ...] = (8, 16, 32, 64, 128, 256, 512, 1024)
-# Najmniejszy punkt kontrolny, na którym miara ≤ CONVERGENCE_TOL na wszystkich
-# poziomach eksportu (`python tools/export_open_nash.py --curve`): liczba
-# iteracji eksportu i książek openfold areny. Ucięte FP zależy od N, więc
-# liczba bez krzywej nie mówi nic o zbieżności.
-CURVE_ITERATIONS = 128
+# Liczba iteracji eksportu i książek openfold areny: najmniejszy punkt
+# kontrolny, od którego miara ≤ CONVERGENCE_TOL na wszystkich poziomach
+# eksportu we wszystkich dalszych punktach kontrolnych
+# (`python tools/export_open_nash.py --curve`). Ucięte FP zależy od N, a jego
+# miara nie maleje monotonicznie (3x 2/4: 8,75e−5 przy 128, 1,26e−3 przy 256),
+# więc pierwszy punkt w tolerancji bywa dołkiem krzywej, nie zbieżnością.
+CURVE_ITERATIONS = 512
 
 WEIGHTS: tuple[int, ...] = tuple(
     6 if cls.high == cls.low else (4 if cls.suited else 12) for cls in ALL_CLASSES

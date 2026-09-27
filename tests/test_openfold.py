@@ -91,14 +91,18 @@ def test_utg_otwiera_nie_shoveuje_na_25bb() -> None:
 
 
 def test_10x_nie_wybucha_open() -> None:
-    """Test dymny przy jawnym N = 10: open 10x zostaje w korytarzu openu 3x.
+    """Test dymny przy jawnym N = 10: open 10x nie szerszy niż open 3x (8,7%
+    wobec 22,5%) i w korytarzu openu 3x.
 
-    Relacja „open 10x ≤ open 3x" nie trzyma się na krzywej POKER-73: przy
-    N = 128 (N eksportu) 10x 30,4% > 3x 28,9%. Na punktach kontrolnych
-    8–1024 open 10x leży w 11,9–33,2% (przy N = 10: 8,7%), a mutant ze
-    starym terminalem callu BB_VS_OJ daje przy N = 10 open 10x 98,2%.
+    Relację „open 10x ≤ open 3x" krzywa POKER-73 potwierdza przy N eksportu
+    512 (32,7% ≤ 33,9%) i w punktach 256 i 1024; łamie się przy 128
+    (30,4% > 28,9%). Korytarz ≤ 45% trzyma się na każdym punkcie kontrolnym
+    8–1024 (11,9–33,2%); mutant ze starym terminalem callu BB_VS_OJ daje przy
+    N = 10 open 10x 98,2%.
     """
+    wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=10)
     icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=10)
+    assert icm.utg_open_pct <= wta.utg_open_pct
     assert icm.utg_open_pct <= 45.0
 
 
@@ -259,7 +263,11 @@ def test_miara_zero_dla_profilu_bedacego_wlasnym_best_response() -> None:
 
 
 def test_miara_maleje_z_iteracjami_fp() -> None:
-    """3x, 3/6: miara po 64 iteracjach FP poniżej miary po 8 (3,4e−4 wobec 3,6e−3)."""
+    """3x, 3/6: miara po 64 iteracjach FP poniżej miary po 8 (3,4e−4 wobec 3,6e−3).
+
+    Jawny wyjątek od N ≤ 24 testów bramki (rozstrzygnięcie architekta, POKER-73):
+    po przyspieszeniu wyceny, bitowo zgodnym z bazą, bieg do N = 64 kosztuje ok. 1,5 s.
+    """
     early, late = solve_curve((50, 50, 50), PAYOUTS["3x"].prizes, (8, 64), sb=3, bb_amt=6)
     assert late.convergence < early.convergence
 
@@ -274,18 +282,32 @@ def test_krzywa_zwraca_to_co_solve_w_punktach_kontrolnych() -> None:
     )
 
 
-def _run_arena() -> Any:
-    spec = importlib.util.spec_from_file_location("run_arena", REPO / "tools" / "run_arena.py")
+def _tool(name: str) -> Any:
+    spec = importlib.util.spec_from_file_location(name, REPO / "tools" / f"{name}.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
+def test_n_z_krzywej_to_punkt_od_ktorego_miara_zostaje_w_tolerancji() -> None:
+    """Miary z krzywej POKER-73 (3x 1/2 i 3x 2/4, punkty 64–1024): 3x 2/4 schodzi
+    do 8,75e−5 przy 128 i wraca do 1,26e−3 przy 256, więc N z krzywej to 512 —
+    punkt, od którego oba poziomy zostają w tolerancji do końca krzywej — a nie
+    najmniejszy punkt w tolerancji (128). Gdy tolerancji nie spełnia ostatni
+    punkt, takiego N nie ma."""
+    export = _tool("export_open_nash")
+    wta_1_2 = {64: 1.23e-3, 128: 8.46e-4, 256: 5.63e-4, 512: 4.80e-4, 1024: 2.90e-4}
+    wta_2_4 = {64: 3.47e-4, 128: 8.75e-5, 256: 1.26e-3, 512: 3.41e-4, 1024: 8.53e-5}
+    assert export.stable_checkpoint([wta_1_2, wta_2_4]) == 512
+    assert export.stable_checkpoint([wta_1_2]) == 128
+    assert export.stable_checkpoint([wta_2_4, {**wta_1_2, 1024: 1.01e-3}]) is None
+
+
 def test_ksiazki_areny_biora_openfold_i_jamfold_z_osobnych_parametrow() -> None:
     """Open, overjam i 3bet książek areny z openfold przy własnej liczbie
     iteracji, call jamu z jamfold przy swojej (POKER-73; jamfold — sprint B)."""
-    arena = _run_arena()
+    arena = _tool("run_arena")
     prizes = PAYOUTS["3x"].prizes
     hero = arena.hero_book("3x", jamfold_iterations=2, openfold_iterations=4)
     deep = solve((50, 50, 50), prizes, iterations=4)
@@ -297,8 +319,8 @@ def test_ksiazki_areny_biora_openfold_i_jamfold_z_osobnych_parametrow() -> None:
 
 
 def test_opcja_openfold_iters_areny() -> None:
-    arena = _run_arena()
-    assert arena.openfold_option("compare", ["320", "3x"]) == (["320", "3x"], 128)
+    arena = _tool("run_arena")
+    assert arena.openfold_option("compare", ["320", "3x"]) == (["320", "3x"], 512)
     assert arena.openfold_option("sd", ["--openfold-iters", "64", "320"]) == (["320"], 64)
     with pytest.raises(SystemExit, match="compare i sd"):
         arena.openfold_option("seats", ["--openfold-iters", "64"])

@@ -5,14 +5,16 @@
   nagród); etykieta „punkt stały FP modelu" tylko, gdy miara każdego wiersza
   ≤ CONVERGENCE_TOL;
 - `python tools/export_open_nash.py --curve` — miara i liczby eksportu na
-  CURVE_CHECKPOINTS, najmniejszy punkt kontrolny z miarą w tolerancji na
-  wszystkich poziomach i rozrzut każdej liczby eksportu na [N/2, N].
+  CURVE_CHECKPOINTS, najmniejszy punkt kontrolny, od którego miara jest
+  w tolerancji na wszystkich poziomach we wszystkich dalszych punktach
+  (`stable_checkpoint`), i rozrzut każdej liczby eksportu na [N/2, N].
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from poker.openfold import (
@@ -94,6 +96,21 @@ def export(dest: Path) -> None:
     print(dest, file=sys.stderr)
 
 
+def stable_checkpoint(curves: Sequence[Mapping[int, float]]) -> int | None:
+    """Najmniejszy punkt kontrolny, od którego miara każdej krzywej ≤ CONVERGENCE_TOL
+    we wszystkich dalszych punktach; None, gdy tolerancji nie spełnia już ostatni.
+
+    Miara FP nie maleje monotonicznie z N, więc najmniejszy punkt w tolerancji
+    bywa dołkiem krzywej, po którym miara wraca ponad tolerancję.
+    """
+    stable = None
+    for n in sorted(curves[0], reverse=True):
+        if any(curve[n] > CONVERGENCE_TOL for curve in curves):
+            break
+        stable = n
+    return stable
+
+
 def curve() -> None:
     table: dict[tuple[str, int, int], dict[int, dict[str, object]]] = {}
     measure: dict[tuple[str, int, int], dict[int, float]] = {}
@@ -108,21 +125,21 @@ def curve() -> None:
         for n, entry in by_n.items():
             nums = " ".join(f"{key}={entry[key]:.1f}" for key in PCT_KEYS)
             print(f"N={n:5d} miara={measure[(pay_id, sb, bb)][n]:.2e} {nums}")
-    within = [
-        n
-        for n in CURVE_CHECKPOINTS
-        if all(level[n] <= CONVERGENCE_TOL for level in measure.values())
-    ]
-    chosen = within[0] if within else CURVE_CHECKPOINTS[-1]
-    status = "w tolerancji" if within else "BEZ etykiety równowagi (poza tolerancją)"
-    print(
-        f"N = {chosen} — najmniejszy punkt kontrolny {status}; "
-        f"CURVE_ITERATIONS = {CURVE_ITERATIONS}"
-    )
+    stable = stable_checkpoint(list(measure.values()))
+    if stable is None:
+        chosen = CURVE_CHECKPOINTS[-1]
+        status = "ostatni punkt kontrolny, BEZ etykiety równowagi (poza tolerancją)"
+    else:
+        chosen = stable
+        status = "najmniejszy punkt kontrolny, od którego miara jest w tolerancji do końca krzywej"
+    print(f"N = {chosen} — {status}; CURVE_ITERATIONS = {CURVE_ITERATIONS}")
     half = chosen // 2
     if half not in CURVE_CHECKPOINTS:
         return
-    print(f"rozrzut na [{half}, {chosen}]: liczby — |Δ| pp; zakresy — max |Δ| pp na klasę (klas ≠)")
+    print(
+        f"rozrzut na [{half}, {chosen}]: liczby — wartość przy {half} / przy {chosen}; "
+        "zakresy — max |Δ| pp na klasę (klas ≠)"
+    )
     for (pay_id, sb, bb), by_n in table.items():
         lo, hi = by_n[half], by_n[chosen]
         parts = [f"{key} {lo[key]:.1f}/{hi[key]:.1f}" for key in PCT_KEYS]
