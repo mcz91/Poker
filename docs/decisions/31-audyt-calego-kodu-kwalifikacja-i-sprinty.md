@@ -89,6 +89,12 @@ przy niej):
   **wejściem operatora**; do niej pomiary BF/BG/BH i `prod_identity.json`
   opisują artefakt, którego obecny kod już nie produkuje.
 
+**Stan 2026-09-27:** przeliczenia POKER-70, 71 i 73 wykonane i
+przeniesione do dokumentów stanu (korekta zbiorcza po POKER-69…73,
+commit `059dc7c`, audyt świeżym kontekstem r3 CZYSTY); nieprzeliczone
+zostają wyłącznie pomiary wymagające artefaktu produkcyjnego (BF/BG/BH,
+liczniki fallbacku, udział trybów) — wejście operatora.
+
 ## 4. Porządek sprintu A i nadzór
 
 Zależności wynikają ze wspólnych modułów (konstytucja pkt 14):

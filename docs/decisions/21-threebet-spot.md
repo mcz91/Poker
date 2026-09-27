@@ -57,6 +57,13 @@ hit.utg_open_pct); print([ALL_CLASSES[i] for i in
 range(len(ALL_CLASSES)) if hit.btn_vs_open[i] > 0.5])"` (10×:
 `PAYOUTS['10x']`).
 
+**KOREKTA (architekt, 2026-09-27) do KOREKTY POKER-73:** „nie trzyma
+się” dotyczy BTN. BB w drzewie bez flata przy 3× 25 bb 3betuje wobec
+openu UTG **41,5%**, BB w spocie 14,0% (komendy — adnotacja architekta
+w decyzji 20) — dla BB 3bet drzewa jest szerszy niż spotu także przy
+25 bb, więc teza „drzewo bezużyteczne dla 3betu” trzyma się na BB.
+Polityka spotu bez zmian.
+
 W Play zawsze bierzemy wykres 25 bb — nie 8 bb (tam spot daje 100%).
 
 `strategy_table` nietknięty.

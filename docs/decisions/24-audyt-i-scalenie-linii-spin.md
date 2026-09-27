@@ -52,6 +52,12 @@ najważniejsze findingi:
    +4.1%, CI (−11.6, +19.7) obejmuje zero (N=320); vs always-jam
    +16.3%, CI (+0.2, +32.3) — ledwie dodatni. Moc pomiaru jest
    niewystarczająca; patrz „Następny krok" w CURRENT_STATE.
+   **KOREKTA (architekt, 2026-09-27):** te liczby policzył estymator
+   sprzed POKER-48 (pojedyncza rotacja, przed blokami trzech rotacji);
+   na kodzie po POKER-73 `python tools/run_arena.py 320 3x` daje field
+   vs $1-ish fish −3,4% (CI −9,9..+3,0) i vs always-jam +15,9% (CI
+   +7,6..+24,3) — wniosek „niedowiedzione" bez zmian (korekta zbiorcza
+   dokumentów stanu, commit `059dc7c`).
 5. Scalenie do `main` po zamknięciu tego dokumentu, zgodnie ze stałą
    autoryzacją operatora (2026-08-08) i poleceniem z 2026-08-28.
 

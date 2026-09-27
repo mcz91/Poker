@@ -43,4 +43,13 @@ r.convergence) for r in solve_curve((50,50,50), PAYOUTS['3x'].prizes,
 (256, 512), button=1, sb=1, bb_amt=2)])"` (13,1 s; inne poziomy:
 `sb=2, bb_amt=4` i `sb=3, bb_amt=6`, wypłata `'10x'` — 9,3–12,2 s).
 
+**KOREKTA (architekt, 2026-09-27) do KOREKTY POKER-73:** teza „3bet
+w tym drzewie wychodzi za szeroki” dotyczy drzewa, a KOREKTA wyżej
+sprawdziła ją tylko na BTN. BB w drzewie przy 3× 25 bb 3betuje wobec
+openu UTG **41,5%** (`solve((50,50,50), PAYOUTS['3x'].prizes, button=1,
+iterations=512).bb_vs_open_pct`, 25 s razem z komendą spotu), a BB
+w spocie 14,0% (`threebet(…, iterations=512).bb_vs_open_pct`) — dla BB
+teza trzyma się także przy 25 bb; „nie trzyma się” wyżej dotyczy BTN.
+Rozstrzygnięcie („nie eksportujemy go”, 3bet ze spotu) bez zmian.
+
 `strategy_table` nietknięty. INV-P5 nietknięte.
