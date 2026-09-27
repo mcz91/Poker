@@ -84,7 +84,13 @@ class _Client:
     def close(self) -> None:
         # Koniec strumienia do klienta wyznacza serwer: bez jawnego zamknięcia gniazdo
         # żyje do odśmiecenia, a pętla accept trzyma ostatnie połączenie do następnego.
+        # shutdown przed close budzi wątek czekający w recv na tym gnieździe (twórca stołu
+        # ludzi przed dołączeniem) — samo close ani go nie budzi, ani nie wysyła FIN.
         with self.lock:
+            try:
+                self.connection.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             try:
                 self.stream.close()
             except OSError:
@@ -306,10 +312,41 @@ class TableServer:
                 creator=client,
                 opponent_name=opponent,
             )
-            self._tables[code] = table
-        client.send({"type": "table_created", "code": code})
-        if opponent != HUMAN_OPPONENT:
+            # Od losowania do rejestracji kod rezerwuje zamek. table_created idzie pod nim,
+            # bo kto zna kod z tej wiadomości, nie może szukać stołu przed powstaniem wpisu,
+            # a po nieudanej wysyłce wpis nie powstaje. Wysyłka do świeżego połączenia
+            # mieści się w pustym buforze gniazda, więc nie czeka.
+            try:
+                client.send({"type": "table_created", "code": code})
+            except OSError:
+                delivered = False
+            else:
+                delivered = True
+                self._tables[code] = table
+        if not delivered:
+            client.close()
+        elif opponent != HUMAN_OPPONENT:
             threading.Thread(target=self._run_match, args=(table,), daemon=True).start()
+        else:
+            self._await_joiner(table)
+
+    def _await_joiner(self, table: _Table) -> None:
+        """Twórca stołu ludzi czeka na dołączającego: koniec jego strumienia albo dane od
+        niego przed dołączeniem wycofują stół — najpierw z rejestru, potem połączenie."""
+        try:
+            pending = table.creator.connection.recv(1, socket.MSG_PEEK)
+        except OSError:
+            pending = b""
+        with self._tables_lock:
+            if table.joiner is not None:
+                return  # połączenie przejął mecz; MSG_PEEK zostawił mu dane
+            self._tables.pop(table.code, None)
+        if pending:
+            table.creator.reject(
+                f"stół {table.code} wycofany: wiadomość przed dołączeniem drugiego gracza"
+            )
+        else:
+            table.creator.close()
 
     def _handle_join(self, client: _Client, message: dict[str, object]) -> None:
         code = text_field(message, "code")
@@ -320,9 +357,22 @@ class TableServer:
             if table.joiner is not None:
                 raise ValueError(f"stół {code!r} jest już skompletowany")
             table.joiner = client
-        table.creator.send_quietly({"type": "started"})
-        client.send({"type": "started"})
+        # Najpierw dołączający: jego nieudana wysyłka nie zostawia twórcy ze started przy
+        # stole, który nie ruszy.
+        for recipient, partner in ((client, table.creator), (table.creator, client)):
+            try:
+                recipient.send({"type": "started"})
+            except OSError:
+                self._unregister(table)
+                partner.send_quietly({"type": "opponent_left"})
+                recipient.close()
+                partner.close()
+                return
         threading.Thread(target=self._run_match, args=(table,), daemon=True).start()
+
+    def _unregister(self, table: _Table) -> None:
+        with self._tables_lock:
+            self._tables.pop(table.code, None)
 
     def _run_match(self, table: _Table) -> None:
         clients = [table.creator] if table.joiner is None else [table.creator, table.joiner]
@@ -345,8 +395,7 @@ class TableServer:
         else:
             self._finish(table, clients, result)
         finally:
-            with self._tables_lock:
-                self._tables.pop(table.code, None)
+            self._unregister(table)
             for seat_client in clients:
                 if violation is None or seat_client is not violation.client:
                     seat_client.close()

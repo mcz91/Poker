@@ -2,8 +2,10 @@
 wyłączają serwera — awaria kończy wyłącznie dotknięty stół komunikatem do jego graczy
 i zamknięciem ich połączeń, a wejście klienta ma jawne granice."""
 
+import errno
 import io
 import json
+import os
 import random
 import socket
 import threading
@@ -495,3 +497,96 @@ def test_zadanie_na_granicy_max_chips_gra_z_agentem_do_konca(
         assert typy(pasuj_do_konca(czlowiek))[-1] == "match_end"
         czlowiek.close()
     assert liczacy.decyzje >= 1  # agent na guziku działa pierwszy przed flopem
+
+
+# --- I-02: stół przed startem — rejestr, table_created, started -----------------------------
+
+
+def test_tworca_zamykajacy_zapis_przed_dolaczeniem_traci_stol() -> None:
+    with nasluch(TableServer()) as port:
+        tworca, code = utworz(port, opponent="human")
+        tworca.sock.shutdown(socket.SHUT_WR)
+        assert tworca.nastepna() is None
+        tworca.close()
+        join_odrzucony(port, code)
+
+
+def test_dane_od_tworcy_przed_dolaczeniem_to_error_i_koniec_stolu() -> None:
+    with nasluch(TableServer()) as port:
+        tworca, code = utworz(port, opponent="human")
+        tworca.wyslij(wejscie("fold"))
+        strumien = tworca.do_konca()
+        tworca.close()
+        assert typy(strumien) == ["error"]
+        join_odrzucony(port, code)
+
+
+def psuj_wysylke(monkeypatch: pytest.MonkeyPatch, typ: str, numer: int) -> None:
+    """lan_server.send_message rzuca BrokenPipeError przy `numer`-tej wysyłce typu `typ`
+    (mock zapisu do gniazda — bez polegania na RST)."""
+    prawdziwa = protocol.send_message
+    wysylki = 0
+
+    def wysylka(stream: MessageStream, message: dict[str, object]) -> None:
+        nonlocal wysylki
+        if message.get("type") == typ:
+            wysylki += 1
+            if wysylki == numer:
+                raise BrokenPipeError(errno.EPIPE, os.strerror(errno.EPIPE))
+        prawdziwa(stream, message)
+
+    monkeypatch.setattr(lan_server, "send_message", wysylka)
+
+
+def test_nieudane_table_created_zwalnia_kod_stolu_z_agentem(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    psuj_wysylke(monkeypatch, "table_created", 1)
+    monkeypatch.setattr(lan_server, "generate_code", lambda rng: "AAAAAAAA")
+    with nasluch(TableServer(match_rng=random.Random(1))) as port:
+        klient = Klient(port)
+        klient.wyslij(create())
+        assert klient.nastepna() is None
+        assert klient.raw == b""
+        klient.close()
+        kolejny = Klient(port)
+        kolejny.wyslij(create())
+        assert kolejny.odbierz() == {
+            "v": PROTOCOL_VERSION, "type": "table_created", "code": "AAAAAAAA",
+        }
+        assert typy(pasuj_do_konca(kolejny))[-1] == "match_end"
+        kolejny.close()
+
+
+def test_nieudane_table_created_zwalnia_stol_ludzi(monkeypatch: pytest.MonkeyPatch) -> None:
+    psuj_wysylke(monkeypatch, "table_created", 1)
+    with nasluch(TableServer(seed=123)) as port:
+        klient = Klient(port)
+        klient.wyslij(create(opponent="human"))
+        assert klient.nastepna() is None
+        assert klient.raw == b""
+        klient.close()
+        join_odrzucony(port, "BJC3QJD5")
+
+
+@pytest.mark.parametrize("zawodzi", ["dolaczajacy", "tworca"])
+def test_nieudane_started_konczy_stol_opponent_left_bez_meczu(
+    zawodzi: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # started idzie najpierw do dołączającego (wysyłka 1), potem do twórcy (wysyłka 2)
+    psuj_wysylke(monkeypatch, "started", 1 if zawodzi == "dolaczajacy" else 2)
+    with nasluch(TableServer(match_rng=random.Random(1))) as port:
+        tworca, code = utworz(port, opponent="human")
+        dolaczajacy = Klient(port)
+        dolaczajacy.wyslij(join(code))
+        strumien_tworcy = tworca.do_konca()
+        strumien_dolaczajacego = dolaczajacy.do_konca()
+        tworca.close()
+        dolaczajacy.close()
+        if zawodzi == "dolaczajacy":
+            assert typy(strumien_tworcy) == ["opponent_left"]
+            assert strumien_dolaczajacego == []
+        else:
+            assert strumien_tworcy == []
+            assert typy(strumien_dolaczajacego) == ["started", "opponent_left"]
+        join_odrzucony(port, code)
