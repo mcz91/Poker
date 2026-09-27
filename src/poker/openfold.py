@@ -311,7 +311,9 @@ def action_values(t: Terminals, sigma: Sequence[Sequence[float]]) -> ActionValue
       jest wobec zakresu UTG_DEF (jam BTN) albo zakresu openu (jam BB),
       z kontynuującym BTN — wobec zakresu openu BTN; UTG_DEF stoi też za
       odpowiedzią UTG na jam BB w wycenie foldu BTN;
-    - showdowny BTN–BB po foldzie UTG wyceniane dla UTG z equity 0.5.
+    - showdowny BTN–BB po foldzie UTG wyceniane dla UTG z equity 0.5;
+    - blind all-in z samego blinda nie gra showdownu, gdy pozostali pasują:
+      pulę bierze agresor albo BB (terminale `_take`).
     """
     utg, btn, bb = t.utg, t.btn, t.bb
     p_bvo, p_bvj = _mass(sigma[BTN_VS_OPEN]), _mass(sigma[BTN_VS_JAM])
