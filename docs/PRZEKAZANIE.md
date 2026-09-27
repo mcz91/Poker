@@ -45,7 +45,7 @@ cat PAMIEC_OPERACYJNA.md
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
 ruff check . && mypy && pytest          # 648 testów, ~8 min 28 s (2026-09-27, 4 rdzenie współdzielone)
-#    aktualną liczbę sprawdzisz: pytest --collect-only -q | tail -1
+#    aktualną liczbę sprawdzisz: pytest --collect-only -q -o addopts="" | tail -1
 ```
 
 Gałąź integracyjna: **`claude/poker-project-architecture-jw6ukd`**.

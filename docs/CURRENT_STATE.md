@@ -41,8 +41,10 @@ sprint B, decyzja 31 pkt 2; wykaz w opisie `7b5c85d`, sekcja F);
 docstring `tools/blueprint/mode_census.py` z mnożnikiem iteracji WTA
 „1,12–1,91×" sprzed POKER-74 (kod; wartość bieżąca w bloku POKER-56
 pkt 4a); komentarz w `tests/test_blueprint_pilot.py` podający rozmiar
-pliku kontrolnego 8 408 B, który zależy od ścieżki checkoutu (test;
-blok POKER-51 pkt 5); szkice TaskSpeców `POKER-59` (horyzont „cykle 3
+pliku kontrolnego 8 408 B jak stałą — to pomiar jednego biegu, a rozmiar
+zmienia się między biegami, bo metadane niosą kopię manifestu biegu
+z czasami ściennymi, ścieżką tensora i proweniencją (test; blok
+POKER-51 pkt 5); szkice TaskSpeców `POKER-59` (horyzont „cykle 3
 rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl 6 rąk i wycena 49,5;
 bez wymogu zgodności schematu brzegu przy wznowieniu z checkpointu,
 choć `config_hash` schematu nie obejmuje) i `POKER-60` („~252
@@ -2966,16 +2968,23 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    odczytu (test podstawia strumień liczący). (Liczby z zamknięcia
    POKER-51. Po POKER-74 — brzeg cyklu 6 rąk — najgorszy odczyt stanu
    to **119 B**, V 56 B; asercje 160 i 72 B bez zmian — raport `7b5c85d`,
-   D.17. **Rozmiar pliku nie jest liczbą stałą dla tego drzewa:** metadane
-   niosą kopię manifestu biegu z bezwzględną ścieżką katalogu tensora
-   i proweniencją środowiska (wersje Pythona i numpy, model CPU), więc
-   rozmiar zależy od miejsca checkoutu. 8 328 B z zamknięcia POKER-51,
-   8 400 B tuż przed POKER-74 i 8 408 B po nim (raport `7b5c85d`)
-   zmierzono pod ścieżkami tamtych checkoutów; ten sam bieg kontrolny
-   kodem po POKER-74 daje 8 408 B przy ścieżce tensora 83-znakowej,
-   8 384 B po podmianie jej w manifeście na ścieżkę głównego checkoutu
-   `/home/user/Poker` (47 znaków) i 8 416 B przy 123 znakach — liczby
-   bajtów odczytu przy tym się nie zmieniają (pomiar 2026-09-27).)
+   D.17. **Rozmiar pliku nie jest liczbą stałą tego kodu:** metadane
+   niosą kopię całego manifestu biegu (`run_manifest`), a w niej czasy
+   ścienne biegu (`seconds`, `core_seconds`, `core_seconds_wall`,
+   `seconds_per_state`, `seconds_total_this_run`), bezwzględną ścieżkę
+   katalogu tensora i proweniencję środowiska (wersje Pythona i numpy,
+   model CPU) — rozmiar zmienia się więc między biegami tego samego kodu
+   pod tą samą ścieżką. 8 328 B z zamknięcia POKER-51, 8 400 B tuż przed
+   POKER-74 i 8 408 B po nim (raport `7b5c85d`) to pomiary pojedynczych
+   biegów. Pomiar 2026-09-27, kod po POKER-74, ścieżka tensora
+   83-znakowa: dwa kolejne biegi dały 8 400 B i 8 408 B przy tych samych
+   sha256 warstw i brzegu, a ich manifesty różniły się wyłącznie czasami
+   ściennymi; warstwy pierwszego biegu spakowane z plikiem manifestu
+   drugiego dają plik bajt w bajt równy drugiemu; podmiana samej ścieżki
+   tensora w manifeście pierwszego biegu dała 8 376 B (47 znaków) i
+   8 408 B (123 znaki). Bajty odczytu — 119 B stanu i 56 B V — były te
+   same we wszystkich biegach i podmianach; pod asercją stoją one, nie
+   rozmiar pliku.)
 
    Na artefakcie produkcyjnym mierzy to `bench --sweep` (przemiał
    **wszystkich** stanów, nie próbka — stany różnią się liczbą żywych
