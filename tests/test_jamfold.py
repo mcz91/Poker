@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from poker.icm import icm_equities, wta_equities
+from poker.icm import icm_equities
 from poker.jamfold import (
     N_HANDS,
     N_NODES,
@@ -22,6 +22,7 @@ from poker.jamfold import (
     _exploitability,
     _hand_utility,
     _payoffs,
+    _payoffs_of,
     _terminal_states,
     _three_way,
     _three_way_ev,
@@ -106,14 +107,6 @@ def test_jamfold_importuje_tylko_icm_spin_preflop() -> None:
     assert "poker.betting" not in poker
     assert "poker.table" not in poker
     assert "poker.strategy_table" not in poker
-
-
-def test_wta_one_step_rowne_cash_out() -> None:
-    stacks = (70, 50, 30)
-    prizes = PAYOUTS["3x"].prizes
-    result = solve(stacks, prizes, button=1, iterations=16)
-    assert result.values == pytest.approx(wta_equities(stacks, 3.0), abs=0.05)
-    assert result.values == pytest.approx(result.icm, abs=0.05)
 
 
 def test_icm_10x_one_step_rozjezdza_sie_przy_nierownych() -> None:
@@ -459,6 +452,33 @@ def test_epsilon_i_values_solve_z_funkcji_modulu() -> None:
     assert max(abs(value[seat] - result.values[seat]) for seat in range(3)) >= 1e-3
     assert min(result.epsilon) >= -1e-12
     assert min(_side_pot_solution(10, 20).epsilon) >= -1e-12
+
+
+def test_wta_v1_minus_v0_to_chip_ev_pozycji() -> None:
+    """Pod WTA V¹ − V⁰ = Σnagród·E[Δżetonów]/Σstacków: chip-EV pozycji w jednej ręce
+    przy stałym guziku, nie błąd fictitious play — nie maleje ze zbieżnością.
+
+    Zastępuje test „V¹ = V⁰” z tolerancją 0,05 BI, ok. 9× większą niż ta różnica
+    (finding I-26; decyzja 12, KOREKTA POKER-84). E[Δżetonów] liczy ta sama łączna
+    wycena zakres–zakres co values, na stanach żetonowych terminali zamiast $EV.
+    """
+    stacks = (70, 50, 30)
+    prizes = PAYOUTS["3x"].prizes
+    chips = _payoffs_of(1, _terminal_states(stacks, 1, 1, 2))
+    runs: dict[int, tuple[list[float], float]] = {}
+    for iterations in (16, 64):
+        result = solve(stacks, prizes, button=1, iterations=iterations)
+        expected_chips = _eval_values(_profile(result), chips)
+        gap = [result.values[seat] - result.icm[seat] for seat in range(3)]
+        for seat in range(3):
+            chip_ev = sum(prizes) * (expected_chips[seat] - stacks[seat]) / sum(stacks)
+            assert abs(gap[seat] - chip_ev) <= 1e-12, (iterations, seat)
+        runs[iterations] = (gap, result.exploitability)
+    (gap16, loose), (gap64, tight) = runs[16], runs[64]
+    assert 0.005 <= gap16[0] <= 0.0065
+    assert gap16[1] <= -0.004
+    assert abs(gap64[0] - gap16[0]) < 0.1 * gap16[0]
+    assert tight * 10 <= loose
 
 
 def test_exploitability_publiczne_api() -> None:

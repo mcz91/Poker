@@ -64,7 +64,8 @@ _ORDER_INDEX = {order: k for k, order in enumerate(THREE_WAY_ORDERS)}
 
 @dataclass(frozen=True, slots=True)
 class _Payoffs:
-    """$EV stanów terminalnych drzewa jam/fold, stałe przez cały fictitious play."""
+    """Wektory stanów terminalnych drzewa jam/fold: $EV (`_payoffs`, stałe przez cały
+    fictitious play) albo stany żetonowe (`_payoffs_of` — test V¹ − V⁰ pod WTA)."""
 
     utg: int
     btn: int
@@ -240,22 +241,33 @@ def _payoffs(
 ) -> _Payoffs:
     """$EV terminali: ICM, gdy grają dalej co najmniej dwaj, a przy końcu
     turnieju reguła miejsc ze stackami wejściowymi ręki (`terminal_equities`)."""
-    utg, btn, bb = roles(button)
-    m = tuple(
-        terminal_equities(stacks, state, prizes)
-        for state in _terminal_states(stacks, button, sb, bb_amt)
+    return _payoffs_of(
+        button,
+        tuple(
+            terminal_equities(stacks, state, prizes)
+            for state in _terminal_states(stacks, button, sb, bb_amt)
+        ),
     )
+
+
+def _payoffs_of(button: int, vectors: tuple[Equities3, ...]) -> _Payoffs:
+    """Wektory terminali w kolejności `_terminal_states` rozłożone na pola `_Payoffs`.
+
+    Wektorem może być też stan żetonowy terminala: wycena `_eval_values` daje
+    wtedy E[żetonów po ręce] pod profilem.
+    """
+    utg, btn, bb = roles(button)
     return _Payoffs(
         utg=utg,
         btn=btn,
         bb=bb,
-        utg_b=m[0],
-        btn_b=m[1],
-        bb_b=m[2],
-        hu_utg_bb=(m[3], m[4]),
-        hu_utg_btn=(m[5], m[6]),
-        hu_btn_bb=(m[7], m[8]),
-        tw=m[9:],
+        utg_b=vectors[0],
+        btn_b=vectors[1],
+        bb_b=vectors[2],
+        hu_utg_bb=(vectors[3], vectors[4]),
+        hu_utg_btn=(vectors[5], vectors[6]),
+        hu_btn_bb=(vectors[7], vectors[8]),
+        tw=vectors[9:],
     )
 
 
