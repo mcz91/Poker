@@ -121,12 +121,13 @@
     — repozytorium jest PUBLICZNE, więc artefakt nie wchodzi do żadnej
     formy dystrybucji przez repo (release/LFS/gałąź to nieodwracalna
     publikacja strategii, a profile eksploatacyjne są wrażliwsze niż
-    blueprint); w zamian manifest tożsamości `prod_identity.json`
-    (sha256 32 plików), który pozwala regenerującej drużynie zachować
-    pomiary zamiast je powtarzać (KOREKTA (POKER-71): nie ROI areny
-    i liczniki fallbacku — zależą też od kodu areny, który zmieniły
-    POKER-70 i 71; od POKER-74 manifest opisuje artefakt liczony starym
-    brzegiem, którego obecny kod nie produkuje); P-7 (WTA@25bb)
+    blueprint); w zamian manifest tożsamości `prod_identity.json` —
+    od KOREKTY (POKER-75) metoda, status i podstawa każdej z 32 pozycji:
+    sha wyłącznie przy dwóch plikach `npz` tensora, 30 pozycji „do
+    przeliczenia”; tożsamość z kanonicznej projekcji manifestów liczy
+    `tools/blueprint/identity.py --run`, a pomiary przy artefakcie są
+    unieważnione do regeneracji operatora (ROI areny i liczniki fallbacku
+    zależą ponadto od kodu areny — KOREKTA (POKER-71)); P-7 (WTA@25bb)
     odblokowane bez potwierdzenia tabeli tierów — nie bierze z niej nic
     — P-8 nadal
     zablokowane.
@@ -318,7 +319,7 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   integracji: po POKER-50).
 
 Sprint A decyzji 31 (naprawy blokujących findingów audytu 2026-09-26;
-fale 1–3, integracja sekwencyjna):
+fale 1–3, integracja sekwencyjna; zamknięty 2026-09-27):
 
 - [`POKER-69.json`](taskspecs/POKER-69.json) — seed talii przy stole
   z człowiekiem poza zasięgiem gracza; protokół LAN v2 (zamknięty,
