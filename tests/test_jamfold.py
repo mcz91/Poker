@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import functools
 import hashlib
+import itertools
 import random
 from pathlib import Path
 
@@ -272,11 +273,16 @@ def test_three_way_konczacy_turniej_placi_miejsca_z_terminal_equities() -> None:
 
 
 def test_three_way_ev_drugie_miejsce_z_equity_pary_pozostalych() -> None:
-    """$EV 3-way = Σ po porządkach P(porządek)·$EV stanu porządku.
+    """$EV 3-way = Σ po porządkach P(porządek)·$EV stanu porządku, w każdej kolejności
+    miejsc `seats`.
 
     P(x pierwsze) — iloczyn equity par znormalizowany; P(y drugie | x pierwsze) =
     P(y wygrywa z z). Przy P(U>B) = 0,6, P(U>C) = 0,7, P(B>C) = 0,55 porządki mają
-    (0,231; 0,189; 0,154; 0,066; 0,081; 0,054) / 0,775.
+    (0,231; 0,189; 0,154; 0,066; 0,081; 0,054) / 0,775. Drugie miejsce zmienia stan
+    tylko po wygranej B (miejsce 1, stack 15; side pot U–C). Sześć kolejności `seats`
+    stawia B na każdej pozycji, więc każda z trzech gałęzi zwycięzcy liczy drugie
+    miejsce na różnych stanach — także gałąź pierwszego miejsca w `seats`, w której
+    węzły best response BTN_VS_UTG i BB_VS_BOTH stawiają decydenta.
     """
     stacks = (100, 15, 35)
     prizes = PAYOUTS["10x"].prizes
@@ -290,6 +296,11 @@ def test_three_way_ev_drugie_miejsce_z_equity_pary_pozostalych() -> None:
             expected[seat] += weight / 0.775 * state[seat]
     assert got == pytest.approx(expected, abs=1e-12)
     assert got == pytest.approx((6.722470, 1.017139, 2.260391), abs=1e-6)
+    beats = {(0, 1): 0.6, (0, 2): 0.7, (1, 2): 0.55}
+    beats |= {(y, x): 1 - p for (x, y), p in beats.items()}
+    for a, b, c in itertools.permutations(range(3)):
+        permuted = _three_way_ev(pay.tw, (a, b, c), beats[a, b], beats[a, c], beats[b, c])
+        assert permuted == pytest.approx(expected, abs=1e-12), (a, b, c)
 
 
 @functools.cache
@@ -455,6 +466,29 @@ def test_funkcja_per_reka_bez_masy_3way_rowna_lacznej_wycenie() -> None:
         pay = _payoffs(stacks, PAYOUTS[pay_id].prizes, button, sb, bb)
         expected = _eval_values(sigma, pay)
         assert _hand_utility(sigma, pay) == pytest.approx(expected, abs=1e-12), stacks
+
+
+def test_funkcja_per_reka_na_zakresach_jednoklasowych_rowna_lacznej_wycenie() -> None:
+    """Na zakresach jednej klasy u^ręka == łączna wycena zakres–zakres, także z masą 3-way.
+
+    Equity ręki wobec zakresu jednej klasy to equity pary klas, a e(x, y) = 1 − e(y, x),
+    więc aproksymacja ręki decydenta jest tu dokładna. 3-way obie wyceny liczą
+    `_three_way_ev` w innej kolejności miejsc: łączna podaje pierwszego UTG, a węzły
+    best response BTN_VS_UTG i BB_VS_BOTH — decydenta. W stanach 10x z side potem,
+    w których najkrótszy stack ma decydent (BTN w (100, 15, 35), BB w (100, 35, 15)),
+    po jego wygranej drugie miejsce dzieli side pot rywali i zmienia jego $EV. Równość
+    wycen chroni więc gałąź pierwszego miejsca modelu drugiego miejsca i equity par,
+    które węzły best response przekazują do modelu 3-way.
+    """
+    rng = random.Random(0)
+    for stacks in ((100, 15, 35), (100, 35, 15)):
+        pay = _payoffs(stacks, PAYOUTS["10x"].prizes, 1, 1, 2)
+        for _ in range(3):
+            sigma = [[0.0] * N_HANDS for _ in range(N_NODES)]
+            for row in sigma:
+                row[rng.randrange(N_HANDS)] = 1.0
+            expected = _eval_values(sigma, pay)
+            assert _hand_utility(sigma, pay) == pytest.approx(expected, abs=1e-12), stacks
 
 
 def test_epsilon_i_values_solve_z_funkcji_modulu() -> None:
