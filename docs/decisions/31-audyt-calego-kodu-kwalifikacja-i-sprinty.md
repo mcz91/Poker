@@ -156,6 +156,23 @@ OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
   iteracji, jak w HU, gdzie każdy wariant zbiega), w obszarze decyzji 25.
   Gałąź propozycji opcji A (`sprint-a/POKER-74-r2-fpmedian-propozycja`)
   zostaje nieintegrowana jako zapis pomiaru.
+- **POKER-73 — rozstrzygnięcie OBJECTION z rundy 1 (2026-09-27).**
+  (a) Konflikt kontraktu jest zasadny: acceptance 4 żądał testu przy
+  N = 64, acceptance 8 dopuszczał w bramce tylko N ≤ 24. Reguła N ≤ 24
+  chroniła wyłącznie koszt bramki; po przyspieszeniu wyceny (bitowo
+  zgodnym z bazą) test przy N = 64 kosztuje 1,6 s, a suma `--durations`
+  `test_openfold.py` 7,2 s ≤ 30 s — test zostaje przy N = 64 jako jawny
+  wyjątek z docstringiem „dlaczego". (b) Krzywa miary nie jest
+  monotoniczna: przy N = 128 wszystkie sześć poziomów mieści się
+  w tolerancji 1e−3·Σnagród, przy N = 256 poziom 3x 2/4 ma 1,26e−3.
+  Reguła „najmniejsze N w tolerancji" dałaby migawkę, a cel kontraktu to
+  liczby modelu zbieżnego, nie z chwilowego dołka krzywej: N to
+  najmniejszy punkt kontrolny, **od którego** miara mieści się
+  w tolerancji na wszystkich eksportowanych poziomach we wszystkich
+  dalszych punktach do 1024 — z krzywej rundy 1: N = 512. Runda naprawcza
+  przelicza eksport i liczby areny przy N = 512; adnotacje KOREKTA
+  w decyzjach 20–23 mają podać wartość przy N = 512 i rozrzut na
+  [256, 512].
 - **Obserwacje z raportów fali 1 do sprintu C:** decyzja 12:21-22
   („~+0,05 BI") wobec pomiaru +0,037 na (16, 50, 84) — rozjazd sprzed
   POKER-70; openfold nie daje blindowi all-in z samego SB szansy na pulę
