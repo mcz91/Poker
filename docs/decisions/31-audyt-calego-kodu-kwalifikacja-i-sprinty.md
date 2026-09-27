@@ -50,21 +50,21 @@ zarezerwowane mapą decyzji 29).
 | I-13 | zbuduj — strażnik kierunku importów | POKER-80 · B |
 | I-18, I-19 | zbuduj — statystyka areny HU | POKER-81 · B |
 | I-16 | zbuduj — skala stałej cechy klona, regeneracja wag | POKER-82 · B |
-| I-29, I-30, I-31, N-10 | zbuduj — integralność czytnika `.bpk` | sprint B, druga część (szkic POKER-86) |
-| I-23 | zbuduj — odcisk zegara u konsumenta | sprint B, druga część (szkic POKER-87) |
-| I-22, I-24 | zbuduj — liczniki rozjazdów (bez zmiany drzewa — decyzja 27) | sprint B, druga część (szkic POKER-88) |
+| I-29, I-30, I-31, N-10 | zbuduj — integralność czytnika `.bpk` | POKER-86 · B |
+| I-23 | zbuduj — odcisk zegara u konsumenta | POKER-87 · B |
+| I-22, I-24 | zbuduj — liczniki rozjazdów (bez zmiany drzewa — decyzja 27) | POKER-88 · B |
 | I-28, I-15 | zbuduj — izolacja RNG portu agenta i test poborów | POKER-83 · B |
 | I-26, I-27 | zbuduj — jamfold: ε jedną aproksymacją, korekta decyzji 12 | POKER-84 · B |
 | I-14 | zbuduj — testy ICM z mocą | POKER-85 · B |
-| I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | sprint B, druga część (szkic POKER-89) |
-| nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora) | sprint B, druga część (szkic POKER-90) |
-| docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | sprint B, druga część (szkic POKER-90) |
+| I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | POKER-89 · B |
+| nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora). **KOREKTA (POKER-90, 2026-09-27): opcja C** — model stosuje regułę guzika areny (`poker.spin.next_button`) na przejściu 3-way → HU przez stan lustrzany P·after; klucz stanu, format `.bpk` i liczba stanów bez zmian, bo V(h, s, guzik = c) = P·V(h, P·s); opcja A (guzik w kluczu stanu) odrzucona — zmiana formatu za informację, którą model już ma; opcja B niewykonalna (18/18 stanów niejednoznacznych bez ręki wybicia); regeneracja produkcji po POKER-90 (pkt 3) | POKER-90 · B |
+| docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | POKER-90 · B |
 | nowy (POKER-74 r2): podłoga szumu PI-FP w ogonie brzegu (~1e−3 na e60 > tail_tol) | warunkowo — tylko gdy regeneracja produkcji nie zbiegnie do tail_tol: solver ogona 3-way ciągły w V (decyzja 25) | sprint B (warunkowy) |
 | I-17 | już zatwierdzone — POKER-28; uśpione (decyzja 18) | bez zmian (acceptance 3 POKER-28 realizuje POKER-80 — pkt 4a) |
 | N-04 | odłóż — walidacja semantyczna eksportu przy pierwszym konsumencie niezaufanych historii (korpus HH, P-10) | dług |
 | N-12 | zbuduj razem z I-28 (widok a mutacja w miejscu) | POKER-83 · B |
 | N-13 | odłóż — pakiet `tools/blueprint` przy najbliższym kontrakcie przebudowującym jego importy | dług |
-| I-33…I-36, N-05, N-06 | zbuduj — dokumenty stanu (architekt) i drobne korekty | sprint C (N-06: część w POKER-79, część w szkicu POKER-86) |
+| I-33…I-36, N-05, N-06 | zbuduj — dokumenty stanu (architekt) i drobne korekty | sprint C (N-06: część w POKER-79, część w POKER-86) |
 
 Kontrakty sprintu B i C architekt zatwierdza **po zamknięciu sprintu A**,
 na świeżym stanie repozytorium (kolejność dowodowa: najpierw poprawność
@@ -101,6 +101,11 @@ przeniesione do dokumentów stanu (korekta zbiorcza po POKER-69…73,
 commit `059dc7c`, audyt świeżym kontekstem r3 CZYSTY); nieprzeliczone
 zostają wyłącznie pomiary wymagające artefaktu produkcyjnego (BF/BG/BH,
 liczniki fallbacku, udział trybów) — wejście operatora.
+**Termin regeneracji (2026-09-27):** po integracji POKER-90 (guzik HU po
+wybiciu, opcja C — pkt 2), który przesuwa wiersze 3-way całego artefaktu
+przy niezmienionym koszcie solvera (wycena `mode_census` prod-10x:
+89,0 rdzenio-h, z tensorem 100,2); regenerację wcześniejszą trzeba by
+powtórzyć.
 
 ## 4. Porządek sprintu A i nadzór
 
@@ -223,16 +228,20 @@ każdego: szkic z pomiarem bazy → recenzja świeżym kontekstem (wszystkie
 „POPRAWKI”, jeden defekt blokujący — POKER-80) → finalizacja wg decyzji
 architekta → przegląd krzyżowy wszystkich dziesięciu → zatwierdzenie.
 
-Fale (w fali kontrakty rozwijane równolegle, scalane sekwencyjnie w tej
-kolejności z pełną bramką; fala startuje z headu po poprzedniej):
+Fale pierwszej części (w fali kontrakty rozwijane równolegle, scalane
+sekwencyjnie w tej kolejności z pełną bramką; fala startuje z headu po
+poprzedniej; plan po wpięciu drugiej części — niżej):
 **B1** — 76 → 78 → 80 → 84; **B2** — 85 → 77 → 79 → 83; **B3** — 81;
 **B4** — 82 (startuje z headu po integracji POKER-81: jego kryteria
 wymagają na headzie kodera estymatora łącznego i adnotacji KOREKTA
 z POKER-81 — rozdzielenie z przeglądu krzyżowego).
-Druga część sprintu B (szkice POKER-86…90: integralność `.bpk`, odcisk
-zegara u konsumenta, liczniki rozjazdów areny, `eps_curve` per tryb
-i sha przy odczycie, stan HU z guzikiem) — zatwierdzana osobno, po
-recenzji; POKER-90 wymaga najpierw rozstrzygnięcia opcji modelu.
+Druga część sprintu B — POKER-86 (integralność czytnika `.bpk`), 87
+(odcisk zegara sprawdzany w konstruktorze agenta blueprintu), 88
+(liczniki rozjazdów areny z modelem), 89 (`eps_curve` per tryb solvera,
+sha manifestów przy odczycie), 90 (guzik HU po wybiciu — opcja C, pkt 2)
+— zatwierdzona 2026-09-27 tą samą ścieżką (przegląd krzyżowy: jeden
+defekt tekstowy, poprawiony przed zatwierdzeniem). Plan po wpięciu:
+**B3** — 81 → 86 → 87 → 89; **B4** — 82 → 88; **B5** — 90.
 
 Zapisy architekta (decyzja bez dokumentu nie istnieje):
 

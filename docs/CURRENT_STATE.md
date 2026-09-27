@@ -668,9 +668,12 @@ tools/blueprint/identity.py --run PROD`).
 **Następny krok: sprint B decyzji 31** — kontrakty POKER-76…85
 zatwierdzone 2026-09-27 (szkic z pomiarem bazy, recenzja świeżym
 kontekstem, finalizacja, przegląd krzyżowy); fale: B1 — POKER-76, 78,
-80, 84; B2 — 85, 77, 79, 83; B3 — 81; B4 — 82 (decyzja 31 pkt 4a).
-Druga część (POKER-86…90) w szkicach, jeszcze poza repozytorium; zakres
-— kwalifikacja findingów w decyzji 31 pkt 2.
+80, 84 (w toku); B2 — 85, 77, 79, 83; B3 — 81, 86, 87, 89; B4 — 82, 88;
+B5 — 90 (decyzja 31 pkt 4a). Druga część (POKER-86…90) zatwierdzona
+2026-09-27; POKER-90 (guzik HU po wybiciu, opcja C) zmienia model
+blueprintu, więc regeneracja artefaktu produkcyjnego — po jego
+integracji (decyzja 31 pkt 3); zakres — kwalifikacja findingów
+w decyzji 31 pkt 2.
 Pomiary unieważnione do przeliczenia wylicza decyzja 31 pkt 3; mapa
 decyzji 29 (P-3 i dalej) czekała na zamknięcie sprintu A, bo jej pomiary
 stoją na naprawianych rozliczeniach i brzegu horyzontu, a jej pozycje

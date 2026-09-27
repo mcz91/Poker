@@ -374,6 +374,22 @@ zapisy architekta — decyzja 31 pkt 4a):
 - [`POKER-82.json`](taskspecs/POKER-82.json) — klon liniowy: stała
   cecha ze skalą 1, regeneracja wag (fala B4, po POKER-81).
 
+Sprint B decyzji 31, druga część (zatwierdzone 2026-09-27; plan fal po
+wpięciu: B3 — 81 → 86 → 87 → 89, B4 — 82 → 88, B5 — 90):
+
+- [`POKER-86.json`](taskspecs/POKER-86.json) — integralność czytnika
+  `.bpk`: długość i granice, dekompresja z limitem, spójność struktury,
+  strażnicy pod testem (fala B3);
+- [`POKER-87.json`](taskspecs/POKER-87.json) — odcisk zegara artefaktu
+  sprawdzany w konstruktorze agenta blueprintu (fala B3);
+- [`POKER-89.json`](taskspecs/POKER-89.json) — `eps_curve`: sufit
+  i tolerancja per tryb solvera; sha256 manifestów przy odczycie (fala B3);
+- [`POKER-88.json`](taskspecs/POKER-88.json) — liczniki rozjazdów areny
+  z modelem: wymuszone wejście, cena calla, rozliczenie liści (fala B4);
+- [`POKER-90.json`](taskspecs/POKER-90.json) — guzik HU po wybiciu
+  regułą areny w modelu blueprintu (opcja C, decyzja 31 pkt 2; fala B5 —
+  po nim regeneracja produkcji, wejście operatora).
+
 ## Operator
 
 Prompty ról żyją w korzeniu repozytorium:
