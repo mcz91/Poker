@@ -72,8 +72,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Openfold: miara FP nie maleje monotonicznie z N (dołek 3x 2/4 przy 128), a w
   tolerancji ≠ stałe liczby (open 3x 28,9% → 33,9%): N = punkt, OD którego miara
   zostaje w tolerancji; N rusza 3bet książki — „bit w bit" to zbieg (73).
-- Gniazda i typy na granicy (76/78): powody w komentarzach `lan_server`,
-  `protocol`, `events` i `betting` — czytaj przed zmianą.
+- Przed zmianą gniazd i typów na granicy (76/78) czytaj komentarze `lan_server`,
+  `protocol`, `events`, `betting` i testu drenażu w `test_lan_resilience`.
 
 ## DŁUG — DebtRecords czekające na TaskSpec
 
