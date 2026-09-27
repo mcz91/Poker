@@ -593,8 +593,8 @@ def test_cli_connect_wysyla_create_bez_seeda(capsys: pytest.CaptureFixture[str])
 def test_cli_connect_z_jawnym_seedem_konczy_sie_bledem(
     dolaczenie: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Port bez nasłuchu: próba połączenia wywróciłaby main wyjątkiem, więc błąd musi paść
-    # przed nią.
+    # Port bez nasłuchu: błąd użycia pada przed próbą połączenia, a od błędu połączenia (też
+    # kod 2) odróżnia go '--seed' w komunikacie.
     zwolniony = socket.create_server(("127.0.0.1", 0))
     _, port = zwolniony.getsockname()
     zwolniony.close()

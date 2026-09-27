@@ -1,4 +1,5 @@
-"""Testy korpusu self-play (POKER-14): round-trip, determinizm, niezależność od procesów."""
+"""Testy korpusu self-play (POKER-14, POKER-77): round-trip, determinizm, niezależność od
+procesów, błędy manifestu i katalogu docelowego."""
 
 import json
 from pathlib import Path
@@ -79,6 +80,17 @@ def test_niepusty_katalog_docelowy_jest_bledem(tmp_path: Path) -> None:
     (katalog / "obcy.txt").write_text("x", encoding="utf-8")
     with pytest.raises(ValueError, match="niepusty"):
         wygeneruj(katalog)
+
+
+def test_manifest_bez_match_config_to_czytelny_blad(tmp_path: Path) -> None:
+    katalog = tmp_path / "korpus"
+    wygeneruj(katalog)
+    manifest = katalog / MANIFEST_NAME
+    doc = json.loads(manifest.read_text(encoding="utf-8"))
+    del doc["match_config"]
+    manifest.write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(ValueError, match="match_config"):
+        read_corpus(katalog)
 
 
 def test_nieznana_nazwa_agenta_jest_bledem(tmp_path: Path) -> None:

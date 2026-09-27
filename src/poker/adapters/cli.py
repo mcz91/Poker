@@ -1,6 +1,7 @@
 """CLI meczu heads-up: adapter terminalowy nad play_match (INV-P7)."""
 
 import argparse
+import os
 import random
 import sys
 import threading
@@ -21,12 +22,68 @@ from poker.arena import SeriesConfig, run_series
 from poker.events import HandEvent
 from poker.table import MatchConfig, play_match
 
+_MAX_PORT = 65_535
+_ONE_MODE = "jedno wywołanie to jeden tryb"
+# Jedno źródło reguł łączenia flag dla walidacji i epilogu pomocy — pomoc nie rozjedzie się
+# z tym, co CLI odrzuca. Tabele obejmują wyłącznie flagi z domyślnym None: tylko te da się
+# odróżnić od pominiętych bez zmiany parsera.
+_EXCLUSIONS: tuple[tuple[str, tuple[str, ...], str], ...] = (
+    ("--serve", ("--connect", "--dataset", "--corpus", "--series"), _ONE_MODE),
+    ("--connect", ("--dataset", "--corpus", "--series"), _ONE_MODE),
+    ("--dataset", ("--corpus", "--series"), _ONE_MODE),
+    ("--corpus", ("--series",), _ONE_MODE),
+    (
+        "--human",
+        ("--serve", "--connect", "--dataset", "--corpus", "--series"),
+        "--human wybiera miejsce człowieka w meczu lokalnym",
+    ),
+    (
+        "--export",
+        ("--serve", "--connect", "--dataset", "--corpus", "--series"),
+        "--export zapisuje historię meczu lokalnego",
+    ),
+    (
+        "--seed",
+        ("--serve", "--connect", "--dataset"),
+        "seed meczu przy stole LAN losuje serwer, a zbiór nie gra meczów",
+    ),
+)
+_REQUIRED_MODES: tuple[tuple[str, str], ...] = (
+    ("--from-corpus", "--dataset"),
+    ("--join", "--connect"),
+    ("--serve-seed", "--serve"),
+    ("--export-dir", "--serve"),
+)
+_EXIT_CODES = """\
+kody wyjścia:
+  0 — praca zakończona: mecz, seria, korpus, zbiór, mecz klienta LAN do końca;
+      serwer (--serve) zamknięty Ctrl+C
+  1 — mecz przerwany: koniec wejścia człowieka; klient LAN: serwer zamknął
+      połączenie, przeciwnik się rozłączył albo koniec wejścia (kod 1 daje też
+      nieobsłużony wyjątek)
+  2 — błąd użycia (argumenty, wykluczenia i zależności flag, ścieżki wyjścia,
+      port) albo błąd I/O (pliki, katalogi, sieć, protokół, błąd zgłoszony
+      przez serwer LAN)"""
+
+
+def _epilog() -> str:
+    return "\n".join([
+        "tryby: --serve, --connect, --dataset, --corpus, --series (bez trybu: mecz lokalny)",
+        "sprzeczne flagi albo flaga bez swojego trybu — kod 2, zanim ruszy praca:",
+        *(f"  {flag} nie łączy się z {', '.join(others)}" for flag, others, _ in _EXCLUSIONS),
+        *(f"  {flag} wymaga {mode}" for flag, mode in _REQUIRED_MODES),
+        "",
+        _EXIT_CODES,
+    ])
+
 
 def build_parser() -> argparse.ArgumentParser:
     agents = sorted(agent_registry())
     parser = argparse.ArgumentParser(
         prog="python -m poker.adapters.cli",
         description="Rozgrywa mecz heads-up dwóch agentów i eksportuje pełną historię.",
+        epilog=_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         exit_on_error=False,
     )
     parser.add_argument("--small-blind", type=int, default=1, help="small blind (domyślnie 1)")
@@ -47,7 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="seed meczu: talia każdego rozdania jest jego czystą funkcją "
                              "(domyślnie 0; z --human domyślnie 64 bity entropii systemu, "
                              "wypisane dopiero po meczu — jawny seed czyni talię wyliczalną "
-                             "dla każdego, kto go zna; nie łączy się z --connect)")
+                             "dla każdego, kto go zna; łączenie flag — niżej)")
     parser.add_argument("--agent0", choices=agents, default="rule",
                         help="agent miejsca 0 (domyślnie rule)")
     parser.add_argument("--agent1", choices=agents, default="rule",
@@ -57,12 +114,12 @@ def build_parser() -> argparse.ArgumentParser:
                              "miejsca (domyślnie brak)")
     parser.add_argument("--series", type=int, default=None, metavar="PARY",
                         help="arena: seria PAR meczów agent0 vs agent1 na lustrzanych "
-                             "rozdaniach z raportem BB/100 (domyślnie brak; wyklucza "
-                             "--human i --export)")
+                             "rozdaniach z raportem BB/100 (domyślnie brak; łączenie flag "
+                             "— niżej)")
     parser.add_argument("--corpus", type=Path, default=None, metavar="KATALOG",
                         help="korpus self-play: generuje --matches meczów agent0 vs "
                              "agent1 do pustego KATALOGU w formacie eksportu z manifestem "
-                             "(domyślnie brak; wyklucza --human, --export i --series)")
+                             "(domyślnie brak; łączenie flag — niżej)")
     parser.add_argument("--matches", type=int, default=100,
                         help="liczba meczów korpusu (domyślnie 100)")
     parser.add_argument("--jobs", type=int, default=1,
@@ -71,7 +128,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset", type=Path, default=None, metavar="PLIK",
                         help="zbiór przykładów decyzyjnych: ekstrakcja z korpusu "
                              "wskazanego przez --from-corpus do nowego PLIKU (domyślnie "
-                             "brak; wyklucza pozostałe tryby)")
+                             "brak; łączenie flag — niżej)")
     parser.add_argument("--from-corpus", type=Path, default=None, metavar="KATALOG",
                         help="katalog korpusu źródłowego dla --dataset")
     parser.add_argument("--serve", type=int, default=None, metavar="PORT",
@@ -109,10 +166,58 @@ def _live_reporter(seat: int) -> Callable[[tuple[HandEvent, ...]], None]:
     return report
 
 
+def _given(args: argparse.Namespace, flag: str) -> bool:
+    return getattr(args, flag.removeprefix("--").replace("-", "_")) is not None
+
+
+def _check_flag_combinations(args: argparse.Namespace) -> None:
+    for flag, others, reason in _EXCLUSIONS:
+        for other in others:
+            if _given(args, flag) and _given(args, other):
+                raise ValueError(f"{flag} nie łączy się z {other} — {reason}")
+    for flag, mode in _REQUIRED_MODES:
+        if _given(args, flag) and not _given(args, mode):
+            raise ValueError(f"{flag} wymaga {mode}")
+
+
+def _check_output_file(flag: str, path: Path) -> None:
+    """Ścieżka wyjścia sprawdzana przed pracą: błąd przy zapisie przepaliłby wynik, np. mecz
+    człowieka. Plik celu nie powstaje."""
+    directory = path.parent
+    if not directory.exists():
+        raise ValueError(f"{flag}: katalog {directory} nie istnieje")
+    if not directory.is_dir():
+        raise ValueError(f"{flag}: {directory} nie jest katalogiem")
+    if not os.access(directory, os.W_OK):
+        raise ValueError(f"{flag}: brak prawa zapisu do katalogu {directory}")
+    if path.is_dir():
+        raise ValueError(f"{flag}: {path} jest katalogiem, nie plikiem")
+    if path.exists() and not os.access(path, os.W_OK):
+        raise ValueError(f"{flag}: brak prawa zapisu do pliku {path}")
+
+
+def _checked_port(flag: str, port: int) -> int:
+    if not 0 <= port <= _MAX_PORT:
+        raise ValueError(f"{flag}: port {port} poza zakresem 0–{_MAX_PORT}")
+    return port
+
+
+def _error_exit(error: Exception) -> int:
+    print(f"błąd: {error}", file=sys.stderr)
+    return 2
+
+
 def _run_serve_command(args: argparse.Namespace) -> int:
+    port = _checked_port("--serve", args.serve)
+    if args.export_dir is not None:
+        # Serwer eksportuje dopiero po meczu stołu, a błąd zapisu trafia wtedy tylko do jego
+        # logu — katalog i prawo zapisu sprawdzane przed startem.
+        args.export_dir.mkdir(parents=True, exist_ok=True)
+        if not os.access(args.export_dir, os.W_OK):
+            raise ValueError(f"--export-dir: brak prawa zapisu do katalogu {args.export_dir}")
     server = TableServer(
         host=args.serve_host,
-        port=args.serve,
+        port=port,
         export_directory=args.export_dir,
         seed=args.serve_seed,
     )
@@ -128,11 +233,10 @@ def _run_serve_command(args: argparse.Namespace) -> int:
 
 
 def _run_connect_command(args: argparse.Namespace, stdin: TextIO | None) -> int:
-    if args.seed is not None:
-        raise ValueError("--connect nie łączy się z --seed — seed meczu stołu losuje serwer")
     host, _, port_text = args.connect.partition(":")
     if not host or not port_text.isdigit():
         raise ValueError(f"--connect wymaga adresu HOST:PORT, otrzymano {args.connect!r}")
+    port = _checked_port("--connect", int(port_text))
     if args.join is not None:
         request: dict[str, object] = {"type": "join", "code": args.join}
     else:
@@ -146,20 +250,17 @@ def _run_connect_command(args: argparse.Namespace, stdin: TextIO | None) -> int:
             "opponent": args.opponent,
         }
     effective_stdin: TextIO = stdin if stdin is not None else sys.stdin
-    return run_client(
-        host, int(port_text), request=request, stdin=effective_stdin, stdout=sys.stdout
-    )
+    try:
+        return run_client(host, port, request=request, stdin=effective_stdin, stdout=sys.stdout)
+    except OSError as error:
+        # Błąd gniazda nie niesie adresu, z którym klient się łączył.
+        raise OSError(f"--connect {args.connect}: {error}") from error
 
 
 def _run_dataset_command(args: argparse.Namespace) -> int:
-    for flaga, wartosc in (
-        ("--human", args.human), ("--export", args.export),
-        ("--series", args.series), ("--corpus", args.corpus),
-    ):
-        if wartosc is not None:
-            raise ValueError(f"--dataset nie łączy się z {flaga}")
     if args.from_corpus is None:
         raise ValueError("--dataset wymaga --from-corpus ze wskazaniem katalogu korpusu")
+    _check_output_file("--dataset", args.dataset)
     report = extract_dataset(args.from_corpus, args.dataset)
     print(
         f"zbiór: przykładów: {report.examples}, rozdań: {report.hands}, "
@@ -170,12 +271,6 @@ def _run_dataset_command(args: argparse.Namespace) -> int:
 
 
 def _run_corpus_command(args: argparse.Namespace) -> int:
-    if args.human is not None:
-        raise ValueError("--corpus nie łączy się z --human — korpus to self-play agentów")
-    if args.export is not None:
-        raise ValueError("--corpus nie łączy się z --export — korpus sam zapisuje mecze")
-    if args.series is not None:
-        raise ValueError("--corpus nie łączy się z --series — arena mierzy, korpus generuje")
     config = MatchConfig(
         small_blind=args.small_blind,
         big_blind=args.big_blind,
@@ -197,10 +292,6 @@ def _run_corpus_command(args: argparse.Namespace) -> int:
 
 
 def _run_series_command(args: argparse.Namespace, registry: dict[str, Agent]) -> int:
-    if args.human is not None:
-        raise ValueError("--series nie łączy się z --human — arena mierzy agentów")
-    if args.export is not None:
-        raise ValueError("--series nie łączy się z --export — eksport dotyczy meczu")
     config = SeriesConfig(
         small_blind=args.small_blind,
         big_blind=args.big_blind,
@@ -223,6 +314,7 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        _check_flag_combinations(args)
         registry = agent_registry()
         if args.serve is not None:
             return _run_serve_command(args)
@@ -246,15 +338,16 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
             button=args.button,
             hand_limit=args.hands,
         )
+        if args.export is not None:
+            _check_output_file("--export", args.export)
         agents: list[Agent] = [registry[args.agent0], registry[args.agent1]]
         if args.human is not None:
             agents[args.human] = HumanAgent(
                 input_stream=stdin if stdin is not None else sys.stdin,
                 output_stream=sys.stdout,
             )
-    except (argparse.ArgumentError, ValueError) as error:
-        print(f"błąd: {error}", file=sys.stderr)
-        return 2
+    except (argparse.ArgumentError, ValueError, OSError) as error:
+        return _error_exit(error)
     try:
         result = play_match(
             config,
@@ -267,6 +360,8 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
         if seed_from_entropy:
             print(f"seed meczu: {args.seed}", file=sys.stderr)
         return 1
+    except OSError as error:
+        return _error_exit(error)
     if args.human is not None:
         print("przebieg rozdań:")
         for number, history in enumerate(result.histories, start=1):
@@ -277,7 +372,10 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None) -> i
     if seed_from_entropy:
         print(f"seed meczu: {args.seed}")
     if args.export is not None:
-        args.export.write_text(serialize_match_history(result.histories), encoding="utf-8")
+        try:
+            args.export.write_text(serialize_match_history(result.histories), encoding="utf-8")
+        except OSError as error:
+            return _error_exit(error)
         print(f"eksport: {args.export}")
     return 0
 

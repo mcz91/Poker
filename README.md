@@ -23,7 +23,10 @@ seed pochodzi z entropii systemu — niżej), `--agent0 rule`, `--agent1 rule`
 (dostępny wariant progów `rule-aggressive`), `--export PLIK` (bez
 eksportu, gdy pominięty). Wynik meczu trafia na standardowe wyjście,
 a pełna historia rozdań — do wersjonowanego pliku JSON, identycznego
-bajt w bajt dla tych samych argumentów.
+bajt w bajt dla tych samych argumentów. Ścieżkę `--export` CLI sprawdza
+przed pierwszym rozdaniem (katalog istnieje i jest zapisywalny, cel nie
+jest katalogiem, istniejący plik jest zapisywalny i zostanie nadpisany),
+więc zła ścieżka nie przepala rozegranego meczu.
 
 ### Gra człowieka z botem
 
@@ -80,7 +83,9 @@ odrzucana po obu stronach komunikatem o wersji. Po końcu meczu serwer
 zamyka połączenia stołu. Rozłączenie gracza kończy jego stół
 komunikatem dla przeciwnika, bez wpływu na pozostałe stoły.
 `--export-dir KATALOG` na serwerze zapisuje historie zakończonych
-stołów w formacie eksportu. Sieć lokalna jest zaufana (decyzja 08):
+stołów w formacie eksportu; CLI tworzy ten katalog przed startem serwera
+(istniejący, także niepusty, jest dozwolony) i sprawdza prawo zapisu do
+niego. Sieć lokalna jest zaufana (decyzja 08):
 kod stołu to jedyna kontrola dostępu — dlatego jest losowy, nie
 kolejny: osiem znaków z alfabetu bez znaków mylących
 (`ABCDEFGHJKMNPQRSTUVWXYZ23456789`), czyli ~39,6 bita. `--serve-seed`
@@ -105,8 +110,8 @@ karty, a wynik pary jest sumą obu przebiegów. Raport na stdout: wynik
 agenta0 w BB/100, odchylenie standardowe po parach i 95% przedział
 ufności; ten sam seed serii daje identyczny raport. Konfiguracja
 serii to te same flagi co mecz (`--small-blind`, `--big-blind`,
-`--stack`, `--button`, `--hands`, `--seed`); `--series` wyklucza
-`--human` i `--export`.
+`--stack`, `--button`, `--hands`, `--seed`); łączenie z innymi flagami —
+[Tryby CLI i kody wyjścia](#tryby-cli-i-kody-wyjścia).
 
 ### Korpus self-play
 
@@ -121,9 +126,10 @@ od `--seed`; każdy mecz to osobny plik w formacie eksportu, obok
 powstaje `manifest.json` z własną wersją, konfiguracją meczu, nazwami
 agentów, seedem, liczbą meczów i listą plików. Ten sam seed
 i konfiguracja dają korpus identyczny bajt w bajt, niezależnie od
-`--jobs` (domyślnie 1). Katalog docelowy musi być pusty — korpus
-niczego nie nadpisuje. `--corpus` wyklucza `--human`, `--export`
-i `--series`.
+`--jobs` (domyślnie 1). Katalog docelowy musi być pusty i zapisywalny
+(sprawdzane przed pierwszym meczem) — korpus niczego nie nadpisuje.
+Łączenie z innymi flagami — [Tryby CLI i kody
+wyjścia](#tryby-cli-i-kody-wyjścia).
 
 ### Zbiór przykładów decyzyjnych
 
@@ -140,7 +146,47 @@ karty przeciwnika, seedy i zdarzenia silnika nie wchodzą żadnym
 kanałem) oraz etykieta: typ akcji i kwota. Zestaw i kolejność cech v1
 dokumentuje moduł `poker.encoding` (`FEATURE_NAMES`). Ten sam korpus
 daje plik identyczny bajt w bajt; istniejący plik wyjściowy to błąd.
-`--dataset` wyklucza pozostałe tryby CLI.
+Katalog pliku wyjściowego musi istnieć i być zapisywalny — CLI sprawdza
+to przed odczytem korpusu. Łączenie z innymi flagami — [Tryby CLI
+i kody wyjścia](#tryby-cli-i-kody-wyjścia).
+
+### Tryby CLI i kody wyjścia
+
+Tryby `--serve`, `--connect`, `--dataset`, `--corpus` i `--series`
+wzajemnie się wykluczają; bez żadnego z nich CLI rozgrywa mecz lokalny.
+Wywołanie łączące sprzeczne flagi albo podające flagę bez jej trybu
+kończy się kodem 2 z komunikatem `błąd: …`, zanim padnie pierwsze
+rozdanie, odczyt korpusu albo start serwera. Te same reguły i kody
+podaje `--help`:
+
+```text
+--serve nie łączy się z --connect, --dataset, --corpus, --series
+--connect nie łączy się z --dataset, --corpus, --series
+--dataset nie łączy się z --corpus, --series
+--corpus nie łączy się z --series
+--human nie łączy się z --serve, --connect, --dataset, --corpus, --series
+--export nie łączy się z --serve, --connect, --dataset, --corpus, --series
+--seed nie łączy się z --serve, --connect, --dataset
+--from-corpus wymaga --dataset
+--join wymaga --connect
+--serve-seed wymaga --serve
+--export-dir wymaga --serve
+
+kody wyjścia:
+  0 — praca zakończona: mecz, seria, korpus, zbiór, mecz klienta LAN do końca;
+      serwer (--serve) zamknięty Ctrl+C
+  1 — mecz przerwany: koniec wejścia człowieka; klient LAN: serwer zamknął
+      połączenie, przeciwnik się rozłączył albo koniec wejścia (kod 1 daje też
+      nieobsłużony wyjątek)
+  2 — błąd użycia (argumenty, wykluczenia i zależności flag, ścieżki wyjścia,
+      port) albo błąd I/O (pliki, katalogi, sieć, protokół, błąd zgłoszony
+      przez serwer LAN)
+```
+
+Flagi z wartością domyślną (`--matches`, `--jobs`, `--opponent`,
+`--serve-host`, `--agent0`, `--agent1`, `--small-blind`, `--big-blind`,
+`--stack`, `--button`, `--hands`) tryb, który ich nie używa, pomija bez
+błędu.
 
 ### Baseline behavior clone
 
