@@ -125,7 +125,8 @@ class _Client:
             self.connection.close()
 
     def reject(self, reason: str) -> None:
-        """error z powodem, potem zamknięcie połączenia bez RST (patrz DRAIN_SECONDS)."""
+        """error z powodem, potem zamknięcie połączenia — bez RST, gdy nadmiar wejścia
+        mieści się w drenażu (DRAIN_SECONDS, DRAIN_BYTES)."""
         self.send_quietly({"type": "error", "message": reason})
         try:
             self.connection.shutdown(socket.SHUT_WR)

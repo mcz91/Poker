@@ -150,13 +150,17 @@ def test_linia_ponad_limit_bez_konca_linii_odrzucona_bez_czekania_a_inni_obsluze
 
 
 def test_error_dociera_przed_czystym_koncem_strumienia_mimo_nadmiaru_danych() -> None:
-    # Zamknięcie z nieprzeczytanym nadmiarem wysłałoby RST zamiast końca strumienia.
+    # Zamknięcie z nieprzeczytanym nadmiarem wysyła RST (po FIN z shutdown), który może
+    # skasować u klienta nieodebrany error. Linux oddaje przed nim error i koniec strumienia,
+    # więc RST widać dopiero jako błąd gniazda; wychodzi zaraz po FIN — 0,1 s to zapas.
     with nasluch(TableServer()) as port:
         klient = Klient(port)
         nadmiar = b" " * 100_000
         klient.wyslij_bajty(dopelniona(create(), LIMIT_LINII + 1, koniec=b"") + nadmiar)
         assert klient.odbierz()["type"] == "error"
         assert klient.file.readline() == b""
+        time.sleep(0.1)
+        assert klient.sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) == 0
         klient.close()
 
 
