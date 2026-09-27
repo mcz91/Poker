@@ -590,3 +590,119 @@ def test_nieudane_started_konczy_stol_opponent_left_bez_meczu(
             assert strumien_tworcy == []
             assert typy(strumien_dolaczajacego) == ["started", "opponent_left"]
         join_odrzucony(port, code)
+
+
+# --- I-03: nasłuch — błędy accept, close(), timeout powitania -------------------------------
+
+
+class NasluchZAwariami:
+    """Gniazdo nasłuchujące, którego pierwsze accept zawodzą jak przy wyczerpanych
+    deskryptorach (mock systemu operacyjnego)."""
+
+    def __init__(self, gniazdo: socket.socket, awarie: int) -> None:
+        self._gniazdo = gniazdo
+        self._awarie = awarie
+
+    def accept(self) -> tuple[socket.socket, object]:
+        if self._awarie > 0:
+            self._awarie -= 1
+            raise OSError(errno.EMFILE, os.strerror(errno.EMFILE))
+        return self._gniazdo.accept()
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._gniazdo, name)
+
+
+def test_accept_przezywa_przejsciowy_blad_z_przerwa(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    prawdziwy = socket.create_server
+
+    def nasluch_z_awariami(address: tuple[str, int]) -> NasluchZAwariami:
+        return NasluchZAwariami(prawdziwy(address), awarie=3)
+
+    monkeypatch.setattr(socket, "create_server", nasluch_z_awariami)
+    server = TableServer(match_rng=random.Random(1))
+    poczatek = time.monotonic()
+    _, port = server.start()
+    try:
+        klient, _ = utworz(port)
+        uplynelo = time.monotonic() - poczatek
+        assert typy(pasuj_do_konca(klient))[-1] == "match_end"
+        klient.close()
+    finally:
+        server.close()
+    wpisy = [
+        wiersz for wiersz in capsys.readouterr().err.splitlines()
+        if os.strerror(errno.EMFILE) in wiersz
+    ]
+    assert len(wpisy) == 3
+    assert lan_server.ACCEPT_RETRY_DELAY == 0.1
+    assert uplynelo >= 3 * lan_server.ACCEPT_RETRY_DELAY
+
+
+def test_close_konczy_nasluch_zanim_wroci(capsys: pytest.CaptureFixture[str]) -> None:
+    server = TableServer(match_rng=random.Random(1))
+    _, port = server.start()
+    serwer_przyjmuje_stol(port)
+    server.close()
+    with pytest.raises(ConnectionRefusedError):
+        socket.create_connection(("127.0.0.1", port), timeout=5)
+    assert capsys.readouterr().err == ""
+
+
+def test_timeout_powitania_przybity() -> None:
+    assert lan_server.GREETING_TIMEOUT == 10
+
+
+@pytest.mark.parametrize("poczatek", [b"", b'{"v"'])
+def test_polaczenie_bez_powitania_dostaje_error_i_zamkniecie(poczatek: bytes) -> None:
+    with nasluch(TableServer(greeting_timeout=0.2)) as port:
+        klient = Klient(port, timeout=2)
+        klient.wyslij_bajty(poczatek)
+        strumien = klient.do_konca()
+        klient.close()
+        assert typy(strumien) == ["error"]
+
+
+def test_oczekiwanie_tworcy_na_dolaczajacego_nie_jest_powitaniem() -> None:
+    with nasluch(TableServer(greeting_timeout=0.2, match_rng=random.Random(1))) as port:
+        tworca, code = utworz(port, opponent="human")
+        time.sleep(0.6)
+        dolaczajacy = Klient(port)
+        dolaczajacy.wyslij(join(code))
+        with ThreadPoolExecutor(2) as pula:
+            przebiegi = [pula.submit(pasuj_do_konca, klient) for klient in (tworca, dolaczajacy)]
+            strumienie = [przebieg.result() for przebieg in przebiegi]
+        tworca.close()
+        dolaczajacy.close()
+        for strumien in strumienie:
+            assert typy(strumien)[0] == "started"
+            assert typy(strumien)[-1] == "match_end"
+
+
+def test_decyzja_czlowieka_przy_stole_z_agentem_nie_ma_limitu_czasu() -> None:
+    with nasluch(TableServer(greeting_timeout=0.2, match_rng=random.Random(1))) as port:
+        czlowiek, _ = utworz(port)  # button 0: człowiek dostaje pierwszy prompt
+        strumien = pasuj_do_konca(czlowiek, zwloka=0.6)
+        czlowiek.close()
+        assert "prompt" in typy(strumien)
+        assert typy(strumien)[-1] == "match_end"
+
+
+def test_decyzja_dolaczajacego_na_guziku_nie_ma_limitu_czasu() -> None:
+    with nasluch(TableServer(greeting_timeout=0.2, match_rng=random.Random(1))) as port:
+        tworca, code = utworz(port, opponent="human", button=1)
+        dolaczajacy = Klient(port)
+        dolaczajacy.wyslij(join(code))
+        with ThreadPoolExecutor(2) as pula:
+            przebieg_tworcy = pula.submit(pasuj_do_konca, tworca)
+            przebieg_dolaczajacego = pula.submit(pasuj_do_konca, dolaczajacy, 0.6)
+            strumien_tworcy = przebieg_tworcy.result()
+            strumien_dolaczajacego = przebieg_dolaczajacego.result()
+        tworca.close()
+        dolaczajacy.close()
+        # dołączający na guziku dostaje pierwszy (i jedyny) prompt rozdania
+        assert "prompt" not in typy(strumien_tworcy)
+        assert "prompt" in typy(strumien_dolaczajacego)
+        assert typy(strumien_tworcy)[-1] == typy(strumien_dolaczajacego)[-1] == "match_end"

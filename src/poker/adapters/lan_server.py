@@ -50,6 +50,16 @@ MAX_CHIPS = 2**52
 # wyłącznie ta stała, a traceback — na stderr serwera.
 INTERNAL_ERROR_MESSAGE = "wewnętrzny błąd serwera (szczegóły w logu serwera)"
 
+# Połączenie, które nic nie przysyła, trzyma deskryptor i wątek; klient wysyła żądanie
+# zaraz po połączeniu, więc 10 s to zapas nad opóźnieniem LAN. Liczy bezczynność gniazda
+# (każdy odczyt), nie czas całej linii. Tylko pierwsza wiadomość: decyzje przy stole nie
+# mają timerów (decyzja 08 pkt 5).
+GREETING_TIMEOUT = 10
+
+# Błąd accept bywa przejściowy (EMFILE przy wyczerpanych deskryptorach): pauza zamiast
+# końca nasłuchu, a zarazem zamiast pętli na pełnym CPU, zanim deskryptory wrócą.
+ACCEPT_RETRY_DELAY = 0.1
+
 # Zamknięcie gniazda z nieprzeczytanymi danymi wysyła RST, który może skasować u klienta
 # nieodebrany jeszcze error; po error serwer doczytuje wejście — z limitem czasu i bajtów,
 # żeby klient nie trzymał nim wątku.
@@ -83,7 +93,8 @@ class _Client:
 
     def close(self) -> None:
         # Koniec strumienia do klienta wyznacza serwer: bez jawnego zamknięcia gniazdo
-        # żyje do odśmiecenia, a pętla accept trzyma ostatnie połączenie do następnego.
+        # żyje do odśmiecenia, a pętla accept trzyma ostatnie przyjęte połączenie do
+        # następnego accept albo do swojego końca w close() serwera.
         # shutdown przed close budzi wątek czekający w recv na tym gnieździe (twórca stołu
         # ludzi przed dołączeniem) — samo close ani go nie budzi, ani nie wysyła FIN.
         with self.lock:
@@ -197,11 +208,14 @@ class TableServer:
         export_directory: Path | None = None,
         seed: int | None = None,
         match_rng: random.Random | None = None,
+        greeting_timeout: float = GREETING_TIMEOUT,
     ) -> None:
         self._host = host
         self._port = port
         self._export_directory = export_directory
+        self._greeting_timeout = greeting_timeout
         self._listener: socket.socket | None = None
+        self._accept_thread: threading.Thread | None = None
         self._tables: dict[str, _Table] = {}
         self._tables_lock = threading.Lock()
         # Losowość żyje wyłącznie tutaj, w adapterze (INV-P1), w dwóch generatorach.
@@ -211,26 +225,44 @@ class TableServer:
         # i nie może wyznaczać talii; wstrzyknięty generator przybija talie w testach.
         self._code_rng = random.Random(seed)
         self._match_rng = match_rng if match_rng is not None else random.SystemRandom()
-        self._closing = False
+        self._closing = threading.Event()
 
     def start(self) -> tuple[str, int]:
         self._listener = socket.create_server((self._host, self._port))
         host, port = self._listener.getsockname()[:2]
-        threading.Thread(target=self._accept_loop, daemon=True).start()
+        self._accept_thread = threading.Thread(target=self._accept_loop, daemon=True)
+        self._accept_thread.start()
         return str(host), int(port)
 
     def close(self) -> None:
-        self._closing = True
+        self._closing.set()
         if self._listener is not None:
+            # Samo close() nie budzi wątku zablokowanego w accept, a gniazdo nasłuchuje dalej
+            # i przyjmuje jeszcze jedno połączenie; shutdown budzi accept i zamyka port.
+            try:
+                self._listener.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             self._listener.close()
+        if self._accept_thread is not None:
+            # Limit wyłącznie na wypadek platformy, na której shutdown nie budzi accept.
+            self._accept_thread.join(timeout=1.0)
 
     def _accept_loop(self) -> None:
         assert self._listener is not None
-        while not self._closing:
+        while not self._closing.is_set():
             try:
                 connection, _ = self._listener.accept()
-            except OSError:
-                return
+            except OSError as error:
+                if self._closing.is_set():
+                    return
+                print(
+                    f"serwer stołów LAN: accept nie powiódł się ({error}); "
+                    f"ponowienie za {ACCEPT_RETRY_DELAY} s",
+                    file=sys.stderr,
+                )
+                self._closing.wait(ACCEPT_RETRY_DELAY)
+                continue
             threading.Thread(
                 target=self._serve_client, args=(connection,), daemon=True
             ).start()
@@ -239,7 +271,15 @@ class TableServer:
         stream = connection.makefile("rwb")
         client = _Client(connection=connection, stream=stream)
         try:
+            connection.settimeout(self._greeting_timeout)
             message = read_message(stream, MAX_LINE_BYTES)
+            connection.settimeout(None)
+        except TimeoutError:
+            client.reject(
+                f"brak żądania create ani join przez {self._greeting_timeout} s — "
+                "połączenie zamknięte"
+            )
+            return
         except OSError:
             client.close()
             return
