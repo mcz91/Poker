@@ -66,8 +66,8 @@ Protokół (koszt czytelnika > koszt pisarza):
   szukaj seeda od nowa, nie przybijaj nowej po cichu (71: 10x seed 9 → 90).
 - Zdania porównawcze i słowa ilościowe sprawdzaj jak liczby (47: poprawne
   liczby, fałszywe zdanie o nich); raport dryfu grepuje KAŻDĄ wartość
-  zmienionej asercji w obu zapisach („5 770"/„5770") po dokumentach stanu,
-  nie tylko wyniki komend (71 r1: 16 miejsc pominiętych, audyt).
+  zmienionej asercji w obu zapisach („5 770"/„5770") po dokumentach stanu, nie
+  tylko wyniki komend (71 r1 pominął 16 w CURRENT_STATE + PRZEKAZANIE:381).
 - Zero na artefakcie bramki ≠ zero na siatce produkcyjnej: krok siatki
   bywa przyczyną pudła (POKER-55 pkt 6 — 0 przy kroku 50, 94 przy 2).
 - Openfold: miara FP nie maleje monotonicznie z N (3x 2/4: dołek przy 128), a

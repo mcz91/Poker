@@ -688,12 +688,16 @@ z drzewa bez flata nie jest polityką.
 terminalami (overcall BB bez udziału BB — B6) i FP uciętym bez miary
 zbieżności (I-25). Przy 512 iteracjach spot daje BTN 3bet **13,27%**
 (przy 256: 12,07%; zakres AA–33, AKs/AKo, AQs/AQo, AJs/AJo, ATs/ATo,
-A9s/A9o, A8s, KQs/KQo, KJs), a 3bet drzewa bez flata na 3× 25 bb —
-**2,2%** (punkt stały FP modelu, miara 4,80e−4 sumy nagród; przy 256:
-4,1%), czyli ciaśniej niż spot: kontrast „nie 35%" przy 25 bb się nie
-trzyma, szeroki 3bet drzewa (44,5 / 53,6%) zostaje tylko przy 12,5 /
-8,3 bb. Komendy i rozrzut — KOREKTA (POKER-73) decyzji 20 i 21 (opis
-commita `73e3f9d`).
+A9s/A9o, A8s, KQs/KQo, KJs), a 3bet drzewa bez flata (BTN vs open)
+na 3× 25 bb — **2,2%** (punkt stały FP modelu, miara 4,80e−4 sumy
+nagród; przy 256: 4,1%), czyli ciaśniej niż spot BTN: kontrast „nie
+35%" dla BTN przy 25 bb się nie trzyma, szeroki 3bet drzewa (BTN vs
+open: 44,5 / 53,6%) zostaje tylko przy 12,5 / 8,3 bb. BB w drzewie
+3betuje wobec openu UTG na 3× 25 bb **41,5%** (`openfold.solve`, N =
+512, pole `bb_vs_open_pct`), szerzej niż BB w spocie (14,0%, eksport
+w opisie `73e3f9d`) — tezę decyzji 20/21 przy 25 bb sprawdzono tylko na
+BTN. Komendy i rozrzut pozostałych liczb — KOREKTA (POKER-73) decyzji
+20 i 21 (opis commita `73e3f9d`).
 
 **POKER-42 (arena ROI) zamknięty.** Pomiar POKER-48
 (`python tools/run_arena.py 320 3x`, jednostka: blok trzech rotacji):
