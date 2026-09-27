@@ -1,6 +1,7 @@
 """Testy kodów stołu LAN (POKER-25): losowość, odtwarzalność z seeda, kolizje."""
 
 import json
+import math
 import socket
 from typing import Any
 
@@ -48,8 +49,11 @@ def test_kod_jest_losowy_z_udokumentowanej_przestrzeni() -> None:
         assert len(kod) == CODE_LENGTH
         assert set(kod) <= set(CODE_ALPHABET)
         assert not kod.startswith("STOL-")  # koniec z licznikiem (F1 audytu POKER-21)
-    # przestrzeń co najmniej kilkadziesiąt bitów
-    assert CODE_LENGTH * len(CODE_ALPHABET).bit_length() >= 40
+    # Przestrzeń kodów to log2(31**8) ≈ 39,6 bita — liczba z README i CURRENT_STATE;
+    # bit_length zawyżałby ją do pełnego bitu na znak (40).
+    assert CODE_ALPHABET == "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    assert CODE_LENGTH == 8
+    assert round(CODE_LENGTH * math.log2(len(CODE_ALPHABET)), 1) == 39.6
 
 
 def test_kolejne_kody_nie_tworza_ciagu() -> None:
