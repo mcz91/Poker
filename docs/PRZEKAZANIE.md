@@ -47,7 +47,7 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # 852 testy, ~9 min 20–35 s (2026-09-27, 4 rdzenie współdzielone)
+ruff check . && mypy && pytest          # 852 testy, ~9–9,5 min (2026-09-27, 4 rdzenie współdzielone)
 #    aktualną liczbę sprawdzisz: pytest --collect-only -q -o addopts="" | tail -1
 ```
 

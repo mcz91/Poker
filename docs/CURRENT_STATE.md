@@ -30,12 +30,12 @@ z pełną bramką po każdym scaleniu): POKER-76 (serwer LAN: naruszenie
 protokołu albo wyjątek kończy — jak rozłączenie — wyłącznie dotknięty
 stół komunikatem `opponent_left` albo `error` i zamknięciem jego połączeń;
 granice `MAX_CHIPS`, `MAX_LINE_BYTES` i timeout powitania; pętla accept
-przeżywa błędy; eksport bez nadpisywania), POKER-78 (granica silnika:
-`HandConfig` odrzuca small blind większy od big blinda i pola inne niż
-`int`, trzyma stacki krotką; `act` odrzuca miejsce i kwotę inne niż
-`int` i akcję spoza `ActionType`), POKER-80 (test architektury
-rozwiązuje każdą formę instrukcji importu i parsuje każdy plik raz na
-bieg) i POKER-84 (jamfold: drugie miejsce i side pot 3-way pełnym
+przeżywa błędy accept (OSError, np. EMFILE); eksport bez nadpisywania),
+POKER-78 (granica silnika: `HandConfig` odrzuca small blind większy od
+big blinda i pola inne niż `int`, trzyma stacki krotką; `act` odrzuca
+miejsce i kwotę inne niż `int` i akcję spoza `ActionType`), POKER-80
+(test architektury rozwiązuje każdą formę instrukcji importu i parsuje
+każdy plik raz na bieg) i POKER-84 (jamfold: drugie miejsce i side pot 3-way pełnym
 porządkiem rąk, ε funkcją per ręka tą samą co best response; KOREKTY
 decyzji 12, 16 i 17); **852 testy**; fala B2 w toku.
 **Stan dokumentów po korektach zbiorczych POKER-69…73, POKER-74,
@@ -649,16 +649,24 @@ wymienione na zmierzone); POKER-29
   czytana przez serwer do `MAX_LINE_BYTES` = 65 536 B łącznie z '\n'
   (dłuższa — `error` z limitem i zamknięcie bez czekania na '\n',
   niezależnie od podziału danych na gnieździe), `GREETING_TIMEOUT` =
-  10 s bezczynności przed pierwszą wiadomością połączenia (`error`
-  i zamknięcie); po pierwszej wiadomości — oczekiwanie twórcy na
-  dołączającego i decyzje przy stole — limitów czasu nie ma (decyzja 08
-  pkt 5, KOREKTA), a limitu liczby połączeń i stołów też nie; twórca
-  stołu ludzi, który przed dołączeniem przeciwnika zamknie zapis albo
-  wyśle dane, traci stół; przy dołączeniu `started` idzie najpierw do
-  dołączającego; po `error` serwer robi shutdown(SHUT_WR) i doczytuje
-  wejście (do 0,5 s i 256 KiB), zanim zamknie połączenie; błąd accept
+  10 s bezczynności gniazda przed pierwszą wiadomością połączenia
+  (`error` i zamknięcie), a po pierwszej wiadomości — oczekiwanie
+  twórcy na dołączającego i decyzje przy stole — limitów czasu nie ma
+  (decyzja 08 pkt 5, KOREKTA); twórca stołu ludzi, który przed
+  dołączeniem przeciwnika zamknie zapis albo wyśle dane, traci stół;
+  przy dołączeniu `started` idzie najpierw do dołączającego; błąd accept
   (np. EMFILE) — wiersz na stderr i ponowienie po 0,1 s, a `close()`
   zamyka port i wraca po końcu pętli accept — wszystko pod testami;
+  terminu na całą pierwszą linię (klient sączący ją mieści się
+  w `MAX_LINE_BYTES`) ani limitu liczby połączeń i stołów nie ma
+  (non_goals POKER-76); po `error` odrzucenia połączenia — naruszenie
+  protokołu (do sprawcy), timeout powitania, linia ponad limit, błędne
+  żądanie `create`/`join` albo wyjątek przy jego obsłudze, dane twórcy
+  przed dołączeniem — serwer robi shutdown(SHUT_WR) i doczytuje wejście
+  z limitem 0,5 s i 256 KiB, zanim zamknie połączenie (pod testem linii
+  ponad limit z nadmiarem 100 000 B: `error` przed czystym końcem
+  strumienia, bez RST); po `error` o stałej treści przy wyjątku przy
+  stole zamyka połączenie bez drenażu (shutdown(SHUT_RDWR) i close);
   opcjonalny eksport historii zakończonych stołów istniejącym
   formatem (round-trip pod testem) — od POKER-76 do `KOD.json`, a przy
   kolizji do `KOD-2.json`, `KOD-3.json`… (tryb 'x'; restart z tym samym
@@ -825,9 +833,10 @@ stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
 **POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
 Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
 **KOREKTA (POKER-84):** pod WTA V¹ − V⁰ to chip-EV pozycji w jednej ręce
-(wypłata liniowa w żetonach), nie błąd fictitious play, i nie maleje ze
+(wypłata liniowa w żetonach), nie błąd fictitious play, i nie znika ze
 zbieżnością: (70, 50, 30), 3×, guzik 1 — UTG +5,609e−3 BI przy 16
-iteracjach, +5,373e−3 przy 64 (decyzja 12, KOREKTA (POKER-84); test
+iteracjach, +5,373e−3 przy 64 (−4,2%, gdy ε spada 13,9×: 3,961e−4 →
+2,847e−5; decyzja 12, KOREKTA (POKER-84); test
 `test_wta_v1_minus_v0_to_chip_ev_pozycji`).
 
 **POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb.
