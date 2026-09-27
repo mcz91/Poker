@@ -125,8 +125,10 @@
     (sha256 32 plików), który pozwala regenerującej drużynie zachować
     pomiary zamiast je powtarzać (KOREKTA (POKER-71): nie ROI areny
     i liczniki fallbacku — zależą też od kodu areny, który zmieniły
-    POKER-70 i 71); P-7 (WTA@25bb) odblokowane bez
-    potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
+    POKER-70 i 71; od POKER-74 manifest opisuje artefakt liczony starym
+    brzegiem, którego obecny kod nie produkuje); P-7 (WTA@25bb)
+    odblokowane bez potwierdzenia tabeli tierów — nie bierze z niej nic
+    — P-8 nadal
     zablokowane.
 31. [`31-audyt-calego-kodu-kwalifikacja-i-sprinty.md`](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
     — kwalifikacja 56 findingów audytu całego kodu; OBJECTION wobec
@@ -307,7 +309,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   siatki 2-żetonowej (zamknięty, commity `afc2a12`, `d6db0f1`;
   ε maks 4,72e-4 na 49 765 stanach — pod progiem i pod odniesieniem
   5e-4, opcja 1536 nieuruchomiona; koszt regeneracji 76,6 rdzenio-h,
-  faktyczny z restartami ~93-96; V vs ICM do 9,5% puli; weryfikacja
+  faktyczny z restartami ~93-96 — brzegiem sprzed POKER-74, obecnym
+  kodem wycena `mode_census` 100,2; V vs ICM do 9,5% puli; weryfikacja
   niezależna architekta);
 - [`POKER-51.json`](taskspecs/POKER-51.json) — format binarny
   artefaktu z czytnikiem w czystym stdlib; koszt kwantyzacji mierzony

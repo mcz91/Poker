@@ -1,6 +1,6 @@
 # Przekazanie pracy — produkt Poker (linia blueprintu GTO)
 
-Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…73
+Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…74
 sprintu A [decyzji 31](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
 (naprawy blokujących findingów audytu 2026-09-26): zdania i liczby, które
 te zadania zmieniły, są poprawione w treści z podaniem źródła; tabela
@@ -44,8 +44,8 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # 645 testów, ~6 min 33 s (2026-09-27, 4 rdzenie współdzielone)
-#    aktualną liczbę sprawdzisz: pytest --collect-only -q | tail -1
+ruff check . && mypy && pytest          # 648 testów, ~8 min 28 s (2026-09-27, 4 rdzenie współdzielone)
+#    aktualną liczbę sprawdzisz: pytest --collect-only -q -o addopts="" | tail -1
 ```
 
 Gałąź integracyjna: **`claude/poker-project-architecture-jw6ukd`**.
@@ -92,7 +92,7 @@ drugi, zamknięty produkt: stół heads-up NLHE (`table`, `betting`,
 wielu stołów w LAN — decyzja 08, eksport historii, korpus self-play,
 zbiór przykładów) oraz agentów `rule` / `rule-aggressive` / `clone` /
 `mccfr` / `mlp-clone` i macierz equity preflop 169×169. Wszystko pod
-bramką (ok. 120 z 645 testów: przybliżenie 101 z 483 z wydania
+bramką (ok. 120 z 648 testów: przybliżenie 101 z 483 z wydania
 2026-09-07 plus 17 testów POKER-69 i 2 testy POKER-72) i pod
 niezmiennikami INV-P1…P8.
 Instrukcja obsługi: `README.md`. Linia Spin/blueprintu ich nie dotyka,
@@ -171,16 +171,21 @@ Zamknięte: POKER-69 (seed talii poza zasięgiem gracza, protokół LAN v2),
 POKER-72 (przepis pochodzenia `strategy_table.py`), POKER-70 (jedna
 reguła miejsc Spin), POKER-71 (side poty areny pełnym porządkiem rąk,
 spasowany nie odzyskuje wkładu w modelach), POKER-73 (terminale
-i miara zbieżności openfold, N = 512); zostają POKER-74 (brzeg horyzontu
-solvera, w toku) i po nim POKER-75 (tożsamość regeneracji); potem
-sprinty B i C. Mapa decyzji 29 niżej — z POKER-58 włącznie — czeka na
-zamknięcie sprintu A. Status bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md),
-„Następny krok".
+i miara zbieżności openfold, N = 512), POKER-74 (brzeg horyzontu
+solvera domyka cykl 6 rąk; integracja `94b1c0a`); zostaje POKER-75
+(tożsamość regeneracji, w toku); potem sprinty B i C. Mapa decyzji 29
+niżej — z POKER-58 włącznie — czeka na zamknięcie sprintu A. Status
+bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md), „Następny krok".
 
 ### Kolejka — mapa decyzji 29, szkice w repo
 
 Szkice TaskSpeców leżą w [`docs/taskspecs/drafts/`](taskspecs/drafts/)
-(niezatwierdzone — bez pola `approved` koder ich nie realizuje):
+(niezatwierdzone — bez pola `approved` koder ich nie realizuje). Kontekst
+szkiców pisano przed POKER-74: POKER-59 mówi o „cyklach 3 rąk"
+i horyzoncie ~25 rdzenio-h i nie wymaga zgodności schematu brzegu przy
+wznowieniu z checkpointu (`config_hash` schematu nie obejmuje), POKER-60
+o ~252 rdzenio-h kroku 1 — dziś cykl 6 rąk, horyzont ~49,5, krok 1
+353,0. Poprawia je architekt przy zatwierdzeniu. Kolejka:
 
 | id | kontrakt | koszt [rdzenio-h] | blokady |
 |---|---|---:|---|
@@ -188,17 +193,22 @@ Szkice TaskSpeców leżą w [`docs/taskspecs/drafts/`](taskspecs/drafts/)
 | P-4 POKER-59 | checkpoint horyzontu per cykl | ~1 | wymagany przed przebiegami > 12 h |
 | P-5 POKER-53 | AIVAT w przestrzeni nagród | ~5 | 55+58 dla sensownych liczb |
 | P-6 POKER-60 | trzy sondy błędu modelu (siatka / kwantyzacja / ziarno tensora) | ~24 | — |
-| P-7 POKER-61 | artefakt WTA@25bb — jednozmienny A/B wypłat + kill-check | ~64 | 54+55+58+59 (tabela tierów NIE — decyzja 30) |
-| P-8 POKER-62 | T-MODAL 90 żetonów WTA + krzywa zegara | ~18 (+18) | j.w. **+ tabela tierów** |
-| P-9 POKER-63 | T-MID 120 WTA | ~36 | warunkowy |
-| P-10..13 | warstwa eksploatacyjna DBR (builder modelu → HU → krzywa P_max → pełny DAG) | ~62 (sam P-13: 53,5) | **korpus hand histories** |
+| P-7 POKER-61 | artefakt WTA@25bb — jednozmienny A/B wypłat + kill-check | ~89 | 54+55+58+59 (tabela tierów NIE — decyzja 30) |
+| P-8 POKER-62 | T-MODAL 90 żetonów WTA + krzywa zegara | ~26,5 (+26,5) | j.w. **+ tabela tierów** |
+| P-9 POKER-63 | T-MID 120 WTA | ~52 | warunkowy |
+| P-10..13 | warstwa eksploatacyjna DBR (builder modelu → HU → krzywa P_max → pełny DAG) | ~88 (sam P-13: 79,5) | **korpus hand histories** |
 | P-14 POKER-68 | wyceniony spike gałęzi flat-call | ~5 | wymaga nowego rekordu decyzyjnego |
 
 > **Koszty P-7…P-9 i P-13 są DOLNYMI oszacowaniami** (decyzja 29,
-> KOREKTA 2026-09-05, fixture `mode_census`): założenie o przenośności
+> KOREKTA 2026-09-05 i KOREKTA (POKER-74), fixture `mode_census`;
+> **korekta 2026-09-27:** od POKER-74 horyzont liczony cyklem 6 rąk, więc
+> P-7 ~64 → ~89, P-8 ~18 → ~26,5, P-9 ~36 → ~52, P-13 53,5 → 79,5 —
+> raport commita `7b5c85d`, sekcje B i E): założenie o przenośności
 > tempa per stan między wektorami wypłat zostało **obalone co do
 > kierunku** — WTA wymaga więcej iteracji PI-FP/CFR+ (na łańcuchu
-> kontrolnym: jamfold 1,39×, hu-deep 1,12×, hu-jamfold 1,91×).
+> kontrolnym brzegiem sprzed POKER-74: jamfold 1,39×, hu-deep 1,12×,
+> hu-jamfold 1,91×; po POKER-74: 1,04×, 1,13×, 1,79× — CURRENT_STATE,
+> blok POKER-56 pkt 4a).
 > Faktyczny mnożnik wyceni dopiero pierwszy przebieg WTA. Nie budżetuj
 > tych pozycji jako wycen.
 
@@ -213,13 +223,20 @@ z kontenerem.** To nie jest awaria — tak stanowi decyzja 25 pkt 6
 | artefakt | rozmiar | koszt regeneracji |
 |---|---:|---:|
 | tensor rolloutów (`PROD/tensor/`) | 20 473 439 B (19,5 MiB) | 11,2 rdzenio-h |
-| bieg siatki (`PROD/grid2/`, 21 warstw + brzeg) | 39 586 164 B | 65,4 (horyzont 25,2 + warstwy 40,2) |
+| bieg siatki (`PROD/grid2/`, 21 warstw + brzeg) | 39 586 164 B | 65,4 zmierzone brzegiem sprzed POKER-74 (horyzont 25,2 + warstwy 40,2); obecnym kodem wycena ~89,0 (49,5 + 39,6) ² |
 | `blueprint.bpk` v1 | 19 016 824 B (18,1 MiB) | 24 s (pakowanie, blok BA) |
 | `blueprint_v2.bpk` | 40 490 256 B (38,6 MiB) | 32 s (pakowanie, blok BN + marginesy BP) |
 
+> ² Korekta 2026-09-27: od POKER-74 brzeg horyzontu domyka cykl 6 rąk
+> (6 cykli po sześć rąk = 36 warstw), więc komendy AC–AH liczą dziś inny
+> artefakt niż ten w tabeli; wycena `mode_census` bez restartów, liczby
+> cykli na tej siatce nikt nie zmierzył (CURRENT_STATE, blok POKER-50
+> pkt 4, KOREKTA).
+>
 > Artefakt v1 z 4 września ma 19 016 752 B — różnica 72 B to
-> `fingerprint` dopisany przez POKER-56; regeneracja daje dziś bajt
-> w bajt 19 016 824 B.
+> `fingerprint` dopisany przez POKER-56; przepakowanie tego biegu (BA)
+> daje bajt w bajt 19 016 824 B (pomiar POKER-57; pełna regeneracja
+> obecnym kodem liczy inny artefakt — ²).
 
 **Komendy pełnej regeneracji: bloki POKER-50 (AC–AH), POKER-51 (BA —
 artefakt v1) i POKER-57 (BN + BP — artefakt v2, `--format-version 2`
@@ -227,8 +244,11 @@ i `margins.py`) w CURRENT_STATE.** Kolejność: AC → AD → AE → AF → AG �
 AH → BA/BN → BP; wszystkie z `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 MKL_NUM_THREADS=1`. Są sprawdzone dosłownie ze świeżego katalogu.
 
-Sam artefakt to ~19 h ściennych na 4 rdzeniach (AC+AE, 76,6 rdzenio-h);
-z pomiarami ex-post/ICM/dekompozycji i pakowaniem (AF–AH, BA/BN) ~20,5 h.
+Sam artefakt to ~19 h ściennych na 4 rdzeniach (AC+AE, 76,6 rdzenio-h
+zmierzone brzegiem sprzed POKER-74); z pomiarami ex-post/ICM/dekompozycji
+i pakowaniem (AF–AH, BA/BN) ~20,5 h. **Korekta 2026-09-27:** obecnym
+kodem wycena to 100,2 rdzenio-h z tensorem, proporcjonalnie ~25 h
+ściennych (z pomiarami ~26,5 h) — raport commita `7b5c85d`, pozycja 26.
 
 **Zanim odpalisz regenerację, zrób POKER-59 (checkpoint horyzontu)** —
 jeden restart kontenera w środku horyzontu kosztował 16,2 rdzenio-h,
@@ -243,9 +263,12 @@ pomiary przy artefakcie, a bramka tego nie łapie. **Korekta 2026-09-27:**
 artefaktu (ε, V vs ICM, koszty); ROI areny i liczniki fallbacku (BF/BG/BH)
 zależą też od kodu areny, który zmieniły POKER-70 (punktacja 10x)
 i POKER-71 (side poty) — trzeba je powtórzyć także przy zgodnym sha256
-(KOREKTA (POKER-71) decyzji 30). POKER-74 (brzeg horyzontu, w toku)
-zmieni sam artefakt, więc regeneracja po nim jest wejściem operatora
-(decyzja 31 pkt 3).
+(KOREKTA (POKER-71) decyzji 30). POKER-74 (brzeg horyzontu, zamknięty
+`94b1c0a`) zmienił sam artefakt: obecny kod liczy brzeg cyklem 6 rąk,
+a `prod_identity.json` opisuje artefakt liczony cyklem 3 rąk, więc
+regeneracja obecnym kodem nie odtworzy jego sha256 i pomiary sekcji 6
+trzeba po niej powtórzyć; regeneracja jest wejściem operatora (decyzja
+31 pkt 3).
 
 Dwustopniowy dowód odtwarzalności (decyzja 06): mały łańcuch kontrolny
 chodzi w bramce przy każdym `pytest`, pełna regeneracja komendami
@@ -269,10 +292,11 @@ z PUŁAPKI POKER-24. **Korekta 2026-09-27:** od POKER-71 zdanie jest
 fałszywe dla ROI areny i liczników fallbacku — zależą też od kodu areny
 (poprawki POKER-70 i POKER-71), więc przy zgodnym sha256 zachowujesz
 wyłącznie ε, V vs ICM i koszty, a BF/BG/BH powtarzasz (KOREKTA (POKER-71)
-decyzji 30). Narzędzie porównujące katalog z manifestem jest
-wymogiem kontraktu POKER-58 (szkic). Przekazanie samego pliku kanałem
-prywatnym pozostaje możliwe i nie wymaga zmiany decyzji 30 — zakazana
-jest publikacja, nie przekazanie.
+decyzji 30); od POKER-74 manifest opisuje artefakt, którego obecny kod
+już nie produkuje (sekcja 5 wyżej). Narzędzie porównujące katalog
+z manifestem jest wymogiem kontraktu POKER-58 (szkic). Przekazanie
+samego pliku kanałem prywatnym pozostaje możliwe i nie wymaga zmiany
+decyzji 30 — zakazana jest publikacja, nie przekazanie.
 
 ### Jak to uruchomić
 
@@ -365,8 +389,9 @@ operatora, decyzja 31 pkt 3).
    pkt 3.)
 3. **Fundament = ten sam algorytm, wycelowany we właściwe gry**:
    rodzina blueprintów per tier (T-MODAL pierwszy, ~87% gier za dolne
-   oszacowanie ~18 rdzenio-h — mnożnik kosztu WTA nieznany do pierwszego
-   przebiegu).
+   oszacowanie ~26,5 rdzenio-h — korekta 2026-09-27: horyzont cyklu 6
+   rąk z POKER-74, wcześniej ~18; mnożnik kosztu WTA nieznany do
+   pierwszego przebiegu).
 4. **Warstwa eksploatacyjna = seat-restricted DBR offline**, walidowana
    najpierw w końcówce HU (gdzie twierdzenie obowiązuje), bramkowana
    ex-post ε profilu ograniczonego.
@@ -419,7 +444,7 @@ bajtowej zostawia zmutowany `.pyc`.
 | **korpus realnych hand histories** | całą warstwę eksploatacyjną P-10..P-13 | brak; bez niego uczciwe zatrzymanie na P-11 (maszyneria zwalidowana w HU) |
 | ~~decyzja o dystrybucji artefaktu~~ | — | **rozstrzygnięta** (decyzja 30): brak publikacji, manifest tożsamości w repo |
 | **realny hands-per-level** | krzywa zegara w P-8 (kontrakt emituje BRAK zamiast zgadywać) | w kodzie jest zegar produktu (3), jawnie oznaczony jako NIE research |
-| **regeneracja artefaktu produkcyjnego** (korekta 2026-09-27, decyzja 31 pkt 3) | ponowny pomiar BF/BG/BH, czyli liczby areny agenta z sekcji 6 | po POKER-74 (brzeg horyzontu, w toku); poza tym środowiskiem |
+| **regeneracja artefaktu produkcyjnego** (korekta 2026-09-27, decyzja 31 pkt 3) | ponowny pomiar BF/BG/BH, czyli liczby areny agenta z sekcji 6 | po POKER-74 (brzeg horyzontu, zamknięty `94b1c0a`); wycena ~100,2 rdzenio-h z tensorem; poza tym środowiskiem |
 
 Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 (POKER-56) — to inna bramka niż potwierdzenie tabeli tierów.
@@ -450,7 +475,10 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
   ustawić skalę tak, że realne marginesy sąsiadów spadają do zera —
   a zero znaczy „doskonała obojętność", czyli najsilniejszy alarm.
   Format rozróżnia dziś „nieokreślony" od zera, ale ile infosetów wpada
-  w zero z powodu skali, a ile z obojętności, wie dopiero pomiar.
+  w zero z powodu skali, a ile z obojętności, wie dopiero pomiar. Na
+  artefakcie kontrolnym to już zachodzi: po POKER-74 9 z 376 dodatnich
+  marginesów plik oddaje jako 0,0, w tym korzeń KK (CURRENT_STATE, blok
+  POKER-57 pkt 4).
 - **POKER-26** (informacja zwrotna przy stole LAN) — szkic czeka
   na zatwierdzenie; **POKER-28** (memoizacja parsowania w testach
   architektury) nadal zasadny.
@@ -460,10 +488,12 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 ## 11. Od czego zacząć
 
 **Korekta 2026-09-27:** przed listą niżej — dokończ sprint A decyzji 31
-(POKER-74, potem POKER-75), a potem sprinty B i C (decyzja 31 pkt 2
+(POKER-75; POKER-74 zamknięty), a potem sprinty B i C (decyzja 31 pkt 2
 i 4); mapa decyzji 29 z pkt 4 czeka na zamknięcie sprintu A. Pkt 1 jest
 nieaktualny (POKER-57 zamknięty — tabela w sekcji 4), a w pkt 3 zgodny
-sha256 nie chroni liczb areny z sekcji 6 (sekcja 5, korekta).
+sha256 nie chroni liczb areny z sekcji 6, a regeneracja obecnym kodem
+(brzeg cyklu 6 rąk od POKER-74) sha256 z `prod_identity.json` nie
+odtworzy (sekcja 5, korekta).
 
 1. **Domknij POKER-57**: audyt świeżym kontekstem commita `aefc3c8` →
    zamknięcie w indeksie → scalenie do main. Praca jest dostarczona

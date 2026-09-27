@@ -28,6 +28,13 @@ Bilans dla opcji „artefakt w release":
 Korzyść jest jednorazowa i mała, koszt trwały i rosnący. **Artefakt nie
 wchodzi do publicznej dystrybucji.**
 
+**KOREKTA (POKER-74):** „~20 h ściennych regeneracji" to koszt artefaktu
+z brzegiem cyklu 3 rąk (76,6 rdzenio-h na 4 rdzeniach). Od POKER-74 brzeg
+domyka cykl 6 rąk, a wycena `mode_census` regeneracji obecnym kodem to
+100,2 rdzenio-h z tensorem, czyli ~25 h ściennych na 4 rdzeniach (raport
+commita `7b5c85d`, pozycja 26). Korzyść dalej jest jednorazowa i mała
+wobec kosztu publikacji — rozstrzygnięcie bez zmian.
+
 ## 2. Co wchodzi zamiast artefaktu: manifest tożsamości
 
 `tools/blueprint/control/prod_identity.json` — sha256, rozmiar w bajtach
