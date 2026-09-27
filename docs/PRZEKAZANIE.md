@@ -3,6 +3,7 @@
 Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…75
 sprintu A [decyzji 31](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
 (naprawy blokujących findingów audytu 2026-09-26; sprint zamknięty
+2026-09-27) i po fali B1 sprintu B (POKER-76, 78, 80, 84; scalona
 2026-09-27): zdania i liczby, które
 te zadania zmieniły, są poprawione w treści z podaniem źródła; tabela
 faktów na okładce wersji PDF pochodzi ze stałej generatora i opisuje stan
@@ -34,7 +35,8 @@ cat docs/README.md                      # streszczenia 31 decyzji + status TaskS
 cat docs/CURRENT_STATE.md               # Co istnieje / Czego nie ma / Następny krok
 
 # 4. Decyzje — czytaj od 31 wstecz; 31 = sprinty naprawcze po audycie
-#    2026-09-26 (sprint A zamknięty 2026-09-27, następny B), 29 wyznacza
+#    2026-09-26 (sprint A zamknięty 2026-09-27; sprint B w toku — fala B1
+#    scalona 2026-09-27), 29 wyznacza
 #    kierunek — stan jej mapy: CURRENT_STATE, „Następny krok"
 ls docs/decisions/
 
@@ -45,7 +47,7 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # 652 testy, ~8 min 15 s (2026-09-27, 4 rdzenie współdzielone)
+ruff check . && mypy && pytest          # 852 testy, ~9–9,5 min (2026-09-27, 4 rdzenie współdzielone)
 #    aktualną liczbę sprawdzisz: pytest --collect-only -q -o addopts="" | tail -1
 ```
 
@@ -53,8 +55,8 @@ Gałąź integracyjna: **`claude/poker-project-architecture-jw6ukd`**.
 `main` podąża za nią po każdym komplecie audytów (stała autoryzacja
 operatora); wykonuje to architekt, nigdy koder. **Korekta 2026-09-27:**
 sprint A decyzji 31 zintegrowano sekwencyjnie na gałęzi
-**`claude/poker-code-audit-gsfko9`** (decyzja 31 pkt 4); `main` pozostaje
-operatora.
+**`claude/poker-code-audit-gsfko9`** (decyzja 31 pkt 4) — na niej scalono
+też falę B1 sprintu B; `main` pozostaje operatora.
 
 **Porównuj z `origin/main`, nie z lokalnym `main`** — lokalny ref w tym
 checkoucie stoi 86 commitów w tyle (epoka POKER-29). Zanim cokolwiek
@@ -94,9 +96,12 @@ drugi, zamknięty produkt: stół heads-up NLHE (`table`, `betting`,
 wielu stołów w LAN — decyzja 08, eksport historii, korpus self-play,
 zbiór przykładów) oraz agentów `rule` / `rule-aggressive` / `clone` /
 `mccfr` / `mlp-clone` i macierz equity preflop 169×169. Wszystko pod
-bramką (ok. 120 z 652 testów: przybliżenie 101 z 483 z wydania
-2026-09-07 plus 17 testów POKER-69 i 2 testy POKER-72) i pod
-niezmiennikami INV-P1…P8.
+bramką (ok. 207 z 852 testów: przybliżenie 101 z 483 z wydania
+2026-09-07 plus 17 testów POKER-69, 2 testy POKER-72, 53 testy POKER-76
+— odporność serwera LAN — i 34 testy POKER-78 — walidacja granicy
+silnika; 104 testy, które POKER-80 dodał do testu architektury, strzegą
+importów obu linii, więc są poza licznikiem) i pod niezmiennikami
+INV-P1…P8.
 Instrukcja obsługi: `README.md`. Linia Spin/blueprintu ich nie dotyka,
 ale kontrakt wychodzący poza `allowed_paths` może je złamać.
 
@@ -177,9 +182,12 @@ spasowany nie odzyskuje wkładu w modelach), POKER-73 (terminale
 i miara zbieżności openfold, N = 512), POKER-74 (brzeg horyzontu
 solvera domyka cykl 6 rąk; integracja `94b1c0a`) i POKER-75 (tożsamość
 artefaktu z kanonicznej projekcji manifestów; integracja `d3db4e1`).
-W locie jest przygotowanie sprintu B (kontrakty POKER-76…85
-w zatwierdzaniu przez architekta, POKER-86…90 w szkicach, jeszcze poza
-repozytorium); potem sprint C. Mapa decyzji 29 niżej — z POKER-58
+W locie jest sprint B: kontrakty POKER-76…90 zatwierdzone 2026-09-27
+(decyzja 31 pkt 4a); fala B1 — POKER-76 (odporność serwera LAN), 78
+(walidacja granicy silnika), 80 (test architektury rozwiązuje importy)
+i 84 (jamfold: drugie miejsce i side pot 3-way, ε jedną funkcją) —
+scalona 2026-09-27, fala B2 (POKER-85, 77, 79, 83) w toku, dalej B3–B5;
+potem sprint C. Mapa decyzji 29 niżej — z POKER-58
 włącznie — czekała na zamknięcie sprintu A, a jej pozycje mierzone na
 artefakcie produkcyjnym czekają na jego regenerację (wejście operatora,
 sekcja 9). Status bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md),
@@ -487,7 +495,9 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 
 - **F2 audytu POKER-5**: księgowość żetonów w `_view` (betting)
   równoległa do projekcji — unifikacja przy najbliższym kontrakcie
-  dotykającym `poker.betting`.
+  dotykającym `poker.betting`. (Korekta 2026-09-27: POKER-78 dotknął
+  `poker.betting` i wyłączył unifikację jawnie — non_goal; wątek zostaje
+  otwarty u architekta.)
 - **F1 audytu POKER-22**: zduplikowana formuła equity-przeciw-polu;
   publiczne API w `preflop_equity` osobnym kontraktem.
 - **Resztkowe rozjazdy drzew** (POKER-55): `capped_call` = 3,
@@ -513,15 +523,18 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
   POKER-57 pkt 4).
 - **POKER-26** (informacja zwrotna przy stole LAN) — szkic czeka
   na zatwierdzenie; **POKER-28** (memoizacja parsowania w testach
-  architektury) nadal zasadny.
+  architektury) nadal zasadny. (Korekta 2026-09-27: parsowanie raz na
+  plik — acceptance 3 POKER-28 — zrealizował POKER-80; checkpoint MCCFR
+  — acceptance 1–2 — uśpiony decyzją 18; decyzja 31 pkt 4a.)
 
 ---
 
 ## 11. Od czego zacząć
 
 **Korekta 2026-09-27:** przed listą niżej — sprint A decyzji 31 jest
-zamknięty (POKER-69…75); następny jest sprint B, potem C (decyzja 31
-pkt 2 i 4). Mapa decyzji 29 z pkt 4 czekała na zamknięcie sprintu A,
+zamknięty (POKER-69…75); sprint B jest w toku (fala B1 scalona
+2026-09-27, B2 w toku — sekcja 4), potem C (decyzja 31 pkt 2, 4
+i 4a). Mapa decyzji 29 z pkt 4 czekała na zamknięcie sprintu A,
 a jej pozycje mierzone na artefakcie produkcyjnym czekają na jego
 regenerację (wejście operatora, sekcja 9). Pkt 1 jest nieaktualny
 (POKER-57 zamknięty — tabela w sekcji 4); pkt 3 i 4 są poprawione

@@ -239,7 +239,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
 - [`POKER-28.json`](taskspecs/POKER-28.json) — findingi audytu
   POKER-24/25: wiązanie checkpointu z parametrami biegu, jednokrotne
   parsowanie plików w testach architektury (zatwierdzony; kolejność
-  integracji: 28 przed 27).
+  integracji: 28 przed 27; jednokrotne parsowanie — acceptance 3 —
+  zrealizował POKER-80, wiązanie checkpointu — acceptance 1–2 — uśpione
+  decyzją 18; decyzja 31 pkt 4a).
 - [`POKER-29.json`](taskspecs/POKER-29.json) — liniowo ważona średnia
   strategii w MCCFR (waga t, żale nieważone — etykieta „Linear CFR" z
   kontraktu skorygowana w POKER-72); `--averaging linear` domyślnie,
