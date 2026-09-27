@@ -17,7 +17,13 @@ areny = 512 z krzywej; liczby decyzji 20–23 poprawione adnotacjami
 KOREKTA) i POKER-74 (brzeg horyzontu solvera jest punktem stałym cyklu
 6 rąk — role 3-way mod 3 × guzik HU mod 2; stop PI-FP i tail_tol bez
 zmian, flaga `converged` uczciwa; schemat domknięcia w manifeście
-brzegu; wycena `mode_census` liczy warstwy cyklu 6); 648 testów.
+brzegu; wycena `mode_census` liczy warstwy cyklu 6) i POKER-75
+(tożsamość artefaktu z kanonicznej projekcji manifestów bez pól
+ulotnych: komenda `tools/blueprint/identity.py --run`, metadane `.bpk`
+niosą projekcję, dwie regeneracje dają identyczne `.bpk`;
+`prod_identity.json` ma sha tylko dla dwóch plików tensora, 30 pozycji
+do przeliczenia) — wszystkie siedem kontraktów sprintu A scalone;
+652 testy.
 **Stan dokumentów po korekcie zbiorczej POKER-69…73 (2026-09-27,
 zasada 1):** liczby areny Spin, liczniki bramki
 agenta blueprintu i liczby zależne od książek openfold, które przesunęły
@@ -597,8 +603,9 @@ rdzenio-h), **POKER-71
 zamknięty** (r1 FINDINGI 1 × ISTOTNY — niepełny wykaz dryfu dokumentów →
 r2 CZYSTY; +9 testów), **POKER-73 zamknięty** (r1 OBJECTION kodera —
 sprzeczne kryteria testu N — uznany; N = 512 regułą „od którego krzywa
-stoi”, decyzja 31 pkt 4; r2 CZYSTY; +16 testów); fala 2: POKER-75
-w toku (od `94b1c0a`). Korekta zbiorcza dokumentów stanu dla
+stoi”, decyzja 31 pkt 4; r2 CZYSTY; +16 testów), **POKER-75
+zamknięty** (r1 FINDINGI 1 × BLOKUJĄCY — brak wykazu dryfu dokumentów —
+i 1 × ISTOTNY → r2 CZYSTY; +4 testy; integracja `d3db4e1`). Korekta zbiorcza dokumentów stanu dla
 POKER-69…73 wykonana 2026-09-27 (nagłówek wyżej); dla POKER-74 i 75 —
 przy zamknięciu sprintu A; potem kontrakty sprintu B (szkice
 POKER-76…85 w przeglądzie).

@@ -338,7 +338,9 @@ fale 1–3, integracja sekwencyjna):
   kodera rozstrzygnięty, runda 2 — sprzeciw kodera uznany, opcja B,
   decyzja 31 pkt 4; audyt r2: CZYSTY);
 - [`POKER-75.json`](taskspecs/POKER-75.json) — tożsamość regeneracji
-  z kanonicznej projekcji manifestów (fala 2, po POKER-74).
+  z kanonicznej projekcji manifestów (zamknięty, commit integracji
+  `d3db4e1`; audyt r1 FINDINGI — brak wykazu dryfu dokumentów — r2:
+  CZYSTY).
 
 ## Operator
 
