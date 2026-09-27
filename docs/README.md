@@ -316,7 +316,8 @@ fale 1–3, integracja sekwencyjna):
   eliminacji w arenie i modelach Spin (zamknięty, commit integracji
   `de0f9cb`; audyt r2: CZYSTY);
 - [`POKER-71.json`](taskspecs/POKER-71.json) — side poty pełnym
-  rankingiem; spasowany nie odzyskuje wkładu (fala 2, po POKER-70);
+  rankingiem; spasowany nie odzyskuje wkładu (zamknięty, commit
+  integracji `0e5796d`; audyt r2: CZYSTY);
 - [`POKER-72.json`](taskspecs/POKER-72.json) — przepis pochodzenia
   `strategy_table.py` i etykieta metody MCCFR (zamknięty, commit
   integracji `2b2a4ef`; audyt r2: CZYSTY);

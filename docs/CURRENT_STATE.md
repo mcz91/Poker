@@ -9,7 +9,15 @@ odtwarza artefakt bajt w bajt; etykieta metody zgodna z kodem) i POKER-70
 (jedna reguła miejsc Spin `poker.spin.place_payouts` — później wybity
 wyżej, w jednej ręce większy stack wejściowy wyżej, równe dzielą — w
 arenie, jamfold, openfold i `utg_shove_ev`; ICM odrzuca więcej niż jedno
-zero; wyniki WTA bajt w bajt bez zmian); 620 testów
+zero; wyniki WTA bajt w bajt bez zmian) i POKER-71 (side pot pełnym
+porządkiem rąk w showdownie areny; spasowany nie odzyskuje wkładu w
+modelach all-in); 629 testów. **Uwaga (zasada 1):** liczby areny Spin
+i liczniki agenta blueprintu w blokach POKER-48…55 oraz w
+[`PRZEKAZANIE.md`](PRZEKAZANIE.md) sprzed POKER-71 są częściowo
+nieaktualne — wykaz plik:linia z wartościami dokument / przed / po jest
+w opisie commita `5b5ec9a` (sekcje A–D); korekta zbiorcza przy
+zamknięciu sprintu A (decyzja 31 pkt 4). Pomiary BF/BG/BH czekają na
+artefakt produkcyjny
 · wcześniej ostatnie zamknięte zadanie: POKER-57 (format
 `.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
 uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
@@ -547,8 +555,11 @@ integracja sekwencyjna z pełną bramką na gałęzi sprintu). Fala 1:
 +118 testów, w tym parametryczna tożsamość WTA = ICM; liczby areny 10x
 bloków BG unieważnione); POKER-74 w rundzie 2 (koder zgłosił BRAK:
 kryterium ogona cyklu 6 — rozstrzygnięty pomiarem wariantów, decyzja 31
-pkt 4); fala 2: POKER-71 w toku, POKER-75 po POKER-74; fala 3: POKER-73;
-potem kontrakty sprintu B. Pomiary unieważnione do
+pkt 4, a potem OBJECTION kodera uznany — opcja B: cykl 6 z uczciwą
+flagą `converged`, bez zmiany tail_tol; gałąź w audycie), **POKER-71
+zamknięty** (r1 FINDINGI 1 × ISTOTNY — niepełny wykaz dryfu dokumentów →
+r2 CZYSTY; +9 testów); fala 2: POKER-75 po POKER-74; fala 3: POKER-73
+w toku; potem korekta zbiorcza dokumentów stanu i kontrakty sprintu B. Pomiary unieważnione do
 przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
 czeka na zamknięcie sprintu A, bo jej pomiary stoją na naprawianych
 rozliczeniach i brzegu horyzontu.

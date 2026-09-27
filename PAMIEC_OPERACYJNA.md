@@ -68,7 +68,7 @@ Protokół (koszt czytelnika > koszt pisarza):
   piętro niżej: usunięcie kontroli slotów v2 z czytnika przeżywa całą
   bramkę, bo plik i tak wywraca się na cudzym katalogu warstw (57, audyt).
 - Stała suma żetonów ≠ dobre rozliczenie: rangi {wygrany, reszta} dla
-  `award_allin` przeżyły w 4 miejscach — kotwicz side pot referencją (audyt 09-26).
+  `award_allin` przeżyły w 4 miejscach (3 naprawił POKER-71, `_three_way` — sprint B).
 - Zdania porównawcze i słowa ilościowe („monotonicznie") sprawdzaj na
   artefakcie tak jak liczby — POKER-47 miał obok siebie poprawne liczby
   i fałszywe zdanie o nich (audyt).
