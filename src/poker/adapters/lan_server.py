@@ -4,14 +4,17 @@ Serwer jest autorytatywny: do klienta wychodzi wyłącznie to, co
 wyrenderował `HumanAgent` z widoku jego miejsca (INV-P3 na granicy
 procesu) oraz komunikaty protokołu. Seed meczu, z którego wynika talia
 każdego rozdania, losuje serwer — żaden gracz go nie podaje ani nie poznaje
-(decyzja 31 pkt 1). Każdy stół gra we własnym wątku; rozłączenie gracza
-kończy wyłącznie jego stół.
+(decyzja 31 pkt 1). Każdy stół gra we własnym wątku. Rozłączenie gracza,
+naruszenie protokołu i wyjątek agenta albo serwera kończą wyłącznie dotknięty
+stół: jego gracze dostają opponent_left albo error, a serwer zamyka ich połączenia.
 """
 
 import random
 import socket
+import sys
 import threading
 import time
+import traceback
 from dataclasses import dataclass, field
 from io import BufferedRWPair
 from pathlib import Path
@@ -39,6 +42,14 @@ CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 8
 CODE_ATTEMPTS = 16
 
+# Żetony trafiają także do obliczeń zmiennoprzecinkowych, a liczby całkowite do 2**53 są
+# w float dokładne: 2**52 na miejsce trzyma w tej granicy sumę stacków stołu heads-up.
+MAX_CHIPS = 2**52
+
+# Tekst wyjątku silnika albo agenta mógłby nieść karty (INV-P3), więc do graczy idzie
+# wyłącznie ta stała, a traceback — na stderr serwera.
+INTERNAL_ERROR_MESSAGE = "wewnętrzny błąd serwera (szczegóły w logu serwera)"
+
 # Zamknięcie gniazda z nieprzeczytanymi danymi wysyła RST, który może skasować u klienta
 # nieodebrany jeszcze error; po error serwer doczytuje wejście — z limitem czasu i bajtów,
 # żeby klient nie trzymał nim wątku.
@@ -48,6 +59,10 @@ DRAIN_BYTES = 4 * MAX_LINE_BYTES
 
 def generate_code(rng: random.Random) -> str:
     return "".join(rng.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
+
+
+def _log_exception(context: str) -> None:
+    print(f"serwer stołów LAN: {context}\n{traceback.format_exc()}", end="", file=sys.stderr)
 
 
 @dataclass
@@ -94,6 +109,15 @@ class _Client:
         self.close()
 
 
+class _ProtocolViolation(Exception):
+    """Naruszenie protokołu przez gracza przy stole: sprawca dostaje error z jego treścią."""
+
+    def __init__(self, client: _Client, reason: str) -> None:
+        super().__init__(reason)
+        self.client = client
+        self.reason = reason
+
+
 class _ProtocolIO:
     """Most strumieni HumanAgent <-> protokół: tekst wychodzi wiadomościami,
     readline wysyła prompt i czeka na wejście klienta."""
@@ -116,19 +140,35 @@ class _ProtocolIO:
 
     def readline(self) -> str:
         # Zerwane łącze zgłaszamy pustą linią: HumanAgent zamienia ją na InputEnded.
+        # Naruszenie protokołu rozpoznaje miejsce wykrycia — odczyt wejścia klienta —
+        # nie typ wyjątku: także RecursionError zagnieżdżonego JSON-a jest naruszeniem.
         self.flush()
         if self._disconnected:
             return ""
         try:
             self._client.send({"type": "prompt"})
+        except OSError:
+            self._disconnected = True
+            return ""
+        try:
             message = read_message(self._client.stream, MAX_LINE_BYTES)
-        except (OSError, ValueError):
+        except OSError:
             self._disconnected = True
             return ""
-        if message is None or message.get("type") != "input":
+        except Exception as error:
+            raise _ProtocolViolation(self._client, str(error)) from error
+        if message is None:
             self._disconnected = True
             return ""
-        return text_field(message, "text") + "\n"
+        if message.get("type") != "input":
+            raise _ProtocolViolation(
+                self._client,
+                f"oczekiwano wiadomości 'input', otrzymano {message.get('type')!r}",
+            )
+        try:
+            return text_field(message, "text") + "\n"
+        except ValueError as error:
+            raise _ProtocolViolation(self._client, str(error)) from error
 
 
 @dataclass
@@ -194,11 +234,14 @@ class TableServer:
         client = _Client(connection=connection, stream=stream)
         try:
             message = read_message(stream, MAX_LINE_BYTES)
-        except ValueError as error:
+        except OSError:
+            client.close()
+            return
+        except Exception as error:  # naruszenie protokołu w pierwszej linii, np. RecursionError
             client.reject(str(error))
             return
         if message is None:
-            connection.close()
+            client.close()
             return
         try:
             match message.get("type"):
@@ -210,6 +253,9 @@ class TableServer:
                     raise ValueError(f"nieznany typ wiadomości: {unknown!r}")
         except ValueError as error:
             client.reject(str(error))
+        except Exception:
+            _log_exception(f"obsługa żądania {message.get('type')!r} nie powiodła się")
+            client.reject(INTERNAL_ERROR_MESSAGE)
 
     def _handle_create(self, client: _Client, message: dict[str, object]) -> None:
         if "seed" in message:
@@ -219,9 +265,17 @@ class TableServer:
             isinstance(item, int) and not isinstance(item, bool) for item in stacks_value
         ):
             raise ValueError("pole 'stacks' musi być listą dwóch liczb całkowitych")
+        small_blind = int_field(message, "small_blind")
+        big_blind = int_field(message, "big_blind")
+        # Przed MatchConfig: granica nie zależy od kolejności jego walidacji.
+        for name, value in (
+            ("stacks", max(stacks_value)), ("small_blind", small_blind), ("big_blind", big_blind)
+        ):
+            if value > MAX_CHIPS:
+                raise ValueError(f"pole {name!r} przekracza MAX_CHIPS = {MAX_CHIPS}")
         config = MatchConfig(
-            small_blind=int_field(message, "small_blind"),
-            big_blind=int_field(message, "big_blind"),
+            small_blind=small_blind,
+            big_blind=big_blind,
             stacks=(stacks_value[0], stacks_value[1]),
             button=int_field(message, "button"),
             hand_limit=int_field(message, "hand_limit"),
@@ -271,14 +325,41 @@ class TableServer:
         threading.Thread(target=self._run_match, args=(table,), daemon=True).start()
 
     def _run_match(self, table: _Table) -> None:
+        clients = [table.creator] if table.joiner is None else [table.creator, table.joiner]
+        violation: _ProtocolViolation | None = None
+        try:
+            result = self._play(table, clients)
+        except _ProtocolViolation as error:
+            violation = error
+            for seat_client in clients:
+                if seat_client is not violation.client:
+                    seat_client.send_quietly({"type": "opponent_left"})
+        except InputEnded:
+            for seat_client in clients:
+                seat_client.send_quietly({"type": "opponent_left"})
+        except Exception:
+            # opponent_left byłby nieprawdą: przeciwnik nie odszedł.
+            _log_exception(f"stół {table.code} przerwany wyjątkiem")
+            for seat_client in clients:
+                seat_client.send_quietly({"type": "error", "message": INTERNAL_ERROR_MESSAGE})
+        else:
+            self._finish(table, clients, result)
+        finally:
+            with self._tables_lock:
+                self._tables.pop(table.code, None)
+            for seat_client in clients:
+                if violation is None or seat_client is not violation.client:
+                    seat_client.close()
+            if violation is not None:
+                violation.client.reject(violation.reason)
+
+    def _play(self, table: _Table, clients: list[_Client]) -> MatchResult:
         creator_io = _ProtocolIO(table.creator)
         agents: list[Agent] = [HumanAgent(input_stream=creator_io, output_stream=creator_io)]
-        clients = [table.creator]
         human_seats = [0]
         if table.joiner is not None:
             joiner_io = _ProtocolIO(table.joiner)
             agents.append(HumanAgent(input_stream=joiner_io, output_stream=joiner_io))
-            clients.append(table.joiner)
             human_seats.append(1)
         else:
             agents.append(agent_registry()[table.opponent_name])
@@ -292,23 +373,12 @@ class TableServer:
                     {"type": "text", "text": f"koniec rozdania {number}: {summary}"}
                 )
 
-        try:
-            result = play_match(
-                table.config,
-                seed=table.seed,
-                agents=(agents[0], agents[1]),
-                on_hand=report_hand,
-            )
-        except InputEnded:
-            for seat_client in clients:
-                seat_client.send_quietly({"type": "opponent_left"})
-        else:
-            self._finish(table, clients, result)
-        finally:
-            with self._tables_lock:
-                self._tables.pop(table.code, None)
-            for seat_client in clients:
-                seat_client.close()
+        return play_match(
+            table.config,
+            seed=table.seed,
+            agents=(agents[0], agents[1]),
+            on_hand=report_hand,
+        )
 
     def _finish(self, table: _Table, clients: list[_Client], result: MatchResult) -> None:
         for seat_client in clients:
@@ -319,6 +389,10 @@ class TableServer:
                 "reason": result.reason.value,
             })
         if self._export_directory is not None:
-            self._export_directory.mkdir(parents=True, exist_ok=True)
-            target = self._export_directory / f"{table.code}.json"
-            target.write_text(serialize_match_history(result.histories), encoding="utf-8")
+            try:
+                self._export_directory.mkdir(parents=True, exist_ok=True)
+                target = self._export_directory / f"{table.code}.json"
+                target.write_text(serialize_match_history(result.histories), encoding="utf-8")
+            except Exception:
+                # Bez error do graczy: mają już prawdziwy wynik w match_end.
+                _log_exception(f"eksport historii stołu {table.code} nie powiódł się")
