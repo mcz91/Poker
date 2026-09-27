@@ -78,6 +78,11 @@ w `tools/run_arena.py` („krzywa zbieżności jamfold to sprint B
 (I-26/I-27)") i docstring testu książek areny w `tests/test_openfold.py`
 („jamfold — sprint B") — I-26 i I-27 zamknął POKER-84, a krzywa
 zbieżności jamfold jest poza nim (non_goal POKER-84; kod i test);
+komentarz przy `_Client` w `src/poker/adapters/lan_server.py` („po error
+serwer doczytuje wejście — z limitem czasu i bajtów") — drenaż wykonuje
+wyłącznie odrzucenie połączenia (`_Client.reject`), a przy wyjątku przy
+stole serwer wysyła `error` o stałej treści i zamyka połączenie bez
+drenażu (kod; opis bieżący w „Co istnieje");
 szkice TaskSpeców `POKER-59`
 (horyzont „cykle 3 rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl
 6 rąk i wycena 49,5; bez wymogu zgodności schematu brzegu przy
