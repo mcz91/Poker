@@ -54,6 +54,13 @@ def _validate_distinct(cards: tuple[Card, ...]) -> None:
         raise ValueError("karty w zdarzeniu nie mogą się powtarzać")
 
 
+def _require_int(value: object, label: str) -> None:
+    # Dokładnie int: bool jest podklasą int, a float i np.int64 przechodzą porównania —
+    # każdy z nich trafiłby do blindów i stacków historii, której eksport nie odtworzy.
+    if type(value) is not int:
+        raise ValueError(f"{label} musi być liczbą całkowitą (int), otrzymano {value!r}")
+
+
 @dataclass(frozen=True, slots=True)
 class HandConfig:
     small_blind: int
@@ -62,8 +69,20 @@ class HandConfig:
     button: int
 
     def __post_init__(self) -> None:
+        # Własna krotka: lista wywołującego zmieniałaby zapisaną historię (INV-P2).
+        object.__setattr__(self, "stacks", tuple(self.stacks))
+        _require_int(self.small_blind, "small_blind")
+        _require_int(self.big_blind, "big_blind")
+        _require_int(self.button, "button")
+        for stack in self.stacks:
+            _require_int(stack, "stack")
         if self.small_blind <= 0 or self.big_blind <= 0:
             raise ValueError("blindy muszą być dodatnie")
+        if self.small_blind > self.big_blind:
+            raise ValueError(
+                f"small_blind ({self.small_blind}) nie może przekraczać "
+                f"big_blind ({self.big_blind}) — odwróciłby kolejność heads-up"
+            )
         if not self.stacks or any(stack < 0 for stack in self.stacks):
             raise ValueError("stacki muszą być niepustą krotką nieujemnych żetonów")
         if not 0 <= self.button < len(self.stacks):
