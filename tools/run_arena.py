@@ -1,7 +1,10 @@
 """Hero book vs fish. Prints ROI in buy-ins; unit = blok trzech rotacji.
 
 Tryby:
-- `python tools/run_arena.py [N_BLOKOW] [pay]` — porównania książek na blokach;
+- `python tools/run_arena.py [N_BLOKOW] [pay] [--openfold-iters N]` — porównania
+  książek na blokach; open i overjam książek hero/exploit oraz 3bet hero
+  z openfold przy N iteracjach (domyślnie CURVE_ITERATIONS — punkt krzywej
+  zbieżności, POKER-73), jam/fold przy 12; wyjście podaje obie liczby;
 - `python tools/run_arena.py blueprint ARTEFAKT.bpk [N_BLOKOW] [pay]` — agent
   grający z artefaktu blueprintu przeciw field_exploit, dollar_fish
   i always_jam; obok ROI z CI wychodzą liczniki fallbacków agenta;
@@ -9,9 +12,9 @@ Tryby:
   z tego ROI robi sama reguła fallbacku: różnica sparowana między agentem
   grającym check-call → fold poza artefaktem a tym samym agentem pasującym
   w każdym takim miejscu (wspólne seedy bloków);
-- `python tools/run_arena.py sd [N_BLOKOW] [pay]` — SD na turniej (estymator
-  sprzed rotacji, miejsce 0) vs SD na blok na tych samych seedach oraz
-  wynikające N dla różnic 5 i 10 pp ROI (moc 80%, alfa 0,05);
+- `python tools/run_arena.py sd [N_BLOKOW] [pay] [--openfold-iters N]` — SD na
+  turniej (estymator sprzed rotacji, miejsce 0) vs SD na blok na tych samych
+  seedach oraz wynikające N dla różnic 5 i 10 pp ROI (moc 80%, alfa 0,05);
 - `python tools/run_arena.py seats [N_TURNIEJOW] [pay]` — ROI tego samego
   agenta na każdym z trzech miejsc osobno na wspólnych seedach
   (obciążenie pozycyjne, które rotacja usuwa).
@@ -27,7 +30,7 @@ from typing import BinaryIO
 from poker.blueprint_agent import BlueprintAgent
 from poker.blueprint_reader import BlueprintReader
 from poker.jamfold import solve as solve_jf
-from poker.openfold import _threebet_from_open, threebet_vs_range
+from poker.openfold import CURVE_ITERATIONS, _threebet_from_open, threebet_vs_range
 from poker.openfold import solve as solve_open
 from poker.spin import LEVELS, PAYOUTS, STARTING_CHIPS, is_jam_fold_depth
 from poker.spin_arena import (
@@ -48,24 +51,30 @@ from poker.spin_arena import (
 # Moc 80% i alfa 0,05 (dwustronnie): N = ((z_{0,975} + z_{0,80}) * SD / delta)^2.
 Z_ALPHA = 1.96
 Z_POWER = 0.8416
+# Iteracje FP jam/fold książek; krzywa zbieżności jamfold to sprint B (I-26/I-27).
+JAMFOLD_ITERATIONS = 12
 
 
-def hero_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
+def hero_book(
+    pay: str = "3x",
+    jamfold_iterations: int = JAMFOLD_ITERATIONS,
+    openfold_iterations: int = CURVE_ITERATIONS,
+) -> SeatBook:
     """One book for all depths: 25bb open + 25bb 3bet + 25bb call vs jam.
 
     Endgame jam/fold uses the 4/8 solve (first level ≤7bb). Cheap and honest.
     """
     prizes = PAYOUTS[pay].prizes
     stacks = (STARTING_CHIPS, STARTING_CHIPS, STARTING_CHIPS)
-    deep = solve_open(stacks, prizes, 1, iterations, 1, 2)
+    deep = solve_open(stacks, prizes, 1, openfold_iterations, 1, 2)
     three = _threebet_from_open(
         deep.utg_open, deep.utg_open_pct, stacks, prizes, 1, 1, 2, 0.55
     )
-    deep_jf = solve_jf(stacks, prizes, 1, iterations, 1, 2)
+    deep_jf = solve_jf(stacks, prizes, 1, jamfold_iterations, 1, 2)
     short_sb, short_bb = next(
         (sb, bb) for sb, bb in LEVELS if is_jam_fold_depth(stacks, bb)
     )
-    short = solve_jf(stacks, prizes, 1, iterations, short_sb, short_bb)
+    short = solve_jf(stacks, prizes, 1, jamfold_iterations, short_sb, short_bb)
     return SeatBook(
         open=list(deep.utg_open),
         overjam=list(deep.utg_jam),
@@ -76,9 +85,13 @@ def hero_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
     )
 
 
-def exploit_book(pay: str = "3x", iterations: int = 12) -> SeatBook:
+def exploit_book(
+    pay: str = "3x",
+    jamfold_iterations: int = JAMFOLD_ITERATIONS,
+    openfold_iterations: int = CURVE_ITERATIONS,
+) -> SeatBook:
     """$1 book: call jams vs random; 3bet a wide fish who folds too much."""
-    base = hero_book(pay, iterations)
+    base = hero_book(pay, jamfold_iterations, openfold_iterations)
     vs_jam = call_vs_random(0.50)
     fish = dollar_fish()
     three = threebet_vs_range(
@@ -108,15 +121,24 @@ def _sd(xs: list[float]) -> float:
     return (sum((x - mean) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
 
 
-def sd_reduction(n: int, pay: str) -> dict[str, object]:
+def sd_reduction(n: int, pay: str, openfold_iterations: int) -> dict[str, object]:
     """SD na turniej (miejsce 0, sprzed rotacji) vs SD na blok, wspólne seedy."""
     prizes = PAYOUTS[pay].prizes
     pairs: dict[str, tuple[SeatBook, SeatBook]] = {
         "field_vs_always_jam": (field_exploit(), always_jam()),
         "field_vs_dollar": (field_exploit(), dollar_fish()),
-        "tight_vs_always_jam": (hero_book(pay), always_jam()),
+        "tight_vs_always_jam": (
+            hero_book(pay, openfold_iterations=openfold_iterations),
+            always_jam(),
+        ),
     }
-    out: dict[str, object] = {"pay": pay, "n_seeds": n, "seed": 21}
+    out: dict[str, object] = {
+        "pay": pay,
+        "n_seeds": n,
+        "seed": 21,
+        "openfold_iterations": openfold_iterations,
+        "jamfold_iterations": JAMFOLD_ITERATIONS,
+    }
     for name, (hero, villain) in pairs.items():
         books = (hero, villain, villain)
         per_tournament = [play_spin(books, prizes, 21 + i)[0] for i in range(n)]
@@ -159,15 +181,17 @@ def seat_bias(n: int, pay: str) -> dict[str, object]:
     return out
 
 
-def compare_books(n: int, pay: str) -> dict[str, object]:
-    hero = hero_book(pay)
-    expl = exploit_book(pay)
+def compare_books(n: int, pay: str, openfold_iterations: int) -> dict[str, object]:
+    hero = hero_book(pay, openfold_iterations=openfold_iterations)
+    expl = exploit_book(pay, openfold_iterations=openfold_iterations)
     field = field_exploit()
     fish = dollar_fish()
     prizes = PAYOUTS[pay].prizes
     return {
         "pay": pay,
         "unit": "blok = 3 rotacje jednego seeda",
+        "openfold_iterations": openfold_iterations,
+        "jamfold_iterations": JAMFOLD_ITERATIONS,
         "tight_vs_always_jam": sample_blocks(hero, always_jam(), prizes, n, seed=21),
         "exploit_vs_always_jam": sample_blocks(expl, always_jam(), prizes, n, seed=21),
         "exploit_vs_wide": sample_blocks(expl, wide_call(0.45), prizes, n, seed=22),
@@ -261,12 +285,25 @@ def blueprint_arena(path: str, n: int, pay: str) -> dict[str, object]:
     return out
 
 
+def openfold_option(mode: str, args: list[str]) -> tuple[list[str], int]:
+    """Zdejmuje `--openfold-iters N` z argumentów; bez opcji — CURVE_ITERATIONS."""
+    if "--openfold-iters" not in args:
+        return args, CURVE_ITERATIONS
+    if mode not in ("compare", "sd"):
+        raise SystemExit(f"--openfold-iters dotyczy trybów compare i sd, nie {mode}")
+    at = args.index("--openfold-iters")
+    if at + 1 == len(args):
+        raise SystemExit("--openfold-iters wymaga liczby iteracji")
+    return args[:at] + args[at + 2 :], int(args[at + 1])
+
+
 def main() -> None:
     args = sys.argv[1:]
     mode = "compare"
     if args and args[0] in ("sd", "seats", "blueprint", "fallback"):
         mode = args[0]
         args = args[1:]
+    args, openfold_iterations = openfold_option(mode, args)
     if mode in ("blueprint", "fallback"):
         if not args:
             raise SystemExit(f"użycie: run_arena.py {mode} ARTEFAKT.bpk [N_BLOKOW] [pay]")
@@ -280,11 +317,11 @@ def main() -> None:
     n = int(args[0]) if args else default_n
     pay = args[1] if len(args) > 1 else "3x"
     if mode == "sd":
-        out = sd_reduction(n, pay)
+        out = sd_reduction(n, pay, openfold_iterations)
     elif mode == "seats":
         out = seat_bias(n, pay)
     else:
-        out = compare_books(n, pay)
+        out = compare_books(n, pay, openfold_iterations)
     print(json.dumps(out, indent=2))
 
 
