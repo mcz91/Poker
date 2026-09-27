@@ -38,6 +38,17 @@ POKER-46); każde ich wystąpienie niesie adnotację. **Poza korektą
 zostały:** skutki POKER-75 (w toku; korekta przy zamknięciu sprintu A);
 docstringi `poker.blueprint_agent` o stacjonarnym cyklu 3 rąk (kod —
 sprint B, decyzja 31 pkt 2; wykaz w opisie `7b5c85d`, sekcja F);
+docstring `tools/blueprint/mode_census.py` z mnożnikiem iteracji WTA
+„1,12–1,91×" sprzed POKER-74 (kod; wartość bieżąca w bloku POKER-56
+pkt 4a); komentarz w `tests/test_blueprint_pilot.py` podający rozmiar
+pliku kontrolnego 8 408 B, który zależy od ścieżki checkoutu (test;
+blok POKER-51 pkt 5); szkice TaskSpeców `POKER-59` (horyzont „cykle 3
+rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl 6 rąk i wycena 49,5;
+bez wymogu zgodności schematu brzegu przy wznowieniu z checkpointu,
+choć `config_hash` schematu nie obejmuje) i `POKER-60` („~252
+rdzenio-h" kroku 1 — dziś 353,0), które poprawia architekt przy
+zatwierdzeniu; kontekst zamkniętego TaskSpeca `POKER-55` (zapis
+kontraktu: „brzeg = punkt stały cyklu 3 rąk");
 dokumenty niemutowalne (decyzje, raport audytu) poza zdaniami
 z adnotacją KOREKTA; tabela
 faktów na okładce `PRZEKAZANIE.pdf`, którą generator
@@ -1345,9 +1356,19 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    na tę odpowiedź, po którą to pole istnieje, a naprawą jest skala per węzeł
    albo logarytmiczna, nie luźniejszy próg. Granica jest pod testem
    (kwantyzacja wektora [1,0; 1e−4; 0,077] na skali stanu 1,0 daje bajty
-   [255, 1, 21], czyli 1e−4 → 0,0) i na artefakcie kontrolnym nie zachodzi
-   (376 z 376 infosetów określonych), a produkcja marginesów nie ma — więc
-   ryzyko idzie **w całości na kontrakt, który je policzy** (pkt 7).
+   [255, 1, 21], czyli 1e−4 → 0,0) i **na artefakcie kontrolnym zachodzi**:
+   wszystkie 376 decyzji mają margines określony i dodatni, ale część
+   z nich plik oddaje jako 0,0 — brzegiem sprzed POKER-74 **7 z 376**, po
+   POKER-74 **9 z 376**, w tym korzeń KK (niżej). „376 z 376 określonych"
+   (asercja `defined[decision].all()` w `tests/test_blueprint_v2.py`) mówi
+   o definiowalności, nie o braku fałszywych zer; wcześniejsza wersja tego
+   punktu z tej liczby wyprowadzała „nie zachodzi" i było to fałszywe już
+   przed POKER-74. Produkcja marginesów nie ma — więc ryzyko na produkcji
+   idzie **w całości na kontrakt, który je policzy** (pkt 7). (Pomiar
+   2026-09-27: bieg kontrolny, ex-post, marginesy i pakowanie v2 jak
+   fixture `v2_run`, liczony na `a03a282` i na drzewie `d69d12b` sprzed
+   POKER-74; bajt każdego infosetu z czytnika zgodny z regułą kwantyzacji
+   testu.)
 
    Na artefakcie kontrolnym z 416 infosetów
    (stan × żywy węzeł × klasa) decyzjami jest **376**; mediana marginesu
@@ -1372,7 +1393,12 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    AA 0,915/0,084 przy 0,009267, KK 0,000041 — raport `7b5c85d`, A.3;
    oba marginesy mają asercje w `tests/test_blueprint_v2.py`). Właśnie
    dlatego to pole musi być w pliku, a warstwa eksploatacyjna nie może go
-   zgadywać z rozkładu.
+   zgadywać z rozkładu. Oba marginesy pochodzą z `margins.npz`; plik v2
+   oddaje je na skali stanu korzenia (0,3027 przed POKER-74, 0,3207 po
+   nim): przed POKER-74 AA 0,011918, KK 0,001192 (bajt 2), po POKER-74
+   AA 0,008837, a **KK 0,0** (bajt 1) — korzeń KK jest dziś przypadkiem
+   granicy F3 z tego punktu, czyli fałszywą „zmierzoną obojętnością"
+   (pomiar jak wyżej).
 
 5. **Odcisk przebiegu w metadanych.** Metadane v2 to ten sam blok co w v1
    (`zlib(JSON UTF-8)`, kanoniczny): kopia manifestu biegu, `source_sha256`,
@@ -1704,14 +1730,26 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    (ta sama siatka, ten sam tensor, ta sama mieszanka trybów, zmieniony
    wyłącznie `prizes`; budżet PI-FP/CFR+ produkcyjny, żeby wiązała tolerancja,
    a nie sufit) — liczone w ITERACJACH, nie w sekundach, bo iteracje są
-   deterministyczne, a czas na współdzielonym kontenerze nie jest:
+   deterministyczne, a czas na współdzielonym kontenerze nie jest. Kolumny
+   „przed 74" to pomiar zamknięcia POKER-56 (brzeg cyklu 3 rąk sprzed
+   POKER-74; komenda BM na drzewie `d69d12b` odtwarza je co do cyfry),
+   kolumny „po 74" — ta sama komenda na `a03a282` (brzeg cyklu 6 rąk):
 
-   | tryb | stany | iteracje 80/20 | iteracje WTA | WTA / 80-20 |
-   |---|---:|---:|---:|---:|
-   | `deep` | 1 | 384 | 384 | 1,000 (sufit) |
-   | `jamfold` | 11 | 1 160 | 1 608 | **1,386** |
-   | `hu-deep` | 2 | 912 | 1 024 | **1,123** |
-   | `hu-jamfold` | 8 | 1 008 | 1 920 | **1,905** |
+   | tryb | stany | iteracje 80/20 przed 74 | iteracje WTA przed 74 | WTA / 80-20 przed 74 | iteracje 80/20 po 74 | iteracje WTA po 74 | WTA / 80-20 po 74 |
+   |---|---:|---:|---:|---:|---:|---:|---:|
+   | `deep` | 1 | 384 | 384 | 1,000 (sufit) | 384 | 384 | 1,000 (sufit) |
+   | `jamfold` | 11 | 1 160 | 1 608 | **1,386** | 824 | 856 | **1,039** |
+   | `hu-deep` | 2 | 912 | 1 024 | **1,123** | 832 | 944 | **1,135** |
+   | `hu-jamfold` | 8 | 1 008 | 1 920 | **1,905** | 608 | 1 088 | **1,789** |
+
+   **KOREKTA (POKER-74):** mnożniki cytowane w decyzji 29 (KOREKTA
+   2026-09-05) i w `PRZEKAZANIE.md` (jamfold 1,39×, hu-deep 1,12×,
+   hu-jamfold 1,91×) to kolumny „przed 74"; po POKER-74 wynoszą 1,04×,
+   1,13× i 1,79×. Znak zostaje (żaden iloraz nie spada poniżej 1, `deep`
+   nadal na suficie), więc wniosek niżej stoi; zmiana samej wielkości przy
+   zmianie wyłącznie brzegu to jeszcze jeden powód, żeby jej nie
+   przenosić. Docstring `tools/blueprint/mode_census.py` („1,12–1,91×")
+   podaje zakres sprzed POKER-74 — kod, poza tą korektą.
 
    **Tego mnożnika NIE przenosimy na siatkę produkcyjną**: łańcuch kontrolny
    ma 34 żetony, 4 klasy ze 169 i dwie warstwy, a `deep` siedzi tu na sufcie
@@ -1720,8 +1758,10 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    WTA@25bb, DBR) stoją na założeniu przenośności tempa i są dolnym
    oszacowaniem. Wycena tego mnożnika na siatce produkcyjnej należy do
    kontraktu, który pierwszy puści przebieg WTA (P-7 albo P-8). Komenda
-   (venv z extras `train`, z katalogu repozytorium, ≈2 min, świeży katalog
-   roboczy — pisze do niego dwa biegi solvera):
+   (venv z extras `train`, z katalogu repozytorium, świeży katalog
+   roboczy — pisze do niego dwa biegi solvera; ≈2 min brzegiem sprzed
+   POKER-74, po POKER-74 zmierzone 4 min 8 s na współdzielonych
+   rdzeniach, bo brzeg cyklu 6 rąk kosztuje więcej):
 
    ```
    BM python - KATALOG <<'EOF'
@@ -2924,9 +2964,18 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    stanu to **116 B**, a wartości V **56 B**; asercje stoją na 160
    i 72 B — zapas jest na inną wersję `zlib`, nie na inny sposób
    odczytu (test podstawia strumień liczący). (Liczby z zamknięcia
-   POKER-51; tuż przed POKER-74 plik miał już 8 400 B, a po POKER-74 —
-   brzeg cyklu 6 rąk — ma **8 408 B**, najgorszy odczyt stanu **119 B**,
-   V 56 B; asercje 160 i 72 B bez zmian — raport `7b5c85d`, D.17.)
+   POKER-51. Po POKER-74 — brzeg cyklu 6 rąk — najgorszy odczyt stanu
+   to **119 B**, V 56 B; asercje 160 i 72 B bez zmian — raport `7b5c85d`,
+   D.17. **Rozmiar pliku nie jest liczbą stałą dla tego drzewa:** metadane
+   niosą kopię manifestu biegu z bezwzględną ścieżką katalogu tensora
+   i proweniencją środowiska (wersje Pythona i numpy, model CPU), więc
+   rozmiar zależy od miejsca checkoutu. 8 328 B z zamknięcia POKER-51,
+   8 400 B tuż przed POKER-74 i 8 408 B po nim (raport `7b5c85d`)
+   zmierzono pod ścieżkami tamtych checkoutów; ten sam bieg kontrolny
+   kodem po POKER-74 daje 8 408 B przy ścieżce tensora 83-znakowej,
+   8 384 B po podmianie jej w manifeście na ścieżkę głównego checkoutu
+   `/home/user/Poker` (47 znaków) i 8 416 B przy 123 znakach — liczby
+   bajtów odczytu przy tym się nie zmieniają (pomiar 2026-09-27).)
 
    Na artefakcie produkcyjnym mierzy to `bench --sweep` (przemiał
    **wszystkich** stanów, nie próbka — stany różnią się liczbą żywych

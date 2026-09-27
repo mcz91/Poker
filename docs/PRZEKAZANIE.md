@@ -180,7 +180,12 @@ bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md), „Następny krok".
 ### Kolejka — mapa decyzji 29, szkice w repo
 
 Szkice TaskSpeców leżą w [`docs/taskspecs/drafts/`](taskspecs/drafts/)
-(niezatwierdzone — bez pola `approved` koder ich nie realizuje):
+(niezatwierdzone — bez pola `approved` koder ich nie realizuje). Kontekst
+szkiców pisano przed POKER-74: POKER-59 mówi o „cyklach 3 rąk"
+i horyzoncie ~25 rdzenio-h i nie wymaga zgodności schematu brzegu przy
+wznowieniu z checkpointu (`config_hash` schematu nie obejmuje), POKER-60
+o ~252 rdzenio-h kroku 1 — dziś cykl 6 rąk, horyzont ~49,5, krok 1
+353,0. Poprawia je architekt przy zatwierdzeniu. Kolejka:
 
 | id | kontrakt | koszt [rdzenio-h] | blokady |
 |---|---|---:|---|
@@ -201,7 +206,9 @@ Szkice TaskSpeców leżą w [`docs/taskspecs/drafts/`](taskspecs/drafts/)
 > raport commita `7b5c85d`, sekcje B i E): założenie o przenośności
 > tempa per stan między wektorami wypłat zostało **obalone co do
 > kierunku** — WTA wymaga więcej iteracji PI-FP/CFR+ (na łańcuchu
-> kontrolnym: jamfold 1,39×, hu-deep 1,12×, hu-jamfold 1,91×).
+> kontrolnym brzegiem sprzed POKER-74: jamfold 1,39×, hu-deep 1,12×,
+> hu-jamfold 1,91×; po POKER-74: 1,04×, 1,13×, 1,79× — CURRENT_STATE,
+> blok POKER-56 pkt 4a).
 > Faktyczny mnożnik wyceni dopiero pierwszy przebieg WTA. Nie budżetuj
 > tych pozycji jako wycen.
 
@@ -468,7 +475,10 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
   ustawić skalę tak, że realne marginesy sąsiadów spadają do zera —
   a zero znaczy „doskonała obojętność", czyli najsilniejszy alarm.
   Format rozróżnia dziś „nieokreślony" od zera, ale ile infosetów wpada
-  w zero z powodu skali, a ile z obojętności, wie dopiero pomiar.
+  w zero z powodu skali, a ile z obojętności, wie dopiero pomiar. Na
+  artefakcie kontrolnym to już zachodzi: po POKER-74 9 z 376 dodatnich
+  marginesów plik oddaje jako 0,0, w tym korzeń KK (CURRENT_STATE, blok
+  POKER-57 pkt 4).
 - **POKER-26** (informacja zwrotna przy stole LAN) — szkic czeka
   na zatwierdzenie; **POKER-28** (memoizacja parsowania w testach
   architektury) nadal zasadny.

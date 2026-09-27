@@ -186,9 +186,13 @@ dziś `mode_census.py table --preset prod-10x --tail-cycles 3`);
 założenie (a) brzmi odtąd „6 cykli po sześć rąk" — liczby cykli sześciu
 rąk na produkcji nikt nie zmierzył.
 Wszystkie te wyceny pozostają DOLNYMI oszacowaniami z tych samych
-założeń (b) i (c). Źródło: raport commita `7b5c85d`, sekcje B i H;
-asercje w `tests/test_mode_census.py`; blok POKER-56 pkt 4
-w `CURRENT_STATE.md`.
+założeń (b) i (c). Mnożniki iteracji w (b) (jamfold 1,39×, hu-deep 1,12×,
+hu-jamfold 1,91×) zmierzono na łańcuchu kontrolnym brzegiem sprzed
+POKER-74; ta sama komenda BM po POKER-74 daje 1,04×, 1,13× i 1,79× —
+znak bez zmian (WTA nie jest tańsze w żadnym trybie), więc (b) zostaje
+obalone co do kierunku. Źródło: raport commita `7b5c85d`, sekcje B i H;
+asercje w `tests/test_mode_census.py`; blok POKER-56 pkt 4 i 4a
+w `CURRENT_STATE.md` (pomiar BM 2026-09-27).
 
 Suma mapy ~325–375 rdzenio-h; wszystko mieści się w Colab (największy
 przebieg ~96 < bezpiecznik 140; P-4 przed każdym przebiegiem > 12 h
