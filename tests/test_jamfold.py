@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 import ast
+import functools
 import hashlib
+import random
 from pathlib import Path
 
 import pytest
 
 from poker.icm import icm_equities, wta_equities
 from poker.jamfold import (
+    N_HANDS,
+    N_NODES,
+    ROLE_NODES,
+    JamFoldSolution,
     _allin_two,
+    _best_response,
+    _eval_values,
+    _exploitability,
+    _hand_utility,
     _payoffs,
     _terminal_states,
     _three_way,
@@ -22,7 +32,7 @@ from poker.jamfold import (
     solve,
 )
 from poker.preflop import ALL_CLASSES
-from poker.spin import DEPTHS, LEVELS, PAYOUTS, terminal_equities
+from poker.spin import DEPTHS, LEVELS, PAYOUTS, roles, terminal_equities
 
 # Porządki rąk 3-way (miejsca od najlepszej ręki) w kolejności terminali 3-way.
 ORDERS = ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0))
@@ -288,14 +298,20 @@ def test_three_way_ev_drugie_miejsce_z_equity_pary_pozostalych() -> None:
     assert got == pytest.approx((6.722470, 1.017139, 2.260391), abs=1e-6)
 
 
+@functools.cache
+def _side_pot_solution(sb: int, bb: int) -> JamFoldSolution:
+    """(20, 50, 80), 3x, guzik 0, 16 iteracji: UTG 80, BTN 20, BB 50 — 3-way z side
+    potem UTG–BB. Jeden solve na blindy dla kilku testów (solve jest deterministyczny)."""
+    return solve((20, 50, 80), PAYOUTS["3x"].prizes, button=0, iterations=16, sb=sb, bb_amt=bb)
+
+
 def test_drugie_miejsce_3way_dziala_w_solve() -> None:
-    """(20, 50, 80), guzik 0, 8/16: UTG 80, BTN 20, BB 50 — 3-way z side potem UTG–BB.
+    """(20, 50, 80), guzik 0, 8/16: 3-way z side potem UTG–BB.
 
     Side pot dzielony po równo między przegranych puli głównej (przed POKER-84)
     dawał BTN call 85,2%; lepsza ręka spośród uprawnionych — 92,3%.
     """
-    result = solve((20, 50, 80), PAYOUTS["3x"].prizes, button=0, iterations=16, sb=8, bb_amt=16)
-    assert result.btn_call_pct >= 90.0
+    assert _side_pot_solution(8, 16).btn_call_pct >= 90.0
 
 
 def test_three_way_10x_z_rownych_stackow_dzieli_drugie_i_trzecie_miejsce() -> None:
@@ -377,6 +393,74 @@ def test_wiecej_iteracji_sciska_exploitability() -> None:
     assert min(tight.epsilon) >= -1e-6
 
 
+def _profile(result: JamFoldSolution) -> list[list[float]]:
+    """Profil końcowy fictitious play w kolejności węzłów modułu."""
+    rows = (
+        result.utg_jam,
+        result.btn_call,
+        result.bb_call,
+        result.bb_vs_both,
+        result.btn_open,
+        result.bb_vs_btn,
+    )
+    return [list(row) for row in rows]
+
+
+def _replace_nodes(
+    sigma: list[list[float]], nodes: tuple[int, ...], rows: list[list[float]]
+) -> list[list[float]]:
+    out = [list(row) for row in sigma]
+    for node in nodes:
+        out[node] = list(rows[node])
+    return out
+
+
+def test_funkcja_per_reka_liniowa_we_wlasnej_strategii_a_br_jej_argmaxem() -> None:
+    """u_i^ręka jest liniowa we własnej strategii miejsca i, a best response jest jej
+    argmaxem — dlatego ε liczone tą funkcją jest nieujemne.
+
+    Profil losowy (Random(0), węzły 0…5 × ręce 0…168). Łączna wycena zakres–zakres,
+    którą ε liczono przed POKER-84, ma tu defekt liniowości 4,7e−4 i 3,4e−5, więc
+    best response nie był argmaxem mierzonej wartości (finding I-27).
+    """
+    rng = random.Random(0)
+    sigma = [[rng.random() for _ in range(N_HANDS)] for _ in range(N_NODES)]
+    for stacks, button, sb, bb in (((50, 50, 50), 1, 1, 2), ((20, 50, 80), 0, 8, 16)):
+        pay = _payoffs(stacks, PAYOUTS["3x"].prizes, button, sb, bb)
+        reply = _best_response(sigma, pay)
+        half = [
+            [0.5 * own + 0.5 * best for own, best in zip(sigma[node], reply[node], strict=True)]
+            for node in range(N_NODES)
+        ]
+        value = _hand_utility(sigma, pay)
+        for seat, nodes in zip(roles(button), ROLE_NODES, strict=True):
+            deviated = _hand_utility(_replace_nodes(sigma, nodes, reply), pay)[seat]
+            mixed = _hand_utility(_replace_nodes(sigma, nodes, half), pay)[seat]
+            assert abs(mixed - 0.5 * value[seat] - 0.5 * deviated) <= 1e-12, (stacks, seat)
+            assert deviated - value[seat] >= 0.0, (stacks, seat)
+
+
+def test_epsilon_i_values_solve_z_funkcji_modulu() -> None:
+    """ε z solve = zysk best response w funkcji per ręka (≥ 0), values = łączna wycena
+    zakres–zakres, a te wyceny się różnią — ε nie jest różnicą values.
+
+    (20, 50, 80), guzik 0: przed POKER-84 ε liczone różnicą czterech wycen
+    zakres–zakres było ujemne — min −5,9e−5 (8/16) i −5,1e−5 (10/20).
+    """
+    result = _side_pot_solution(8, 16)
+    pay = _payoffs((20, 50, 80), PAYOUTS["3x"].prizes, 0, 8, 16)
+    final = _profile(result)
+    assert result.values == pytest.approx(_eval_values(final, pay), abs=1e-12)
+    value = _hand_utility(final, pay)
+    reply = _best_response(final, pay)
+    for seat, nodes in zip(roles(0), ROLE_NODES, strict=True):
+        deviated = _hand_utility(_replace_nodes(final, nodes, reply), pay)[seat]
+        assert result.epsilon[seat] == pytest.approx(deviated - value[seat], abs=1e-12)
+    assert max(abs(value[seat] - result.values[seat]) for seat in range(3)) >= 1e-3
+    assert min(result.epsilon) >= -1e-12
+    assert min(_side_pot_solution(10, 20).epsilon) >= -1e-12
+
+
 def test_exploitability_publiczne_api() -> None:
     hit = exploitability((50, 50, 50), PAYOUTS["3x"].prizes, iterations=12)
     assert hit.max_gain < 0.02
@@ -384,9 +468,7 @@ def test_exploitability_publiczne_api() -> None:
 
 
 def test_epsilon_odroznia_smieci_od_nasha() -> None:
-    """ε≈0 nic nie znaczy bez mianownika. Always-jam wycieka ~0.18 BI."""
-    from poker.jamfold import N_HANDS, N_NODES, _exploitability
-
+    """ε≈0 nic nie znaczy bez mianownika. Always-jam wycieka ~0.147 BI."""
     stacks = (50, 50, 50)
     prizes = PAYOUTS["3x"].prizes
     pay = _payoffs(stacks, prizes, 1, 1, 2)
