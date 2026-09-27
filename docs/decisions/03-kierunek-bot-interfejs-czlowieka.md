@@ -36,6 +36,17 @@ granicą adapterów; dowód: kierunek importów strzeżony
 pokusa wbudowania prezentacji w silnik — mitygacja jak wyżej, test
 architektury czerwieni każdy import w złą stronę.
 
+**KOREKTA (architekt, 2026-09-27, po POKER-80):** do POKER-80 strażnik
+nie rozwiązywał importów względnych ani importów nazw (finding I-13
+audytu 2026-09-26), więc zdanie wyżej opisywało gwarancję, której nie
+było. Od POKER-80 obowiązuje w zakresie strażnika: każda instrukcja
+importu (względna, nazwa z pakietu, podmoduł po kropce, import wewnątrz
+funkcji) w `src/poker/**/*.py`, `tools/run_arena.py`
+i `tools/blueprint/pack_blueprint.py` oraz `importlib` i `__import__`
+w silniku. Poza strażnikiem zostają kod wykonywany z napisu (`exec`,
+`eval`, `compile`), dostęp atrybutem (`builtins.__import__`, `getattr`),
+`tests/` i reszta `tools/`.
+
 ## Konsekwencje na przyszłość
 
 Agent eksploatacyjny (etap c) będzie potrzebował pamięci między

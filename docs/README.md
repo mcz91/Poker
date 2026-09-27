@@ -351,15 +351,20 @@ zapisy architekta — decyzja 31 pkt 4a):
 
 - [`POKER-76.json`](taskspecs/POKER-76.json) — odporność serwera LAN:
   wyjątki wątków, porzucone stoły, pętla accept, limit linii, timeout
-  powitania, eksport bez nadpisywania, test przestrzeni kodów (fala B1);
+  powitania, eksport bez nadpisywania, test przestrzeni kodów (zamknięty,
+  commit integracji `92e44be`; audyt r1 FINDINGI — warunek limitu linii
+  przy BufferedRWPair, drenaż bez testu — r2 CZYSTY);
 - [`POKER-78.json`](taskspecs/POKER-78.json) — walidacja granicy
   silnika: blindy, typ akcji, miejsca i kwoty, niemutowalne stacki
-  (fala B1);
+  (zamknięty, commit integracji `a4a8543`; audyt r1 CZYSTY);
 - [`POKER-80.json`](taskspecs/POKER-80.json) — test architektury
-  rozwiązuje importy względne i nazw (fala B1);
+  rozwiązuje importy względne i nazw (zamknięty, commit integracji
+  `5e9aeca`; audyt r1 — jeden finding INFORMACYJNY, dług w decyzji 31
+  pkt 4a);
 - [`POKER-84.json`](taskspecs/POKER-84.json) — jamfold: drugie miejsce
   i side pot w `_three_way`, ε jedną funkcją, korekta decyzji 12
-  (fala B1);
+  (zamknięty, commit integracji `e3d292c`; audyt r1 i r2 FINDINGI — testy
+  zasięgu gałęzi i modelu drugiego miejsca — r3 CZYSTY);
 - [`POKER-85.json`](taskspecs/POKER-85.json) — testy ICM z mocą
   (fala B2);
 - [`POKER-77.json`](taskspecs/POKER-77.json) — CLI: wykluczenia trybów

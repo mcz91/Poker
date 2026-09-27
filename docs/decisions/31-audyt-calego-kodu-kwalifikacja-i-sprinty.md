@@ -268,7 +268,14 @@ Zapisy architekta (decyzja bez dokumentu nie istnieje):
   (+5,2e−5 przy 16 it., +3,0e−5 przy 64 it.).
 - **N-06** przechodzi ze sprintu C: nazwa `test_min_raise_jest_egzekwowany`
   — POKER-79; przypadek „wersja” testu formatu — szkic POKER-86.
-- **Stan HU z guzikiem (szkic POKER-90)** obejmie regułę miejsca BB
+- **Fala B1 scalona 2026-09-27** (76 → 78 → 80 → 84, pełna bramka po
+  każdym scaleniu; 852 testy). Dług z raportów fali do kwalifikacji
+  w sprincie C: typ seeda w `HeadsUpHand` (`DeckSeeded(seed=7.5)` psuje
+  eksport; ścieżki produkcyjnej brak — raport POKER-78); wymóg „adapter
+  zależy od silnika” w teście architektury spełnia adapter, którego
+  jedynym importem z `poker` jest pakiet adapterów (luka istniejąca na
+  bazie — finding INFORMACYJNY audytu POKER-80).
+- **Stan HU z guzikiem (POKER-90)** obejmuje regułę miejsca BB
   w `tools/blueprint/expost.py` (`icm_report`) i oczekiwania testu
   z POKER-85 oraz docstringi `poker.blueprint_agent` o cyklu 3 rąk.
 

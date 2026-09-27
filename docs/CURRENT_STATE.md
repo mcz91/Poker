@@ -668,7 +668,9 @@ tools/blueprint/identity.py --run PROD`).
 **Następny krok: sprint B decyzji 31** — kontrakty POKER-76…85
 zatwierdzone 2026-09-27 (szkic z pomiarem bazy, recenzja świeżym
 kontekstem, finalizacja, przegląd krzyżowy); fale: B1 — POKER-76, 78,
-80, 84 (w toku); B2 — 85, 77, 79, 83; B3 — 81, 86, 87, 89; B4 — 82, 88;
+80, 84 — scalona 2026-09-27 (852 testy; integracje `92e44be`, `a4a8543`,
+`5e9aeca`, `e3d292c`; korekta dokumentów stanu dla fali w toku); B2 — 85,
+77, 79, 83 (w toku); B3 — 81, 86, 87, 89; B4 — 82, 88;
 B5 — 90 (decyzja 31 pkt 4a). Druga część (POKER-86…90) zatwierdzona
 2026-09-27; POKER-90 (guzik HU po wybiciu, opcja C) zmienia model
 blueprintu, więc regeneracja artefaktu produkcyjnego — po jego
