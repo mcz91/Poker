@@ -1,9 +1,10 @@
-"""Testy interfejsu człowieka (POKER-10, POKER-69): render z PlayerView, walidacja wejścia,
-przecieki, seed meczu z entropii."""
+"""Testy interfejsu człowieka (POKER-10, POKER-69, POKER-77): render z PlayerView, walidacja
+wejścia, przecieki, seed meczu z entropii."""
 
 import io
 import random
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -77,6 +78,55 @@ def test_bledne_wejscia_daja_komunikat_i_ponowne_pytanie() -> None:
     assert "nie przyjmuje kwoty" in tekst
     assert "niedostępn" in tekst  # bet i check w tym stanie
     assert "poza granicami" in tekst
+
+
+WIDOK_BEZ_ZAKLADU = replace(
+    widok(
+        LegalActions(
+            seat=0,
+            fold_allowed=True,
+            check_allowed=True,
+            call_amount=None,
+            bet_range=ActionBounds(minimum=2, maximum=94),
+            raise_range=None,
+        )
+    ),
+    visible_actions=(),
+)
+
+
+def decyzja_po_wejsciu(stan: PlayerView, wejscie: str) -> tuple[Decision, str]:
+    wyjscie = io.StringIO()
+    agent = HumanAgent(input_stream=io.StringIO(wejscie), output_stream=wyjscie)
+    return agent.decide(stan), wyjscie.getvalue()
+
+
+def test_call_bez_zakladu_do_sprawdzenia_daje_komunikat_i_ponowne_pytanie() -> None:
+    decyzja, tekst = decyzja_po_wejsciu(WIDOK_BEZ_ZAKLADU, "call\ncheck\n")
+    assert decyzja == Decision(action=ActionType.CHECK)
+    assert "call niedostępny" in tekst
+    assert tekst.count("twoja decyzja") == 2
+
+
+@pytest.mark.parametrize(
+    ("stan", "bledne", "oczekiwana"),
+    [
+        pytest.param(widok(LEGALNE), "raise 12 13", Decision(ActionType.RAISE, 20), id="raise-2"),
+        pytest.param(widok(LEGALNE), "raise", Decision(ActionType.RAISE, 20), id="raise-0"),
+        pytest.param(WIDOK_BEZ_ZAKLADU, "bet 2 3", Decision(ActionType.BET, 4), id="bet-2"),
+        pytest.param(WIDOK_BEZ_ZAKLADU, "bet", Decision(ActionType.BET, 4), id="bet-0"),
+    ],
+)
+def test_bet_i_raise_wymagaja_dokladnie_jednej_kwoty(
+    stan: PlayerView, bledne: str, oczekiwana: Decision
+) -> None:
+    poprawne = f"{oczekiwana.action.value} {oczekiwana.amount}"
+    decyzja, tekst = decyzja_po_wejsciu(stan, f"{bledne}\n{poprawne}\n")
+    # Kwota poprawnej decyzji różni się od pierwszego tokenu kwoty błędnej linii: przyjęcie
+    # 'raise 12 13' jako 'raise 12' nie przejdzie po cichu.
+    assert decyzja == oczekiwana
+    assert "dokładnie jednej kwoty" in tekst
+    assert tekst.count("twoja decyzja") == 2
 
 
 def test_koniec_strumienia_wejscia_przerywa_decyzje() -> None:

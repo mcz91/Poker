@@ -1,6 +1,7 @@
 """Korpus self-play: odtwarzalna generacja historii meczów w formacie eksportu (adapter)."""
 
 import json
+import os
 import random
 from dataclasses import dataclass
 from multiprocessing import Pool
@@ -72,6 +73,8 @@ def generate_corpus(
     directory.mkdir(parents=True, exist_ok=True)
     if any(directory.iterdir()):
         raise ValueError(f"katalog docelowy niepusty: {directory} — korpus nie nadpisuje")
+    if not os.access(directory, os.W_OK):
+        raise ValueError(f"brak prawa zapisu do katalogu docelowego: {directory}")
 
     tasks: list[_MatchTask] = [
         (index, match_seed, config, agent_names)
@@ -116,7 +119,7 @@ def read_corpus(directory: Path) -> tuple[CorpusManifest, tuple[MatchHistories, 
         raise ValueError(
             f"nieobsługiwana wersja manifestu korpusu: {raw.get('manifest_version')!r}"
         )
-    config_doc = raw["match_config"]
+    config_doc = raw.get("match_config")
     if not isinstance(config_doc, dict):
         raise ValueError("pole match_config manifestu musi być obiektem JSON")
     manifest = CorpusManifest(
