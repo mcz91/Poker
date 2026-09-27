@@ -52,3 +52,14 @@ def test_deserializacja_odrzuca_zla_wersje_i_nieznany_typ() -> None:
     unknown = json.dumps({"format_version": FORMAT_VERSION, "hands": [[{"type": "Nieznane"}]]})
     with pytest.raises(ValueError, match="typ"):
         deserialize_match_history(unknown)
+
+
+def test_deserializacja_odrzuca_small_blind_wiekszy_od_big_blinda() -> None:
+    config = MatchConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0, hand_limit=1)
+    histories = play_match(config, seed=0, agents=(RuleAgent(), RuleAgent())).histories
+    document = json.loads(serialize_match_history(histories))
+    start = document["hands"][0][0]
+    assert start["type"] == "HandStarted"
+    start["config"]["small_blind"], start["config"]["big_blind"] = 10, 5
+    with pytest.raises(ValueError, match=r"small_blind.*big_blind"):
+        deserialize_match_history(json.dumps(document))

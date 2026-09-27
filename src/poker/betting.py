@@ -234,6 +234,12 @@ class HeadsUpHand:
         )
 
     def act(self, seat: int, action: ActionType, amount: int = 0) -> None:
+        # Dokładnie int: bool jest podklasą int, a float i np.int64 przechodzą porównania
+        # z granicami i trafiłyby do historii, stacków i puli.
+        if type(seat) is not int:
+            raise ValueError(f"miejsce musi być liczbą całkowitą (int), otrzymano {seat!r}")
+        if type(amount) is not int:
+            raise ValueError(f"kwota musi być liczbą całkowitą (int), otrzymano {amount!r}")
         legal = self.legal_actions()
         if legal is None or legal.seat != seat:
             raise ValueError(f"miejsce {seat} nie jest na ruchu")
@@ -265,6 +271,10 @@ class HeadsUpHand:
                     raise ValueError("podbicie niedostępne w tym stanie licytacji")
                 self._require_in_bounds(legal.raise_range, amount, "podbicia")
                 self._history.append(ActionTaken(seat=seat, action=action, amount=amount))
+            case _:
+                # Adnotacja ActionType nie działa w czasie wykonania: bez tej gałęzi wartość
+                # spoza enuma byłaby cichym no-opem, a pętla meczu wołałaby agenta bez końca.
+                raise ValueError(f"nieznany typ akcji: {action!r}")
         self._advance()
 
     def _require_no_amount(self, action: ActionType, amount: int) -> None:

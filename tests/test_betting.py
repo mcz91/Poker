@@ -1,7 +1,10 @@
 """Testy maszyny licytacji heads-up (POKER-5): legalność, przebieg, rozliczenie."""
 
+from collections.abc import Callable
+
 import pytest
 
+from poker.agent import Decision
 from poker.betting import ActionBounds, HeadsUpHand, LegalActions, split_pot
 from poker.cards import Card
 from poker.evaluation import HandValue, evaluate_best
@@ -23,6 +26,8 @@ from poker.events import (
     UncalledBetReturned,
 )
 from poker.projection import project
+from poker.table import MatchConfig, play_match
+from poker.views import PlayerView
 
 CONFIG = HandConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0)
 
@@ -313,3 +318,162 @@ def test_maszyna_wymaga_dokladnie_dwoch_miejsc() -> None:
     config = HandConfig(small_blind=1, big_blind=2, stacks=(50, 60, 70), button=0)
     with pytest.raises(ValueError, match="2 miejsc"):
         HeadsUpHand(config=config, seed=7)
+
+
+def np_int64(value: int) -> object:
+    # Import lokalny: numpy należy do extra 'train', a zbieranie testów silnika nie może
+    # od niego zależeć.
+    import numpy as np
+
+    return np.int64(value)
+
+
+@pytest.mark.parametrize("button", [0, 1])
+def test_przy_rownych_blindach_button_dziala_pierwszy_a_big_blind_ma_opcje(button: int) -> None:
+    config = HandConfig(small_blind=2, big_blind=2, stacks=(100, 100), button=button)
+    hand = nowa_reka(config=config)
+    assert hand.legal_actions() == LegalActions(
+        seat=button,
+        fold_allowed=True,
+        check_allowed=True,
+        call_amount=None,
+        bet_range=None,
+        raise_range=ActionBounds(minimum=2, maximum=98),
+    )
+    hand.act(button, ActionType.CHECK)
+    assert hand.legal_actions() == LegalActions(
+        seat=1 - button,
+        fold_allowed=True,
+        check_allowed=True,
+        call_amount=None,
+        bet_range=None,
+        raise_range=ActionBounds(minimum=2, maximum=98),
+    )
+    hand.act(1 - button, ActionType.CHECK)
+    events = hand.events()
+    assert isinstance(events[-1], FlopDealt)
+    assert hand.to_act() == 1 - button
+    assert project(events).pot == 4
+
+
+@pytest.mark.parametrize("akcja", [pytest.param("raise", id="str"), pytest.param(None, id="None")])
+def test_akcja_spoza_action_type_jest_bledem_bez_sladu_w_historii(akcja: object) -> None:
+    hand = nowa_reka()
+    before = hand.events()
+    # Typ spoza sygnatury celowo: strażnik działa w czasie wykonania, mypy chroni tylko
+    # kod typowany.
+    with pytest.raises(ValueError, match="typ akcji"):
+        hand.act(0, akcja, 0)  # type: ignore[arg-type]
+    assert hand.events() == before
+    assert hand.to_act() == 0
+
+
+class AgentAkcjiSpozaTypu:
+    """Agent nietypowanego kodu: zwraca akcję spoza ActionType. Silnik bez strażnika wołałby
+    go bez końca, więc po 100 wywołaniach przerywa mecz wyjątkiem, zamiast zawiesić bramkę."""
+
+    def __init__(self) -> None:
+        self.wywolania = 0
+
+    def decide(self, view: PlayerView) -> Decision:
+        self.wywolania += 1
+        if self.wywolania > 100:
+            raise RuntimeError("pętla meczu woła agenta bez końca")
+        # Napis zamiast ActionType celowo: tak zwróci akcję kod, którego mypy nie sprawdza.
+        return Decision(action="fold")  # type: ignore[arg-type]
+
+
+def test_mecz_konczy_sie_bledem_po_pierwszej_decyzji_spoza_action_type() -> None:
+    agent = AgentAkcjiSpozaTypu()
+    config = MatchConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=0, hand_limit=1)
+    with pytest.raises(ValueError, match="typ akcji"):
+        play_match(config, seed=0, agents=(agent, agent))
+    assert agent.wywolania == 1
+
+
+@pytest.mark.parametrize(
+    ("akcja", "kwota"),
+    [
+        pytest.param(ActionType.RAISE, lambda: 3.5, id="raise-3.5"),
+        pytest.param(ActionType.RAISE, lambda: 4.0, id="raise-4.0"),
+        pytest.param(ActionType.RAISE, lambda: np_int64(4), id="raise-np.int64"),
+        pytest.param(ActionType.FOLD, lambda: 0.0, id="fold-0.0"),
+        pytest.param(ActionType.FOLD, lambda: False, id="fold-False"),
+        pytest.param(ActionType.CALL, lambda: 0.0, id="call-0.0"),
+    ],
+)
+def test_kwota_inna_niz_int_jest_bledem_bez_sladu_w_historii(
+    akcja: ActionType, kwota: Callable[[], object]
+) -> None:
+    hand = nowa_reka()
+    before = hand.events()
+    # Typ spoza sygnatury celowo: strażnik działa w czasie wykonania, mypy chroni tylko
+    # kod typowany.
+    with pytest.raises(ValueError, match="całkowit"):
+        hand.act(0, akcja, kwota())  # type: ignore[arg-type]
+    assert hand.events() == before
+
+
+def test_check_z_kwota_float_jest_bledem_bez_sladu_w_historii() -> None:
+    hand = nowa_reka()
+    hand.act(0, ActionType.CALL)
+    before = hand.events()
+    # Typ spoza sygnatury celowo: strażnik działa w czasie wykonania, mypy chroni tylko
+    # kod typowany.
+    with pytest.raises(ValueError, match="całkowit"):
+        hand.act(1, ActionType.CHECK, 0.0)  # type: ignore[arg-type]
+    assert hand.events() == before
+
+
+@pytest.mark.parametrize(
+    ("wczesniej", "akcja"),
+    [
+        pytest.param((ActionType.CALL,), ActionType.RAISE, id="raise-True-preflop"),
+        pytest.param((ActionType.CALL, ActionType.CHECK), ActionType.BET, id="bet-True-flop"),
+    ],
+)
+def test_bool_jako_kwota_jest_bledem_takze_w_granicach_jednego_zetonu(
+    wczesniej: tuple[ActionType, ...], akcja: ActionType
+) -> None:
+    hand = nowa_reka(config=HandConfig(small_blind=1, big_blind=2, stacks=(100, 3), button=0))
+    for seat, poprzednia in enumerate(wczesniej):
+        hand.act(seat, poprzednia)
+    legal = hand.legal_actions()
+    assert legal is not None
+    assert legal.seat == 1
+    zakres = legal.raise_range if akcja is ActionType.RAISE else legal.bet_range
+    assert zakres == ActionBounds(minimum=1, maximum=1)
+    before = hand.events()
+    with pytest.raises(ValueError, match="całkowit"):
+        hand.act(1, akcja, True)
+    assert hand.events() == before
+
+
+@pytest.mark.parametrize(
+    "miejsce",
+    [pytest.param(lambda: True, id="True"), pytest.param(lambda: np_int64(1), id="np.int64")],
+)
+def test_miejsce_inne_niz_int_jest_bledem_bez_sladu_w_historii(
+    miejsce: Callable[[], object],
+) -> None:
+    hand = nowa_reka(config=HandConfig(small_blind=1, big_blind=2, stacks=(100, 100), button=1))
+    assert hand.to_act() == 1
+    before = hand.events()
+    # Typ spoza sygnatury celowo: strażnik działa w czasie wykonania, mypy chroni tylko
+    # kod typowany.
+    with pytest.raises(ValueError, match="całkowit"):
+        hand.act(miejsce(), ActionType.FOLD)  # type: ignore[arg-type]
+    assert hand.events() == before
+
+
+def test_mutacja_listy_stackow_wywolujacego_nie_zmienia_zapisanej_historii() -> None:
+    stacki = [100, 100]
+    # Lista celowo: tak przekaże stacki kod nietypowany, a zapis historii nie może jej trzymać.
+    hand = HeadsUpHand(HandConfig(1, 2, stacki, 0), seed=7)  # type: ignore[arg-type]
+    hand.act(0, ActionType.FOLD)
+    zdarzenia = hand.events()
+    stacki[0] = 5000
+    assert project(zdarzenia).stacks == (99, 101)
+    start = zdarzenia[0]
+    assert isinstance(start, HandStarted)
+    assert start.config.stacks == (100, 100)
