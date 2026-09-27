@@ -322,7 +322,9 @@ fale 1–3, integracja sekwencyjna):
   `strategy_table.py` i etykieta metody MCCFR (zamknięty, commit
   integracji `2b2a4ef`; audyt r2: CZYSTY);
 - [`POKER-73.json`](taskspecs/POKER-73.json) — terminale i miara
-  zbieżności openfold (fala 3, po POKER-71);
+  zbieżności openfold; N = 512 z krzywej (zamknięty, commit integracji
+  `fdd1ef7`; audyt r2: CZYSTY; runda 1 — sprzeciw kodera uznany,
+  decyzja 31 pkt 4);
 - [`POKER-74.json`](taskspecs/POKER-74.json) — brzeg horyzontu solvera
   cyklem 6 rąk (fala 1);
 - [`POKER-75.json`](taskspecs/POKER-75.json) — tożsamość regeneracji
