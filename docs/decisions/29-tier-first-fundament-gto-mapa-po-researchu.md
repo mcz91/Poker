@@ -175,6 +175,20 @@ pierwszy przebieg WTA), (c) niezależność tempa od kroku siatki
 warstw za 10,5% decyzji — odpowiedź na otwarte pytanie 2: udział komórek
 ≠ udział odwiedzin o rząd wielkości, więc jakość trybu `deep` waży
 w produkcie ~14× więcej, niż sugeruje jego udział w siatce.
+**KOREKTA (POKER-74):** wyceny tej KOREKTY (2026-09-05) liczą horyzont
+brzegiem cyklu 3 rąk — 6 cykli = 18 warstw. Od POKER-74 brzeg domyka
+cykl 6 rąk, a `mode_census` liczy 6 cykli po sześć rąk = 36 warstw:
+WTA@25bb **89,0** · T-MODAL **26,5** · T-MID **52,1** · pełny DBR
+**79,5** · krok 1 353,0 solvera / 364,2 z tensorem; warstwy 1–5 (+47,9)
+bez zmian; suma czterech wierszy WTA **~247** (zamiast ~172). Kalibracja
+64,3 wobec 65,4 zostaje prawdziwa dla tych samych 18 warstw (daje ją
+dziś `mode_census.py table --preset prod-10x --tail-cycles 3`);
+założenie (a) brzmi odtąd „6 cykli po sześć rąk" — liczby cykli sześciu
+rąk na produkcji nikt nie zmierzył.
+Wszystkie te wyceny pozostają DOLNYMI oszacowaniami z tych samych
+założeń (b) i (c). Źródło: raport commita `7b5c85d`, sekcje B i H;
+asercje w `tests/test_mode_census.py`; blok POKER-56 pkt 4
+w `CURRENT_STATE.md`.
 
 Suma mapy ~325–375 rdzenio-h; wszystko mieści się w Colab (największy
 przebieg ~96 < bezpiecznik 140; P-4 przed każdym przebiegiem > 12 h

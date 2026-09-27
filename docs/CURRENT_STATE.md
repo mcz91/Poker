@@ -18,25 +18,28 @@ KOREKTA) i POKER-74 (brzeg horyzontu solvera jest punktem stałym cyklu
 6 rąk — role 3-way mod 3 × guzik HU mod 2; stop PI-FP i tail_tol bez
 zmian, flaga `converged` uczciwa; schemat domknięcia w manifeście
 brzegu; wycena `mode_census` liczy warstwy cyklu 6); 648 testów.
-**Stan dokumentów po korekcie zbiorczej POKER-69…73 (2026-09-27,
-zasada 1):** liczby areny Spin, liczniki bramki
+**Stan dokumentów po korektach zbiorczych POKER-69…73 i POKER-74
+(2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
 agenta blueprintu i liczby zależne od książek openfold, które przesunęły
-POKER-70, 71 i 73, mają w blokach niżej i w
+POKER-70, 71 i 73, a także liczby artefaktu kontrolnego łańcucha,
+wyceny `mode_census` i zdania o cyklu brzegu, które przesunął POKER-74
+(„Co istnieje", „Następny krok", bloki POKER-49…52 i 55…57,
+podsumowanie w bloku POKER-48), mają w blokach niżej i w
 [`PRZEKAZANIE.md`](PRZEKAZANIE.md) wartość bieżącą albo adnotację
 KOREKTA z wartością bieżącą obok pomiaru historycznego (źródła: opisy
-commitów `5b5ec9a`, `a81ae8f`, `73e3f9d` i pomiary na headzie tej
-korekty). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
+commitów `5b5ec9a`, `a81ae8f`, `73e3f9d`, `7b5c85d` i pomiary na
+headach korekt). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
 spoza repozytorium: produkcyjnego — BF/BG/BH, liczniki fallbacku, udział
 trybów (bloki POKER-52, 54, 55, 56), które opisują artefakt liczony
 brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71, a
 przeliczenie wymaga regeneracji artefaktu (wejście operatora, decyzja 31
 pkt 3) — i pilota (zgodności klas sanity E, adnotacja POKER-70 w bloku
 POKER-46); każde ich wystąpienie niesie adnotację. **Poza korektą
-zostały (do korekty przy zamknięciu sprintu A):** liczby artefaktu
-kontrolnego i wyceny `mode_census` w blokach POKER-51, 55, 56 i 57 oraz
-wyceny w `PRZEKAZANIE.md`, które przesunął POKER-74 (wykaz w opisie
-commita `7b5c85d`); skutki POKER-75; dokumenty niemutowalne poza
-decyzjami 26, 29 i 30 (m.in. decyzja 24 i raport audytu); tabela
+zostały:** skutki POKER-75 (w toku; korekta przy zamknięciu sprintu A);
+docstringi `poker.blueprint_agent` o stacjonarnym cyklu 3 rąk (kod —
+sprint B, decyzja 31 pkt 2; wykaz w opisie `7b5c85d`, sekcja F);
+dokumenty niemutowalne (decyzje, raport audytu) poza zdaniami
+z adnotacją KOREKTA; tabela
 faktów na okładce `PRZEKAZANIE.pdf`, którą generator
 (`tools/docs/mk_pdf.py`) pisze stałą z 2026-09-07
 · wcześniej ostatnie zamknięte zadanie: POKER-57 (format
@@ -55,7 +58,8 @@ rdzenio-godzin solvera); wcześniej POKER-51…55 — bloki niżej; POKER-50 (bi
 produkcyjny blueprintu: siatka 2 żetonów pełnego zegara pod budżetami
 z POKER-47/49 — ex-post ε maks 4,720e−4 poniżej punktu odniesienia
 5e−4, opcja sufitu 1536 nieuruchomiona; koszt regeneracji artefaktu
-76,6 rdzenio-h; artefakt poza repozytorium, w repo artefakt kontrolny
+76,6 rdzenio-h brzegiem sprzed POKER-74 — obecnym kodem wycena
+`mode_census` 100,2; artefakt poza repozytorium, w repo artefakt kontrolny
 łańcucha i bezpiecznik kosztu pod testami); POKER-48 (arena
 Spin liczy na blokach trzech rotacji: hero gra każde miejsce raz przy
 tej samej sekwencji kart, ramiona porównań na wspólnych seedach,
@@ -405,7 +409,16 @@ wymienione na zmierzone); POKER-29
   gwarancja zbieżności, na której powołuje się decyzja 25 pkt 2 (pod
   testem odtwarzającym wagę z ciągu profili). Horyzont raportuje deltę
   każdego cyklu i flagę `converged`, więc „zbiegł" i „skończył się
-  budżet" są rozróżnialne w artefakcie. `build_parser` bierze domyślne
+  budżet" są rozróżnialne w artefakcie. Od POKER-74 brzeg jest punktem
+  stałym cyklu 6 rąk (`BOUNDARY_CYCLE_HANDS`; okres modelu: role 3-way
+  z ręki mod 3 × guzik HU z ręki mod 2); manifest brzegu niesie
+  `scheme`, a wznowienie i import brzegu innego schematu są odmawiane
+  (`config_hash` schematu nie obejmuje). Na siatce e60 przeglądu
+  kontraktu delta cyklu 6 stoi na szumie PI-FP ~1,1–1,5e−3 > `tail_tol`
+  5e−4, więc brzeg kończy na suficie z `converged=False` — wynik
+  uczciwy, nie usterka do strojenia progiem (decyzja 28, KOREKTA POKER-74
+  pkt d); czy zbiegnie siatka produkcyjna, pokaże regeneracja.
+  `build_parser` bierze domyślne
   wartości CLI wprost z `GridConfig`, więc jedno i drugie nie może się
   rozjechać (pod testem). `--perturb`/`--boundary-from` liczą blueprint
   na jawnie zaburzonym warunku brzegowym (zerosumowo per stan,
@@ -498,9 +511,12 @@ wymienione na zmierzone); POKER-29
   (POKER-52): miejsce areny Spin grające rozkładami z artefaktu.
   Decyzja powstaje wyłącznie z widocznego stanu (`SeatView`: numer ręki,
   stacki, guzik, historia licytacji, klasa własnej ręki) i artefaktu:
-  numer ręki wskazuje warstwę — a ręka za jej zegarem warstwę cyklu
-  punktu stałego (POKER-55) — stacki po przenumerowaniu miejsc
-  i kwantyzacji krokiem siatki dają stan, kontekst licytacji — slot węzła
+  numer ręki wskazuje warstwę — a ręka za jej zegarem warstwę
+  `18 + (ręka − 18) mod 3` (POKER-55; odczyt co trzy ręce jest przy
+  trzech żywych przybliżeniem, bo okres modelu to 6 rąk — decyzja 28,
+  KOREKTA POKER-74 pkt c; poprawka agenta — sprint B) — stacki po
+  przenumerowaniu miejsc i kwantyzacji krokiem siatki dają stan,
+  kontekst licytacji — slot węzła
   (przy przeskoku trybu jam/fold: bliźniaczy węzeł drzewa jam/fold);
   losowanie z odczytanego rozkładu idzie rng-iem akcji ręki, więc
   rotacje bloku i replay zostają deterministyczne. Fallback jest jawny
@@ -598,9 +614,9 @@ zamknięty** (r1 FINDINGI 1 × ISTOTNY — niepełny wykaz dryfu dokumentów →
 r2 CZYSTY; +9 testów), **POKER-73 zamknięty** (r1 OBJECTION kodera —
 sprzeczne kryteria testu N — uznany; N = 512 regułą „od którego krzywa
 stoi”, decyzja 31 pkt 4; r2 CZYSTY; +16 testów); fala 2: POKER-75
-w toku (od `94b1c0a`). Korekta zbiorcza dokumentów stanu dla
-POKER-69…73 wykonana 2026-09-27 (nagłówek wyżej); dla POKER-74 i 75 —
-przy zamknięciu sprintu A; potem kontrakty sprintu B (szkice
+w toku (od `94b1c0a`). Korekty zbiorcze dokumentów stanu dla
+POKER-69…73 i dla POKER-74 wykonane 2026-09-27 (nagłówek wyżej); dla
+POKER-75 — przy zamknięciu sprintu A; potem kontrakty sprintu B (szkice
 POKER-76…85 w przeglądzie).
 Pomiary unieważnione do
 przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
@@ -612,7 +628,8 @@ Po POKER-56 higiena tierowa nie blokuje już żadnej gałęzi mapy z
 wektor wypłat nie da się pomylić z multiplikatorem, artefakty niosą odcisk
 przebiegu, a koszt każdej pozycji mapy jest policzony fixture'em (blok
 POKER-56 pkt 4 — cztery przebiegi siatki z mapy schodzą łącznie z ~262 do
-~172 rdzenio-h, przy jawnych założeniach z pkt 4 i 4a). Kolejne
+~247 rdzenio-h przy horyzoncie cyklu 6 rąk z POKER-74 (z brzegiem cyklu
+3 rąk było ~172), przy jawnych założeniach z pkt 4 i 4a). Kolejne
 w mapie: **P-2 POKER-57** (`.bpk` v2), **P-3 POKER-58** (domknięcie warstw
 1–5 przez osiągalność łańcucha DOKŁADNEGO, budżet 2–10 rdzenio-h wg decyzji
 29 — wycena tego kontraktu jej nie zmienia; poprawione **47,9 rdzenio-h** to
@@ -1287,7 +1304,8 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    (`reader.epsilon(hand, stacks)`). Zgodność co do wartości jest pod asercją
    na artefakcie kontrolnym: każda liczba w pliku równa się `float32` liczby
    z `expost.npz`, a maksimum po ŻYWYCH miejscach równa się `epsilon_max`
-   z `expost_report.json` (3,8314e−3 na artefakcie kontrolnym). Ta sama
+   z `expost_report.json` (3,8314e−3 na artefakcie kontrolnym liczonym
+   brzegiem sprzed POKER-74; po POKER-74: 2,8340e−3). Ta sama
    asercja przepuszczona poza bramką przez plik produkcyjny: **49 765 stanów,
    zero rozjazdów**, maksimum 4,7195848e−4 = `float32` liczby 4,719584907e−4
    z raportu POKER-50 (zero na artefakcie bramki to nie zero na produkcji —
@@ -1335,6 +1353,10 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    (stan × żywy węzeł × klasa) decyzjami jest **376**; mediana marginesu
    0,0770, maksimum 0,3027, minimum 8,40e−5 — **3 600× między końcami
    rozkładu**, i to jest cały powód, dla którego to pole istnieje.
+   (Brzegiem sprzed POKER-74. Po POKER-74 — brzeg cyklu 6 rąk — mediana
+   **0,0705**, maksimum **0,3207**, minimum **4,10e−5**, czyli ~7 800×
+   między końcami; 376 decyzji bez zmian; mediana i maksimum mają asercje
+   w `tests/test_blueprint_v2.py`, minimum nie — raport `7b5c85d`, A.2.)
 
    **Test konstrukcyjny, a nie obserwacja.** Obojętność: gra o wypłatach
    (1/3, 1/3, 1/3) ze stałą kontynuacją 1/3 — każda akcja warta dokładnie
@@ -1346,8 +1368,11 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    nie jest kryterium: σ to średnia najlepszych odpowiedzi PI-FP, więc niesie
    masę akcji, która była najlepsza wcześnie — na artefakcie kontrolnym AA
    miesza w korzeniu 0,898/0,101 przy marginesie 0,011568, a KK gra niemal
-   czysto przy marginesie 0,000981. Właśnie dlatego to pole musi być w pliku,
-   a warstwa eksploatacyjna nie może go zgadywać z rozkładu.
+   czysto przy marginesie 0,000981 (brzegiem sprzed POKER-74; po POKER-74:
+   AA 0,915/0,084 przy 0,009267, KK 0,000041 — raport `7b5c85d`, A.3;
+   oba marginesy mają asercje w `tests/test_blueprint_v2.py`). Właśnie
+   dlatego to pole musi być w pliku, a warstwa eksploatacyjna nie może go
+   zgadywać z rozkładu.
 
 5. **Odcisk przebiegu w metadanych.** Metadane v2 to ten sam blok co w v1
    (`zlib(JSON UTF-8)`, kanoniczny): kopia manifestu biegu, `source_sha256`,
@@ -1390,6 +1415,10 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    kontrolnym, z zapasem na inną wersję `zlib`, a nie na inny sposób odczytu:
    stan 180 → **260 B** (1,44×), V 56 → **72 B** (1,29× — ten sam sufit co
    w POKER-51), ε 42 → **60 B** (1,43×), marginesy 97 → **140 B** (1,44×).
+   (Maksima zmierzone brzegiem sprzed POKER-74. Po POKER-74 artefakt
+   kontrolny daje stan **191 B** (zapas sufitu 1,36×) i marginesy **95 B**
+   (1,47×); V 56 B i ε 42 B bez zmian, sufity bez zmian — raport
+   `7b5c85d`, A.4; komentarz sufitów w `tests/test_blueprint_v2.py`.)
 
 7. **Czego produkcyjny plik v2 NIE ma: marginesów — i ile by kosztowały.**
    `PROD/grid2` nie ma `margins.npz`, więc sekcja marginesów nie weszła do
@@ -1574,19 +1603,30 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    1,811, więc horyzontu z tego rachunku wyjąć nie wolno).
    Kalibracja na jedynym biegu, za który naprawdę zapłacono: **64,3
    rdzenio-h solvera wobec 65,4 zmierzonych (−1,7%)**, warstwy 39,6 wobec
-   40,2, horyzont 24,7 wobec 25,2 — wycena jest dolnym oszacowaniem o kilka
-   procent (tempa per stan nie niosą narzutu forka 1,018), nie prognozą
+   40,2, horyzont 24,7 wobec 25,2 (horyzont biegu POKER-50: 6 cykli po trzy
+   ręce = 18 warstw; od POKER-74, gdy cykl brzegu ma 6 rąk, te liczby daje
+   komenda kalibracji niżej, `--tail-cycles 3`) — wycena jest dolnym
+   oszacowaniem o kilka procent (tempa per stan nie niosą narzutu forka
+   1,018), nie prognozą
    z przedziałem. **Czego ta kalibracja dowodzi, a czego nie** (F3 audytu):
    tempa pochodzą z tego samego manifestu, więc −1,7% to w całości narzut
    forka, a nie błąd predykcji. Dowodzi RACHUNKOWOŚCI — że osiągalność daje
    właściwą mieszankę trybów, a horyzont to dokładnie 3 × cykle × pełna siatka
-   — i tyle; o przenośności temp na inną siatkę albo inne wypłaty nie mówi nic
+   (przed POKER-74; od POKER-74 6 × cykle × pełna siatka, 6 =
+   `solve_grid.BOUNDARY_CYCLE_HANDS`, więc kalibracja porównuje te same
+   18 WARSTW, nie tę samą liczbę cykli) — i tyle; o przenośności temp
+   na inną siatkę albo inne wypłaty nie mówi nic
    (test wyceny jest w tej części testem narzutu forka). Komenda (venv z extras `train`, z katalogu repozytorium,
    ≈80 s zegara (zmierzone 77–81 s), jeden proces, bez artefaktów wejściowych):
 
    ```
    BL python tools/blueprint/mode_census.py table
+      python tools/blueprint/mode_census.py table --preset prod-10x --tail-cycles 3
    ```
+
+   Druga linia to kalibracja z biegiem POKER-50 (18 warstw horyzontu;
+   zmierzone 14 s 2026-09-27); pierwsza — wycena obecnym kodem
+   (horyzont 6 cykli po 6 rąk = 36 warstw).
 
    Udział decyzyjny trybów (pkt 5) mierzy komenda BF z bloku POKER-55,
    niezmieniona: `python tools/run_arena.py blueprint PROD/blueprint.bpk
@@ -1594,17 +1634,20 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
 
    | konfiguracja | stany-warstwy | deep | warstwy | horyzont | solver | + tensor |
    |---|---:|---:|---:|---:|---:|---:|
-   | bieg produkcyjny 10x (kalibracja) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
-   | WTA@25bb (P-7) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
-   | T-MODAL 90/WTA (P-8) | 19 129 | 49 | 9,2 | 8,7 | 17,8 | 29,0 |
-   | T-MID 120/WTA (P-9) | 32 792 | 421 | 20,8 | 15,7 | 36,4 | 47,6 |
-   | pełny DBR na T-MODAL (P-13, 3 hero) | — | — | — | — | 53,5 | 64,7 |
-   | krok siatki 1 na 150 żetonach | 191 028 | 4 268 | 151,2 | 100,9 | 252,1 | 263,3 |
+   | bieg produkcyjny 10x — kalibracja (18 warstw, `--tail-cycles 3`) | 49 765 | 1 198 | 39,6 | 24,7 | 64,3 | 75,5 |
+   | bieg produkcyjny 10x — regeneracja obecnym kodem | 49 765 | 1 198 | 39,6 | 49,5 | 89,0 | 100,2 |
+   | WTA@25bb (P-7) | 49 765 | 1 198 | 39,6 | 49,5 | 89,0 | 100,2 |
+   | T-MODAL 90/WTA (P-8) | 19 129 | 49 | 9,2 | 17,3 | 26,5 | 37,7 |
+   | T-MID 120/WTA (P-9) | 32 792 | 421 | 20,8 | 31,3 | 52,1 | 63,3 |
+   | pełny DBR na T-MODAL (P-13, 3 hero) | — | — | — | — | 79,5 | 90,7 |
+   | krok siatki 1 na 150 żetonach | 191 028 | 4 268 | 151,2 | 201,9 | 353,0 | 364,2 |
    | domknięcie warstw 1–5 do PEŁNEJ siatki | +8 696 | +3 212 | +47,9 | — | +47,9 | — |
 
    Koszty w rdzenio-godzinach. **Trzy jawne założenia, każde tej samej klasy
-   — nie pomiary:** (a) horyzont liczony na 6 cyklach (tyle zbiegał bieg
-   produkcyjny; dla innej siatki to założenie i jest parametrem komendy);
+   — nie pomiary:** (a) horyzont liczony na 6 cyklach po 6 rąk = 36 warstw
+   (bieg produkcyjny zbiegł w 6 cyklach po TRZY ręce = 18 warstw; liczby
+   cykli sześciu rąk nikt nie zmierzył, więc to założenie także dla tej
+   siatki — parametr `--tail-cycles` komendy);
    (b) tempo per stan **przenosi się między wektorami wypłat** — a nie
    przenosi się dokładnie, patrz pomiar BM niżej, i kierunek jest
    niekorzystny, więc wiersze WTA są DOLNYM oszacowaniem; (c) tempo per stan
@@ -1614,8 +1657,9 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    jest kartowy, więc kolejne tiery liczą się na tym samym pliku i płacą go
    raz.
    **Rozbieżności wobec panelu decyzji 29 (fixture jest źródłem prawdy):**
-   T-MODAL ~30 → **17,8**; T-MID ~71 → **36,4**; WTA@25bb ~65 → **64,3**
-   (zgodne); pełny DBR ~96 → **53,5**; warstwy 1–5 do pełnej siatki „~+13,4"
+   T-MODAL ~30 → **26,5**; T-MID ~71 → **52,1**; WTA@25bb ~65 → **89,0**
+   (przed POKER-74 64,3 — zgodne; horyzont cyklu 6 kosztuje ~2× na cykl);
+   pełny DBR ~96 → **79,5**; warstwy 1–5 do pełnej siatki „~+13,4"
    → **+47,9** (to górne ograniczenie, nie cena P-3/POKER-58 — ten rozwiązuje
    różnicę łańcucha DOKŁADNEGO za 2–10 rdzenio-h wg decyzji 29).
    Kierunek rozbieżności nie jest jednostajny, bo panel mnożył liczbę stanów:
@@ -1623,16 +1667,32 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    warstw (mnożnik zawyża), a domknięcie warstw 1–5 ma 0,175 stanów i 1,21
    kosztu warstw (mnożnik zaniża). Do listy dochodzi **krok 1**, wyceniany
    na ~444 rdzenio-h warstw i ~555 łącznie, a przez fixture na **151,2
-   i 263,3**. Metody, która dała 444, nie odtwarzam — sam mnożnik liczby
+   i 364,2**. Metody, która dała 444, nie odtwarzam — sam mnożnik liczby
    stanów daje jeszcze inną liczbę (11 473 / 2 923 = 3,93× wobec 76,6 ≈ 301)
    — i to jest właśnie powód, dla którego rozstrzyga fixture: jako jedyny
    liczy mieszankę trybów, a przy kroku 1 jest ona w 93,6% `jamfold`. **A/B wypłat P-7 nie jest kosztowo
    neutralne** — patrz pkt 4a niżej: neutralna jest MIESZANKA TRYBÓW, nie
    koszt stanu. Suma czterech pozycji mapy, które ten fixture wycenia (P-7,
-   P-8, P-9, P-13), schodzi z **~262 do ~172 rdzenio-h** i są to DOLNE
+   P-8, P-9, P-13), schodzi z **~262 do ~247 rdzenio-h** (89,0 + 26,5 +
+   52,1 + 79,5) i są to DOLNE
    oszacowania (założenie (b) wyżej); P-10/P-11/P-12 zostają jak w decyzji 29,
-   bo nie są przebiegami siatki. Wszystkie liczby tej tabeli mają asercje
-   w `tests/test_mode_census.py`.
+   bo nie są przebiegami siatki. Liczby tej tabeli trzymają asercje
+   w `tests/test_mode_census.py`: wprost — warstwy, horyzont i solver
+   wierszy tierowych i kroku 1, DBR, populacje; pośrednio — kolumna
+   „+ tensor" (solver + stałe 11,2 rdzenio-h tensora, przybite asercjami
+   kroku 1 i DBR) i wiersz regeneracji 10x (mieszanka trybów co do sztuki
+   ta sama co WTA@25bb); wiersz kalibracji — asercja przedziału: wycena
+   tych 18 warstw leży 0–5% poniżej pomiaru POKER-50.
+
+   **KOREKTA (POKER-74):** tabela, założenie (a) i liczby akapitu
+   rozbieżności podają wycenę po POKER-74 — horyzont to 6 cykli po sześć
+   rąk (36 warstw), bo brzeg domyka dziś cykl 6 rąk; warstwy i wiersz
+   „warstwy 1–5" bez zmian. Przed POKER-74 (6 cykli po trzy ręce, 18
+   warstw) kolumny horyzont | solver | + tensor wynosiły: WTA@25bb i bieg
+   10x 24,7 | 64,3 | 75,5; T-MODAL 8,7 | 17,8 | 29,0; T-MID 15,7 | 36,4 |
+   47,6; pełny DBR — | 53,5 | 64,7; krok 1 100,9 | 252,1 | 263,3; suma
+   P-7, P-8, P-9 i P-13 ~172. Źródło: raport `7b5c85d`, sekcja B
+   (pozycje 5–13), i komendy BL na `a03a282` (2026-09-27).
 
    **4a. Wypłaty zmieniają koszt stanu, choć nie zmieniają mieszanki trybów**
    (finding F1 audytu POKER-56; wcześniejsza wersja tego bloku twierdziła
@@ -1803,6 +1863,22 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    rozstrzyga remisy reszt po numerze etykiety (71/79 → guzik 72 albo 70);
    przy blindach 10/20 nie zmienia to trybu drzewa. Komenda BK — pod listą,
    bo heredoc musi zaczynać się od pierwszej kolumny.
+   **KOREKTA (POKER-74; [decyzja 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md),
+   KOREKTA POKER-74):** „ręce ≥ 21 żyją w tym samym stacjonarnym cyklu
+   3 rąk co warstwy 18–20" jest fałszywe dla modelu treningu: role trzech
+   żywych liczą się z ręki mod 3, a guzik HU z ręki mod 2, więc stan
+   modelu na ostatnim poziomie ma okres 6 rąk — warunek, który
+   „zweryfikował architekt (decyzja 28 pkt 3)", obaliła KOREKTA POKER-74
+   tej decyzji. Z tego warunku bramka trzyma wyłącznie stałość blindów
+   od ręki 18 — warunek konieczny, nie dostateczny. „Cykl ma 3 ręce" jest prawdą
+   o cyklu ODCZYTU agenta (`CYCLE_LENGTH` = 3), nie o okresie modelu (6):
+   odczyt `18 + (ręka − 18) mod 3` jest przy trzech żywych przybliżeniem —
+   |V_t − V_{t+3}| w punkcie stałym cyklu 6, wiersze 3-way: siatka testu
+   horyzontu maks 1,96e−3, siatka e60 maks 1,6e−2 (decyzja 28 pkt c);
+   poprawka agenta — sprint B (decyzja 31 pkt 2). Liczby BK tego punktu
+   opisują istniejący artefakt produkcyjny, liczony brzegiem cyklu 3 rąk
+   sprzed POKER-74; po jego regeneracji (wejście operatora, decyzja 31
+   pkt 3) trzeba je zmierzyć od nowa.
 2. **Przeskok trybu: rozkład jam/fold jest legalnym podzbiorem, nie brakiem.**
    Gdy kwantyzacja zepchnie stan pod próg 7 bb, drzewo stanu w artefakcie jest
    jam/fold, choć arena z dokładnych stacków oferuje drzewo głębokie. Agent
@@ -2007,7 +2083,8 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    z warstwy cyklu i na ścieżce horyzontu. Po audycie doszły trzy: **warstwy
    cyklu zgadzają się na V** tej samej sytuacji fizycznej (na artefakcie
    bramki rozstęp < 5e−5, a mutacja fazy odczytu podnosi go do 0,20 — ta sama
-   mutacja na produkcji daje 0,73 wobec 1,67e−2); **`mode_flip_translated`
+   mutacja na produkcji daje 0,73 wobec 1,67e−2 — BK na artefakcie
+   liczonym brzegiem sprzed POKER-74, adnotacja w pkt 1); **`mode_flip_translated`
    rozdziela przekład od tożsamości** (3 z 10 na próbce bramki); **liczniki
    odczytu rosną dopiero po sprawdzeniu masy**, a ścieżka bez legalnej masy
    trzyma je na zerze — z dowodem, że przy blindach ostatniego poziomu każdy
@@ -2650,7 +2727,9 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
 pkt 3) kosztuje tyle, ile mówi pkt 7; warunek jego domknięcia („ręka ≥ 21
 czyta warstwę 18 + (ręka − 18) mod 3") architekt **zweryfikował**
 (decyzja 28 pkt 3: blindy stałe od ręki 18, więc ręce ≥ 21 żyją w tym
-samym cyklu punktu stałego) — **zrobione w POKER-55** (licznik
+samym cyklu punktu stałego; KOREKTA POKER-74: warunek fałszywy dla
+modelu — okres stanu 6 rąk, odczyt co trzy ręce jest przy trzech żywych
+przybliżeniem, blok POKER-55 pkt 1) — **zrobione w POKER-55** (licznik
 `cyclic_reads`, `horizon_fallbacks` = 0 blokująco); kontrakt POKER-52
 kazał w tym miejscu wołać fallback, więc wtedy tak było; (2) AIVAT (POKER-53) — przesunięty za naprawy
 przyrządu (decyzja 28 pkt 4); (3) rejestr LAN agenta — poza kontraktem;
@@ -2844,7 +2923,10 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    strumienia**. Na artefakcie kontrolnym (8 328 B) najgorszy odczyt
    stanu to **116 B**, a wartości V **56 B**; asercje stoją na 160
    i 72 B — zapas jest na inną wersję `zlib`, nie na inny sposób
-   odczytu (test podstawia strumień liczący).
+   odczytu (test podstawia strumień liczący). (Liczby z zamknięcia
+   POKER-51; tuż przed POKER-74 plik miał już 8 400 B, a po POKER-74 —
+   brzeg cyklu 6 rąk — ma **8 408 B**, najgorszy odczyt stanu **119 B**,
+   V 56 B; asercje 160 i 72 B bez zmian — raport `7b5c85d`, D.17.)
 
    Na artefakcie produkcyjnym mierzy to `bench --sweep` (przemiał
    **wszystkich** stanów, nie próbka — stany różnią się liczbą żywych
@@ -2872,7 +2954,10 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    **Artefakt kontrolny z repo (w bramce; 190 stanów w pliku, z tego
    22 stany-warstwy w ex-post, 4 klasy):** ε surowe maks 3,8314e−3 →
    skwantowane **3,6911e−3**, mediana 1,3633e−4 → **1,0865e−4**;
-   przyrost **−3,7%**. Liczby mają asercje w
+   przyrost **−3,7%** — brzegiem sprzed POKER-74. Po POKER-74 (brzeg
+   cyklu 6 rąk): ε surowe maks 2,8340e−3 → skwantowane **2,7331e−3**,
+   mediana 1,0990e−4 → **9,3109e−5**; przyrost **−3,6%** (−3,56%; raport
+   `7b5c85d`, D.18). Te liczby mają asercje w
    `test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym`.
 
    **Pilot `PILOT/grid5d` (poza bramką, 8 654 stany, 169 klas) —
@@ -2979,7 +3064,8 @@ i status `aborted-cost-fuse` w manifeście).
    `deep` 1 198, `jamfold` 44 550, `hu-deep` 932, `hu-jamfold` 3 085
    (warstwy rąk 0–4 są mniejsze od pełnej siatki — osiągalność tnie
    je do 1/18/147/691/2 143 stanów). Horyzont **zbiegł w 6 cyklach do
-   delty 3,820e−4** (ciąg 0,0899 → 0,0123 → 6,57e−3 → 2,76e−3 →
+   delty 3,820e−4** (cykle po trzy ręce — brzeg sprzed POKER-74, 18
+   warstw; ciąg 0,0899 → 0,0123 → 6,57e−3 → 2,76e−3 →
    7,16e−4 → 3,82e−4) — o jeden cykl wolniej niż pilot siatki 5
    (5 cykli, 1,285e−4); tolerancja 5e−4 wiąże, sufit 12 ma zapas.
    Manifest niesie postęp per warstwa (czas, stany, tryby,
@@ -3014,6 +3100,16 @@ i status `aborted-cost-fuse` w manifeście).
    2026-08-30T02:26Z → 2026-08-31T03:44Z (25,3 h z przerwami).
    Pomiary poza artefaktem: ex-post (AF) 4 122 s ścienne × 4 =
    **4,6 rdzenio-h**; icm 7 s, decompose 16 s.
+   **KOREKTA (POKER-74):** 76,6 rdzenio-h to koszt biegu, którego brzeg
+   domykał cykl 3 rąk (horyzont 25,2 za 6 cykli = 18 warstw). Od POKER-74
+   `_boundary` liczy cykl 6 rąk, więc komendy AC+AE liczą dziś inny
+   artefakt, a wznowienia katalogu tego biegu (manifest brzegu bez
+   `scheme`) obecny kod odmawia — regeneracja to nowy katalog. Wycena
+   `mode_census` (tempa z tego biegu, 6 cykli po 6 rąk = 36 warstw, bez
+   restartów): horyzont 49,5 + warstwy 39,6 = solver **89,0**, z tensorem
+   **100,2 rdzenio-h** (blok POKER-56 pkt 4); liczby cykli sześciu rąk na
+   tej siatce nikt nie zmierzył — rozstrzygnie regeneracja (wejście
+   operatora, decyzja 31 pkt 3).
 5. **Ex-post ε (AF): maks 4,720e−4, mediana 1,075e−4**, min −1,19e−7
    (szum f32) na 49 765 stanach. **Kryterium blokujące ≤ 1e−3:
    spełnione** z zapasem 2,1×. **Punkt odniesienia 5e−4: NIE
@@ -3166,6 +3262,15 @@ Y  python tools/blueprint/eps_curve.py cost --out PILOT/grid5d \
    przestała być zaniedbywalna wobec wielkości, którą mierzymy. Brzeg jest
    **zbieżny do podłogi, a nie domknięty do zera** — to dwie różne rzeczy;
    ile ta różnica kosztuje, mierzy punkt 4.
+   **KOREKTA (POKER-74; [decyzja 28](decisions/28-adjudykacja-objection-poker52-rozjazdy-areny.md),
+   KOREKTA POKER-74 pkt d):** pomiar dotyczył brzegu cyklu 3 rąk. Na brzegu
+   cyklu 6 rąk zaciśnięcie `fp_tol` (/3, /10) podłogi nie usuwa, tylko
+   przesuwa szum — podłogę robi szum PI-FP (stop na tolerancji i argmax
+   najlepszej odpowiedzi); na siatce e60 brzeg kończy się na suficie 12
+   cykli z deltą ~1,1–1,5e−3 i `converged=False`, więc tam wiąże sufit,
+   nie tolerancja. „Trzeba zacisnąć `--fp-tol`" nie jest więc receptą na
+   dokładność brzegu; `tail_tol` i sufit bez zmian (decyzja 31 pkt 4,
+   opcja B).
 
 3. **Krzywa CFR+ w endgame'ach HU (P).** Pierwszy pomiar samego CFR+
    (`eps_curve.py` mierzył dotąd wyłącznie PI-FP). Próbka 10 stanów
@@ -3468,12 +3573,15 @@ Następne kroki:
    4,720e−4 **poniżej punktu odniesienia 5e−4** (zapas 5,6%), kryterium
    blokujące 1e−3 z zapasem 2,1×, **opcja sufitu 1536 się nie
    uruchamia**; koszt regeneracji artefaktu 76,6 rdzenio-h (faktyczny
-   z restartami 92,8–95,6); artefakt poza repozytorium, w repo artefakt
+   z restartami 92,8–95,6; brzegiem sprzed POKER-74 — obecnym kodem
+   wycena `mode_census` 100,2, blok POKER-50 pkt 4, KOREKTA); artefakt
+   poza repozytorium, w repo artefakt
    kontrolny łańcucha pod testem bramki. **POKER-51 zamknięty**
    (blok wyżej): format binarny `.bpk` z dostępem swobodnym per stan
    i czytnik stdlib w pakiecie, kryterium kontraktu ZMIERZONE
    I SPEŁNIONE — przyrost ex-post ε po round-tripie −17,7% na pilocie
-   i −3,7% na artefakcie kontrolnym wobec dopuszczalnego +10%;
+   i −3,7% na artefakcie kontrolnym (po POKER-74: −3,6%) wobec
+   dopuszczalnego +10%;
    weryfikacja niezależna architekta i audyt świeżym kontekstem
    2026-09-04: trzy findingi blokujące (wszystkie w dokumencie,
    żaden w kodzie) naprawione z dowodami, sortowanie konwertera
@@ -3504,7 +3612,9 @@ Następne kroki:
    licznik przekładu bliźniaka, zmierzona cena cyklu, semantyka
    liczników): agent czyta artefakt tam,
    gdzie dotąd wołał regułę awaryjną — warstwa cyklu punktu stałego dla rąk
-   za horyzontem i bliźniaczy węzeł jam/fold przy przeskoku progu 7 bb;
+   za horyzontem (odczyt co trzy ręce; przy trzech żywych przybliżenie,
+   bo okres modelu to 6 rąk — blok POKER-55 pkt 1, KOREKTA POKER-74)
+   i bliźniaczy węzeł jam/fold przy przeskoku progu 7 bb;
    fallback spadł z 2,299% do **0,850% decyzji** i jest wyłącznie granicą
    artefaktu (warstwy 1–5), a ponowny pomiar BF/BG/BH **zdejmuje
    zastrzeżenie „mierzymy parę artefakt + reguła"**: wpływ reguły awaryjnej
@@ -3551,7 +3661,8 @@ Następne kroki:
    prawdopodobieństw akcji** — to inna jednostka niż ε (udział sumy wypłat)
    i porównanie tych liczb wprost było błędem (korekta architekta
    2026-08-29); koszt w ε jest **zmierzony** tym samym narzędziem
-   ex-post (−17,7% na pilocie, −3,7% na artefakcie kontrolnym), więc
+   ex-post (−17,7% na pilocie, −3,7% na artefakcie kontrolnym — po
+   POKER-74 −3,6%), więc
    kryterium akceptacji kontraktu formatu jest spełnione;
 2. **moc pomiaru areny: POKER-48 zamknięty** (blok wyżej) — rotacja
    miejsc, wspólne seedy i CI na blokach z bootstrapem; twierdzenie
