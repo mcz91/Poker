@@ -62,6 +62,10 @@ pomiarów jego konsumenta: BF/BG/BH trzeba powtórzyć także przy zgodności.
 Ponadto POKER-74 (brzeg horyzontu, sprint A) zmienia sam artefakt, więc
 po jego integracji manifest opisuje artefakt, którego kod już nie
 produkuje, a regeneracja jest wejściem operatora (decyzja 31 pkt 3).
+**KOREKTA (POKER-75):** od POKER-75 manifest tego artefaktu już nie
+opisuje — sha zostaje wyłącznie przy dwóch plikach `npz` tensora, które
+obecny kod produkuje, a 30 pozycji ma status „do przeliczenia” bez sha
+(KOREKTA (POKER-75) niżej); regeneracja pozostaje wejściem operatora.
 
 Warunek, który to umożliwia, został wypracowany wcześniej i jest pod
 testem: pakowanie jest deterministyczne bajt w bajt (POKER-51, POKER-57),

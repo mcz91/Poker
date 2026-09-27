@@ -17,11 +17,9 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 - 2026-08-08 arch: F2 POKER-1 — odstępstwo decyzją operatora;
   regeneracja equity ≈40 min/4 rdzenie (POKER-12).
-- 2026-09-26 arch: sprint A decyzji 31 na `claude/poker-code-audit-gsfko9`
-  (main = operator; stara `…architecture-jw6ukd` = main); równolegli
+- 2026-09-27 arch: sprint A zamknięty na `claude/poker-code-audit-gsfko9` (main
+  = operator); sprint B w przygotowaniu: `…/scratchpad/sprintb/`; równolegli
   agenci — tylko unikalne podkatalogi scratchpadu (kolizja `base`, fala 1).
-- 2026-09-04 arch: artefakty produkcyjne w scratchpadzie sesji
-  `…/scratchpad/prod/` (tensor, grid2, blueprint.bpk); regeneracja AC–AH, BA.
 
 ## WĄTKI — otwarte, bez TaskSpec
 
@@ -38,19 +36,20 @@ Protokół (koszt czytelnika > koszt pisarza):
 
 ## PUŁAPKI — koszt odkrycia > koszt linii
 
-- Zamknięcie zadania aktualizuje „Następny krok" jednym commitem (2/8/25/31–33).
 - Regeneracja artefaktu unieważnia pomiary przy nim, a przepis na domyślnych
   narzędzia kłamie po ich zmianie — bramka milczy o obu (24; B4: opcje jawnie,
   parsowane testem; 74: kalibracja z biegiem 50 = 18 WARSTW, `--tail-cycles
   3`). Zgodny sha256 nie chroni pomiarów konsumenta (BF/BG/BH zależą też od
   areny: 70/71), a `config_hash` — schematu brzegu (tylko `scheme`, 74).
+- Bajt w bajt z katalogu ≠ regeneracja (75): pole manifestu zależne od maszyny
+  bez wpisu w `identity.EPHEMERAL` przejdzie bramkę (jedna maszyna), a psuje
+  tożsamość między maszynami; zmiana EPHEMERAL/projekcji unieważnia tożsamości.
 - ARCHITEKT: próg ilościowy po budżecie z repo (19/24; 47: najpierw krzywa);
-  cel-pomiar bez asercji = liczby bez dowodu (42/43); acceptance = lista (5).
+  cel-pomiar bez asercji = liczby bez dowodu (42/43); acceptance = lista (5) z
+  raportem kodera (bramka przed/po, --durations, plik:linia, PUŁAPKI; 71/75).
 - Moduł w allowed_paths ≠ pusty: konsument poza nimi = OBJECTION (POKER-42).
 - Asercja werdyktu produkcyjnego, mianownik na replice modelu ani
   monotoniczność z jednej pary punktów nie chronią zachowania (35/37/40).
-- Tabela permutacji w złą stronę przeżywa testy transpozycji (inwolucje),
-  psują ją 3-cykle; kotwicz KAŻDĄ oś i tablicę (46: wt2_fold, AA 0,917→0,083).
 - Okres stanu = lcm WSZYSTKICH reguł ról (3-way mod 3, guzik HU mod 2 → 6);
   krótszy cykl brzegu = punkt stały innej gry, ślepy dla converged i ex-post ε;
   zamiana etykiet HU wymaga kwantyzacji równoważnej na permutację i psuje
@@ -66,7 +65,8 @@ Protokół (koszt czytelnika > koszt pisarza):
 - Zdania porównawcze i słowa ilościowe sprawdzaj jak liczby (47); raport dryfu
   grepuje KAŻDĄ wartość zmienionej asercji w obu zapisach („5 770"/„5770") po
   dokumentach stanu, nie tylko wyniki komend (71); „zmierzone" przy progu =
-  statystyka zbioru asercji, nie mediana zbioru z zerami (74: ~7×, nie ~40×).
+  statystyka zbioru asercji, nie mediana zbioru z zerami (74: ~7×, nie ~40×);
+  trafna liczba z fałszywym wspólnym powodem — powód sprawdzaj per pozycja (75).
 - Zero na artefakcie bramki ≠ zero na siatce produkcyjnej: krok siatki bywa
   przyczyną pudła (55 pkt 6: 0 przy kroku 50, 94 przy 2); zmiana modelu rusza
   po cichu liczby bez asercji (minimum, sufit) — łapie to sonda artefaktu (74).

@@ -1,10 +1,11 @@
 # Stan bieżący produktu Poker
 
-Wersja pakietu: 0.1.0 · **sprint A decyzji 31 w toku** (naprawy
-blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)); zamknięte
-w nim: POKER-69 (seed talii przy stole z człowiekiem poza zasięgiem
-gracza: serwer LAN losuje seed meczu, protokół v2, lokalny `--human` bez
-`--seed` na entropii), POKER-72 (przepis pochodzenia `strategy_table.py`
+Wersja pakietu: 0.1.0 · **sprint A decyzji 31 zamknięty 2026-09-27**
+(naprawy blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md);
+siedem kontraktów scalonych, dokumenty stanu skorygowane): POKER-69
+(seed talii przy stole z człowiekiem poza zasięgiem gracza: serwer LAN
+losuje seed meczu, protokół v2, lokalny `--human` bez `--seed` na
+entropii), POKER-72 (przepis pochodzenia `strategy_table.py`
 odtwarza artefakt bajt w bajt; etykieta metody zgodna z kodem) i POKER-70
 (jedna reguła miejsc Spin `poker.spin.place_payouts` — później wybity
 wyżej, w jednej ręce większy stack wejściowy wyżej, równe dzielą — w
@@ -20,43 +21,51 @@ zmian, flaga `converged` uczciwa; schemat domknięcia w manifeście
 brzegu; wycena `mode_census` liczy warstwy cyklu 6) i POKER-75
 (tożsamość artefaktu z kanonicznej projekcji manifestów bez pól
 ulotnych: komenda `tools/blueprint/identity.py --run`, metadane `.bpk`
-niosą projekcję, dwie regeneracje dają identyczne `.bpk`;
-`prod_identity.json` ma sha tylko dla dwóch plików tensora, 30 pozycji
-do przeliczenia) — wszystkie siedem kontraktów sprintu A scalone;
+niosą projekcję, dwie regeneracje tym samym kodem na jednej maszynie
+dają identyczne `.bpk` — test w bramce; `prod_identity.json` ma sha
+tylko dla dwóch plików tensora, 30 pozycji do przeliczenia);
 652 testy.
-**Stan dokumentów po korektach zbiorczych POKER-69…73 i POKER-74
-(2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
+**Stan dokumentów po korektach zbiorczych POKER-69…73, POKER-74
+i POKER-75 (2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
 agenta blueprintu i liczby zależne od książek openfold, które przesunęły
-POKER-70, 71 i 73, a także liczby artefaktu kontrolnego łańcucha,
+POKER-70, 71 i 73, liczby artefaktu kontrolnego łańcucha,
 wyceny `mode_census` i zdania o cyklu brzegu, które przesunął POKER-74
 („Co istnieje", „Następny krok", bloki POKER-49…52 i 55…57,
-podsumowanie w bloku POKER-48), mają w blokach niżej i w
+podsumowanie w bloku POKER-48), a także zdania o metadanych `.bpk`,
+tożsamości artefaktu i `prod_identity.json`, które przesunął POKER-75
+(„Co istnieje", „Następny krok", bloki POKER-51 i 57, podsumowanie
+w bloku POKER-48), mają w blokach niżej i w
 [`PRZEKAZANIE.md`](PRZEKAZANIE.md) wartość bieżącą albo adnotację
 KOREKTA z wartością bieżącą obok pomiaru historycznego (źródła: opisy
-commitów `5b5ec9a`, `a81ae8f`, `73e3f9d`, `7b5c85d` i pomiary na
-headach korekt). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
+commitów `5b5ec9a`, `a81ae8f`, `73e3f9d`, `7b5c85d`, `f32e989` i pomiary
+na headach korekt). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
 spoza repozytorium: produkcyjnego — BF/BG/BH, liczniki fallbacku, udział
 trybów (bloki POKER-52, 54, 55, 56), które opisują artefakt liczony
-brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71, a
+brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71, oraz
+rozmiary plików `.bpk` produkcyjnych (bloki POKER-51 i 57, podsumowanie
+w bloku POKER-48), spakowanych kodem sprzed POKER-75, a
 przeliczenie wymaga regeneracji artefaktu (wejście operatora, decyzja 31
 pkt 3) — i pilota (zgodności klas sanity E, adnotacja POKER-70 w bloku
 POKER-46); każde ich wystąpienie niesie adnotację. **Poza korektą
-zostały:** skutki POKER-75 (scalony w `d3db4e1`; korekta przy zamknięciu
-sprintu A — m.in. zdania o metadanych `.bpk` niżej opisują stan sprzed
-POKER-75);
+zostały:**
 docstringi `poker.blueprint_agent` o stacjonarnym cyklu 3 rąk (kod —
 sprint B, decyzja 31 pkt 2; wykaz w opisie `7b5c85d`, sekcja F);
 docstring `tools/blueprint/mode_census.py` z mnożnikiem iteracji WTA
 „1,12–1,91×" sprzed POKER-74 (kod; wartość bieżąca w bloku POKER-56
 pkt 4a); komentarz w `tests/test_blueprint_pilot.py` podający rozmiar
-pliku kontrolnego 8 408 B jak stałą — to pomiar jednego biegu, a rozmiar
-zmienia się między biegami, bo metadane niosą kopię manifestu biegu
-z czasami ściennymi, ścieżką tensora i proweniencją (test; blok
-POKER-51 pkt 5); szkice TaskSpeców `POKER-59` (horyzont „cykle 3
-rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl 6 rąk i wycena 49,5;
-bez wymogu zgodności schematu brzegu przy wznowieniu z checkpointu,
-choć `config_hash` schematu nie obejmuje) i `POKER-60` („~252
-rdzenio-h" kroku 1 — dziś 353,0), które poprawia architekt przy
+pliku kontrolnego 8 408 B — pomiar jednego biegu sprzed POKER-75; od
+POKER-75 rozmiar jest stały między regeneracjami na jednej maszynie
+(metadane niosą projekcję manifestu bez czasów i ścieżek) i wynosi
+8 160 B (test; blok POKER-51 pkt 5); szkice TaskSpeców `POKER-59`
+(horyzont „cykle 3 rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl
+6 rąk i wycena 49,5; bez wymogu zgodności schematu brzegu przy
+wznowieniu z checkpointu, choć `config_hash` schematu nie obejmuje),
+`POKER-60` („~252 rdzenio-h" kroku 1 — dziś 353,0) i `POKER-58`
+(`prod_identity.json`
+z „sha256 32 plików", narzędzie porównujące „po sha256 i rozmiarze"
+jako warunek zachowania pomiarów — dziś sha przy 2 z 32 pozycji,
+tożsamość manifestów bez rozmiaru, liczy ją `identity.py`, pomiary
+unieważnione do regeneracji), które poprawia architekt przy
 zatwierdzeniu; kontekst zamkniętego TaskSpeca `POKER-55` (zapis
 kontraktu: „brzeg = punkt stały cyklu 3 rąk");
 dokumenty niemutowalne (decyzje, raport audytu) poza zdaniami
@@ -477,7 +486,8 @@ wymienione na zmierzone); POKER-29
   punktem odniesienia 5e−4 i rozkładem ε per warstwa.
   `control_chain.py` przybija parametry produkcji (15 000 / 60 000 /
   seed 50 / krok 2) i utrzymuje **artefakt kontrolny łańcucha**
-  w `tools/blueprint/control/` (24 KB, jedyny artefakt blueprintu
+  w `tools/blueprint/control/` (14 502 B razem z manifestem tożsamości
+  `prod_identity.json`; jedyny artefakt blueprintu
   w repo — decyzja 25 pkt 6): regeneracja tensora kontrolnego,
   łańcuch solver→ex-post na kroku 2 pokrywający wszystkie cztery
   tryby i reprodukcja podzbioru tensora produkcyjnego — wszystko pod
@@ -517,6 +527,19 @@ wymienione na zmierzone); POKER-29
   bo to jest kontrakt fallbacku agenta z POKER-52. Konwerter jest
   deterministyczny (ten sam artefakt wejściowy → bajt w bajt ten sam
   plik) i sprawdza sha256 pakowanych plików wobec manifestu biegu.
+  Od POKER-75 metadane niosą kanoniczną projekcję manifestu biegu
+  (`identity.canonical_projection`: bez ścieżek bezwzględnych, modelu
+  CPU, czasów ściennych i liczby procesów; pełny przepis zostaje
+  w `solve_manifest.json`), więc dwie regeneracje tym samym kodem na
+  jednej maszynie — w różnych katalogach i przy różnej liczbie procesów —
+  dają bajt w bajt te same pliki v1 i v2 (test łańcucha kontrolnego
+  w bramce). Tożsamość katalogu artefaktu wypisuje `python
+  tools/blueprint/identity.py --run KATALOG` (manifesty: sha256
+  projekcji, pozostałe pliki: sha256 pliku); `prod_identity.json` niesie
+  metodę, status i podstawę każdej z 32 pozycji artefaktu produkcyjnego —
+  sha wyłącznie przy dwóch plikach `npz` tensora, 30 pozycji „do
+  przeliczenia” do regeneracji (decyzja 30, KOREKTA (POKER-75); decyzja
+  31 pkt 3).
   Od POKER-57 format ma **wersję 2**: maska osiągalności uint32 zamiast
   uint16 (sufit 16 węzłów zdjęty), cztery sloty akcji zamiast trzech (trzy
   zapisane, czwarty z dopełnienia — dziś zerowy), kwantyzacja uint16
@@ -617,34 +640,39 @@ spoza repozytorium.
 
 ## Następny krok
 
-**Sprint A decyzji 31 w toku** (naprawy blokujących findingów
-[audytu całego kodu](AUDYT_2026-09-26.md); kontrakty POKER-69…75,
-nadzór: koder w izolowanym worktree → audyt świeżym kontekstem →
-integracja sekwencyjna z pełną bramką na gałęzi sprintu). Fala 1:
-**POKER-69 zamknięty** (audyt r1 FINDINGI 2 × ISTOTNY → r2 CZYSTY;
-+17 testów), **POKER-72 zamknięty** (r1 FINDINGI 1 × ISTOTNY → r2 CZYSTY;
-+2 testy), **POKER-70 zamknięty** (r1 FINDINGI 1 × ISTOTNY → r2 CZYSTY;
-+118 testów, w tym parametryczna tożsamość WTA = ICM; liczby areny 10x
-bloków BG unieważnione); POKER-74 w rundzie 2 (koder zgłosił BRAK:
-kryterium ogona cyklu 6 — rozstrzygnięty pomiarem wariantów, decyzja 31
-pkt 4, a potem OBJECTION kodera uznany — opcja B: cykl 6 z uczciwą
-flagą `converged`, bez zmiany tail_tol) — **POKER-74 zamknięty** (r2
-CZYSTY; +3 testy; wycena regeneracji prod-10x: solver 64,3 → 89,0
-rdzenio-h), **POKER-71
-zamknięty** (r1 FINDINGI 1 × ISTOTNY — niepełny wykaz dryfu dokumentów →
-r2 CZYSTY; +9 testów), **POKER-73 zamknięty** (r1 OBJECTION kodera —
-sprzeczne kryteria testu N — uznany; N = 512 regułą „od którego krzywa
-stoi”, decyzja 31 pkt 4; r2 CZYSTY; +16 testów), **POKER-75
-zamknięty** (r1 FINDINGI 1 × BLOKUJĄCY — brak wykazu dryfu dokumentów —
-i 1 × ISTOTNY → r2 CZYSTY; +4 testy; integracja `d3db4e1`). Korekty
-zbiorcze dokumentów stanu dla POKER-69…73 i dla POKER-74 wykonane
-2026-09-27 (nagłówek wyżej); dla POKER-75 — przy zamknięciu sprintu A;
-potem kontrakty sprintu B (szkice
-POKER-76…85 w przeglądzie).
-Pomiary unieważnione do
-przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
-czeka na zamknięcie sprintu A, bo jej pomiary stoją na naprawianych
-rozliczeniach i brzegu horyzontu.
+**Sprint A decyzji 31 zamknięty 2026-09-27** (naprawy blokujących
+findingów [audytu całego kodu](AUDYT_2026-09-26.md); nadzór: koder
+w izolowanym worktree → audyt świeżym kontekstem → integracja
+sekwencyjna z pełną bramką na gałęzi sprintu). Siedem kontraktów
+scalonych, każdy po audycie r2 CZYSTY: **POKER-69** (r1 FINDINGI
+2 × ISTOTNY; +17 testów), **POKER-72** (r1 1 × ISTOTNY; +2),
+**POKER-70** (r1 1 × ISTOTNY; +118, w tym parametryczna tożsamość
+WTA = ICM; liczby areny 10x bloków BG unieważnione), **POKER-74**
+(r1 BRAK kodera — kryterium ogona cyklu 6 — rozstrzygnięty pomiarem
+wariantów, r2 OBJECTION kodera uznany — opcja B: cykl 6 z uczciwą
+flagą `converged`, bez zmiany tail_tol, decyzja 31 pkt 4; +3; wycena
+regeneracji prod-10x: solver 64,3 → 89,0 rdzenio-h), **POKER-71** (r1
+1 × ISTOTNY — niepełny wykaz dryfu dokumentów; +9), **POKER-73** (r1
+OBJECTION kodera — sprzeczne kryteria testu N — uznany; N = 512 regułą
+„od którego krzywa stoi”, decyzja 31 pkt 4; +16) i **POKER-75** (r1
+1 × BLOKUJĄCY — brak wykazu dryfu dokumentów — i 1 × ISTOTNY; +4;
+integracja `d3db4e1`). Bramka: 652 testy. Dokumenty stanu skorygowane
+po POKER-69…73, po POKER-74 i po POKER-75 (nagłówek wyżej). **Na
+operatora czeka regeneracja artefaktu produkcyjnego** (decyzja 31 pkt 3;
+obecnym kodem wycena `mode_census` 100,2 rdzenio-h z tensorem): do niej
+pomiary BF/BG/BH, liczniki fallbacku i udział trybów opisują artefakt
+liczony brzegiem sprzed POKER-74, a 30 z 32 pozycji `prod_identity.json`
+nie ma sha — wpisze go pierwsza regeneracja (`python
+tools/blueprint/identity.py --run PROD`).
+
+**Następny krok: sprint B decyzji 31** — kontrakty POKER-76…85
+w zatwierdzaniu przez architekta, POKER-86…90 w szkicach (jeszcze poza
+repozytorium); zakres — kwalifikacja findingów w decyzji 31 pkt 2.
+Pomiary unieważnione do przeliczenia wylicza decyzja 31 pkt 3; mapa
+decyzji 29 (P-3 i dalej) czekała na zamknięcie sprintu A, bo jej pomiary
+stoją na naprawianych rozliczeniach i brzegu horyzontu, a jej pozycje
+mierzone na artefakcie produkcyjnym czekają na jego regenerację
+(decyzja 31 pkt 5).
 
 Po POKER-56 higiena tierowa nie blokuje już żadnej gałęzi mapy z
 [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md):
@@ -1419,6 +1447,10 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    konwencja hero. `check_fingerprint` na artefakcie v2 działa tak samo jak
    na v1 (pod testem). Opis formatu v2 dostaje dwa pola więcej niż v1:
    `sections` (które sekcje opcjonalne weszły) i `margin_levels`.
+   **KOREKTA (POKER-75):** od POKER-75 blok niesie zamiast kopii
+   kanoniczną projekcję manifestu biegu (pola ulotne pominięte wg
+   `identity.EPHEMERAL`), a wpis `solve_manifest.json` w `source_sha256`
+   to sha256 tej projekcji, nie pliku — blok POKER-51 pkt 1.
 
 6. **Liczby na artefakcie produkcyjnym (BN, BO).** Bieg `PROD/grid2`
    (49 765 stanów-warstw + 2 923 stany warunku brzegowego, 169 klas,
@@ -1434,6 +1466,11 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    1 264 512 B, **sekcja ε 597 180 B**, klucze stanów 316 128 B, metadane
    4 076 B, nagłówek i katalog 1 888 B, dopełnienia wyrównania 294 B.
    Sekcji marginesów ten plik NIE ma — patrz pkt 7.
+   **KOREKTA (POKER-75):** oba rozmiary to pliki spakowane kodem sprzed
+   POKER-75, z kopią całego manifestu biegu w metadanych. Obecny
+   konwerter wkłada tam projekcję bez pól ulotnych, więc metadane
+   i rozmiar pliku spakowanego z regenerowanego biegu będą inne — poda
+   je regeneracja (wejście operatora, decyzja 31 pkt 3).
 
    **Czas odczytu (BO, 2 000 losowań deterministycznych, maszyna
    nieobciążona; dla porównywalności v1 zmierzone TĄ SAMĄ komendą w tej
@@ -1524,6 +1561,12 @@ zostaje nietknięty; pomiar POKER-57 szedł w świeżych katalogach.
    wchodzą do pliku v1 nawet wtedy, gdy bieg je ma, i nie dopisują nic do
    bloku metadanych v1 — to jest osobna asercja w bramce, bo to ona chroni
    sha artefaktu produkcyjnego.
+   **KOREKTA (POKER-75):** 19 016 824 B i `4e33d35f…` to prawda o kodzie
+   POKER-57, nie o obecnym konwerterze: od POKER-75 metadane niosą
+   projekcję manifestu biegu, więc repack `PROD/grid2` obecnym kodem daje
+   inny plik v1 (rozmiaru nie ma bez artefaktu produkcyjnego — wejście
+   operatora). Asercja w bramce chroni dziś wyłącznie niezależność pliku
+   v1 od sekcji v2 biegu, nie sha artefaktu produkcyjnego.
 
 10. **Co trzyma bramka** (`tests/test_blueprint_v2.py`, 24 testy; testy
     POKER-51 w `tests/test_blueprint_pilot.py` zostały NIETKNIĘTE i zielone).
@@ -2862,6 +2905,19 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    i skonfrontowane z manifestem (rozjazd = błąd zapisu, nie cichy
    artefakt). Czytnik oddaje ten blok jako bajty; parsowanie należy do
    konsumenta, bo silnik nie importuje `json`.
+   **KOREKTA (POKER-75):** od POKER-75 `run_manifest` to **kanoniczna
+   projekcja** manifestu biegu (`identity.canonical_projection`), nie
+   jego kopia: bez pól ulotnych z `identity.EPHEMERAL` — `tensor_dir`,
+   `provenance.cpu_model`, `seconds_total_this_run`, `cost_fuse`,
+   `config.jobs`, `config.cost_limit_core_hours`,
+   `boundary.{seconds, core_seconds_wall, modes.*.core_seconds,
+   source.dir}`, `layers.*.{seconds, seconds_per_state,
+   core_seconds_wall, modes.*.core_seconds}`; reszta bez zmian (wersje
+   Pythona i numpy, seed i próby tensora, brzeg, warstwy bez czasów).
+   Pełny przepis z modelem CPU i czasami zostaje w `solve_manifest.json`
+   obok artefaktu. Wpis `solve_manifest.json` w `source_sha256` to
+   sha256 projekcji, nie pliku — ta sama wartość, którą wypisuje
+   `python tools/blueprint/identity.py --run KATALOG`.
 
    **Katalog warstw** — po jednym rekordzie 48 B na warstwę, rosnąco
    po numerze ręki:
@@ -2961,6 +3017,11 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    produkcji żywe jest **~39–40% z 14 slotów węzłów** na stan
    (`layer_10`: 40,25%, `layer_20`: 39,01%), więc 60% komórek nie
    trafia do pliku w ogóle.
+   **KOREKTA (POKER-75):** 19 016 752 B i metadane 3 983 B opisują plik
+   spakowany kodem POKER-51 — sprzed POKER-56 i POKER-75, z kopią całego
+   manifestu biegu w metadanych. Obecny konwerter wkłada tam projekcję
+   bez pól ulotnych, więc rozmiar pliku z regenerowanego biegu poda
+   regeneracja (wejście operatora, decyzja 31 pkt 3).
 
    **Czas odczytu (BB, 2 000 losowań deterministycznych, maszyna
    obciążona równoległym pomiarem — czyli konserwatywnie):** jeden
@@ -2978,23 +3039,32 @@ raportem ex-post z POKER-49) zostaje nietknięty.
    odczytu (test podstawia strumień liczący). (Liczby z zamknięcia
    POKER-51. Po POKER-74 — brzeg cyklu 6 rąk — najgorszy odczyt stanu
    to **119 B**, V 56 B; asercje 160 i 72 B bez zmian — raport `7b5c85d`,
-   D.17. **Rozmiar pliku nie jest liczbą stałą tego kodu:** metadane
-   niosą kopię całego manifestu biegu (`run_manifest`), a w niej czasy
+   D.17. **Do POKER-75 rozmiar pliku nie był liczbą stałą kodu:** metadane
+   niosły kopię całego manifestu biegu (`run_manifest`), a w niej czasy
    ścienne biegu (`seconds`, `core_seconds`, `core_seconds_wall`,
    `seconds_per_state`, `seconds_total_this_run`), bezwzględną ścieżkę
    katalogu tensora i proweniencję środowiska (wersje Pythona i numpy,
-   model CPU) — rozmiar zmienia się więc między biegami tego samego kodu
+   model CPU) — rozmiar zmieniał się więc między biegami tego samego kodu
    pod tą samą ścieżką. 8 328 B z zamknięcia POKER-51, 8 400 B tuż przed
    POKER-74 i 8 408 B po nim (raport `7b5c85d`) to pomiary pojedynczych
-   biegów. Pomiar 2026-09-27, kod po POKER-74, ścieżka tensora
-   83-znakowa: dwa kolejne biegi dały 8 400 B i 8 408 B przy tych samych
-   sha256 warstw i brzegu, a ich manifesty różniły się wyłącznie czasami
+   biegów. Pomiar 2026-09-27, kod po POKER-74 i sprzed POKER-75, ścieżka
+   tensora 83-znakowa: dwa kolejne biegi dały 8 400 B i 8 408 B przy tych
+   samych sha256 warstw i brzegu, a ich manifesty różniły się wyłącznie czasami
    ściennymi; warstwy pierwszego biegu spakowane z plikiem manifestu
    drugiego dają plik bajt w bajt równy drugiemu; podmiana samej ścieżki
    tensora w manifeście pierwszego biegu dała 8 376 B (47 znaków) i
    8 408 B (123 znaki). Bajty odczytu — 119 B stanu i 56 B V — były te
    same we wszystkich biegach i podmianach; pod asercją stoją one, nie
-   rozmiar pliku.)
+   rozmiar pliku. **KOREKTA (POKER-75):** metadane niosą dziś projekcję
+   manifestu bez czasów, ścieżek, modelu CPU i liczby procesów, więc
+   rozmiar jest stały między biegami tego samego kodu na jednej maszynie
+   (wersje Pythona i numpy należą do projekcji). Pomiar 2026-09-27 na
+   `af1acce` (Python 3.13.12, numpy 2.5.2): bieg A — tensor z repo,
+   ścieżka 83 znaki, jobs 1 — i bieg B — kopia tensora pod ścieżką
+   142-znakową, jobs 2 — dały pliki v1 po 8 160 B i v2 bez sekcji po
+   8 840 B, bajt w bajt równe między biegami; bajty odczytu 119 B stanu
+   i 56 B V bez zmian. Pod asercją nadal stoją bajty odczytu, nie rozmiar
+   pliku.)
 
    Na artefakcie produkcyjnym mierzy to `bench --sweep` (przemiał
    **wszystkich** stanów, nie próbka — stany różnią się liczbą żywych
@@ -3071,7 +3141,10 @@ raportem ex-post z POKER-49) zostaje nietknięty.
 7. **Co trzyma bramka (`tests/test_blueprint_pilot.py`,
    `tests/test_architecture.py`).** Determinizm konwertera bajt
    w bajt; nagłówek i metadane niosące hash oraz kopię przepisu
-   pochodzenia; odrzucenie artefaktu niezgodnego z manifestem;
+   pochodzenia (**KOREKTA (POKER-75):** dziś jego kanoniczną projekcję —
+   test porównuje `run_manifest` z projekcją manifestu na dysku i sprawdza
+   brak pól ulotnych; pełny przepis sprawdza w `solve_manifest.json`);
+   odrzucenie artefaktu niezgodnego z manifestem;
    round-trip rozkładów w granicach kroku kwantyzacji na komplecie
    węzłów i klas; bajtowa dokładność V (także warstwy brzegowej);
    jawna nieosiągalność (maska zgodna co do węzła z zerami solvera,
@@ -3697,7 +3770,9 @@ Następne kroki:
    (0,850%, 0,844%, −0,39..+0,19 pp, +5,20 pp) opisują artefakt liczony
    brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71;
    przeliczenie wymaga regeneracji (wejście operatora, decyzja 31 pkt 3),
-   a mapa decyzji 29 czeka na zamknięcie sprintu A (Następny krok wyżej).
+   a mapa decyzji 29 czekała na zamknięcie sprintu A (zamknięty
+   2026-09-27); jej pozycje mierzone na artefakcie produkcyjnym czekają
+   na jego regenerację (Następny krok wyżej).
    Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
    **POKER-58** (P-3, domknięcie warstw 1–5 łańcuchem dokładnym; szkic
@@ -3713,6 +3788,11 @@ Następne kroki:
    nie wchodzi do dystrybucji przez repo, a w repo żyje manifest
    tożsamości `tools/blueprint/control/prod_identity.json` (sha256
    32 plików), pod który POKER-58 dokłada narzędzie weryfikacji.
+   **KOREKTA (POKER-75):** manifest ma dziś sha wyłącznie przy 2 z 32
+   pozycji (pliki `npz` tensora), 30 pozycji ma status „do przeliczenia”
+   z podstawą per pozycja; tożsamość katalogu liczy `python
+   tools/blueprint/identity.py --run KATALOG` (POKER-75), a POKER-58
+   zostaje porównanie tożsamości z manifestem kodem wyjścia.
    Przekazanie pracy nowej drużynie: [`PRZEKAZANIE.md`](PRZEKAZANIE.md).
    Otwarte i wycenione: **697 z 1 198 stanów `deep`
    produkcji kończy powyżej tolerancji etapowej (739 na sufcie 384)**
@@ -3724,7 +3804,9 @@ Następne kroki:
    artefaktu przestał być szacunkiem: napisany i zmierzony w POKER-51
    plik produkcyjny ma **19 016 752 B** (szacunek z danych `grid5b`
    mówił ~38 MB, decyzja 25 zakładała 0,25–1 GB), bo 60% komórek to
-   węzły nieosiągalne i nie trafiają do pliku wcale. Kwantyzacja do
+   węzły nieosiągalne i nie trafiają do pliku wcale (plik spakowany
+   kodem sprzed POKER-56 i POKER-75; rozmiar pliku z regenerowanego biegu
+   poda regeneracja — blok POKER-51 pkt 5, KOREKTA). Kwantyzacja do
    uint8 daje maksymalny błąd 0,0026 **w przestrzeni
    prawdopodobieństw akcji** — to inna jednostka niż ε (udział sumy wypłat)
    i porównanie tych liczb wprost było błędem (korekta architekta

@@ -88,6 +88,13 @@ przy niej):
   cyklu 6 kosztuje ~2× na cykl; poza tym środowiskiem) jest
   **wejściem operatora**; do niej pomiary BF/BG/BH i `prod_identity.json`
   opisują artefakt, którego obecny kod już nie produkuje.
+  **KOREKTA (POKER-75):** `prod_identity.json` już go nie opisuje — sha
+  zostaje wyłącznie przy dwóch plikach `npz` tensora (kod tensora bez
+  zmian od POKER-50), a 30 pozycji ma status „do przeliczenia” bez sha,
+  z podstawą per pozycja; sha wpisze pierwsza regeneracja obecnym kodem
+  (tożsamość: `python tools/blueprint/identity.py --run KATALOG`).
+  Pomiary BF/BG/BH nadal opisują artefakt sprzed POKER-74 (decyzja 30,
+  KOREKTA (POKER-75)).
 
 **Stan 2026-09-27:** przeliczenia POKER-70, 71 i 73 wykonane i
 przeniesione do dokumentów stanu (korekta zbiorcza po POKER-69…73,

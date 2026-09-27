@@ -1,8 +1,9 @@
 # Przekazanie pracy — produkt Poker (linia blueprintu GTO)
 
-Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…74
+Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…75
 sprintu A [decyzji 31](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
-(naprawy blokujących findingów audytu 2026-09-26): zdania i liczby, które
+(naprawy blokujących findingów audytu 2026-09-26; sprint zamknięty
+2026-09-27): zdania i liczby, które
 te zadania zmieniły, są poprawione w treści z podaniem źródła; tabela
 faktów na okładce wersji PDF pochodzi ze stałej generatora i opisuje stan
 z 2026-09-07. Autor: architekt produktu (sesja kończąca się tym
@@ -33,8 +34,8 @@ cat docs/README.md                      # streszczenia 31 decyzji + status TaskS
 cat docs/CURRENT_STATE.md               # Co istnieje / Czego nie ma / Następny krok
 
 # 4. Decyzje — czytaj od 31 wstecz; 31 = sprinty naprawcze po audycie
-#    2026-09-26, 29 wyznacza kierunek, a jej mapa czeka na zamknięcie
-#    sprintu A (CURRENT_STATE, „Następny krok")
+#    2026-09-26 (sprint A zamknięty 2026-09-27, następny B), 29 wyznacza
+#    kierunek — stan jej mapy: CURRENT_STATE, „Następny krok"
 ls docs/decisions/
 
 # 5. Pamięć operacyjna ról (dokładnie 80 linii, w tym PUŁAPKI — w całości)
@@ -44,14 +45,14 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # 648 testów, ~8 min 28 s (2026-09-27, 4 rdzenie współdzielone)
+ruff check . && mypy && pytest          # 652 testy, ~8 min 15 s (2026-09-27, 4 rdzenie współdzielone)
 #    aktualną liczbę sprawdzisz: pytest --collect-only -q -o addopts="" | tail -1
 ```
 
 Gałąź integracyjna: **`claude/poker-project-architecture-jw6ukd`**.
 `main` podąża za nią po każdym komplecie audytów (stała autoryzacja
 operatora); wykonuje to architekt, nigdy koder. **Korekta 2026-09-27:**
-sprint A decyzji 31 integruje się sekwencyjnie na gałęzi
+sprint A decyzji 31 zintegrowano sekwencyjnie na gałęzi
 **`claude/poker-code-audit-gsfko9`** (decyzja 31 pkt 4); `main` pozostaje
 operatora.
 
@@ -73,7 +74,8 @@ warstwy:
 - **`tools/blueprint/`** — solver poza produktem (numpy dozwolony), który
   liczy artefakt strategii. Artefakt **nie wchodzi do repozytorium**
   (decyzja 25 pkt 6) — w repo żyje wyłącznie mały artefakt kontrolny
-  łańcucha (`tools/blueprint/control/`, 24 KB) i jego test w bramce.
+  łańcucha (`tools/blueprint/control/`, 14 502 B razem z manifestem
+  tożsamości) i jego test w bramce.
 
 Algorytm fundamentu GTO: **dokładna indukcja wsteczna po DAG-u zegara
 blindów**; stany etapowe 3-osobowe rozwiązywane PI-FP, końcówki HU
@@ -92,7 +94,7 @@ drugi, zamknięty produkt: stół heads-up NLHE (`table`, `betting`,
 wielu stołów w LAN — decyzja 08, eksport historii, korpus self-play,
 zbiór przykładów) oraz agentów `rule` / `rule-aggressive` / `clone` /
 `mccfr` / `mlp-clone` i macierz equity preflop 169×169. Wszystko pod
-bramką (ok. 120 z 648 testów: przybliżenie 101 z 483 z wydania
+bramką (ok. 120 z 652 testów: przybliżenie 101 z 483 z wydania
 2026-09-07 plus 17 testów POKER-69 i 2 testy POKER-72) i pod
 niezmiennikami INV-P1…P8.
 Instrukcja obsługi: `README.md`. Linia Spin/blueprintu ich nie dotyka,
@@ -165,17 +167,23 @@ pomiarem kilka razy okazało się mierzyć nie to, co miało chronić
 2026-09-07 — patrz tabela wyżej. Następny kontrakt do wzięcia:
 **POKER-58** (szkic w [`docs/taskspecs/drafts/`](taskspecs/drafts/)).
 
-**Korekta 2026-09-27:** w locie jest sprint A decyzji 31 (naprawy
-siedmiu blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)).
-Zamknięte: POKER-69 (seed talii poza zasięgiem gracza, protokół LAN v2),
+**Korekta 2026-09-27:** sprint A decyzji 31 (naprawy siedmiu
+blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)) jest
+zamknięty — wszystkie siedem kontraktów scalone: POKER-69 (seed talii
+poza zasięgiem gracza, protokół LAN v2),
 POKER-72 (przepis pochodzenia `strategy_table.py`), POKER-70 (jedna
 reguła miejsc Spin), POKER-71 (side poty areny pełnym porządkiem rąk,
 spasowany nie odzyskuje wkładu w modelach), POKER-73 (terminale
 i miara zbieżności openfold, N = 512), POKER-74 (brzeg horyzontu
-solvera domyka cykl 6 rąk; integracja `94b1c0a`); zostaje POKER-75
-(tożsamość regeneracji, w toku); potem sprinty B i C. Mapa decyzji 29
-niżej — z POKER-58 włącznie — czeka na zamknięcie sprintu A. Status
-bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md), „Następny krok".
+solvera domyka cykl 6 rąk; integracja `94b1c0a`) i POKER-75 (tożsamość
+artefaktu z kanonicznej projekcji manifestów; integracja `d3db4e1`).
+W locie jest przygotowanie sprintu B (kontrakty POKER-76…85
+w zatwierdzaniu przez architekta, POKER-86…90 w szkicach, jeszcze poza
+repozytorium); potem sprint C. Mapa decyzji 29 niżej — z POKER-58
+włącznie — czekała na zamknięcie sprintu A, a jej pozycje mierzone na
+artefakcie produkcyjnym czekają na jego regenerację (wejście operatora,
+sekcja 9). Status bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md),
+„Następny krok".
 
 ### Kolejka — mapa decyzji 29, szkice w repo
 
@@ -185,7 +193,12 @@ szkiców pisano przed POKER-74: POKER-59 mówi o „cyklach 3 rąk"
 i horyzoncie ~25 rdzenio-h i nie wymaga zgodności schematu brzegu przy
 wznowieniu z checkpointu (`config_hash` schematu nie obejmuje), POKER-60
 o ~252 rdzenio-h kroku 1 — dziś cykl 6 rąk, horyzont ~49,5, krok 1
-353,0. Poprawia je architekt przy zatwierdzeniu. Kolejka:
+353,0. POKER-58, pisany przed POKER-75, opisuje `prod_identity.json`
+jako „sha256 32 plików" i żąda narzędzia porównującego katalog „po
+sha256 i rozmiarze" jako warunku zachowania pomiarów — dziś sha jest
+przy 2 z 32 pozycji, tożsamość liczy `tools/blueprint/identity.py`,
+a POKER-58 zostaje porównanie z kodem wyjścia. Poprawia je architekt
+przy zatwierdzeniu. Kolejka:
 
 | id | kontrakt | koszt [rdzenio-h] | blokady |
 |---|---|---:|---|
@@ -224,8 +237,8 @@ z kontenerem.** To nie jest awaria — tak stanowi decyzja 25 pkt 6
 |---|---:|---:|
 | tensor rolloutów (`PROD/tensor/`) | 20 473 439 B (19,5 MiB) | 11,2 rdzenio-h |
 | bieg siatki (`PROD/grid2/`, 21 warstw + brzeg) | 39 586 164 B | 65,4 zmierzone brzegiem sprzed POKER-74 (horyzont 25,2 + warstwy 40,2); obecnym kodem wycena ~89,0 (49,5 + 39,6) ² |
-| `blueprint.bpk` v1 | 19 016 824 B (18,1 MiB) | 24 s (pakowanie, blok BA) |
-| `blueprint_v2.bpk` | 40 490 256 B (38,6 MiB) | 32 s (pakowanie, blok BN + marginesy BP) |
+| `blueprint.bpk` v1 | 19 016 824 B (18,1 MiB) ³ | 24 s (pakowanie, blok BA) |
+| `blueprint_v2.bpk` | 40 490 256 B (38,6 MiB) ³ | 32 s (pakowanie, blok BN + marginesy BP) |
 
 > ² Korekta 2026-09-27: od POKER-74 brzeg horyzontu domyka cykl 6 rąk
 > (6 cykli po sześć rąk = 36 warstw), więc komendy AC–AH liczą dziś inny
@@ -235,8 +248,15 @@ z kontenerem.** To nie jest awaria — tak stanowi decyzja 25 pkt 6
 >
 > Artefakt v1 z 4 września ma 19 016 752 B — różnica 72 B to
 > `fingerprint` dopisany przez POKER-56; przepakowanie tego biegu (BA)
-> daje bajt w bajt 19 016 824 B (pomiar POKER-57; pełna regeneracja
+> dawało bajt w bajt 19 016 824 B (pomiar POKER-57; pełna regeneracja
 > obecnym kodem liczy inny artefakt — ²).
+>
+> ³ Korekta 2026-09-27: oba rozmiary to pliki spakowane kodem sprzed
+> POKER-75, z kopią całego manifestu biegu w metadanych. Od POKER-75
+> metadane niosą kanoniczną projekcję manifestu (bez ścieżek, modelu
+> CPU, czasów i liczby procesów), więc przepakowanie tego samego biegu
+> obecnym kodem daje inny plik niż 19 016 824 B, a rozmiary plików
+> z regeneracji poda dopiero regeneracja.
 
 **Komendy pełnej regeneracji: bloki POKER-50 (AC–AH), POKER-51 (BA —
 artefakt v1) i POKER-57 (BN + BP — artefakt v2, `--format-version 2`
@@ -254,21 +274,27 @@ kodem wycena to 100,2 rdzenio-h z tensorem, proporcjonalnie ~25 h
 jeden restart kontenera w środku horyzontu kosztował 16,2 rdzenio-h,
 bo jednostką wznowienia jest dopiero warstwa.
 
-**Po regeneracji liczby z sekcji 6 przestają obowiązywać, dopóki nie
-udowodnisz tożsamości artefaktu** — porównaj sha256 z
-`prod_identity.json` (zgodność = pomiary obowiązują) albo powtórz
-pomiary (BF/BG/BH, AF). To jest PUŁAPKA POKER-24: regeneracja unieważnia
+**Po regeneracji liczby z sekcji 6 przestają obowiązywać — powtórz
+pomiary** (BF/BG/BH, AF). To jest PUŁAPKA POKER-24: regeneracja unieważnia
 pomiary przy artefakcie, a bramka tego nie łapie. **Korekta 2026-09-27:**
-„zgodność = pomiary obowiązują" dotyczy dziś wyłącznie pomiarów samego
-artefaktu (ε, V vs ICM, koszty); ROI areny i liczniki fallbacku (BF/BG/BH)
+wydanie z 2026-09-07 pozwalało zamiast powtórki porównać sha256
+z `prod_identity.json` („zgodność = pomiary obowiązują") — to dziś nie
+działa z trzech powodów. ROI areny i liczniki fallbacku (BF/BG/BH)
 zależą też od kodu areny, który zmieniły POKER-70 (punktacja 10x)
-i POKER-71 (side poty) — trzeba je powtórzyć także przy zgodnym sha256
-(KOREKTA (POKER-71) decyzji 30). POKER-74 (brzeg horyzontu, zamknięty
-`94b1c0a`) zmienił sam artefakt: obecny kod liczy brzeg cyklem 6 rąk,
-a `prod_identity.json` opisuje artefakt liczony cyklem 3 rąk, więc
-regeneracja obecnym kodem nie odtworzy jego sha256 i pomiary sekcji 6
-trzeba po niej powtórzyć; regeneracja jest wejściem operatora (decyzja
-31 pkt 3).
+i POKER-71 (side poty) — trzeba je powtórzyć także przy zgodnej
+tożsamości (KOREKTA (POKER-71) decyzji 30). POKER-74 (brzeg horyzontu,
+zamknięty `94b1c0a`) zmienił sam artefakt: obecny kod liczy brzeg cyklem
+6 rąk, a pomiary sekcji 6 opisują artefakt liczony cyklem 3 rąk.
+POKER-75 (tożsamość, zamknięty `d3db4e1`) zostawił w `prod_identity.json`
+sha wyłącznie przy dwóch plikach `npz` tensora — pozostałe 30 pozycji ma
+status „do przeliczenia" bez sha, więc nie ma z czym porównać, a pomiary
+przy artefakcie są unieważnione do regeneracji (decyzja 31 pkt 3).
+Tożsamość regenerowanego katalogu wypisuje `python
+tools/blueprint/identity.py --run PROD` (manifesty: sha256 kanonicznej
+projekcji, pozostałe pliki: sha256 pliku); sha brakujących pozycji
+wpisuje pierwsza regeneracja obecnym kodem, więc porównanie z manifestem
+jest dla nich możliwe dopiero po niej. Regeneracja jest wejściem
+operatora (decyzja 31 pkt 3).
 
 Dwustopniowy dowód odtwarzalności (decyzja 06): mały łańcuch kontrolny
 chodzi w bramce przy każdym `pytest`, pełna regeneracja komendami
@@ -280,23 +306,29 @@ artefakt **nie wchodzi do żadnej formy dystrybucji przez repozytorium**,
 bo `mcz91/Poker` jest publiczne — release, LFS i gałąź z plikiem to
 nieodwracalna publikacja strategii, a przyszłe profile eksploatacyjne są
 na to wrażliwsze niż blueprint. W zamian w repo żyje **manifest
-tożsamości** `tools/blueprint/control/prod_identity.json`: sha256,
-rozmiar i pochodzenie **32 plików** artefaktu (119 566 611 B opisanych
-w kilku kilobajtach).
+tożsamości** `tools/blueprint/control/prod_identity.json`: dla każdej
+z **32 pozycji** artefaktu metoda tożsamości (sha256 pliku albo sha256
+kanonicznej projekcji manifestu), status, podstawa i komenda pochodzenia
+(AC, AE–AH, BA, BN), do tego `config_hash` biegu i konfiguracja. **Korekta
+2026-09-27:** wydanie z 2026-09-07 opisywało sha256 i rozmiar wszystkich
+32 plików (119 566 611 B); od POKER-75 sha i rozmiar ma wyłącznie para
+plików `npz` tensora (20 470 803 B), a 30 pozycji — status „do
+przeliczenia".
 
-Manifest rozwiązuje problem, którego sam plik by nie rozwiązał: po
-regeneracji porównujesz sha256 swoich plików z manifestem i przy
-zgodności **zachowujesz wszystkie pomiary** (ε, ROI areny, liczniki,
-koszty) zamiast powtarzać je za kolejne godziny — to jest wyjście
-z PUŁAPKI POKER-24. **Korekta 2026-09-27:** od POKER-71 zdanie jest
-fałszywe dla ROI areny i liczników fallbacku — zależą też od kodu areny
-(poprawki POKER-70 i POKER-71), więc przy zgodnym sha256 zachowujesz
-wyłącznie ε, V vs ICM i koszty, a BF/BG/BH powtarzasz (KOREKTA (POKER-71)
-decyzji 30); od POKER-74 manifest opisuje artefakt, którego obecny kod
-już nie produkuje (sekcja 5 wyżej). Narzędzie porównujące katalog
-z manifestem jest wymogiem kontraktu POKER-58 (szkic). Przekazanie
-samego pliku kanałem prywatnym pozostaje możliwe i nie wymaga zmiany
-decyzji 30 — zakazana jest publikacja, nie przekazanie.
+Manifest ma rozwiązać problem, którego sam plik by nie rozwiązał: po
+regeneracji porównujesz tożsamość swoich plików z manifestem i przy
+zgodności zachowujesz pomiary zamiast powtarzać je za kolejne godziny —
+to jest wyjście z PUŁAPKI POKER-24. **Korekta 2026-09-27:** dziś to
+wyjście nie działa. ROI areny i liczniki fallbacku zależą też od kodu
+areny (poprawki POKER-70 i POKER-71), więc BF/BG/BH powtarzasz także
+przy zgodności (KOREKTA (POKER-71) decyzji 30), a dla 30 z 32 pozycji
+manifest nie ma sha — pomiary przy artefakcie powtarzasz po regeneracji
+(decyzja 31 pkt 3; KOREKTA (POKER-75) decyzji 30, tam też, czego
+tożsamość nie potwierdza: zgodności między maszynami). Tożsamość liczy
+od POKER-75 `tools/blueprint/identity.py --run`; kontraktowi POKER-58
+(szkic) zostaje porównanie tej tożsamości z manifestem z kodem wyjścia.
+Przekazanie samego pliku kanałem prywatnym pozostaje możliwe i nie
+wymaga zmiany decyzji 30 — zakazana jest publikacja, nie przekazanie.
 
 ### Jak to uruchomić
 
@@ -444,7 +476,7 @@ bajtowej zostawia zmutowany `.pyc`.
 | **korpus realnych hand histories** | całą warstwę eksploatacyjną P-10..P-13 | brak; bez niego uczciwe zatrzymanie na P-11 (maszyneria zwalidowana w HU) |
 | ~~decyzja o dystrybucji artefaktu~~ | — | **rozstrzygnięta** (decyzja 30): brak publikacji, manifest tożsamości w repo |
 | **realny hands-per-level** | krzywa zegara w P-8 (kontrakt emituje BRAK zamiast zgadywać) | w kodzie jest zegar produktu (3), jawnie oznaczony jako NIE research |
-| **regeneracja artefaktu produkcyjnego** (korekta 2026-09-27, decyzja 31 pkt 3) | ponowny pomiar BF/BG/BH, czyli liczby areny agenta z sekcji 6 | po POKER-74 (brzeg horyzontu, zamknięty `94b1c0a`); wycena ~100,2 rdzenio-h z tensorem; poza tym środowiskiem |
+| **regeneracja artefaktu produkcyjnego** (korekta 2026-09-27, decyzja 31 pkt 3) | ponowny pomiar BF/BG/BH, czyli liczby areny agenta z sekcji 6; sha 30 z 32 pozycji `prod_identity.json` (korekta: POKER-75) | po POKER-74 (brzeg horyzontu, zamknięty `94b1c0a`) i POKER-75 (tożsamość, zamknięty `d3db4e1`); wycena ~100,2 rdzenio-h z tensorem; poza tym środowiskiem |
 
 Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 (POKER-56) — to inna bramka niż potwierdzenie tabeli tierów.
@@ -487,13 +519,13 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 
 ## 11. Od czego zacząć
 
-**Korekta 2026-09-27:** przed listą niżej — dokończ sprint A decyzji 31
-(POKER-75; POKER-74 zamknięty), a potem sprinty B i C (decyzja 31 pkt 2
-i 4); mapa decyzji 29 z pkt 4 czeka na zamknięcie sprintu A. Pkt 1 jest
-nieaktualny (POKER-57 zamknięty — tabela w sekcji 4), a w pkt 3 zgodny
-sha256 nie chroni liczb areny z sekcji 6, a regeneracja obecnym kodem
-(brzeg cyklu 6 rąk od POKER-74) sha256 z `prod_identity.json` nie
-odtworzy (sekcja 5, korekta).
+**Korekta 2026-09-27:** przed listą niżej — sprint A decyzji 31 jest
+zamknięty (POKER-69…75); następny jest sprint B, potem C (decyzja 31
+pkt 2 i 4). Mapa decyzji 29 z pkt 4 czekała na zamknięcie sprintu A,
+a jej pozycje mierzone na artefakcie produkcyjnym czekają na jego
+regenerację (wejście operatora, sekcja 9). Pkt 1 jest nieaktualny
+(POKER-57 zamknięty — tabela w sekcji 4); pkt 3 i 4 są poprawione
+w treści.
 
 1. **Domknij POKER-57**: audyt świeżym kontekstem commita `aefc3c8` →
    zamknięcie w indeksie → scalenie do main. Praca jest dostarczona
@@ -501,10 +533,16 @@ odtworzy (sekcja 5, korekta).
 2. **Zrób POKER-59** (checkpoint horyzontu, ~1 rdzenio-h) — zanim
    odpalisz jakikolwiek długi przebieg. To jedyna pozycja, która chroni
    przed powtórzeniem straty 16,2 rdzenio-h.
-3. **Jeśli regenerujesz artefakt** — zweryfikuj tożsamość wobec
-   `prod_identity.json` przed użyciem jakiejkolwiek liczby z sekcji 6.
-4. Dalej mapa decyzji 29: P-3 (POKER-58, niesie też narzędzie
-   weryfikacji tożsamości) → P-5 → P-6 (sondy rozstrzygają bramkę STOP)
+3. **Jeśli regenerujesz artefakt** — powtórz pomiary przed użyciem
+   jakiejkolwiek liczby z sekcji 6 (korekta 2026-09-27: wydanie
+   z 2026-09-07 kazało tu zweryfikować tożsamość wobec
+   `prod_identity.json`, ale manifest ma dziś sha wyłącznie dla dwóch
+   plików `npz` tensora, a liczb areny nie chroni nawet zgodność —
+   sekcja 5).
+4. Dalej mapa decyzji 29: P-3 (POKER-58, niesie też porównanie
+   tożsamości z manifestem z kodem wyjścia; samą tożsamość liczy od
+   POKER-75 `tools/blueprint/identity.py`) → P-5 → P-6 (sondy
+   rozstrzygają bramkę STOP)
    → **P-7** (pierwszy jednozmienny A/B wypłat wraz z prerejestrowanym
    kill-checkiem całej tezy tierowej — odblokowany decyzją 30, nie czeka
    na operatora).
