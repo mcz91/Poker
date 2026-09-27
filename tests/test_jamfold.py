@@ -14,6 +14,7 @@ from poker.jamfold import (
     _payoffs,
     _terminal_states,
     _three_way,
+    _three_way_ev,
     call_beats_fold,
     exploitability,
     jam_vs_depth,
@@ -21,7 +22,10 @@ from poker.jamfold import (
     solve,
 )
 from poker.preflop import ALL_CLASSES
-from poker.spin import DEPTHS, LEVELS, PAYOUTS
+from poker.spin import DEPTHS, LEVELS, PAYOUTS, terminal_equities
+
+# Porządki rąk 3-way (miejsca od najlepszej ręki) w kolejności terminali 3-way.
+ORDERS = ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0))
 
 
 def test_call_beats_fold_wta_25bb() -> None:
@@ -130,28 +134,74 @@ def test_terminal_shove_utg_call_btn_spasowany_bb_traci_blind() -> None:
     assert states[6] == (50, 3, 48)
 
 
-# sha256 repr() listy terminali poniższej siatki, policzony na bazie POKER-71
-# (de0f9cb, rangi przegranego także dla spasowanych).
+# sha256 repr() listy terminali poniższej siatki w układzie sprzed POKER-84
+# (9 terminali bez 3-way i stan 3-way dla zwycięzcy 0, 1, 2 — pierwszy porządek
+# z tym zwycięzcą), policzony na bazie POKER-71 (de0f9cb, rangi przegranego także
+# dla spasowanych).
 EQUAL_STACK_TERMINALS_SHA256 = "c503e5766458e24147ff762796cac65f867c1a6235a0ce04b2cadc9c51ba2185"
 
 
 def test_terminale_przy_rownych_stackach_bez_zmian() -> None:
-    """Poprawka rang spasowanych nie rusza terminali przy równych stackach.
+    """Rangi spasowanych i drugie miejsce 3-way nie ruszają terminali przy równych stackach.
 
     Przy równych stackach spasowany wkłada najwyżej blind, a zwycięzca all-in
     cały stack, więc zwycięzca jest uprawniony do każdej warstwy puli i ranga
-    spasowanego niczego nie rozstrzyga. Siatka DEPTHS × LEVELS × guzik obejmuje
-    stany narzędzi eksportu (50/50/50 na całym zegarze) i `jam_vs_depth`.
+    spasowanego niczego nie rozstrzyga; w 3-way wszyscy wkładają tyle samo, więc
+    oba porządki drugiego miejsca dają ten sam stan. Siatka DEPTHS × LEVELS ×
+    guzik obejmuje stany narzędzi eksportu (50/50/50 na całym zegarze)
+    i `jam_vs_depth`.
     """
-    grid = [
-        _terminal_states(stacks, button, sb, bb)
-        for _, stacks in DEPTHS
-        for sb, bb in LEVELS
-        for button in range(3)
-    ]
+    grid = []
+    for _, stacks in DEPTHS:
+        for sb, bb in LEVELS:
+            for button in range(3):
+                states = _terminal_states(stacks, button, sb, bb)
+                for winner in range(3):
+                    assert states[9 + 2 * winner] == states[10 + 2 * winner]
+                grid.append(states[:9] + (states[9], states[11], states[13]))
     assert len(grid) == 84
     digest = hashlib.sha256(repr(grid).encode()).hexdigest()
     assert digest == EQUAL_STACK_TERMINALS_SHA256
+
+
+# sha256 repr() strategii (utg_jam, btn_call, bb_call, btn_open, bb_vs_btn) i repr()
+# values solve((50, 50, 50), guzik 1, 8 iteracji), policzone na bazie POKER-84
+# (124d903, 3-way bez drugiego miejsca).
+EQUAL_STACK_SOLVE_SHA256 = (
+    (
+        "3x",
+        1,
+        2,
+        "ee205db2ddaf0207d20e00ce48acbef1d0b22f8f5ccf609a38316a4ca28d7217",
+        "c594ad8cc385b54edb8b1ce70e17d0989e22815ed7823ebe5aed8b55ad6a0ed7",
+    ),
+    (
+        "10x",
+        4,
+        8,
+        "4c5379b77d53279c6c4e8632e3bff539e97a53dac184d178e0439015c4d31817",
+        "105c0ee2642b13deb2e1744db9e8806bd9df2efac9d9db76f83472ea74ac93a0",
+    ),
+)
+
+
+def test_strategie_i_values_przy_rownych_stackach_bez_zmian() -> None:
+    """Drugie miejsce 3-way niczego nie rozstrzyga przy równych stackach (jedna pula),
+    więc strategie i values solve zostają tam bitowo te same — pin na stanach
+    książek areny (3x 1/2 i 10x 4/8, 50/50/50)."""
+    for pay_id, sb, bb, strategies_sha, values_sha in EQUAL_STACK_SOLVE_SHA256:
+        result = solve(
+            (50, 50, 50), PAYOUTS[pay_id].prizes, button=1, iterations=8, sb=sb, bb_amt=bb
+        )
+        strategies = (
+            result.utg_jam,
+            result.btn_call,
+            result.bb_call,
+            result.btn_open,
+            result.bb_vs_btn,
+        )
+        assert hashlib.sha256(repr(strategies).encode()).hexdigest() == strategies_sha
+        assert hashlib.sha256(repr(result.values).encode()).hexdigest() == values_sha
 
 
 def test_allin_dwoch_pelne_stacki_sprzed_blindow() -> None:
@@ -164,9 +214,88 @@ def test_allin_dwoch_pelne_stacki_sprzed_blindow() -> None:
 
 def test_three_way_wolajacy_wklada_min_stack_shove() -> None:
     """Shove UTG=16: wołający wkładają 16, nie całe stacki."""
-    assert _three_way((16, 50, 84), 0, 2) == (0, 34, 116)
-    assert _three_way((16, 50, 84), 0, 1) == (0, 82, 68)
-    assert _three_way((16, 50, 84), 0, 0) == (48, 34, 68)
+    assert _three_way((16, 50, 84), 0, (2, 0, 1)) == (0, 34, 116)
+    assert _three_way((16, 50, 84), 0, (1, 0, 2)) == (0, 82, 68)
+    assert _three_way((16, 50, 84), 0, (0, 1, 2)) == (48, 34, 68)
+
+
+def test_three_way_side_pot_wygrywa_lepsza_reka_sposrod_uprawnionych() -> None:
+    """Rangi z pełnego porządku rąk: side pot bierze lepsza z uprawnionych rąk.
+
+    Rangi {zwycięzca, reszta} (przed POKER-84) dzieliły side pot po równo między
+    przegranych puli głównej: (100, 15, 35) z wygraną miejsca 1 dawało (85, 45, 20),
+    stan niebędący wynikiem żadnego rozdania (finding B3 audytu 09-26).
+    """
+    short = (100, 15, 35)
+    assert [_three_way(short, 0, order) for order in ORDERS] == [
+        (150, 0, 0),
+        (150, 0, 0),
+        (105, 45, 0),
+        (65, 45, 40),
+        (65, 0, 85),
+        (65, 0, 85),
+    ]
+    assert _three_way((70, 50, 30), 0, (2, 0, 1)) == (60, 0, 90)
+    assert _three_way((70, 50, 30), 0, (2, 1, 0)) == (20, 40, 90)
+    assert _three_way((16, 50, 84), 2, (0, 1, 2)) == (48, 68, 34)
+    assert _three_way((16, 50, 84), 2, (0, 2, 1)) == (48, 0, 102)
+    states = _terminal_states(short, 1, 1, 2)
+    assert len(states) == 15
+    assert list(states[9:]) == [_three_way(short, 0, order) for order in ORDERS]
+
+
+def test_three_way_konczacy_turniej_placi_miejsca_z_terminal_equities() -> None:
+    """Wektory $EV porządków 3-way: koniec turnieju regułą miejsc `terminal_equities`.
+
+    UTG (miejsce 0) wygrywa wszystko: wybici w jednej ręce, BB wszedł z 35 > 15,
+    więc bierze drugie miejsce niezależnie od porządku ich rąk.
+    """
+    stacks = (100, 15, 35)
+    prizes = PAYOUTS["10x"].prizes
+    pay = _payoffs(stacks, prizes, 1, 1, 2)
+    assert (pay.utg, pay.btn, pay.bb) == (0, 1, 2)
+    expected = (
+        (8.0, 0.0, 2.0),
+        (8.0, 0.0, 2.0),
+        (6.2, 3.8, 0.0),
+        icm_equities((65, 45, 40), prizes),
+        (4.6, 0.0, 5.4),
+        (4.6, 0.0, 5.4),
+    )
+    assert len(pay.tw) == len(expected)
+    for got, want in zip(pay.tw, expected, strict=True):
+        assert got == pytest.approx(want, abs=1e-12)
+
+
+def test_three_way_ev_drugie_miejsce_z_equity_pary_pozostalych() -> None:
+    """$EV 3-way = Σ po porządkach P(porządek)·$EV stanu porządku.
+
+    P(x pierwsze) — iloczyn equity par znormalizowany; P(y drugie | x pierwsze) =
+    P(y wygrywa z z). Przy P(U>B) = 0,6, P(U>C) = 0,7, P(B>C) = 0,55 porządki mają
+    (0,231; 0,189; 0,154; 0,066; 0,081; 0,054) / 0,775.
+    """
+    stacks = (100, 15, 35)
+    prizes = PAYOUTS["10x"].prizes
+    pay = _payoffs(stacks, prizes, 1, 1, 2)
+    got = _three_way_ev(pay.tw, (0, 1, 2), 0.6, 0.7, 0.55)
+    weights = (0.231, 0.189, 0.154, 0.066, 0.081, 0.054)
+    expected = [0.0, 0.0, 0.0]
+    for order, weight in zip(ORDERS, weights, strict=True):
+        state = terminal_equities(stacks, _three_way(stacks, 0, order), prizes)
+        for seat in range(3):
+            expected[seat] += weight / 0.775 * state[seat]
+    assert got == pytest.approx(expected, abs=1e-12)
+    assert got == pytest.approx((6.722470, 1.017139, 2.260391), abs=1e-6)
+
+
+def test_drugie_miejsce_3way_dziala_w_solve() -> None:
+    """(20, 50, 80), guzik 0, 8/16: UTG 80, BTN 20, BB 50 — 3-way z side potem UTG–BB.
+
+    Side pot dzielony po równo między przegranych puli głównej (przed POKER-84)
+    dawał BTN call 85,2%; lepsza ręka spośród uprawnionych — 92,3%.
+    """
+    result = solve((20, 50, 80), PAYOUTS["3x"].prizes, button=0, iterations=16, sb=8, bb_amt=16)
+    assert result.btn_call_pct >= 90.0
 
 
 def test_three_way_10x_z_rownych_stackow_dzieli_drugie_i_trzecie_miejsce() -> None:
@@ -175,9 +304,9 @@ def test_three_way_10x_z_rownych_stackow_dzieli_drugie_i_trzecie_miejsce() -> No
     drugie miejsce niższemu indeksowi (finding I-21 audytu 09-26)."""
     stacks = (50, 50, 50)
     pay = _payoffs(stacks, PAYOUTS["10x"].prizes, 1, 1, 2)
-    ends = [_three_way(stacks, pay.utg, winner) for winner in range(3)]
-    assert ends == [(150, 0, 0), (0, 150, 0), (0, 0, 150)]
-    assert pay.tw == ((8.0, 1.0, 1.0), (1.0, 8.0, 1.0), (1.0, 1.0, 8.0))
+    ends = [_three_way(stacks, pay.utg, order) for order in ORDERS]
+    assert ends == [(150, 0, 0)] * 2 + [(0, 150, 0)] * 2 + [(0, 0, 150)] * 2
+    assert pay.tw == ((8.0, 1.0, 1.0),) * 2 + ((1.0, 8.0, 1.0),) * 2 + ((1.0, 1.0, 8.0),) * 2
 
 
 def test_three_way_10x_drugie_miejsce_bierze_wiekszy_stack_wejsciowy() -> None:
@@ -188,15 +317,19 @@ def test_three_way_10x_drugie_miejsce_bierze_wiekszy_stack_wejsciowy() -> None:
     stacks = (70, 30, 50)
     pay = _payoffs(stacks, PAYOUTS["10x"].prizes, 1, 1, 2)
     assert (pay.utg, pay.btn, pay.bb) == (0, 1, 2)
-    assert _three_way(stacks, pay.utg, pay.utg) == (150, 0, 0)
-    assert pay.tw[pay.utg] == (8.0, 0.0, 2.0)
+    for order in ORDERS[:2]:
+        assert _three_way(stacks, pay.utg, order) == (150, 0, 0)
+    assert pay.tw[:2] == ((8.0, 0.0, 2.0),) * 2
 
 
 def test_stany_terminalne_zachowuja_sume_zetonow() -> None:
-    for stacks in ((16, 50, 84), (50, 50, 50), (12, 12, 12)):
+    for stacks in ((16, 50, 84), (50, 50, 50), (12, 12, 12), (100, 15, 35)):
         total = sum(stacks)
-        for winner in range(3):
-            assert sum(_three_way(stacks, 0, winner)) == total
+        for shover in range(3):
+            for order in ORDERS:
+                state = _three_way(stacks, shover, order)
+                assert sum(state) == total, (stacks, shover, order, state)
+                assert all(s >= 0 for s in state)
         for winner in (1, 2):
             assert sum(_allin_two(stacks, 1, 2, winner)) == total
 

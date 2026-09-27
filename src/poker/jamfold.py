@@ -1,7 +1,10 @@
 """3-max jam/fold: fictitious play na jednym stanie stacków.
 
 Wewnętrzna gra Ganzfried & Sandholm, AAMAS 2008. Equity HU z macierzy
-preflop (POKER-12). 3-way: para znormalizowana. Bez blockerów.
+preflop (POKER-12). Bez blockerów. 3-way all-in: zwycięzca z iloczynu
+equity par znormalizowanego, drugie miejsce z equity pary pozostałych
+dwóch; stan żetonowy każdego porządku rąk rozlicza `award_allin`, więc
+side pot wygrywa lepsza ręka spośród uprawnionych.
 """
 
 from __future__ import annotations
@@ -33,6 +36,19 @@ WEIGHTS: tuple[int, ...] = tuple(
 
 Equities3 = tuple[float, ...]
 HuPair = tuple[Equities3, Equities3]
+Order3 = tuple[int, int, int]
+
+# Porządki rąk 3-way all-in (miejsca od najlepszej ręki) — kolejność terminali
+# 3-way w `_terminal_states` i wektorów `_Payoffs.tw`.
+THREE_WAY_ORDERS: tuple[Order3, ...] = (
+    (0, 1, 2),
+    (0, 2, 1),
+    (1, 0, 2),
+    (1, 2, 0),
+    (2, 0, 1),
+    (2, 1, 0),
+)
+_ORDER_INDEX = {order: k for k, order in enumerate(THREE_WAY_ORDERS)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,13 +171,18 @@ def _allin_two(
 
 
 def _three_way(
-    stacks: tuple[int, int, int], shover: int, winner: int
+    stacks: tuple[int, int, int], shover: int, order: Order3
 ) -> tuple[int, int, int]:
-    """3-way all-in za shove shovera: wołający wkłada min(stack, shove)."""
+    """3-way all-in za shove shovera: wołający wkłada min(stack, shove).
+
+    `order` to miejsca od najlepszej ręki; ranga `award_allin` = pozycja
+    w porządku, więc każdą warstwę puli bierze najlepsza z uprawnionych rąk.
+    """
     shove = stacks[shover]
     contrib = [min(stacks[i], shove) for i in range(3)]
-    ranks = [1, 1, 1]
-    ranks[winner] = 0
+    ranks = [0, 0, 0]
+    for place, seat in enumerate(order):
+        ranks[seat] = place
     awarded = award_allin((contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2]))
     return (
         stacks[0] - contrib[0] + awarded[0],
@@ -179,8 +200,8 @@ def _terminal_states(
     """Stany żetonowe wszystkich terminali drzewa jam/fold, w stałej kolejności.
 
     (blindy do UTG, blindy do BTN, blindy do BB, HU UTG–BB ×2, HU UTG–BTN ×2,
-    HU BTN–BB ×2, 3-way ×3). Jedno źródło dla wypłat `solve` i testu
-    niezmiennika sumy żetonów.
+    HU BTN–BB ×2, 3-way ×6 w kolejności `THREE_WAY_ORDERS`). Jedno źródło dla
+    wypłat `solve` i testu niezmiennika sumy żetonów.
     """
     utg, btn, bb = roles(button)
     behind, pot = post_blinds(stacks, button, sb, bb_amt)
@@ -194,9 +215,7 @@ def _terminal_states(
         utg_shove_called(stacks, button, btn, btn, sb, bb_amt),
         _allin_two(stacks, btn, bb, btn),
         _allin_two(stacks, btn, bb, bb),
-        _three_way(stacks, utg, 0),
-        _three_way(stacks, utg, 1),
-        _three_way(stacks, utg, 2),
+        *(_three_way(stacks, utg, order) for order in THREE_WAY_ORDERS),
     )
 
 
@@ -224,7 +243,53 @@ def _payoffs(
         hu_utg_bb=(m[3], m[4]),
         hu_utg_btn=(m[5], m[6]),
         hu_btn_bb=(m[7], m[8]),
-        tw=(m[9], m[10], m[11]),
+        tw=m[9:],
+    )
+
+
+def _second(
+    tw: tuple[Equities3, ...], first: int, second: int, third: int, p_second: float
+) -> Equities3:
+    """$EV po wygranej `first`: `second` przed `third` z prawdopodobieństwem p_second.
+
+    Postać y + p·(x − y), nie p·x + (1 − p)·y: gdy drugie miejsce niczego nie
+    rozstrzyga (x = y — równe stacki), wynik jest bitowo y i łańcuch liczb
+    solve zostaje bitowo ten sam co w modelu bez drugiego miejsca.
+    """
+    ahead = tw[_ORDER_INDEX[(first, second, third)]]
+    behind = tw[_ORDER_INDEX[(first, third, second)]]
+    return (
+        behind[0] + p_second * (ahead[0] - behind[0]),
+        behind[1] + p_second * (ahead[1] - behind[1]),
+        behind[2] + p_second * (ahead[2] - behind[2]),
+    )
+
+
+def _three_way_ev(
+    tw: tuple[Equities3, ...],
+    seats: Order3,
+    p_ab: float,
+    p_ac: float,
+    p_bc: float,
+) -> Equities3:
+    """$EV 3-way all-in miejsc `seats` = (a, b, c); p_xy = P(ręka x wygrywa z ręką y).
+
+    Zwycięzca: iloczyn equity par znormalizowany (decyzja 11 pkt 3). Drugie
+    miejsce po zwycięzcy x: lepsza z pozostałych rąk y, z z equity tej pary,
+    P(y drugie | x pierwsze) = P(y wygrywa z z). Kolejność miejsc w `seats`
+    zmienia tylko kolejność działań zmiennoprzecinkowych: węzeł best response
+    podaje decydenta pierwszego, jak liczył go model bez drugiego miejsca, więc
+    przy równych stackach strategie zostają bitowo te same.
+    """
+    a, b, c = seats
+    p_a, p_b, p_c = _norm3(p_ab * p_ac, (1 - p_ab) * p_bc, (1 - p_ac) * (1 - p_bc))
+    after_a = _second(tw, a, b, c, p_bc)
+    after_b = _second(tw, b, a, c, p_ac)
+    after_c = _second(tw, c, a, b, p_ab)
+    return (
+        p_a * after_a[0] + p_b * after_b[0] + p_c * after_c[0],
+        p_a * after_a[1] + p_b * after_b[1] + p_c * after_c[1],
+        p_a * after_a[2] + p_b * after_b[2] + p_c * after_c[2],
     )
 
 
@@ -321,11 +386,6 @@ def _eval_values(sigma: list[list[float]], pay: _Payoffs) -> tuple[float, float,
     e_utg_both = _eq_ranges(utg_r, bb_both)
     e_call_both = _eq_ranges(btn_c, bb_both)
     e_btn_bb = _eq_ranges(btn_o, bb_btn)
-    p3_u, p3_b, p3_c = _norm3(
-        e_utg_btn * e_utg_both,
-        (1 - e_utg_btn) * e_call_both,
-        (1 - e_utg_both) * (1 - e_call_both),
-    )
     utg_b = pay.utg_b
     btn_b = pay.btn_b
     bb_b = pay.bb_b
@@ -355,10 +415,10 @@ def _eval_values(sigma: list[list[float]], pay: _Payoffs) -> tuple[float, float,
     add(p_jam * (1 - p_btn_c) * (1 - p_bb_utg), utg_b)
     add(p_jam * (1 - p_btn_c) * p_bb_utg, mix_vec(e_utg_bb, hu_utg_bb[0], hu_utg_bb[1]))
     add(p_jam * p_btn_c * (1 - p_bb_both), mix_vec(e_utg_btn, hu_utg_btn[0], hu_utg_btn[1]))
-    tw_mix = tuple(
-        p3_u * tw[utg][i] + p3_b * tw[btn][i] + p3_c * tw[bb][i] for i in range(3)
+    add(
+        p_jam * p_btn_c * p_bb_both,
+        _three_way_ev(tw, (utg, btn, bb), e_utg_btn, e_utg_both, e_call_both),
     )
-    add(p_jam * p_btn_c * p_bb_both, tw_mix)
     return (acc[0], acc[1], acc[2])
 
 
@@ -389,41 +449,28 @@ def _best_response(sigma: list[list[float]], pay: _Payoffs) -> list[list[float]]
         e_h_bb = _eq_vs(h, bb_utg)
         e_h_btn = _eq_vs(h, btn_c)
         e_h_both = _eq_vs(h, bb_both)
-        p_h, p_btn, p_bb = _norm3(
-            e_h_btn * e_h_both,
-            (1 - e_h_btn) * e_call_both,
-            (1 - e_h_both) * (1 - e_call_both),
-        )
         jam_utg = (
             (1 - p_btn_c) * (1 - p_bb_utg) * utg_b[utg]
             + (1 - p_btn_c) * p_bb_utg * _mix(e_h_bb, hu_utg_bb[0][utg], hu_utg_bb[1][utg])
             + p_btn_c * (1 - p_bb_both) * _mix(e_h_btn, hu_utg_btn[0][utg], hu_utg_btn[1][utg])
-            + p_btn_c * p_bb_both * (p_h * tw[utg][utg] + p_btn * tw[btn][utg] + p_bb * tw[bb][utg])
+            + p_btn_c
+            * p_bb_both
+            * _three_way_ev(tw, (utg, btn, bb), e_h_btn, e_h_both, e_call_both)[utg]
         )
         out[UTG_OPEN][h] = 1.0 if jam_utg > fold_utg else 0.0
         e_vs_utg = _eq_vs(h, utg_r)
         fold_btn = (1 - p_bb_utg) * utg_b[btn] + p_bb_utg * _mix(
             e_utg_bb, hu_utg_bb[0][btn], hu_utg_bb[1][btn]
         )
-        q_h, q_utg, q_bb = _norm3(
-            e_vs_utg * e_h_both,
-            (1 - e_vs_utg) * e_utg_both,
-            (1 - e_h_both) * (1 - e_utg_both),
-        )
         call_btn = (1 - p_bb_both) * _mix(
             e_vs_utg, hu_utg_btn[1][btn], hu_utg_btn[0][btn]
-        ) + p_bb_both * (q_h * tw[btn][btn] + q_utg * tw[utg][btn] + q_bb * tw[bb][btn])
+        ) + p_bb_both * _three_way_ev(tw, (btn, utg, bb), e_vs_utg, e_h_both, e_utg_both)[btn]
         out[BTN_VS_UTG][h] = 1.0 if call_btn > fold_btn else 0.0
         out[BB_VS_UTG][h] = (
             1.0 if _mix(e_vs_utg, hu_utg_bb[1][bb], hu_utg_bb[0][bb]) > utg_b[bb] else 0.0
         )
         fold_both = _mix(e_utg_btn, hu_utg_btn[0][bb], hu_utg_btn[1][bb])
-        r_h, r_utg, r_btn = _norm3(
-            e_vs_utg * e_h_btn,
-            (1 - e_vs_utg) * e_utg_btn,
-            (1 - e_h_btn) * (1 - e_utg_btn),
-        )
-        call_both = r_h * tw[bb][bb] + r_utg * tw[utg][bb] + r_btn * tw[btn][bb]
+        call_both = _three_way_ev(tw, (bb, utg, btn), e_vs_utg, e_h_btn, e_utg_btn)[bb]
         out[BB_VS_BOTH][h] = 1.0 if call_both > fold_both else 0.0
         e_vs_bb = _eq_vs(h, bb_btn)
         jam_btn = (1 - p_bb_btn) * btn_b[btn] + p_bb_btn * _mix(
