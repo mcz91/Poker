@@ -38,33 +38,33 @@ zarezerwowane mapą decyzji 29).
 | B1 + I-04 | zbuduj — INV-P3, OBJECTION uznany | POKER-69 · A |
 | B2 + I-21 | zbuduj — jedna reguła miejsc w `poker.spin` | POKER-70 · A |
 | B3 (arena, modele: spasowany gracz) | zbuduj | POKER-71 · A |
-| B3 (jamfold `_three_way`, drugie miejsce przy 3 żywych) | zbuduj — zmiana modelu, dziś uśpiona (równe stacki) | sprint B |
+| B3 (jamfold `_three_way`, drugie miejsce przy 3 żywych) | zbuduj — zmiana modelu, dziś uśpiona (równe stacki) | POKER-84 · B |
 | B4 + I-20 | zbuduj — przepis pochodzenia i etykieta metody | POKER-72 · A |
 | B6 + I-25 | zbuduj — terminale i miara zbieżności openfold | POKER-73 · A |
 | B7 | zbuduj — brzeg horyzontu; regeneracja produkcji = wejście operatora | POKER-74 · A |
 | B5 | zbuduj — tożsamość z kanonicznej projekcji | POKER-75 · A |
-| I-01, I-02, I-03, N-01, N-02, I-05 | zbuduj — odporność serwera LAN | sprint B |
-| I-06, I-07, N-03 | zbuduj — CLI: wykluczenia trybów, błędy I/O | sprint B |
-| I-08, I-09 | zbuduj — walidacja granicy silnika | sprint B |
-| I-10, I-11, I-12, N-07, N-08, N-09 | zbuduj — testy chroniące reguły (mutanty z raportu) | sprint B |
-| I-13 | zbuduj — strażnik kierunku importów | sprint B |
-| I-18, I-19 | zbuduj — statystyka areny HU | sprint B |
-| I-16 | zbuduj — skala stałej cechy klona, regeneracja wag | sprint B |
-| I-29, I-30, I-31, N-10 | zbuduj — integralność czytnika `.bpk` | sprint B |
-| I-23 | zbuduj — odcisk zegara u konsumenta | sprint B |
-| I-22, I-24 | zbuduj — liczniki rozjazdów (bez zmiany drzewa — decyzja 27) | sprint B |
-| I-28, I-15 | zbuduj — izolacja RNG portu agenta i test poborów | sprint B |
-| I-26, I-27 | zbuduj — jamfold: ε jedną aproksymacją, korekta decyzji 12 | sprint B |
-| I-14 | zbuduj — testy ICM z mocą | sprint B |
-| I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | sprint B |
-| nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora) | sprint B |
-| docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | sprint B |
+| I-01, I-02, I-03, N-01, N-02, I-05 | zbuduj — odporność serwera LAN | POKER-76 · B |
+| I-06, I-07, N-03 | zbuduj — CLI: wykluczenia trybów, błędy I/O | POKER-77 · B |
+| I-08, I-09 | zbuduj — walidacja granicy silnika | POKER-78 · B |
+| I-10, I-11, I-12, N-07, N-08, N-09 | zbuduj — testy chroniące reguły (mutanty z raportu) | POKER-79 · B |
+| I-13 | zbuduj — strażnik kierunku importów | POKER-80 · B |
+| I-18, I-19 | zbuduj — statystyka areny HU | POKER-81 · B |
+| I-16 | zbuduj — skala stałej cechy klona, regeneracja wag | POKER-82 · B |
+| I-29, I-30, I-31, N-10 | zbuduj — integralność czytnika `.bpk` | sprint B, druga część (szkic POKER-86) |
+| I-23 | zbuduj — odcisk zegara u konsumenta | sprint B, druga część (szkic POKER-87) |
+| I-22, I-24 | zbuduj — liczniki rozjazdów (bez zmiany drzewa — decyzja 27) | sprint B, druga część (szkic POKER-88) |
+| I-28, I-15 | zbuduj — izolacja RNG portu agenta i test poborów | POKER-83 · B |
+| I-26, I-27 | zbuduj — jamfold: ε jedną aproksymacją, korekta decyzji 12 | POKER-84 · B |
+| I-14 | zbuduj — testy ICM z mocą | POKER-85 · B |
+| I-32, N-11 | zbuduj — raport ε per tryb, sha przy odczycie | sprint B, druga część (szkic POKER-89) |
+| nowy (przegląd POKER-74): reguła guzika HU po wybiciu w modelu (`sorted(żywi)[ręka % 2]`) ≠ arena (`_next_button`) w 9/18 przypadków; wrażliwość V wierszy 3-way do ~2e−2 | zbuduj — stan HU z guzikiem (zmiana modelu i klucza stanu; regeneracja i tak jest wejściem operatora) | sprint B, druga część (szkic POKER-90) |
+| docstringi `blueprint_agent.py` o stacjonarnym cyklu 3 rąk (fałszywe dla 3-way po POKER-74) | zbuduj razem z pozycją wyżej | sprint B, druga część (szkic POKER-90) |
 | nowy (POKER-74 r2): podłoga szumu PI-FP w ogonie brzegu (~1e−3 na e60 > tail_tol) | warunkowo — tylko gdy regeneracja produkcji nie zbiegnie do tail_tol: solver ogona 3-way ciągły w V (decyzja 25) | sprint B (warunkowy) |
-| I-17 | już zatwierdzone — POKER-28; uśpione (decyzja 18) | bez zmian |
+| I-17 | już zatwierdzone — POKER-28; uśpione (decyzja 18) | bez zmian (acceptance 3 POKER-28 realizuje POKER-80 — pkt 4a) |
 | N-04 | odłóż — walidacja semantyczna eksportu przy pierwszym konsumencie niezaufanych historii (korpus HH, P-10) | dług |
-| N-12 | zbuduj razem z I-28 (widok a mutacja w miejscu) | sprint B |
+| N-12 | zbuduj razem z I-28 (widok a mutacja w miejscu) | POKER-83 · B |
 | N-13 | odłóż — pakiet `tools/blueprint` przy najbliższym kontrakcie przebudowującym jego importy | dług |
-| I-33…I-36, N-05, N-06 | zbuduj — dokumenty stanu (architekt) i drobne korekty | sprint C |
+| I-33…I-36, N-05, N-06 | zbuduj — dokumenty stanu (architekt) i drobne korekty | sprint C (N-06: część w POKER-79, część w szkicu POKER-86) |
 
 Kontrakty sprintu B i C architekt zatwierdza **po zamknięciu sprintu A**,
 na świeżym stanie repozytorium (kolejność dowodowa: najpierw poprawność
@@ -207,6 +207,61 @@ pisze architekt. Koderzy nie edytują `CURRENT_STATE.md`, indeksu
 dokumentacji ani `PRZEKAZANIE.md` — równoległe gałęzie konfliktowałyby na
 dokumentach stanu, a ich treść należy do architekta. `main` pozostaje
 operatora.
+
+## 4a. Sprint B: kontrakty, porządek i zapisy architekta
+
+Sprint A zamknięty 2026-09-27 (siedem kontraktów scalonych po audycie
+świeżym kontekstem, dokumenty stanu skorygowane — `CURRENT_STATE.md`,
+„Następny krok”). Pierwszą część sprintu B tworzy dziesięć kontraktów
+zatwierdzonych 2026-09-27: POKER-76 (odporność serwera LAN), 77 (CLI:
+wykluczenia trybów, błędy I/O), 78 (walidacja granicy silnika), 79 (testy
+chroniące reguły silnika), 80 (test architektury rozwiązuje importy), 81
+(arena HU: łączne BB/100, kwantyl t), 82 (klon: stała cecha, regeneracja
+wag), 83 (prywatny RNG agenta portu Spin), 84 (jamfold: `_three_way`,
+ε jedną funkcją, korekta decyzji 12), 85 (testy ICM z mocą). Ścieżka
+każdego: szkic z pomiarem bazy → recenzja świeżym kontekstem (wszystkie
+„POPRAWKI”, jeden defekt blokujący — POKER-80) → finalizacja wg decyzji
+architekta → przegląd krzyżowy wszystkich dziesięciu → zatwierdzenie.
+
+Fale (w fali kontrakty rozwijane równolegle, scalane sekwencyjnie w tej
+kolejności z pełną bramką; fala startuje z headu po poprzedniej):
+**B1** — 76 → 78 → 80 → 84; **B2** — 85 → 77 → 79 → 83; **B3** — 81;
+**B4** — 82 (startuje z headu po integracji POKER-81: jego kryteria
+wymagają na headzie kodera estymatora łącznego i adnotacji KOREKTA
+z POKER-81 — rozdzielenie z przeglądu krzyżowego).
+Druga część sprintu B (szkice POKER-86…90: integralność `.bpk`, odcisk
+zegara u konsumenta, liczniki rozjazdów areny, `eps_curve` per tryb
+i sha przy odczycie, stan HU z guzikiem) — zatwierdzana osobno, po
+recenzji; POKER-90 wymaga najpierw rozstrzygnięcia opcji modelu.
+
+Zapisy architekta (decyzja bez dokumentu nie istnieje):
+
+- **POKER-28 a POKER-80.** Acceptance 3 zatwierdzonego POKER-28 (analiza
+  raz na plik w testach architektury) realizuje POKER-80; acceptance 4
+  („przy niezmienionej liczbie testów”) traci przedmiot; acceptance 1–2
+  (checkpoint MCCFR) zostają uśpione decyzją 18. POKER-28 pozostaje
+  niemutowalny.
+- **POKER-13 i POKER-27 a POKER-81.** Miarę „odchylenie standardowe po
+  parach” z acceptance 3 POKER-13 i jej użycie w acceptance 3 POKER-27
+  zastępuje łączne BB/100 z błędem standardowym ilorazowym i kwantylem t
+  (POKER-81; SD na parę = SE·√n). Oba kontrakty pozostają niemutowalne.
+- **Decyzja 03 a POKER-80.** Strażnik rozwiązuje importy względne i nazw
+  oraz zakazuje `importlib`/`__import__` w silniku; kod wykonywany
+  z napisu (`exec`, `eval`, `compile`) zostaje poza strażnikiem — przy
+  integracji POKER-80 architekt dopisze w decyzji 03 adnotację
+  precyzującą zdanie „test architektury czerwieni każdy import w złą
+  stronę”.
+- **POKER-84 — wariant (A′).** `values` jamfold liczone jak dotąd łączną
+  ewaluacją zakres–zakres (V¹ zachowuje sumę nagród, na której stoją
+  pkt 1 i 3 decyzji 12), a ε w całości funkcją wartości per ręka
+  decydenta, tą samą co best response (ε ≥ 0 z konstrukcji). Wariant
+  szkicu, liczący także `values` per ręka, łamałby sumę trwale
+  (+5,2e−5 przy 16 it., +3,0e−5 przy 64 it.).
+- **N-06** przechodzi ze sprintu C: nazwa `test_min_raise_jest_egzekwowany`
+  — POKER-79; przypadek „wersja” testu formatu — szkic POKER-86.
+- **Stan HU z guzikiem (szkic POKER-90)** obejmie regułę miejsca BB
+  w `tools/blueprint/expost.py` (`icm_report`) i oczekiwania testu
+  z POKER-85 oraz docstringi `poker.blueprint_agent` o cyklu 3 rąk.
 
 ## 5. Którą gałąź rozwoju ta decyzja zamyka albo czyni droższą
 

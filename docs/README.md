@@ -346,6 +346,34 @@ fale 1–3, integracja sekwencyjna; zamknięty 2026-09-27):
   `d3db4e1`; audyt r1 FINDINGI — brak wykazu dryfu dokumentów — r2:
   CZYSTY).
 
+Sprint B decyzji 31, pierwsza część (zatwierdzone 2026-09-27; fale i
+zapisy architekta — decyzja 31 pkt 4a):
+
+- [`POKER-76.json`](taskspecs/POKER-76.json) — odporność serwera LAN:
+  wyjątki wątków, porzucone stoły, pętla accept, limit linii, timeout
+  powitania, eksport bez nadpisywania, test przestrzeni kodów (fala B1);
+- [`POKER-78.json`](taskspecs/POKER-78.json) — walidacja granicy
+  silnika: blindy, typ akcji, miejsca i kwoty, niemutowalne stacki
+  (fala B1);
+- [`POKER-80.json`](taskspecs/POKER-80.json) — test architektury
+  rozwiązuje importy względne i nazw (fala B1);
+- [`POKER-84.json`](taskspecs/POKER-84.json) — jamfold: drugie miejsce
+  i side pot w `_three_way`, ε jedną funkcją, korekta decyzji 12
+  (fala B1);
+- [`POKER-85.json`](taskspecs/POKER-85.json) — testy ICM z mocą
+  (fala B2);
+- [`POKER-77.json`](taskspecs/POKER-77.json) — CLI: wykluczenia trybów
+  w jednym miejscu, błędy I/O bez tracebacku (fala B2);
+- [`POKER-79.json`](taskspecs/POKER-79.json) — testy chroniące reguły
+  silnika z dowodem mutacyjnym (fala B2);
+- [`POKER-83.json`](taskspecs/POKER-83.json) — prywatny RNG agenta
+  portu Spin, test niezależności strumienia, mutacja zdarzeń widoczna
+  (fala B2);
+- [`POKER-81.json`](taskspecs/POKER-81.json) — arena HU: łączne BB/100,
+  przedział z kwantylem t (fala B3);
+- [`POKER-82.json`](taskspecs/POKER-82.json) — klon liniowy: stała
+  cecha ze skalą 1, regeneracja wag (fala B4, po POKER-81).
+
 ## Operator
 
 Prompty ról żyją w korzeniu repozytorium:
