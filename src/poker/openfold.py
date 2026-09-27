@@ -26,10 +26,29 @@ N_HANDS = len(ALL_CLASSES)
 UTG_OPEN, UTG_JAM, BTN_VS_OPEN, BTN_VS_JAM, BB_VS_OPEN, BB_VS_JAM = range(6)
 UTG_DEF, BB_VS_OJ, BTN_OPEN, BTN_JAM, BB_VS_BTN_OPEN, BB_VS_BTN_JAM, BTN_DEF = range(6, 13)
 N_NODES = 13
+# Punkty decyzji: węzły strategii, między którymi (i foldem) wybiera jedna ręka.
+DECISIONS: tuple[tuple[int, ...], ...] = (
+    (UTG_OPEN, UTG_JAM),
+    (BTN_VS_OPEN,),
+    (BTN_VS_JAM,),
+    (BB_VS_OPEN,),
+    (BB_VS_JAM,),
+    (UTG_DEF,),
+    (BB_VS_OJ,),
+    (BTN_OPEN, BTN_JAM),
+    (BB_VS_BTN_OPEN,),
+    (BB_VS_BTN_JAM,),
+    (BTN_DEF,),
+)
 
 WEIGHTS: tuple[int, ...] = tuple(
     6 if cls.high == cls.low else (4 if cls.suited else 12) for cls in ALL_CLASSES
 )
+
+Equities = tuple[float, ...]
+HuPair = tuple[Equities, Equities]
+# values[d][h] — $EV akcji (fold, *DECISIONS[d]) ręki h w punkcie decyzji d.
+ActionValues = tuple[tuple[Equities, ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +59,7 @@ class OpenFoldSolution:
     btn_vs_open: tuple[float, ...]
     btn_vs_jam: tuple[float, ...]
     bb_vs_open: tuple[float, ...]
+    bb_vs_oj: tuple[float, ...]
     utg_def: tuple[float, ...]
     btn_open: tuple[float, ...]
     btn_jam: tuple[float, ...]
@@ -66,8 +86,42 @@ class ThreeBetSolution:
     utg_open_pct: float
 
 
+@dataclass(frozen=True, slots=True)
+class Terminals:
+    """$EV stanów terminalnych drzewa jednego stanu stacków — stałe przez cały FP.
+
+    Pary `hu_*` to (wygrywa pierwszy, wygrywa drugi) showdownu all-in: u = UTG,
+    b = BTN, c = BB; `j` — jam z samych blindów, `o` — po openie 2.2x UTG albo
+    BTN. `hu_uo_bc` to showdown BTN–BB, w którym open UTG leży martwy w puli.
+    """
+
+    utg: int
+    btn: int
+    bb: int
+    fold_both: Equities
+    steal_utg: Equities
+    steal_btn: Equities
+    jam_utg_fold: Equities
+    jam_btn_fold: Equities
+    utg_pot_btn: Equities
+    bb_pot_vs_utg: Equities
+    bb_pot_vs_btn: Equities
+    hu_uj_b: HuPair
+    hu_uj_c: HuPair
+    hu_bj: HuPair
+    hu_uo_b: HuPair
+    hu_uo_c: HuPair
+    hu_bo: HuPair
+    hu_uo_bc: HuPair
+
+
 def _hu(i: int, j: int) -> float:
     return class_equity(ALL_CLASSES[i], ALL_CLASSES[j])
+
+
+_EQUITY: tuple[tuple[float, ...], ...] = tuple(
+    tuple(_hu(i, j) for j in range(N_HANDS)) for i in range(N_HANDS)
+)
 
 
 def _mass(sigma: Sequence[float]) -> float:
@@ -75,14 +129,51 @@ def _mass(sigma: Sequence[float]) -> float:
 
 
 def _eq_vs(h: int, sigma: Sequence[float]) -> float:
+    row = _EQUITY[h]
     num = 0.0
     den = 0.0
     for i in range(N_HANDS):
         w = WEIGHTS[i] * sigma[i]
         if w == 0:
             continue
-        num += w * _hu(h, i)
+        num += w * row[i]
         den += w
+    return 0.5 if den == 0 else num / den
+
+
+def _eq_all(sigma: Sequence[float]) -> list[float]:
+    """`_eq_vs` każdej ręki wobec jednego zakresu — ta sama kolejność sumowania."""
+    live = [(i, WEIGHTS[i] * sigma[i]) for i in range(N_HANDS) if WEIGHTS[i] * sigma[i] != 0]
+    den = 0.0
+    for _, w in live:
+        den += w
+    if den == 0:
+        return [0.5] * N_HANDS
+    out = []
+    for h in range(N_HANDS):
+        row = _EQUITY[h]
+        num = 0.0
+        for i, w in live:
+            num += w * row[i]
+        out.append(num / den)
+    return out
+
+
+def _eq_ranges(a: Sequence[float], b: Sequence[float]) -> float:
+    """Equity zakresu `a` wobec zakresu `b` — nie zależy od ręki trzeciego gracza."""
+    num = 0.0
+    den = 0.0
+    for i in range(N_HANDS):
+        wa = WEIGHTS[i] * a[i]
+        if wa == 0:
+            continue
+        row = _EQUITY[i]
+        for j in range(N_HANDS):
+            wb = WEIGHTS[j] * b[j]
+            if wb == 0:
+                continue
+            num += wa * wb * row[j]
+            den += wa * wb
     return 0.5 if den == 0 else num / den
 
 
@@ -123,6 +214,211 @@ def _sd(
     )
 
 
+def terminals(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    button: int = 1,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
+) -> Terminals:
+    utg, btn, bb = roles(button)
+    size = open_amount(bb_amt)
+    blinds = _blinds(stacks, button, sb, bb_amt)
+    opened_utg = _put(stacks, blinds, utg, size)
+    opened_btn = _put(stacks, blinds, btn, size)
+
+    def money(state: tuple[int, int, int]) -> Equities:
+        return terminal_equities(stacks, state, prizes)
+
+    def hu(a: int, b: int, base: list[int], w: int) -> Equities:
+        c = _put(stacks, _put(stacks, base, a, stacks[a]), b, stacks[b])
+        return money(_sd(stacks, c, (a, b), w))
+
+    return Terminals(
+        utg=utg,
+        btn=btn,
+        bb=bb,
+        fold_both=money(_take(stacks, blinds, bb)),
+        steal_utg=money(_take(stacks, opened_utg, utg)),
+        steal_btn=money(_take(stacks, opened_btn, btn)),
+        jam_utg_fold=money(_take(stacks, _put(stacks, blinds, utg, stacks[utg]), utg)),
+        jam_btn_fold=money(_take(stacks, _put(stacks, blinds, btn, stacks[btn]), btn)),
+        utg_pot_btn=money(_take(stacks, _put(stacks, opened_utg, btn, stacks[btn]), btn)),
+        bb_pot_vs_utg=money(_take(stacks, _put(stacks, opened_utg, bb, stacks[bb]), bb)),
+        bb_pot_vs_btn=money(_take(stacks, _put(stacks, opened_btn, bb, stacks[bb]), bb)),
+        hu_uj_b=(hu(utg, btn, blinds, utg), hu(utg, btn, blinds, btn)),
+        hu_uj_c=(hu(utg, bb, blinds, utg), hu(utg, bb, blinds, bb)),
+        hu_bj=(hu(btn, bb, blinds, btn), hu(btn, bb, blinds, bb)),
+        hu_uo_b=(hu(utg, btn, opened_utg, utg), hu(utg, btn, opened_utg, btn)),
+        hu_uo_c=(hu(utg, bb, opened_utg, utg), hu(utg, bb, opened_utg, bb)),
+        hu_bo=(hu(btn, bb, opened_btn, btn), hu(btn, bb, opened_btn, bb)),
+        hu_uo_bc=(hu(btn, bb, opened_utg, btn), hu(btn, bb, opened_utg, bb)),
+    )
+
+
+def action_values(t: Terminals, sigma: Sequence[Sequence[float]]) -> ActionValues:
+    """$EV każdej akcji w każdym punkcie decyzji przy profilu `sigma`, per klasa ręki.
+
+    Akcja, po której gracz gra showdown, jest wyceniana showdownem z jego
+    udziałem; fold — prawdopodobieństwem wyniku niezależnym od ręki spasowanego
+    (equity zakres–zakres albo jawna stała 0.5). Wycena openu liczy własny dalszy
+    ciąg ręki jako best response (max z call i fold), więc UTG wobec jamu BB nad
+    openem i wobec jamu z overcallem nie ma węzła strategii.
+
+    Przybliżenia modelu, nazwane wprost (pełny terminal 3-way z side potami jest
+    poza modelem):
+
+    - fold BB po jamie BTN nad openem UTG pomija call UTG: BTN bierze pulę;
+    - call BB po jamie BTN nad openem oraz call UTG po jamie i overcallu
+      pomijają 3-way z side potami: BB gra showdown z BTN przy martwym openie
+      UTG, a UTG — showdown z samym BB (BTN wnosi tylko blind);
+    - jam UTG sprawdzony przez obu: UTG wycenia go iloczynem equity dwóch par,
+      a call BTN i call BB — showdownem z samym UTG;
+    - częstość cudzego ciągu po openie to masa węzła UTG_DEF albo BTN_DEF po
+      wszystkich klasach (bez warunku na zakres openu), w wycenie jamu BTN i BB
+      nad openem UTG nie niższa niż 0.45; showdown z kontynuującym UTG liczony
+      jest wobec zakresu UTG_DEF (jam BTN) albo zakresu openu (jam BB),
+      z kontynuującym BTN — wobec zakresu openu BTN; UTG_DEF stoi też za
+      odpowiedzią UTG na jam BB w wycenie foldu BTN;
+    - showdowny BTN–BB po foldzie UTG wyceniane dla UTG z equity 0.5.
+    """
+    utg, btn, bb = t.utg, t.btn, t.bb
+    p_bvo, p_bvj = _mass(sigma[BTN_VS_OPEN]), _mass(sigma[BTN_VS_JAM])
+    p_cvo, p_cvj = _mass(sigma[BB_VS_OPEN]), _mass(sigma[BB_VS_JAM])
+    p_oj, p_def = _mass(sigma[BB_VS_OJ]), _mass(sigma[UTG_DEF])
+    p_bto, p_btj = _mass(sigma[BTN_OPEN]), _mass(sigma[BTN_JAM])
+    p_cbo, p_cbj = _mass(sigma[BB_VS_BTN_OPEN]), _mass(sigma[BB_VS_BTN_JAM])
+    p_bdef = _mass(sigma[BTN_DEF])
+    p_cont = max(p_def, 0.45)
+
+    # After UTG folds: BTN first-in, then BB.
+    ev_utg_fold = (
+        (1 - p_bto - p_btj) * t.fold_both[utg]
+        + p_btj * (1 - p_cbj) * t.jam_btn_fold[utg]
+        + p_btj * p_cbj * _mix(0.5, t.hu_bj[0][utg], t.hu_bj[1][utg])
+        + p_bto * (1 - p_cbo) * t.steal_btn[utg]
+        + p_bto * p_cbo * (1 - p_bdef) * t.bb_pot_vs_btn[utg]
+        + p_bto * p_cbo * p_bdef * _mix(0.5, t.hu_bo[0][utg], t.hu_bo[1][utg])
+    )
+    ev_btn_after_utg_fold_fold = t.fold_both[btn]
+    fold_vs_btn = t.utg_pot_btn[utg]
+    fold_vs_bb = t.bb_pot_vs_utg[utg]
+    fold_vs_oj = _mix(
+        _eq_ranges(sigma[BTN_VS_OPEN], sigma[BB_VS_OJ]), t.hu_uo_bc[0][utg], t.hu_uo_bc[1][utg]
+    )
+    fold_btn_vo = (1 - p_cvo) * t.steal_utg[btn] + p_cvo * (
+        (1 - p_def) * t.bb_pot_vs_utg[btn]
+        + p_def
+        * _mix(
+            _eq_ranges(sigma[UTG_DEF], sigma[BB_VS_OPEN]), t.hu_uo_c[0][btn], t.hu_uo_c[1][btn]
+        )
+    )
+    fold_btn_vj = (1 - p_cvj) * t.jam_utg_fold[btn] + p_cvj * _mix(
+        _eq_ranges(sigma[UTG_JAM], sigma[BB_VS_JAM]), t.hu_uj_c[0][btn], t.hu_uj_c[1][btn]
+    )
+
+    e_bvo_all = _eq_all(sigma[BTN_VS_OPEN])
+    e_cvo_all = _eq_all(sigma[BB_VS_OPEN])
+    e_bvj_all = _eq_all(sigma[BTN_VS_JAM])
+    e_cvj_all = _eq_all(sigma[BB_VS_JAM])
+    e_oj_all = _eq_all(sigma[BB_VS_OJ])
+    e_cbo_all = _eq_all(sigma[BB_VS_BTN_OPEN])
+    e_cbj_all = _eq_all(sigma[BB_VS_BTN_JAM])
+    e_def_all = _eq_all(sigma[UTG_DEF])
+    e_uo_all = _eq_all(sigma[UTG_OPEN])
+    e_uj_all = _eq_all(sigma[UTG_JAM])
+    e_bo_all = _eq_all(sigma[BTN_OPEN])
+    e_bj_all = _eq_all(sigma[BTN_JAM])
+
+    rows: dict[int, list[Equities]] = {nodes[0]: [] for nodes in DECISIONS}
+    for h in range(N_HANDS):
+        e_bvo = e_bvo_all[h]
+        e_cvo = e_cvo_all[h]
+        e_bvj = e_bvj_all[h]
+        e_cvj = e_cvj_all[h]
+        e_oj = e_oj_all[h]
+        e_cbo = e_cbo_all[h]
+        e_cbj = e_cbj_all[h]
+
+        jam_utg = (
+            (1 - p_bvj) * (1 - p_cvj) * t.jam_utg_fold[utg]
+            + (1 - p_bvj) * p_cvj * _mix(e_cvj, t.hu_uj_c[0][utg], t.hu_uj_c[1][utg])
+            + p_bvj * (1 - p_cvj) * _mix(e_bvj, t.hu_uj_b[0][utg], t.hu_uj_b[1][utg])
+            + p_bvj * p_cvj * _mix(e_bvj * e_cvj, t.hu_uj_b[0][utg], t.hu_uj_c[1][utg])
+        )
+        def_vs_btn = _mix(e_bvo, t.hu_uo_b[0][utg], t.hu_uo_b[1][utg])
+        def_vs_bb = _mix(e_cvo, t.hu_uo_c[0][utg], t.hu_uo_c[1][utg])
+        open_utg = (
+            (1 - p_bvo) * (1 - p_cvo) * t.steal_utg[utg]
+            + (1 - p_bvo) * p_cvo * max(def_vs_bb, fold_vs_bb)
+            + p_bvo * (1 - p_oj) * max(def_vs_btn, fold_vs_btn)
+            + p_bvo * p_oj * max(_mix(e_oj, t.hu_uo_c[0][utg], t.hu_uo_c[1][utg]), fold_vs_oj)
+        )
+        rows[UTG_OPEN].append((ev_utg_fold, open_utg, jam_utg))
+
+        e_vs_utg_o = e_uo_all[h]
+        e_vs_utg_j = e_uj_all[h]
+        jam_btn_vo = (1 - p_cont) * t.utg_pot_btn[btn] + p_cont * _mix(
+            e_def_all[h], t.hu_uo_b[1][btn], t.hu_uo_b[0][btn]
+        )
+        jam_btn_vo = (1 - p_oj) * jam_btn_vo + p_oj * _mix(
+            e_oj, t.hu_uo_bc[0][btn], t.hu_uo_bc[1][btn]
+        )
+        rows[BTN_VS_OPEN].append((fold_btn_vo, jam_btn_vo))
+
+        call_btn_vj = _mix(e_vs_utg_j, t.hu_uj_b[1][btn], t.hu_uj_b[0][btn])
+        rows[BTN_VS_JAM].append((fold_btn_vj, call_btn_vj))
+
+        jam_bb_vo = (1 - p_cont) * t.bb_pot_vs_utg[bb] + p_cont * _mix(
+            e_vs_utg_o, t.hu_uo_c[1][bb], t.hu_uo_c[0][bb]
+        )
+        rows[BB_VS_OPEN].append((t.steal_utg[bb], jam_bb_vo))
+        rows[BB_VS_JAM].append(
+            (t.jam_utg_fold[bb], _mix(e_vs_utg_j, t.hu_uj_c[1][bb], t.hu_uj_c[0][bb]))
+        )
+        rows[UTG_DEF].append((fold_vs_btn, def_vs_btn))
+        rows[BB_VS_OJ].append(
+            (t.utg_pot_btn[bb], _mix(e_bvo, t.hu_uo_bc[1][bb], t.hu_uo_bc[0][bb]))
+        )
+
+        jam_btn = (1 - p_cbj) * t.jam_btn_fold[btn] + p_cbj * _mix(
+            e_cbj, t.hu_bj[0][btn], t.hu_bj[1][btn]
+        )
+        open_btn = (1 - p_cbo) * t.steal_btn[btn] + p_cbo * max(
+            _mix(e_cbo, t.hu_bo[0][btn], t.hu_bo[1][btn]),
+            t.bb_pot_vs_btn[btn],
+        )
+        rows[BTN_OPEN].append((ev_btn_after_utg_fold_fold, open_btn, jam_btn))
+
+        e_vs_btn_o = e_bo_all[h]
+        e_vs_btn_j = e_bj_all[h]
+        jam_bb_bo = (1 - p_bdef) * t.bb_pot_vs_btn[bb] + p_bdef * _mix(
+            e_vs_btn_o, t.hu_bo[1][bb], t.hu_bo[0][bb]
+        )
+        rows[BB_VS_BTN_OPEN].append((t.steal_btn[bb], jam_bb_bo))
+        rows[BB_VS_BTN_JAM].append(
+            (t.jam_btn_fold[bb], _mix(e_vs_btn_j, t.hu_bj[1][bb], t.hu_bj[0][bb]))
+        )
+        rows[BTN_DEF].append(
+            (t.bb_pot_vs_btn[btn], _mix(e_cbo, t.hu_bo[0][btn], t.hu_bo[1][btn]))
+        )
+    return tuple(tuple(rows[nodes[0]]) for nodes in DECISIONS)
+
+
+def best_response(values: ActionValues) -> list[list[float]]:
+    """Czysta odpowiedź na wyceny: remis rozstrzyga fold, a jam przed openem."""
+    out = [[0.0] * N_HANDS for _ in range(N_NODES)]
+    for nodes, row in zip(DECISIONS, values, strict=True):
+        for h, q in enumerate(row):
+            if len(nodes) == 1:
+                out[nodes[0]][h] = 1.0 if q[1] > q[0] else 0.0
+            elif q[2] >= q[1] and q[2] > q[0]:
+                out[nodes[1]][h] = 1.0
+            elif q[1] > q[0]:
+                out[nodes[0]][h] = 1.0
+    return out
+
+
 def solve(
     stacks: tuple[int, int, int],
     prizes: tuple[float, float, float],
@@ -133,31 +429,7 @@ def solve(
 ) -> OpenFoldSolution:
     if iterations < 1:
         raise ValueError("iteracje muszą być dodatnie")
-    utg, btn, bb = roles(button)
-    size = open_amount(bb_amt)
-    blinds = _blinds(stacks, button, sb, bb_amt)
-    opened_utg = _put(stacks, blinds, utg, size)
-    opened_btn = _put(stacks, blinds, btn, size)
-
-    def money(state: tuple[int, int, int]) -> tuple[float, ...]:
-        return terminal_equities(stacks, state, prizes)
-
-    fold_both = money(_take(stacks, blinds, bb))
-    steal_utg = money(_take(stacks, opened_utg, utg))
-    steal_btn = money(_take(stacks, opened_btn, btn))
-    jam_utg_fold = money(_take(stacks, _put(stacks, blinds, utg, stacks[utg]), utg))
-    jam_btn_fold = money(_take(stacks, _put(stacks, blinds, btn, stacks[btn]), btn))
-
-    def hu(a: int, b: int, base: list[int], w: int) -> tuple[float, ...]:
-        c = _put(stacks, _put(stacks, base, a, stacks[a]), b, stacks[b])
-        return money(_sd(stacks, c, (a, b), w))
-
-    hu_uj_b = (hu(utg, btn, blinds, utg), hu(utg, btn, blinds, btn))
-    hu_uj_c = (hu(utg, bb, blinds, utg), hu(utg, bb, blinds, bb))
-    hu_bj = (hu(btn, bb, blinds, btn), hu(btn, bb, blinds, bb))
-    hu_uo_b = (hu(utg, btn, opened_utg, utg), hu(utg, btn, opened_utg, btn))
-    hu_uo_c = (hu(utg, bb, opened_utg, utg), hu(utg, bb, opened_utg, bb))
-    hu_bo = (hu(btn, bb, opened_btn, btn), hu(btn, bb, opened_btn, bb))
+    t = terminals(stacks, prizes, button, sb, bb_amt)
 
     cum = [[0.0] * N_HANDS for _ in range(N_NODES)]
     weight_sum = 0.0
@@ -171,128 +443,8 @@ def solve(
             return out
         return [[cum[n][i] / weight_sum for i in range(N_HANDS)] for n in range(N_NODES)]
 
-    def br(sigma: list[list[float]]) -> list[list[float]]:
-        p_bvo, p_bvj = _mass(sigma[BTN_VS_OPEN]), _mass(sigma[BTN_VS_JAM])
-        p_cvo, p_cvj = _mass(sigma[BB_VS_OPEN]), _mass(sigma[BB_VS_JAM])
-        p_oj, p_def = _mass(sigma[BB_VS_OJ]), _mass(sigma[UTG_DEF])
-        p_bto, p_btj = _mass(sigma[BTN_OPEN]), _mass(sigma[BTN_JAM])
-        p_cbo, p_cbj = _mass(sigma[BB_VS_BTN_OPEN]), _mass(sigma[BB_VS_BTN_JAM])
-        p_bdef = _mass(sigma[BTN_DEF])
-
-        # After UTG folds: BTN first-in, then BB.
-        bb_pot_vs_btn = money(_take(stacks, _put(stacks, opened_btn, bb, stacks[bb]), bb))
-        ev_utg_fold = (
-            (1 - p_bto - p_btj) * fold_both[utg]
-            + p_btj * (1 - p_cbj) * jam_btn_fold[utg]
-            + p_btj * p_cbj * _mix(0.5, hu_bj[0][utg], hu_bj[1][utg])
-            + p_bto * (1 - p_cbo) * steal_btn[utg]
-            + p_bto * p_cbo * (1 - p_bdef) * bb_pot_vs_btn[utg]
-            + p_bto * p_cbo * p_bdef * _mix(0.5, hu_bo[0][utg], hu_bo[1][utg])
-        )
-        ev_btn_after_utg_fold_fold = fold_both[btn]
-
-        out = [[0.0] * N_HANDS for _ in range(N_NODES)]
-        for h in range(N_HANDS):
-            e_bvo = _eq_vs(h, sigma[BTN_VS_OPEN])
-            e_cvo = _eq_vs(h, sigma[BB_VS_OPEN])
-            e_bvj = _eq_vs(h, sigma[BTN_VS_JAM])
-            e_cvj = _eq_vs(h, sigma[BB_VS_JAM])
-            e_oj = _eq_vs(h, sigma[BB_VS_OJ])
-            e_cbo = _eq_vs(h, sigma[BB_VS_BTN_OPEN])
-            e_cbj = _eq_vs(h, sigma[BB_VS_BTN_JAM])
-
-            jam_utg = (
-                (1 - p_bvj) * (1 - p_cvj) * jam_utg_fold[utg]
-                + (1 - p_bvj) * p_cvj * _mix(e_cvj, hu_uj_c[0][utg], hu_uj_c[1][utg])
-                + p_bvj * (1 - p_cvj) * _mix(e_bvj, hu_uj_b[0][utg], hu_uj_b[1][utg])
-                + p_bvj * p_cvj * _mix(e_bvj * e_cvj, hu_uj_b[0][utg], hu_uj_c[1][utg])
-            )
-            def_vs_btn = _mix(e_bvo, hu_uo_b[0][utg], hu_uo_b[1][utg])
-            def_vs_bb = _mix(e_cvo, hu_uo_c[0][utg], hu_uo_c[1][utg])
-            fold_vs_btn = money(_take(stacks, _put(stacks, opened_utg, btn, stacks[btn]), btn))[utg]
-            fold_vs_bb = money(_take(stacks, _put(stacks, opened_utg, bb, stacks[bb]), bb))[utg]
-            open_utg = (
-                (1 - p_bvo) * (1 - p_cvo) * steal_utg[utg]
-                + (1 - p_bvo) * p_cvo * max(def_vs_bb, fold_vs_bb)
-                + p_bvo * (1 - p_oj) * max(def_vs_btn, fold_vs_btn)
-                + p_bvo * p_oj * max(_mix(e_oj, hu_uo_c[0][utg], hu_uo_c[1][utg]), fold_vs_btn)
-            )
-            if jam_utg >= open_utg and jam_utg > ev_utg_fold:
-                out[UTG_JAM][h] = 1.0
-            elif open_utg > ev_utg_fold:
-                out[UTG_OPEN][h] = 1.0
-
-            e_vs_utg_o = _eq_vs(h, sigma[UTG_OPEN])
-            e_vs_utg_j = _eq_vs(h, sigma[UTG_JAM])
-            utg_pot_btn = money(_take(stacks, _put(stacks, opened_utg, btn, stacks[btn]), btn))
-            bb_pot_vs_utg = money(_take(stacks, _put(stacks, opened_utg, bb, stacks[bb]), bb))
-            fold_btn_vo = (1 - p_cvo) * steal_utg[btn] + p_cvo * (
-                (1 - p_def) * bb_pot_vs_utg[btn]
-                + p_def * _mix(_eq_vs(h, sigma[UTG_DEF]), hu_uo_c[0][btn], hu_uo_c[1][btn])
-            )
-            p_cont = max(p_def, 0.45)
-            jam_btn_vo = (1 - p_cont) * utg_pot_btn[btn] + p_cont * _mix(
-                _eq_vs(h, sigma[UTG_DEF]), hu_uo_b[1][btn], hu_uo_b[0][btn]
-            )
-            # BB may also call the jam; cheap mix.
-            jam_btn_vo = (1 - p_oj) * jam_btn_vo + p_oj * _mix(
-                e_oj, hu_uo_c[1][btn], hu_uo_c[0][btn]
-            )
-            out[BTN_VS_OPEN][h] = 1.0 if jam_btn_vo > fold_btn_vo else 0.0
-
-            fold_btn_vj = (1 - p_cvj) * jam_utg_fold[btn] + p_cvj * _mix(
-                e_cvj, hu_uj_c[0][btn], hu_uj_c[1][btn]
-            )
-            call_btn_vj = _mix(e_vs_utg_j, hu_uj_b[1][btn], hu_uj_b[0][btn])
-            out[BTN_VS_JAM][h] = 1.0 if call_btn_vj > fold_btn_vj else 0.0
-
-            jam_bb_vo = (1 - p_cont) * bb_pot_vs_utg[bb] + p_cont * _mix(
-                e_vs_utg_o, hu_uo_c[1][bb], hu_uo_c[0][bb]
-            )
-            out[BB_VS_OPEN][h] = 1.0 if jam_bb_vo > steal_utg[bb] else 0.0
-            out[BB_VS_JAM][h] = (
-                1.0
-                if _mix(e_vs_utg_j, hu_uj_c[1][bb], hu_uj_c[0][bb]) > jam_utg_fold[bb]
-                else 0.0
-            )
-            out[BB_VS_OJ][h] = (
-                1.0
-                if _mix(_eq_vs(h, sigma[BTN_VS_OPEN]), hu_uo_b[1][bb], hu_uo_b[0][bb])
-                > utg_pot_btn[bb]
-                else 0.0
-            )
-            out[UTG_DEF][h] = 1.0 if def_vs_btn > fold_vs_btn else 0.0
-
-            jam_btn = (1 - p_cbj) * jam_btn_fold[btn] + p_cbj * _mix(
-                e_cbj, hu_bj[0][btn], hu_bj[1][btn]
-            )
-            open_btn = (1 - p_cbo) * steal_btn[btn] + p_cbo * max(
-                _mix(e_cbo, hu_bo[0][btn], hu_bo[1][btn]),
-                bb_pot_vs_btn[btn],
-            )
-            if jam_btn >= open_btn and jam_btn > ev_btn_after_utg_fold_fold:
-                out[BTN_JAM][h] = 1.0
-            elif open_btn > ev_btn_after_utg_fold_fold:
-                out[BTN_OPEN][h] = 1.0
-
-            e_vs_btn_o = _eq_vs(h, sigma[BTN_OPEN])
-            e_vs_btn_j = _eq_vs(h, sigma[BTN_JAM])
-            jam_bb_bo = (1 - p_bdef) * bb_pot_vs_btn[bb] + p_bdef * _mix(
-                e_vs_btn_o, hu_bo[1][bb], hu_bo[0][bb]
-            )
-            out[BB_VS_BTN_OPEN][h] = 1.0 if jam_bb_bo > steal_btn[bb] else 0.0
-            out[BB_VS_BTN_JAM][h] = (
-                1.0
-                if _mix(e_vs_btn_j, hu_bj[1][bb], hu_bj[0][bb]) > jam_btn_fold[bb]
-                else 0.0
-            )
-            out[BTN_DEF][h] = (
-                1.0 if _mix(e_cbo, hu_bo[0][btn], hu_bo[1][btn]) > bb_pot_vs_btn[btn] else 0.0
-            )
-        return out
-
     for done in range(iterations):
-        reply = br(avg())
+        reply = best_response(action_values(t, avg()))
         weight = float(done + 1)
         for node in range(N_NODES):
             for i in range(N_HANDS):
@@ -317,6 +469,7 @@ def solve(
         btn_vs_open=tuple(final[BTN_VS_OPEN]),
         btn_vs_jam=tuple(final[BTN_VS_JAM]),
         bb_vs_open=tuple(final[BB_VS_OPEN]),
+        bb_vs_oj=tuple(final[BB_VS_OJ]),
         utg_def=tuple(final[UTG_DEF]),
         btn_open=tuple(final[BTN_OPEN]),
         btn_jam=tuple(final[BTN_JAM]),
