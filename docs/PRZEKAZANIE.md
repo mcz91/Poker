@@ -356,11 +356,13 @@ operatora, decyzja 31 pkt 3).
    0,14 pp ROI **przy 3×**, wobec **połowy szerokości** CI areny 1,46 pp
    (10×) i wpływu samej reguły awaryjnej 4,22 pp (30×). Dokręcanie
    tolerancji do podłogi f32 kosztuje ~3 900 rdzenio-h i jest warte
-   0,0004 pp. (Korekta 2026-09-27: 1,46 pp i 4,22 pp zmierzono na arenie
-   sprzed POKER-71 i artefakcie liczonym brzegiem sprzed POKER-74,
-   a 4,22 pp — jeszcze przed naprawami POKER-54/55, po których wpływ
-   reguły to −0,10 pp; przeliczenie wymaga regeneracji — KOREKTA
-   (POKER-71) decyzji 29, decyzja 31 pkt 3.)
+   0,0004 pp. (Korekta 2026-09-27: 1,46 pp (BF) i 4,22 pp (BH) to
+   pomiary POKER-52 — rozgrywacz sprzed POKER-54, agent sprzed
+   POKER-55 — na arenie sprzed POKER-71 i artefakcie liczonym brzegiem
+   sprzed POKER-74; po naprawach POKER-54/55 połowa szerokości CI BF
+   jest ta sama (1,46 pp), a wpływ reguły to −0,10 pp; przeliczenie
+   wymaga regeneracji — KOREKTA (POKER-71) decyzji 29, decyzja 31
+   pkt 3.)
 3. **Fundament = ten sam algorytm, wycelowany we właściwe gry**:
    rodzina blueprintów per tier (T-MODAL pierwszy, ~87% gier za dolne
    oszacowanie ~18 rdzenio-h — mnożnik kosztu WTA nieznany do pierwszego

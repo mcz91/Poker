@@ -109,7 +109,7 @@
     artefakt 80/20@25bb obsługuje ~1% turniejów, modalna gra to WTA
     15–20bb → rodzina blueprintów per tier (T-MODAL pierwszy); linia
     tolerancyjna NASYCONA (prawo ε→ROI: pełna wyzyskiwalność = 0,14 pp
-    przy CI areny 1,46 pp — pomiar BF na arenie sprzed POKER-71
+    przy CI areny 1,46 pp — pomiar BF POKER-52 na arenie sprzed POKER-71
     i artefakcie sprzed POKER-74, KOREKTA (POKER-71) w decyzji;
     przeliczenie wymaga regeneracji, decyzja 31 pkt 3); warstwa
     eksploatacyjna = seat-restricted DBR offline, HU-first, bramkowana

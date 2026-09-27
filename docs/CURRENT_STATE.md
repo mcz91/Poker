@@ -2189,8 +2189,11 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    i `exploit_book` z `tools/run_arena.py` (częstotliwości z
    `solve_open`/`solve_jf`, ułamkowe; w chwili pomiaru nazywane tu
    „Nash" — od POKER-73 openfold to punkt stały FP modelu przy N = 512
-   z miarą zbieżności ≤ 1e−3 sumy nagród w wyniku `solve`, jamfold bez
-   miary do sprintu B) ani `wide_call`: w parach z nimi
+   z miarą zbieżności ≤ 1e−3 sumy nagród w wyniku `solve`; jamfold
+   (w książkach 12 iteracji) raportuje w wyniku `solve` ε wobec best
+   response (`JamFoldSolution.exploitability`, blok POKER-36) bez progu
+   tolerancji, a poprawka aproksymacji tej miary (I-27) należy do
+   sprintu B) ani `wide_call`: w parach z nimi
    różnica z pkt 6 sumuje wpływ wymuszonego wejścia i dystrybucyjnie
    neutralną permutację poborów (pkt 4). Czysto zero-jedynkowe są dwie
    pary — `field` vs `always_jam` i `field` vs `dollar_fish` — i tylko
