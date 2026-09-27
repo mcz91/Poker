@@ -1,6 +1,11 @@
 # Przekazanie pracy — produkt Poker (linia blueprintu GTO)
 
-Stan na 2026-09-07. Autor: architekt produktu (sesja kończąca się tym
+Stan na 2026-09-07, z korektą 2026-09-27 po zadaniach POKER-69…73
+sprintu A [decyzji 31](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
+(naprawy blokujących findingów audytu 2026-09-26): zdania i liczby, które
+te zadania zmieniły, są poprawione w treści z podaniem źródła; tabela
+faktów na okładce wersji PDF pochodzi ze stałej generatora i opisuje stan
+z 2026-09-07. Autor: architekt produktu (sesja kończąca się tym
 dokumentem). Adresat: **drużyna przejmująca**, bez kontekstu poprzednich
 sesji.
 
@@ -8,8 +13,9 @@ Ten dokument nie jest źródłem statusu — źródłem jest
 [`CURRENT_STATE.md`](CURRENT_STATE.md). Tu jest to, czego nowa drużyna
 nie odczyta z repo w rozsądnym czasie: **co jest zrobione i dlaczego tak,
 co zniknie razem z kontenerem, czego nie wolno twierdzić, i od czego
-zacząć**. Każda liczba w tym dokumencie została sprawdzona na źródle
-przez cztery niezależne weryfikacje przed jego wydaniem.
+zacząć**. Każda liczba wydania z 2026-09-07 została sprawdzona na źródle
+przez cztery niezależne weryfikacje przed jego wydaniem; liczby korekty
+pochodzą z raportów commitów i pomiarów wskazanych przy nich.
 
 ---
 
@@ -21,12 +27,14 @@ cat ../foundry/CONSTITUTION.md          # repo mcz91/foundry
 
 # 2. Instrukcja obsługi produktu i indeks dokumentów
 cat README.md                           # jak uruchomić stół, agentów, LAN
-cat docs/README.md                      # streszczenia 29 decyzji + status TaskSpeców
+cat docs/README.md                      # streszczenia 31 decyzji + status TaskSpeców
 
 # 3. Stan produktu (długi, ale to JEST źródło prawdy)
 cat docs/CURRENT_STATE.md               # Co istnieje / Czego nie ma / Następny krok
 
-# 4. Decyzje — czytaj od 29 wstecz; 29 wyznacza cały bieżący kierunek
+# 4. Decyzje — czytaj od 31 wstecz; 31 = sprinty naprawcze po audycie
+#    2026-09-26, 29 wyznacza kierunek, a jej mapa czeka na zamknięcie
+#    sprintu A (CURRENT_STATE, „Następny krok")
 ls docs/decisions/
 
 # 5. Pamięć operacyjna ról (dokładnie 80 linii, w tym PUŁAPKI — w całości)
@@ -36,13 +44,16 @@ cat PAMIEC_OPERACYJNA.md
 #    UWAGA: `python` w kontenerze bywa 3.11, a pakiet wymaga >=3.12
 python3.13 -m venv .venv && . .venv/bin/activate
 python -m pip install -e ".[dev,train]"
-ruff check . && mypy && pytest          # ~5 min 50 s, 483 testy
+ruff check . && mypy && pytest          # 645 testów, ~6 min 33 s (2026-09-27, 4 rdzenie współdzielone)
 #    aktualną liczbę sprawdzisz: pytest --collect-only -q | tail -1
 ```
 
 Gałąź integracyjna: **`claude/poker-project-architecture-jw6ukd`**.
 `main` podąża za nią po każdym komplecie audytów (stała autoryzacja
-operatora); wykonuje to architekt, nigdy koder.
+operatora); wykonuje to architekt, nigdy koder. **Korekta 2026-09-27:**
+sprint A decyzji 31 integruje się sekwencyjnie na gałęzi
+**`claude/poker-code-audit-gsfko9`** (decyzja 31 pkt 4); `main` pozostaje
+operatora.
 
 **Porównuj z `origin/main`, nie z lokalnym `main`** — lokalny ref w tym
 checkoucie stoi 86 commitów w tyle (epoka POKER-29). Zanim cokolwiek
@@ -81,7 +92,9 @@ drugi, zamknięty produkt: stół heads-up NLHE (`table`, `betting`,
 wielu stołów w LAN — decyzja 08, eksport historii, korpus self-play,
 zbiór przykładów) oraz agentów `rule` / `rule-aggressive` / `clone` /
 `mccfr` / `mlp-clone` i macierz equity preflop 169×169. Wszystko pod
-bramką (ok. 101 z 483 testów) i pod niezmiennikami INV-P1…P8.
+bramką (ok. 120 z 645 testów: przybliżenie 101 z 483 z wydania
+2026-09-07 plus 17 testów POKER-69 i 2 testy POKER-72) i pod
+niezmiennikami INV-P1…P8.
 Instrukcja obsługi: `README.md`. Linia Spin/blueprintu ich nie dotyka,
 ale kontrakt wychodzący poza `allowed_paths` może je złamać.
 
@@ -148,9 +161,21 @@ pomiarem kilka razy okazało się mierzyć nie to, co miało chronić
 
 ### W locie
 
-**Brak.** POKER-57 (`.bpk` v2) został zamknięty 2026-09-07 — patrz tabela
-wyżej. Następny kontrakt do wzięcia: **POKER-58** (szkic w
-[`docs/taskspecs/drafts/`](taskspecs/drafts/)).
+**W wydaniu z 2026-09-07: brak.** POKER-57 (`.bpk` v2) został zamknięty
+2026-09-07 — patrz tabela wyżej. Następny kontrakt do wzięcia:
+**POKER-58** (szkic w [`docs/taskspecs/drafts/`](taskspecs/drafts/)).
+
+**Korekta 2026-09-27:** w locie jest sprint A decyzji 31 (naprawy
+siedmiu blokujących findingów [audytu całego kodu](AUDYT_2026-09-26.md)).
+Zamknięte: POKER-69 (seed talii poza zasięgiem gracza, protokół LAN v2),
+POKER-72 (przepis pochodzenia `strategy_table.py`), POKER-70 (jedna
+reguła miejsc Spin), POKER-71 (side poty areny pełnym porządkiem rąk,
+spasowany nie odzyskuje wkładu w modelach), POKER-73 (terminale
+i miara zbieżności openfold, N = 512); zostają POKER-74 (brzeg horyzontu
+solvera, w toku) i po nim POKER-75 (tożsamość regeneracji); potem
+sprinty B i C. Mapa decyzji 29 niżej — z POKER-58 włącznie — czeka na
+zamknięcie sprintu A. Status bieżący: [`CURRENT_STATE.md`](CURRENT_STATE.md),
+„Następny krok".
 
 ### Kolejka — mapa decyzji 29, szkice w repo
 
@@ -213,7 +238,14 @@ bo jednostką wznowienia jest dopiero warstwa.
 udowodnisz tożsamości artefaktu** — porównaj sha256 z
 `prod_identity.json` (zgodność = pomiary obowiązują) albo powtórz
 pomiary (BF/BG/BH, AF). To jest PUŁAPKA POKER-24: regeneracja unieważnia
-pomiary przy artefakcie, a bramka tego nie łapie.
+pomiary przy artefakcie, a bramka tego nie łapie. **Korekta 2026-09-27:**
+„zgodność = pomiary obowiązują" dotyczy dziś wyłącznie pomiarów samego
+artefaktu (ε, V vs ICM, koszty); ROI areny i liczniki fallbacku (BF/BG/BH)
+zależą też od kodu areny, który zmieniły POKER-70 (punktacja 10x)
+i POKER-71 (side poty) — trzeba je powtórzyć także przy zgodnym sha256
+(KOREKTA (POKER-71) decyzji 30). POKER-74 (brzeg horyzontu, w toku)
+zmieni sam artefakt, więc regeneracja po nim jest wejściem operatora
+(decyzja 31 pkt 3).
 
 Dwustopniowy dowód odtwarzalności (decyzja 06): mały łańcuch kontrolny
 chodzi w bramce przy każdym `pytest`, pełna regeneracja komendami
@@ -233,7 +265,11 @@ Manifest rozwiązuje problem, którego sam plik by nie rozwiązał: po
 regeneracji porównujesz sha256 swoich plików z manifestem i przy
 zgodności **zachowujesz wszystkie pomiary** (ε, ROI areny, liczniki,
 koszty) zamiast powtarzać je za kolejne godziny — to jest wyjście
-z PUŁAPKI POKER-24. Narzędzie porównujące katalog z manifestem jest
+z PUŁAPKI POKER-24. **Korekta 2026-09-27:** od POKER-71 zdanie jest
+fałszywe dla ROI areny i liczników fallbacku — zależą też od kodu areny
+(poprawki POKER-70 i POKER-71), więc przy zgodnym sha256 zachowujesz
+wyłącznie ε, V vs ICM i koszty, a BF/BG/BH powtarzasz (KOREKTA (POKER-71)
+decyzji 30). Narzędzie porównujące katalog z manifestem jest
 wymogiem kontraktu POKER-58 (szkic). Przekazanie samego pliku kanałem
 prywatnym pozostaje możliwe i nie wymaga zmiany decyzji 30 — zakazana
 jest publikacja, nie przekazanie.
@@ -242,9 +278,13 @@ jest publikacja, nie przekazanie.
 
 ```bash
 # arena: książki / agent z artefaktu / cena samej reguły awaryjnej
-python tools/run_arena.py 320 3x                                   # książki referencyjne (POKER-48)
+python tools/run_arena.py 320 3x --openfold-iters 512              # książki referencyjne (POKER-48)
+#   flaga = domyślne N openfold (CURVE_ITERATIONS = 512 od POKER-73), więc
+#   wyniku nie zmienia; przybija przepis niezależnie od domyślnych (PUŁAPKA POKER-24)
 python tools/run_arena.py blueprint PROD/blueprint.bpk 10000 3x    # blok BF — źródło ROI z sekcji 6
 python tools/run_arena.py fallback  PROD/blueprint.bpk 10000 3x    # blok BH — źródło −0,10 pp
+#   ROI z sekcji 6 i −0,10 pp zmierzono na arenie sprzed POKER-71 i artefakcie
+#   liczonym brzegiem sprzed POKER-74; przeliczenie wymaga regeneracji (decyzja 31 pkt 3)
 
 # stół HU, gra człowieka, LAN, korpus, trenerzy — README.md
 python -m poker.adapters.cli --seed 7 --hands 50 --export mecz.json
@@ -261,11 +301,18 @@ python -m poker.adapters.cli --seed 7 --hands 50 --export mecz.json
 | ex-post ε artefaktu produkcyjnego | maks **4,720e−4**, mediana **1,075e−4** (49 765 stanów) |
 | próg blokujący / punkt odniesienia | 1e−3 (zapas 2,1×) / 5e−4 (zapas 5,6%) |
 | V vs ICM (uzasadnienie kierunku) | do **9,5% sumy wypłat** (maksimum po pełnej siatce) |
-| ROI agenta w arenie (3x, N=10 000 bloków) | **+5,20%** vs `field_exploit` (CI +3,74..+6,66), +6,36% vs `dollar_fish`, +8,23% vs `always_jam` |
-| wpływ reguły awaryjnej po naprawach | **−0,10 pp** (CI −0,39..+0,19) — nieodróżnialny od zera |
-| fallback agenta | **0,850%** decyzji, w całości granica artefaktu |
-| udział decyzyjny trybów | `deep` 33,3%, `jamfold` 10,5%, `hu-deep` 39,1%, `hu-jamfold` 17,1% |
+| ROI agenta w arenie (3x, N=10 000 bloków) ¹ | **+5,20%** vs `field_exploit` (CI +3,74..+6,66), +6,36% vs `dollar_fish`, +8,23% vs `always_jam` |
+| wpływ reguły awaryjnej po naprawach ¹ | **−0,10 pp** (CI −0,39..+0,19) — nieodróżnialny od zera |
+| fallback agenta ¹ | **0,850%** decyzji, w całości granica artefaktu |
+| udział decyzyjny trybów ¹ | `deep` 33,3%, `jamfold` 10,5%, `hu-deep` 39,1%, `hu-jamfold` 17,1% |
 | koszt kwantyzacji uint16 w ε (POKER-57) | **+0,015%** wobec limitu +10% |
+
+¹ **Korekta 2026-09-27:** cztery wiersze areny (pomiary BF/BH) opisują
+artefakt liczony brzegiem horyzontu sprzed POKER-74 i arenę sprzed
+POKER-71 (side pot 3-way dzielony po równo między przegranych puli
+głównej — finding B3 audytu 2026-09-26); cytuj je wyłącznie z tym
+zastrzeżeniem. Przeliczenie wymaga regeneracji artefaktu (wejście
+operatora, decyzja 31 pkt 3).
 
 ### Zakazy twierdzeń — obowiązują bezterminowo
 
@@ -309,7 +356,11 @@ python -m poker.adapters.cli --seed 7 --hands 50 --export mecz.json
    0,14 pp ROI **przy 3×**, wobec **połowy szerokości** CI areny 1,46 pp
    (10×) i wpływu samej reguły awaryjnej 4,22 pp (30×). Dokręcanie
    tolerancji do podłogi f32 kosztuje ~3 900 rdzenio-h i jest warte
-   0,0004 pp.
+   0,0004 pp. (Korekta 2026-09-27: 1,46 pp i 4,22 pp zmierzono na arenie
+   sprzed POKER-71 i artefakcie liczonym brzegiem sprzed POKER-74,
+   a 4,22 pp — jeszcze przed naprawami POKER-54/55, po których wpływ
+   reguły to −0,10 pp; przeliczenie wymaga regeneracji — KOREKTA
+   (POKER-71) decyzji 29, decyzja 31 pkt 3.)
 3. **Fundament = ten sam algorytm, wycelowany we właściwe gry**:
    rodzina blueprintów per tier (T-MODAL pierwszy, ~87% gier za dolne
    oszacowanie ~18 rdzenio-h — mnożnik kosztu WTA nieznany do pierwszego
@@ -334,7 +385,7 @@ PCFR+/DCFR) padło w weryfikacji adwersaryjnej na źródłach pierwotnych.
 Pełna lista w `PAMIEC_OPERACYJNA.md` (sekcja PUŁAPKI) — z zastrzeżeniem,
 że wpis znika stamtąd, gdy fakt zostaje utrwalony w repo (tak stało się
 z checkpointem horyzontu: żyje w bloku POKER-50 i jako kontrakt P-4).
-Cztery najdroższe:
+Pięć najdroższych:
 
 - **Tabela permutacji w złą stronę przeżywa testy na transpozycjach**
   (inwolucje) — psują się dopiero 3-cykle. Kotwicz każdą oś i KAŻDĄ
@@ -349,7 +400,8 @@ Cztery najdroższe:
 - **Regeneracja artefaktu unieważnia pomiary przy nim**, a bramka tego
   nie łapie (POKER-24).
 - **Zero na artefakcie bramki ≠ zero na siatce produkcyjnej** — krok
-  siatki bywa przyczyną pudła (0 przy kroku 50, 94 przy kroku 2).
+  siatki bywa przyczyną pudła (0 przy kroku 50, 94 przy kroku 2 —
+  pomiar BF na arenie sprzed POKER-71 i artefakcie sprzed POKER-74).
 
 Do tego pułapka środowiskowa (nie repo): przy testach mutacyjnych
 modułów `tools/` czyść `__pycache__` — mutant o identycznej długości
@@ -365,6 +417,7 @@ bajtowej zostawia zmutowany `.pyc`.
 | **korpus realnych hand histories** | całą warstwę eksploatacyjną P-10..P-13 | brak; bez niego uczciwe zatrzymanie na P-11 (maszyneria zwalidowana w HU) |
 | ~~decyzja o dystrybucji artefaktu~~ | — | **rozstrzygnięta** (decyzja 30): brak publikacji, manifest tożsamości w repo |
 | **realny hands-per-level** | krzywa zegara w P-8 (kontrakt emituje BRAK zamiast zgadywać) | w kodzie jest zegar produktu (3), jawnie oznaczony jako NIE research |
+| **regeneracja artefaktu produkcyjnego** (korekta 2026-09-27, decyzja 31 pkt 3) | ponowny pomiar BF/BG/BH, czyli liczby areny agenta z sekcji 6 | po POKER-74 (brzeg horyzontu, w toku); poza tym środowiskiem |
 
 Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 (POKER-56) — to inna bramka niż potwierdzenie tabeli tierów.
@@ -378,11 +431,15 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
   dotykającym `poker.betting`.
 - **F1 audytu POKER-22**: zduplikowana formuła equity-przeciw-polu;
   publiczne API w `preflop_equity` osobnym kontraktem.
-- **Resztkowe rozjazdy drzew** (POKER-55): `capped_call` = 2,
-  `root_fold` = 8 na próbce bramki — naprawa wymaga zmiany drzewa
-  treningu, czyli nowego rekordu decyzyjnego (zamrożenie z decyzji 27).
+- **Resztkowe rozjazdy drzew** (POKER-55): `capped_call` = 3,
+  `root_fold` = 6 na próbce bramki (od POKER-71, 3 042 akcje; wcześniej
+  2 i 8 na 3 075 — raport `5b5ec9a`, sekcja A) — naprawa wymaga zmiany
+  drzewa treningu, czyli nowego rekordu decyzyjnego (zamrożenie
+  z decyzji 27).
 - **`forced_action_misses` = 94** na artefakcie produkcyjnym
-  (kwantyzacja sprowadza stack do wysokości blindu) — ta sama klasa.
+  (kwantyzacja sprowadza stack do wysokości blindu) — ta sama klasa;
+  pomiar BF na arenie sprzed POKER-71 i artefakcie liczonym brzegiem
+  sprzed POKER-74, przeliczenie wymaga regeneracji (decyzja 31 pkt 3).
 - **Marginesy indyferencji nie są policzone dla produkcji** (POKER-57):
   format je niesie, artefakt produkcyjny nie ma sekcji i mówi to jawnie;
   doliczenie to jeden przechód wyceniony na ~4,6 rdzenio-h. Kontrakt,
@@ -399,6 +456,12 @@ Osobno: agent rzuca wyjątek przy niezgodności **fingerprinta** przebiegu
 ---
 
 ## 11. Od czego zacząć
+
+**Korekta 2026-09-27:** przed listą niżej — dokończ sprint A decyzji 31
+(POKER-74, potem POKER-75), a potem sprinty B i C (decyzja 31 pkt 2
+i 4); mapa decyzji 29 z pkt 4 czeka na zamknięcie sprintu A. Pkt 1 jest
+nieaktualny (POKER-57 zamknięty — tabela w sekcji 4), a w pkt 3 zgodny
+sha256 nie chroni liczb areny z sekcji 6 (sekcja 5, korekta).
 
 1. **Domknij POKER-57**: audyt świeżym kontekstem commita `aefc3c8` →
    zamknięcie w indeksie → scalenie do main. Praca jest dostarczona

@@ -44,6 +44,16 @@ a) **Prawo przeliczenia** (z `expost.py:136,155` — ε jest w jednostkach
    reguły awaryjnej 4,22 pp (30×). Antywzorzec do utrwalenia: zejście
    tolerancji do podłogi f32 kosztuje ~3 900 rdzenio-h i jest warte
    0,0004 pp ROI.
+   **KOREKTA (POKER-71):** 1,46 pp (połowa szerokości CI pomiaru BF po
+   POKER-55: +5,20 pp, CI +3,74..+6,66) i 4,22 pp (wpływ reguły awaryjnej
+   z BH POKER-52 — sprzed napraw POKER-54/55; po nich −0,10 pp, CI
+   −0,39..+0,19, `CURRENT_STATE.md`, blok POKER-55 pkt 9) zmierzono na
+   arenie sprzed POKER-71, której showdown dzielił side pot 3-way po równo
+   między przegranych puli głównej (finding B3 audytu 2026-09-26), na
+   artefakcie liczonym brzegiem horyzontu sprzed POKER-74. Obie liczby
+   opisują tamten artefakt i tamtą arenę; przeliczenie wymaga regeneracji
+   artefaktu (wejście operatora, decyzja 31 pkt 3). 0,14 pp z ε 4,72e−4
+   nie zależy od areny.
 b) **Błąd modelu > błąd solvera**: szum MC tensora (SE ~4,1e−3 na
    prawdopodobieństwo), kwantyzacja uint8 (2,6e−3), błąd kroku siatki
    (niezmierzony) — wszystkie 5–9× większe od ε i wszystkie niewidoczne

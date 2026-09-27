@@ -45,6 +45,17 @@ areny, liczniki fallbacku, koszty). Bez manifestu musiałaby powtórzyć
 pomiary za kolejne godziny — nawet gdyby regeneracja była bit w bit
 poprawna.
 
+**KOREKTA (POKER-71):** „zachowuje wszystkie pomiary" jest od POKER-71
+fałszywe dla ROI areny i liczników fallbacku (pomiary BF/BG/BH): zależą
+one nie tylko od artefaktu, ale też od kodu areny, który się zmienił —
+POKER-70 (punktacja 10x: 2. miejsce według kolejności wybicia,
+nie indeksu) i POKER-71 (side pot 3-way pełnym porządkiem rąk, finding
+B3 audytu 2026-09-26). Zgodny sha256 dowodzi tożsamości artefaktu, nie
+pomiarów jego konsumenta: BF/BG/BH trzeba powtórzyć także przy zgodności.
+Ponadto POKER-74 (brzeg horyzontu, sprint A) zmienia sam artefakt, więc
+po jego integracji manifest opisuje artefakt, którego kod już nie
+produkuje, a regeneracja jest wejściem operatora (decyzja 31 pkt 3).
+
 Warunek, który to umożliwia, został wypracowany wcześniej i jest pod
 testem: pakowanie jest deterministyczne bajt w bajt (POKER-51, POKER-57),
 a bieg siatki wznawialny bez zmiany wyniku (POKER-50).

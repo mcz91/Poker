@@ -14,15 +14,25 @@ porządkiem rąk w showdownie areny; spasowany nie odzyskuje wkładu w
 modelach all-in) i POKER-73 (terminale openfold z udziałem grającego,
 miara zbieżności FP w każdym wierszu eksportu, N eksportu i książek
 areny = 512 z krzywej; liczby decyzji 20–23 poprawione adnotacjami
-KOREKTA); 645 testów. **Uwaga (zasada 1):** liczby areny Spin
-i liczniki agenta blueprintu w blokach POKER-48…55 oraz w
-[`PRZEKAZANIE.md`](PRZEKAZANIE.md) sprzed POKER-71 są częściowo
-nieaktualne — wykaz plik:linia z wartościami dokument / przed / po jest
-w opisie commita `5b5ec9a` (sekcje A–D), a liczby zależne od książek
-openfold (open, 3bet, ROI ciasnej i exploit) — także po POKER-73
-(raport w opisach `a81ae8f` i `73e3f9d`); korekta zbiorcza przy
-zamknięciu sprintu A (decyzja 31 pkt 4). Pomiary BF/BG/BH czekają na
-artefakt produkcyjny
+KOREKTA); 645 testów. **Stan dokumentów po korekcie zbiorczej
+POKER-69…73 (2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
+agenta blueprintu i liczby zależne od książek openfold, które przesunęły
+POKER-70, 71 i 73, mają w blokach niżej i w
+[`PRZEKAZANIE.md`](PRZEKAZANIE.md) wartość bieżącą albo adnotację
+KOREKTA z wartością bieżącą obok pomiaru historycznego (źródła: opisy
+commitów `5b5ec9a`, `a81ae8f`, `73e3f9d` i pomiary na headzie tej
+korekty). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
+spoza repozytorium: produkcyjnego — BF/BG/BH, liczniki fallbacku, udział
+trybów (bloki POKER-52, 54, 55, 56), które opisują artefakt liczony
+brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71, a
+przeliczenie wymaga regeneracji artefaktu (wejście operatora, decyzja 31
+pkt 3) — i pilota (zgodności klas sanity E, adnotacja POKER-70 w bloku
+POKER-46); każde ich wystąpienie niesie adnotację. Korekta nie objęła
+skutków POKER-74 i 75 (nieintegrowane), dokumentów niemutowalnych poza
+decyzjami 26, 29 i 30
+(m.in. decyzja 24 i raport audytu) ani tabeli faktów na okładce
+`PRZEKAZANIE.pdf`, którą generator (`tools/docs/mk_pdf.py`) pisze stałą
+z 2026-09-07
 · wcześniej ostatnie zamknięte zadanie: POKER-57 (format
 `.bpk` **v2**: maska osiągalności uint32, cztery sloty akcji, kwantyzacja
 uint16 domyślnie, sekcje ex-post ε per stan i marginesów indyferencji per
@@ -53,8 +63,10 @@ ex-post ε vs budżet iteracji PI-FP zmierzona, budżet solvera wybrany
 z pomiaru, pilot powtórzony); POKER-46 (pilot
 blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
 i różnica względem ICM zmierzone);
-POKER-45 (rozliczenia żetonów Spin/jamfold wierne — suma stała, wkłady
-legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
+POKER-45 (rozliczenia żetonów Spin/jamfold wierne co do sumy i wkładów
+— suma stała, wkłady legalne; side poty i spasowany blind wiernie dopiero
+od POKER-71, poza `jamfold._three_way` — sprint B — i liczby linii Spin
+wymienione na zmierzone); POKER-29
 (MCCFR z liniowo ważoną średnią strategii) zamknięty; POKER-24 (skala) częściowo — patrz
 „Następny krok".
 
@@ -338,7 +350,14 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   żetonowa (chipEV − ICM); Spin: start 25 bb (`STARTING_CHIPS=50`,
   bb=2), wypłaty 2×/3× WTA i 10× 80/20, role 3-max (button=SB),
   rozliczenie all-in z side potem i zwrotem nadpłaty, EV shove UTG
-  (fold / obie fold / jeden caller z zadanym equity). **Nie otwiera
+  (fold / obie fold / jeden caller z zadanym equity). Od POKER-70 jedna
+  reguła miejsc przy eliminacji (`place_payouts`: później wybity wyżej,
+  w jednej ręce większy stack wejściowy wyżej, równe stacki dzielą
+  nagrody zajmowanych miejsc) i `terminal_equities` dla modeli końca
+  gry — używają ich arena, jamfold, openfold i `utg_shove_ev`; ICM
+  odrzuca stan z więcej niż jednym zerowym stackiem. Od POKER-71 all-in
+  modelu bez kart rozlicza `model_ranks` — spasowany nie odzyskuje
+  wkładu z side potu. **Nie otwiera
   INV-P5** — `HeadsUpHand` i `play_match` zostają przy N=2. PokerKit
   i obce solvery nie są zależnością (decyzja 10).
 - `poker.jamfold` — Nash jam/fold 3-max na jednym stanie stacków
@@ -485,7 +504,10 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
   `forced_action_misses`, `mode_flip_misses` i `horizon_fallbacks`),
   a plik otwiera narzędzie, nie agent (INV-P7).
   Po POKER-55 fallback zostaje wyłącznie granicą artefaktu i dotyka
-  0,850% decyzji pomiaru produkcyjnego. Liczby, liczniki i granice
+  0,850% decyzji pomiaru produkcyjnego (BF na artefakcie liczonym
+  brzegiem horyzontu sprzed POKER-74 i na arenie sprzed POKER-71;
+  przeliczenie wymaga regeneracji — wejście operatora, decyzja 31
+  pkt 3). Liczby, liczniki i granice
   odwzorowania: bloki POKER-52, POKER-54 i POKER-55 niżej.
 - LAN (pokerroom krok 1, decyzja 08): `poker.adapters.protocol` —
   typowane, wersjonowane JSON Lines (jawne pole `v`, nieznana wersja
@@ -528,9 +550,11 @@ legalne — i liczby linii Spin wymienione na zmierzone); POKER-29
 ## Czego nie ma
 
 Persystencji poza plikiem eksportu, side potów w maszynie licytacji
-(INV-P5, N=2 — `award_allin` w `poker.spin` liczy je tylko dla
-all-inów jam/fold), zegara blindów, pełnego 3-max NL, value iteration
-po stanach turnieju (zewnętrzna pętla Ganzfrieda), UI poza LAN.
+(INV-P5, N=2 — poza silnikiem liczy je `award_allin` w `poker.spin`:
+każdy showdown areny Spin, od POKER-71 z pełnym porządkiem rąk, oraz
+all-iny modeli jamfold i openfold i solvera blueprintu), zegara
+blindów, pełnego 3-max NL, value iteration po stanach turnieju
+(zewnętrzna pętla Ganzfrieda), UI poza LAN.
 ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
 jeden backup continuation od POKER-32, zegar głębokości 25–6 bb
 od POKER-33. Pełna siatka stanów istnieje wyłącznie jako artefakty
@@ -566,8 +590,9 @@ zamknięty** (r1 FINDINGI 1 × ISTOTNY — niepełny wykaz dryfu dokumentów →
 r2 CZYSTY; +9 testów), **POKER-73 zamknięty** (r1 OBJECTION kodera —
 sprzeczne kryteria testu N — uznany; N = 512 regułą „od którego krzywa
 stoi”, decyzja 31 pkt 4; r2 CZYSTY; +16 testów); fala 2: POKER-75 po
-POKER-74; potem korekta zbiorcza dokumentów stanu (w toku dla
-POKER-69…73) i kontrakty sprintu B (szkice POKER-76…85 w przeglądzie).
+POKER-74. Korekta zbiorcza dokumentów stanu dla POKER-69…73 wykonana
+2026-09-27 (nagłówek wyżej); dla POKER-74 i 75 — przy ich integracji;
+potem kontrakty sprintu B (szkice POKER-76…85 w przeglądzie).
 Pomiary unieważnione do
 przeliczenia wylicza decyzja 31 pkt 3; mapa decyzji 29 (P-3 i dalej)
 czeka na zamknięcie sprintu A, bo jej pomiary stoją na naprawianych
@@ -652,11 +677,23 @@ w pokerze (decyzja 17).
 2.2x, bez flata. `JAM_FOLD_BB` w `poker.spin`.
 
 **POKER-40 (open 2.2x first-in) zamknięty.** UTG open ≈ 23% / jam ≈ 1%
-na 3× 25 bb. 3bet z drzewa bez flata nie jest polityką.
+na 3× 25 bb (openfold sprzed POKER-73; po POKER-73, N = 512: **33,9% /
+0,0%**, przy N = 256 32,9% / 0,0% — KOREKTA (POKER-73) decyzji 20). 3bet
+z drzewa bez flata nie jest polityką.
 
 **POKER-41 (ciasny 3bet) zamknięty.** Spot vs zamrożony open, continue
 55%: BTN 10.4% na 3× 25 bb (12 iteracji; zakres z kodu —
 [decyzja 21](decisions/21-threebet-spot.md)). Nie 35% z no-flat Nash.
+**KOREKTA (POKER-73):** 10.4% i „35%" policzył openfold z błędnymi
+terminalami (overcall BB bez udziału BB — B6) i FP uciętym bez miary
+zbieżności (I-25). Przy 512 iteracjach spot daje BTN 3bet **13,27%**
+(przy 256: 12,07%; zakres AA–33, AKs/AKo, AQs/AQo, AJs/AJo, ATs/ATo,
+A9s/A9o, A8s, KQs/KQo, KJs), a 3bet drzewa bez flata na 3× 25 bb —
+**2,2%** (punkt stały FP modelu, miara 4,80e−4 sumy nagród; przy 256:
+4,1%), czyli ciaśniej niż spot: kontrast „nie 35%" przy 25 bb się nie
+trzyma, szeroki 3bet drzewa (44,5 / 53,6%) zostaje tylko przy 12,5 /
+8,3 bb. Komendy i rozrzut — KOREKTA (POKER-73) decyzji 20 i 21 (opis
+commita `73e3f9d`).
 
 **POKER-42 (arena ROI) zamknięty.** Pomiar POKER-48
 (`python tools/run_arena.py 320 3x`, jednostka: blok trzech rotacji):
@@ -670,6 +707,20 @@ wyszedł co do bitu ten sam (żaden blok się nie zmienił); tight vs
 always-jam **−40,0%**, czyli ta sama liczba (6 bloków innych, różnica
 sparowana 0,00 pp, CI −1,50..+1,50). Werdykty bez zmian — pomiar, tabela
 i komendy w bloku POKER-54.
+**KOREKTA (POKER-71/73):** liczby wyżej i w adnotacji POKER-54 zmierzono
+na arenie sprzed POKER-71 (side pot 3-way dzielony po równo między
+przegranych puli głównej — B3) i z książkami openfold sprzed POKER-73
+(open, overjam i 3bet ciasnej z modelu B6/I-25). Po POKER-71 tight vs
+always-jam −39,7% (CI −48,2..−31,2), exploit bit w bit ten sam (raport
+`5b5ec9a`, sekcja B). Po POKER-73 `python tools/run_arena.py 320 3x
+--openfold-iters 512` (44 s, 2026-09-27; na HEAD wynik ten sam co bez
+flagi, bo domyślne N openfold to `CURVE_ITERATIONS` = 512 — flaga
+przybija przepis niezależnie od domyślnych, PUŁAPKA POKER-24) daje tight
+vs always-jam **−44,4%** (CI −52,7..−36,1; przy N = 256 −43,4%) i exploit
+call vs random **+19,1%** (CI +10,8..+27,3; przy 256 +19,4%). Werdykty bez
+zmian: ciasny call przegrywa, exploit wygrywa — oba całym przedziałem.
+Różnica sparowana z adnotacji POKER-54 (komenda BJ) na HEAD: 7 bloków
+innych, +0,31 pp (CI −1,31..+1,94) — blok POKER-54 pkt 6, KOREKTA.
 
 **POKER-43 (field exploit) zamknięty.** Bez flata ciasny 3bet przegrywa
 z szerokim openem. Field book: open 48% / 3bet 39% / call 48%.
@@ -683,6 +734,15 @@ samych seedach po naprawie: vs always-jam **+15,9%** co do bitu ta sama
 liczba (żaden blok się nie zmienił), vs $1-ish fish **−2,8%** (różnica
 sparowana −0,31 pp, CI −1,68..+1,06). Oba werdykty trzymają się tak samo,
 w tym „bije $1-ish fisha" nadal nieosiągnięte — blok POKER-54.
+**KOREKTA (POKER-71):** liczby wyżej zmierzono na arenie sprzed POKER-71
+(side poty). Po poprawce `python tools/run_arena.py 320 3x` daje vs
+always-jam **+15,9%** bit w bit, vs $1-ish fish **−3,4%** (CI −9,9..+3,0);
+różnica sparowana z adnotacji POKER-54 (BJ) to −0,94 pp (CI
+−3,15..+1,27) — raport `5b5ec9a`, sekcje B i C, i pomiar na HEAD
+2026-09-27. POKER-73 wierszy field nie zmienia (bit w bit te same — opis
+commita `73e3f9d`). Oba
+werdykty trzymają się, „bije $1-ish fisha" nadal nieosiągnięte (CI
+obejmuje zero).
 
 **POKER-44 (arena HU przywrócona, spin_arena wydzielona) zamknięty.**
 `poker.arena` (HU, duplicate) wraca z main; arena ROI Spin żyje w
@@ -1636,10 +1696,16 @@ i rozstrzyga wycenę kolejnych przebiegów deterministycznie.
    Na artefakcie bramki (5 770 decyzji) komórki `deep` to 6,4% stanów-warstw
    biegu, a decyzje `deep` — 51,4%, osiem razy więcej; obie liczby z TEGO
    SAMEGO artefaktu, obie pod asercją. Licznik jest bez progu: mierzy,
-   nie bramkuje.
+   nie bramkuje. **KOREKTA (POKER-71):** 5 770 i 51,4% zmierzono na
+   arenie sprzed POKER-71; od poprawki side potów asercje mówią **5 704**
+   decyzje i **51,1%** decyzji `deep` — 6,4% komórek i „osiem razy" bez
+   zmian (51,1 / 6,4 = 8,0; raport `5b5ec9a`, sekcja A).
 
    **Pomiar produkcyjny (komenda BF, 1 563 234 decyzje, 9 min 11 s zegara
-   na 4 rdzeniach).** Ten sam bieg co w bloku POKER-55: **wszystkie
+   na 4 rdzeniach)** — liczby tego akapitu i tabeli opisują artefakt
+   liczony brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71;
+   przeliczenie wymaga regeneracji artefaktu (wejście operatora,
+   decyzja 31 pkt 3). Ten sam bieg co w bloku POKER-55: **wszystkie
    pozostałe liczniki i wszystkie ROI wychodzą co do sztuki i co do cyfry
    te same** (from_artifact 1 549 946, cyclic_reads 10 596, mode_flip_reads
    4 502 z 1 100 przekładami, grid_fallbacks 13 288, state_misses 13 194,
@@ -1756,7 +1822,20 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    **3 razy**. Z artefaktu bramki wychodzi tylko sześć odczytów cyklicznych,
    bo mini-artefakt zna 4 klasy ze 169 i reszta kończy się na `class_misses`;
    na artefakcie produkcyjnym cały ten ruch jest odczytem.
-4. **Ponowny pomiar (BF/BG/BH) — komendy i koszt.** Te same komendy co
+   **KOREKTA (POKER-71):** liczby tego punktu zmierzono na arenie sprzed
+   POKER-71; od poprawki side potów ta sama próbka bramki ma **5 704**
+   decyzje, `cyclic_reads` = **5**, kontrola z wyłączoną regułą cyklu
+   zapala horyzont **98 razy**, a z artefaktu bramki wychodzi **pięć**
+   odczytów cyklicznych; zera, `mode_flip_reads` = 10,
+   `mode_flip_translated` = 3 i kontrola węzła bliźniaczego (3) bez
+   zmian — wszystko pod asercjami `tests/test_blueprint_agent.py` (raport
+   `5b5ec9a`, sekcja A).
+4. **Ponowny pomiar (BF/BG/BH) — komendy i koszt.** **Adnotacja
+   (POKER-70/71, decyzja 31 pkt 3) do pkt 4–10:** liczby BF/BG/BH tych
+   punktów opisują artefakt liczony brzegiem horyzontu sprzed POKER-74
+   i arenę sprzed POKER-71 (side poty 3-way; BG także sprzed POKER-70 —
+   punktacja 10x); przeliczenie wymaga regeneracji artefaktu (wejście
+   operatora, decyzja 31 pkt 3). Te same komendy co
    w POKER-52, `PROD` to katalog artefaktu produkcyjnego poza repozytorium;
    trzy procesy równolegle, ≈10 min zegara ściennego na komplet trzech
    (BH ≈7 min, BF i BG ≈10 min każdy; 4 rdzenie,
@@ -1777,8 +1856,9 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    turnieje kończą się inaczej. Liczniki BG są identyczne co do sztuki
    z BF (nagrody wchodzą dopiero do punktacji — pod testem).
 
-5. **Liczniki przed i po (BF, oba przebiegi razem).** Odsetki od mianownika
-   danego biegu:
+5. **Liczniki przed i po (BF, oba przebiegi razem).** (Pomiar
+   produkcyjny sprzed POKER-71 i POKER-74 — adnotacja w pkt 4.) Odsetki
+   od mianownika danego biegu:
 
    | licznik | POKER-52 (przed) | po 54+55 | udział po |
    |---|---:|---:|---:|
@@ -1808,7 +1888,8 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    które POKER-54 naprawił w rozgrywaczu, są zerami także na artefakcie
    produkcyjnym.
 6. **`forced_action_misses` = 94 to NIE jest pytanie o darmowy call —
-   to trzecia twarz kwantyzacji.** POKER-54 zerował ten licznik na artefakcie
+   to trzecia twarz kwantyzacji.** (94 i próbka 156 904 decyzji — pomiar
+   produkcyjny sprzed POKER-71 i POKER-74, adnotacja w pkt 4.) POKER-54 zerował ten licznik na artefakcie
    bramki (krok siatki 50 nie schodzi do wysokości blindu) i tam zero jest
    prawdziwe; na siatce produkcyjnej (krok 2) zostaje 94 wpisy (0,006%),
    wszystkie tego samego wzorca — sprawdzone na próbce 156 904 decyzji, gdzie
@@ -1822,6 +1903,7 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    należałaby do drzew (kwantyzacja vs maski wymuszeń), nie do agenta —
    dane do decyzji, nie decyzja.
 7. **Siła po naprawach (BF, 3x WTA, N = 10 000 bloków, seedy 21…10020).**
+   (Pomiar produkcyjny sprzed POKER-71 i POKER-74 — adnotacja w pkt 4.)
    ROI hero w buy-inach, jednostka: blok trzech rotacji; CI normalne i
    bootstrap percentylowy (1 000 replikacji, seed 0). Kolumna „przed" to
    liczby POKER-52 (rozgrywacz sprzed POKER-54 i agent sprzed POKER-55) —
@@ -1853,7 +1935,9 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    `always_jam` **−27,24 pp** (CI −31,63..−22,85; bootstrap −31,56..−23,08;
    przed: −25,60 pp). Wynik nie stoi na wyborze wypłaty.
 9. **BH: reguła awaryjna przestała ważyć — przewaga jest przypisywalna
-   artefaktowi.** Ta sama różnica sparowana co w pkt 7 bloku POKER-52
+   artefaktowi.** (Pomiar produkcyjny sprzed POKER-71 i POKER-74 —
+   adnotacja w pkt 4; werdykt opisuje tamten artefakt i tamtą arenę.)
+   Ta sama różnica sparowana co w pkt 7 bloku POKER-52
    (agent grający check-call → fold vs ten sam agent pasujący na każdym
    fallbacku, wspólne seedy bloków, 3x, N = 10 000):
 
@@ -1875,6 +1959,8 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    ani „to jest siła GTO", ani „bijemy field $1" — pomiar jest przeciw trzem
    skryptom z repozytorium i tyle niesie.
 10. **Dane do decyzji o warstwach 1–5 (dla architekta, nie decyzja).**
+   (Odsetki i rozkłady — pomiar produkcyjny sprzed POKER-71 i POKER-74,
+   adnotacja w pkt 4; wycena +47,9 rdzenio-h to `mode_census`, bez areny.)
    Reszta fallbacku to 0,850% decyzji: 0,844% stan spoza warstwy przyciętej
    (rozkład po ręce na próbce 156 904 decyzji: 365 / 719 / 191 / 13 dla rąk
    1 / 2 / 3 / 4, od ręki 5 zero — ten sam wzorzec co w POKER-52, gdzie na
@@ -1901,7 +1987,8 @@ POKER-54 (przyrząd) i POKER-55 (agent).
    parach z próbki (4→4, 11→11, 12→12, 13→13, 2→4, 5→11, 6→12, 8→13 oraz
    HU 0→0, 3→3, 1→3) i jest `None` dokładnie dla drugiego wejścia roli, która
    otworzyła; `horizon_fallbacks` = 0 i `mode_flip_misses` = 0 blokująco na
-   artefakcie bramki, każde z kontrolą na TEJ SAMEJ próbce (109 i 3); przy
+   artefakcie bramki, każde z kontrolą na TEJ SAMEJ próbce (109 i 3; od
+   POKER-71: 98 i 3 — KOREKTA w pkt 3); przy
    przeskoku trybu rozkład ma dokładnie akcje legalne areny i nigdy open;
    jeden pobór z rng na decyzję na KAŻDEJ ścieżce, teraz także na odczycie
    z warstwy cyklu i na ścieżce horyzontu. Po audycie doszły trzy: **warstwy
@@ -2039,6 +2126,17 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    arena nie wymusza (blok POKER-55 pkt 6). Ta sama próbka bramki ma po
    POKER-55 **5 770 decyzji**, nie 5 773 — wierniejszy agent gra inaczej;
    kontrola starej kolejności (**2 i 136**) wychodzi na niej tak samo.
+   **KOREKTA (POKER-71):** (a) zdanie o węzłach było fałszywe już przy
+   zamknięciu bloku: bieg ze starą kolejnością odwiedza 12 z 14 węzłów
+   (bez 7 i 10), a 13 z 14 (bez 7), w tym 8, 9 i 10, odwiedza bieg
+   z naprawioną kolejnością — to asertuje test (sonda na `de0f9cb` i na
+   headzie POKER-71, raport `5b5ec9a`, sekcja F); (b) od poprawki side
+   potów próbka bramki ma **5 704** decyzje, a spacer idzie po **753**
+   widokach — nadal bez wyjątku, po 14 węzłach 3-max i 4 HU; kontrola
+   starej kolejności nadal **2 i 136** (sekcja A); (c) 21 348, 19 458,
+   1 092 i 94 wpisy to pomiary produkcyjne BF — artefakt liczony brzegiem horyzontu sprzed POKER-74,
+   arena sprzed POKER-71; przeliczenie wymaga regeneracji (wejście
+   operatora, decyzja 31 pkt 3).
 3a. **Zgodność wymuszeń sprawdzana w OBIE strony** (F2 audytu,
    `test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony`). Sam spacer po
    historii tego nie łapie: przy pustej kolejce i masce jednoelementowej
@@ -2058,6 +2156,12 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    w tym miejscu bliżej pokera niż model. Naprawa obu jest zmianą drzewa
    (treningu i zamrożonego drzewa decyzji 27), a więc poza tym kontraktem —
    liczby są tu po to, żeby rosły widocznie.
+   **KOREKTA (POKER-71):** liczby tego punktu policzono na próbce bramki
+   sprzed POKER-71; od poprawki side potów próbka ma **3 042** akcje
+   areny, `capped_call` = **3**, `root_fold` = **6** (asercje
+   `tests/test_blueprint_agent.py`; raport `5b5ec9a`, sekcja A). „8 takich
+   pytań" to rozgrywacz sprzed naprawy F1 na próbce sprzed POKER-71 —
+   HEAD tej liczby nie odtworzy; klasy rozgrywacza są nadal zerami.
 4. **Neutralność dystrybucyjna kolejności — argument i pomiar.** Decyzja
    `SeatBooka` jest funkcją klasy ręki, trzech flag kontekstu i JEDNEGO
    poboru z rng; kolejności nie widzi. Po przebiciu każdy niedopasowany żywy
@@ -2073,14 +2177,20 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    Każda z tych liczb jest asercją testu. Książki ułamkowe są tu
    konieczne: przy częstotliwościach 0/1 decyzja nie zależy od wartości
    poboru, więc permutacja strumienia nie ruszyłaby nawet trajektorii
-   (PUŁAPKA z audytu POKER-52).
+   (PUŁAPKA z audytu POKER-52). **KOREKTA (POKER-71):** od poprawki side
+   potów asercje tego testu to **57 z 300** bloków, różnica sparowana
+   +0,0167 (bez zmian; CI **−0,0352..+0,0686**), SD **0,6389 wobec
+   0,6301** — 1,4%, nadal w granicach 2% (raport `5b5ec9a`, sekcja A).
 5. **Które pary widzą kolejność, a które nie.** `field_exploit`,
    `dollar_fish` i `always_jam` mają częstotliwości 0/1 (`range_vs_random`
    zwraca 0,0 albo 1,0), więc ich decyzja nie zależy od WARTOŚCI poboru
    i zmiana kolejności jest dla nich **bit w bit niewidoczna** — pod
    osobnym testem na trzech parach. Nie dotyczy to `hero_book`
-   i `exploit_book` z `tools/run_arena.py` (częstotliwości Nash
-   z `solve_open`/`solve_jf`, ułamkowe) ani `wide_call`: w parach z nimi
+   i `exploit_book` z `tools/run_arena.py` (częstotliwości z
+   `solve_open`/`solve_jf`, ułamkowe; w chwili pomiaru nazywane tu
+   „Nash" — od POKER-73 openfold to punkt stały FP modelu przy N = 512
+   z miarą zbieżności ≤ 1e−3 sumy nagród w wyniku `solve`, jamfold bez
+   miary do sprintu B) ani `wide_call`: w parach z nimi
    różnica z pkt 6 sumuje wpływ wymuszonego wejścia i dystrybucyjnie
    neutralną permutację poborów (pkt 4). Czysto zero-jedynkowe są dwie
    pary — `field` vs `always_jam` i `field` vs `dollar_fish` — i tylko
@@ -2118,6 +2228,29 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    (AB, 20 000 turniejów, SE ≤ 1,04 pp) rusza się o **≤ 0,11 pp** na każdym
    z sześciu miejsc, a rozstępy 3,15 pp i 3,55 pp przechodzą w 3,18 pp
    i 3,41 pp.
+   **KOREKTA (POKER-71/73):** tabela i liczby tego punktu mierzą wpływ
+   samej naprawy POKER-54 — ramię „po" było wtedy kodem sprzed POKER-71
+   (side poty), a książki openfold obu ramion — sprzed POKER-73; zostają
+   jako pomiar historyczny (odtwarza je ramię „po" na commicie `de0f9cb`,
+   raport `5b5ec9a`, sekcja C). Ta sama komenda BJ na HEAD po POKER-73
+   (88 s, 2026-09-27) mierzy łącznie POKER-54 i POKER-71 wobec rozgrywacza
+   `3978d7c`, z książkami openfold przy N = 512 w obu ramionach: pytania
+   o dołożenie zerowe 2 406 z 135 631 decyzji (1,774%); ROI przed → po
+   (po = `python tools/run_arena.py 320 3x`), różnica sparowana (CI),
+   bloki inne: `tight` vs `always_jam` −44,69% → −44,38%, +0,31 pp
+   (−1,31..+1,94), 7; `exploit` vs `always_jam` +19,06% → +19,06%, bit
+   w bit, 0; `exploit` vs `wide_call` +13,75% → +14,06%, +0,31 pp
+   (−4,48..+5,10), 46; `field` vs `always_jam` +15,94%, bit w bit, 0;
+   `tight` vs `dollar_fish` −36,56% → −34,69%, +1,87 pp (−1,25..+5,00),
+   26; `field` vs `dollar_fish` −2,50% → −3,44%, −0,94 pp (−3,15..+1,27),
+   10; `field` vs `wide_call` +27,81% → +28,44%, +0,63 pp (−4,36..+5,61),
+   60 — na HEAD każdy przedział obejmuje zero. Bieżące liczby POKER-48:
+   redukcja SD (AA na HEAD, `python tools/run_arena.py sd 320 3x
+   --openfold-iters 512`, 23 s) 48,57% (`field` vs `always_jam`, bit
+   w bit), 57,83% (`field` vs `dollar_fish`, N bloków 5 pp 1 089)
+   i 36,98% (`tight` vs `always_jam`, 1 801); AB po POKER-71 (pary field —
+   POKER-73 ich nie zmienia): rozstępy 3,18 pp i 3,54 pp, ruch miejsca
+   wobec kodu sprzed POKER-71 do 0,315 pp (raport `5b5ec9a`, sekcja B).
 7. **Werdykt dla zamkniętych liczb: wszystkie pozostają ważne, żadna teza
    się nie zmienia**; bloki POKER-42/43/48 dostają adnotację, nie
    nadpisanie, bo są pomiarem rozgrywacza sprzed naprawy. „Exploit call vs
@@ -2131,7 +2264,12 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    „wpływ mieści się w niepewności" jest twierdzeniem o TYCH czterech
    liczbach, nie o arenie w ogóle. Decyzja o unieważnieniu albo utrzymaniu
    liczb należy do architekta; ten blok dostarcza pomiar, którego decyzja 28
-   pkt 2b wymagała przed nią.
+   pkt 2b wymagała przed nią. **KOREKTA (POKER-71/73):** werdykt dotyczy
+   liczb sprzed POKER-71 i POKER-73; ich wartości bieżące — KOREKTA
+   w blokach POKER-42 i POKER-43 (tight vs always-jam −44,4%, exploit
+   +19,1%, field vs always-jam +15,9%, vs $1-ish fish −3,4%); werdykty
+   trzymają się, a na HEAD także przedział pary `tight` vs `dollar_fish`
+   obejmuje zero (KOREKTA w pkt 6).
 
 Komendy odtwarzające (z katalogu repozytorium, venv bramki;
 `/tmp/poker-przed` to nieistniejąca jeszcze ścieżka poza repozytorium —
@@ -2141,7 +2279,11 @@ pierwszeństwo, więc bez niej ramię „przed" grałoby naprawionym
 rozgrywaczem. BI daje ROI i CI każdego ramienia osobno narzędziem
 produktu (≈19 s na wywołanie książek, ≈9 min na `seats 20000`), BJ —
 różnice sparowane na wspólnych seedach i częstość pytań o dołożenie
-zerowe (≈39 s):
+zerowe (≈39 s). Na HEAD po POKER-71 i POKER-73 ramię „po" niesie też
+poprawkę side potów i książki openfold przy N = 512 (w BJ — oba ramiona),
+więc BI/BJ nie odtwarzają już tabeli pkt 6 — odtwarza ją ramię „po" na
+commicie `de0f9cb` (raport `5b5ec9a`, sekcja C); wynik na HEAD i czasy
+(Z 44 s, BJ 88 s na 4 współdzielonych rdzeniach) — KOREKTA w pkt 6:
 
 ```
 BI git worktree add /tmp/poker-przed 3978d7c
@@ -2190,7 +2332,8 @@ EOF
 
 Świadomie zostawione: (1) **oba drzewa mają własne rozjazdy z regułą pokera
 i naprawa rozgrywacza ich nie dotyka** — to są dokładnie te dwie klasy, które
-pkt 3a liczy (`capped_call` = 2, `root_fold` = 8 na 3 075 akcji próbki),
+pkt 3a liczy (`capped_call` = 2, `root_fold` = 8 na 3 075 akcji próbki
+sprzed POKER-71; od POKER-71: 3 i 6 na 3 042 — KOREKTA w pkt 3a),
 a nie zeruje. Rodzina wymuszeń modelu jest szersza, niż mówiła pierwsza wersja
 tego zdania: maskę jednoelementową dostaje trzynaście węzłów 3-max i cztery HU
 po tej samej regule — „mój wkład pokrywa najkrótszy stack w tej gałęzi" — raz
@@ -2205,7 +2348,9 @@ i zamrożonego drzewa decyzji 27), nie do rozgrywacza. (2) Ponowny pomiar
 BF/BG/BH artefaktu produkcyjnego należy do POKER-55 (dopiero po komplecie
 napraw mierzy się artefakt, a nie parę artefakt + reguła) — **wykonany,
 blok POKER-55 wyżej**; pokazał też trzecią, wtedy nierozróżnioną twarz
-wymuszeń modelu (kwantyzacja krótkiego stacku do wysokości blindu, 94 wpisy).
+wymuszeń modelu (kwantyzacja krótkiego stacku do wysokości blindu, 94 wpisy
+— pomiar BF na artefakcie liczonym brzegiem sprzed POKER-74 i na arenie
+sprzed POKER-71; przeliczenie wymaga regeneracji, decyzja 31 pkt 3).
 
 **POKER-52 (agent blueprintu w arenie Spin i w rejestrze CLI)
 DOSTARCZONY; OBJECTION kodera rozstrzygnięty
@@ -2213,7 +2358,14 @@ DOSTARCZONY; OBJECTION kodera rozstrzygnięty
 (aneks w TaskSpec: kryterium-proxy „fallback w zasięgu siatki = 0"
 zastąpione licznikami błędów odwzorowania blokująco = 0 pod testami;
 rozjazdy areny z modelem mierzone i raportowane z przyczyną, progowane po
-naprawach POKER-54/55).** Arena dostała stanowy port miejsca obok
+naprawach POKER-54/55).** **Adnotacja (POKER-70/71, decyzja 31 pkt 3):**
+wszystkie liczby BF/BG/BH tego bloku (pkt 3–7, „Świadomie zostawione"
+i adnotacje POKER-55 przy nich) opisują artefakt liczony brzegiem
+horyzontu sprzed POKER-74 i arenę sprzed POKER-71 (side poty 3-way; BG
+także sprzed POKER-70 — punktacja 10x), a pierwszy pomiar — także
+rozgrywacz sprzed POKER-54 i agenta sprzed POKER-55; przeliczenie
+wymaga regeneracji artefaktu (wejście operatora, decyzja 31 pkt 3).
+Arena dostała stanowy port miejsca obok
 `SeatBooków`, a pakiet — agenta `poker.blueprint_agent`, który każdą
 decyzję czyta z artefaktu `.bpk` czytnikiem z POKER-51. Liczby zmierzone
 na 4 rdzeniach (Intel Xeon @ 2.80GHz, Python 3.13.12) w venv bramki, bez
@@ -2232,7 +2384,8 @@ vs `always_jam`) na blokach POKER-48, do tego różnicę **sparowaną** wobec
 `field_exploit` jako hero na tych samych seedach bloków, i wypisują
 liczniki fallbacków; BH mierzy koszt samej reguły fallbacku (pkt 7).
 N = 10 000 bloków (30 000 turniejów na ramię) jest powyżej największego
-N z tabeli mocy POKER-48 dla 5 pp (1 898 bloków); zmierzone tu SD dają
+N z tabeli mocy POKER-48 dla 5 pp (1 898 bloków; na HEAD największe to
+1 840 — KOREKTA w bloku POKER-48); zmierzone tu SD dają
 odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
 
 1. **Port miejsca, drzewo gry nietknięte.** Miejsce obsadza `SeatBook`
@@ -2264,7 +2417,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    podjętych, z akcją wymuszoną doliczoną miejscu all-in z samego
    blinda, którego rozgrywacz nie pyta, a trening wymusza mu wejście
    maską.
-3. **Fallback: liczniki rozłączne co do przyczyny.** Bieg BF przepuszcza
+3. **Fallback: liczniki rozłączne co do przyczyny.** (Pomiar produkcyjny
+   sprzed POKER-71 i POKER-74 — adnotacja na początku bloku.) Bieg BF przepuszcza
    te same rozdania dwa razy (`sample_blocks` i ramię hero w
    `compare_blocks` na tych samych seedach), więc liczniki są dwukrotnością
    liczby różnych decyzji: **1 582 048 wpisów na 791 024 różnych
@@ -2283,7 +2437,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    horyzontu i przeskok trybu są zerami, a sumaryczny udział fallbacku
    spada z 2,299% do 0,850% decyzji — pomiar i liczniki w bloku POKER-55.
 4. **Kryterium aneksu (decyzja 28) SPEŁNIONE; rozjazdy areny z modelem
-   zmierzone i nieprogowane.** Cztery liczniki błędów odwzorowania są
+   zmierzone i nieprogowane.** (Liczniki — pomiar produkcyjny sprzed
+   POKER-71 i POKER-74, adnotacja na początku bloku.) Cztery liczniki błędów odwzorowania są
    zerami w całym pomiarze i każdy ma w bramce test, że **umie rosnąć**
    (mutacja „licznik += 0" czerwieni): `full_layer_state_misses` = 0
    (stan spoza warstwy niosącej PEŁNĄ siatkę — rośnie, gdy agent dostanie
@@ -2360,7 +2515,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    a każde wejście z historią niezużytą albo z kolejnością sprzeczną
    z modelem musi mieć licznik.
 5. **Siła na rotacjach POKER-48 (BF, wypłata 3x WTA, N = 10 000
-   bloków, seedy 21…10020).** ROI hero w buy-inach, jednostka: blok
+   bloków, seedy 21…10020).** (Pomiar produkcyjny sprzed POKER-71
+   i POKER-74 — adnotacja na początku bloku.) ROI hero w buy-inach, jednostka: blok
    trzech rotacji; obok CI normalnego bootstrap percentylowy (1 000
    replikacji, seed 0):
 
@@ -2405,7 +2561,8 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    stoi na wyborze wypłaty — a zastrzeżenie z pkt 7 obowiązuje tak samo.
    **Adnotacja POKER-55:** ponowny pomiar w bloku POKER-55 pkt 8.
 7. **Reguła fallbacku waży więcej niż zmierzona przewaga (BH) — to jest
-   najważniejsze zastrzeżenie do pkt 5.** Fallback dotyka 2,299%
+   najważniejsze zastrzeżenie do pkt 5.** (Pomiar produkcyjny sprzed
+   POKER-71 i POKER-74 — adnotacja na początku bloku.) Fallback dotyka 2,299%
    decyzji, więc pytanie „czy mierzymy blueprint, czy regułę awaryjną"
    dostaje liczbę: różnica sparowana między agentem grającym
    check-call → fold a tym samym agentem pasującym w każdym takim
@@ -2439,7 +2596,12 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    włącznie**. Rozjazdu nie ma; test czerwienieje na mutacji kwoty open
    o jeden żeton. Nierozstrzygnięte: reszta niepodzielnej puli przy
    remisie (linie kotwicy nie wygenerowały split potu o nieparzystej
-   puli, więc tej reguły kotwica nie sprawdza).
+   puli, więc tej reguły kotwica nie sprawdza). **Adnotacja POKER-71:**
+   nadal prawda; od POKER-71 test właściwościowy przybija regułę areny
+   (reszta do zwycięzcy o najniższym indeksie miejsca, jak w
+   `award_allin`), a silnik (`split_pot`) oddaje resztę kolejno od
+   miejsca na lewo od guzika — zgodność obu reguł w rękach HU pozostaje
+   niesprawdzona (raport `5b5ec9a`, sekcja F).
 9. **Co trzyma bramka (`tests/test_blueprint_agent.py`,
    `tests/test_spin_arena.py`, `tests/test_architecture.py`).** Artefakt
    testów powstaje w bramce: solver liczy bieg na przestrzeni stanów
@@ -2468,7 +2630,7 @@ odpowiednio 1 731 / 1 709 / 2 597 bloków na 5 pp.
    silnika zdarzeniowego, adapterów, `tools`, numpy i I/O) oraz kierunek
    portu (arena nie zna agenta).
 
-Świadomie zostawione: (1) fallback horyzontu (1,350% decyzji,
+Świadomie zostawione (liczby BF — adnotacja na początku bloku): (1) fallback horyzontu (1,350% decyzji,
 pkt 3) kosztuje tyle, ile mówi pkt 7; warunek jego domknięcia („ręka ≥ 21
 czyta warstwę 18 + (ręka − 18) mod 3") architekt **zweryfikował**
 (decyzja 28 pkt 3: blindy stałe od ręki 18, więc ręce ≥ 21 żyją w tym
@@ -3246,6 +3408,26 @@ i SD/blok 76,9 pp (redukcja 38,1%, N bloków 5 pp **1 859**); w tabeli AB
 Werdykty tego bloku (rotacja usuwa rozstęp pozycyjny, „bijemy X" wymaga
 `compare_blocks`) bez zmian — pomiar i komendy w bloku POKER-54.
 
+**KOREKTA (POKER-71/73):** obie tabele, pkt 1–3 i adnotacja POKER-54 to
+pomiary na arenie sprzed POKER-71 (side poty), a para tight — także
+z książkami openfold sprzed POKER-73. Na HEAD komendy Z i AA liczą
+openfold przy N = `CURVE_ITERATIONS` = 512 (jawnie: `--openfold-iters
+512`; AA 23 s, Z 44 s, 2026-09-27). AA: field vs always-jam bit w bit
+ta sama (148,8 / 76,5 / 48,6% / 6 953 / 1 739 / 1 840 / 460), field vs
+$1 fish **139,6 / 58,9 / 57,8% / 6 123 / 1 531 / 1 089 / 273** (od
+POKER-71), tight vs always-jam **120,2 / 75,7 / 37,0% / 4 536 / 1 134 /
+1 801 / 451** (od POKER-73). Rozkład redukcji z pkt 1: field vs $1 fish
+57,8% (SD bloku 58,9 pp wobec 80,6 pp przy niezależnych rotacjach),
+tight 37,0% < 42,3%; wykrycie 10 pp kosztuje 1 380 / 819 / 1 353
+turniejów wobec 1 739 / 1 531 / 1 134; cel 56% nadal osiąga na blokach
+tylko field vs $1 fish. AB (`python tools/run_arena.py seats 20000 3x`;
+pary field — POKER-73 ich nie zmienia; wartości po POKER-71 z raportu
+`5b5ec9a`, sekcja B): field vs always-jam +20,8 / +20,6 / +17,6%,
+rozstęp 3,18 pp; field vs $1 fish +2,4 / −1,2 / +0,4%, rozstęp 3,54 pp —
+miejsce 0 nadal najkorzystniejsze, rozstęp ~3,2–3,5 pp. Z (pkt 3): field
+vs $1 fish **−3,4%** (±6,5 pp), field vs always-jam +15,9% (±8,4 pp);
+werdykty bez zmian.
+
 Świadomie zostawione: kotwica krzyżowa rozgrywacza z silnikiem
 (decyzja 27 pkt 4) jawnie poza tym kontraktem — wchodzi z następnym
 kontraktem dotykającym rozgrywacza; AIVAT zablokowany na blueprincie
@@ -3317,7 +3499,12 @@ Następne kroki:
    w [decyzji 29](decisions/29-tier-first-fundament-gto-mapa-po-researchu.md)
    (P-3/POKER-58: domknięcie przez osiągalność łańcucha dokładnego,
    2–10 rdzenio-h, nie pełna siatka; dane: blok POKER-55 pkt 10 — 0,844%
-   decyzji, wpływ reguły w granicach CI). Następny krok linii wg mapy
+   decyzji, wpływ reguły w granicach CI). Liczby BF/BH tych zdań
+   (0,850%, 0,844%, −0,39..+0,19 pp, +5,20 pp) opisują artefakt liczony
+   brzegiem horyzontu sprzed POKER-74 i arenę sprzed POKER-71;
+   przeliczenie wymaga regeneracji (wejście operatora, decyzja 31 pkt 3),
+   a mapa decyzji 29 czeka na zamknięcie sprintu A (Następny krok wyżej).
+   Następny krok linii wg mapy
    decyzji 29: POKER-56 (P-1) i POKER-57 (P-2) zamknięte →
    **POKER-58** (P-3, domknięcie warstw 1–5 łańcuchem dokładnym; szkic
    w `docs/taskspecs/drafts/`) → POKER-59 (P-4, checkpoint horyzontu —

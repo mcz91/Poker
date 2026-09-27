@@ -27,6 +27,16 @@ N = 320 to 57% / 54% / 49% dla 10 pp i 79% / 77% / 74% dla 5 pp; field
 vs $1 fish na 320 blokach (`python tools/run_arena.py 320 3x`) **−3,4%
 ROI, CI (−9,9; +3,0)** (sprzed poprawki −2,8%, CI (−9,2; +3,6)).
 
+**KOREKTA (POKER-73):** para tight vs always-jam gra książką hero, której
+open, overjam i 3bet pochodzą z openfold; od POKER-73 openfold liczy przy
+N = 512 z poprawionymi terminalami (KOREKTA (POKER-73) decyzji 20 i 22).
+`python tools/run_arena.py sd 320 3x --openfold-iters 512` (22,8 s przy
+pomiarze POKER-73, 23 s przy korekcie dokumentów 2026-09-27; na HEAD to
+samo co bez flagi, bo domyślne N = 512) daje SD ROI na turniej
+**148,8 / 139,6 / 120,2 pp** (po POKER-71, przed POKER-73: 148,8 /
+139,6 / 124,2), więc wymagana redukcja SD przy N = 320 to **57% / 54% /
+47%** dla 10 pp i **79% / 77% / 73%** dla 5 pp; pary field bez zmian.
+
 ## Decyzja
 
 1. **Kolejność: najpierw to, co nie wymaga funkcji wartości.**
