@@ -77,14 +77,17 @@ zawężenie kryterium 1 POKER-51.
   tożsamością, ale bramka sprawdza jedną maszynę, a łańcuch kontrolny
   porównuje liczby solvera z tolerancją na arytmetykę f32; rozjazd po
   regeneracji na innym CPU wymusza powtórzenie pomiarów, nie dowodzi błędu
-  kodu; (2) artefaktu opisanego wyżej — 30 z 32 pozycji opisywało artefakt,
-  którego obecny kod nie produkuje (brzeg horyzontu sprzed POKER-74, metadane
-  `.bpk` sprzed POKER-75; wpis `blueprint.bpk` 19 016 752 B pochodził wręcz
-  sprzed POKER-56), więc w `prod_identity.json` mają status „do
-  przeliczenia” bez sha, a pomiary przy artefakcie są unieważnione do
-  regeneracji operatora (decyzja 31 pkt 3). Sha zostaje wyłącznie przy
-  dwóch plikach `npz` tensora; „119 566 611 B” opisuje artefakt sprzed
-  korekty.
+  kodu; (2) artefaktu opisanego wyżej — 29 z 32 pozycji opisywało artefakt,
+  którego obecny kod nie produkuje (bieg `grid2/` liczony brzegiem horyzontu
+  sprzed POKER-74 i oba pliki `.bpk` spakowane z niego z metadanymi sprzed
+  POKER-75; wpis `blueprint.bpk` 19 016 752 B pochodził wręcz sprzed
+  POKER-56), a `rollout_manifest.json` powstał z niezmienionego kodu tensora,
+  lecz jego tożsamością jest od POKER-75 sha256 projekcji, której dla pliku
+  produkcyjnego (poza repozytorium) nie policzono. Te 30 pozycji ma więc
+  w `prod_identity.json` status „do przeliczenia” bez sha, a pomiary przy
+  artefakcie są unieważnione do regeneracji operatora (decyzja 31 pkt 3).
+  Sha zostaje wyłącznie przy dwóch plikach `npz` tensora; „119 566 611 B”
+  opisuje artefakt sprzed korekty.
 
 ## 3. Odblokowanie P-7 (WTA@25bb) bez potwierdzenia tabeli tierów
 

@@ -2271,9 +2271,13 @@ def test_manifest_tozsamosci_produkcji_opisuje_tylko_to_co_kod_produkuje() -> No
 
     Kod tensora nie zmienił się od POKER-50 (kotwica: podzbiór produkcji
     w `chain_control.json`), więc sha obu plików `npz` tensora opisuje to, co
-    obecny kod produkuje. Pozostałe 30 pozycji liczono brzegiem sprzed POKER-74
-    i konwerterem sprzed POKER-75 — nie mają sha, tylko status do przeliczenia
-    (decyzja 31 pkt 3). Metoda każdej pozycji to ta, którą liczy komenda.
+    obecny kod produkuje. Pozostałe 30 pozycji nie ma sha, tylko status do
+    przeliczenia (decyzja 31 pkt 3), z dwóch różnych powodów. 29 z nich to bieg
+    `grid2/` liczony brzegiem horyzontu sprzed POKER-74 i oba pliki `.bpk`
+    spakowane z niego z metadanymi sprzed POKER-75. `tensor/rollout_manifest.json`
+    powstał z tego samego, niezmienionego kodu tensora, ale jego tożsamością
+    jest od POKER-75 sha256 projekcji, a tej dla pliku produkcyjnego (poza
+    repozytorium) nie policzono. Metoda każdej pozycji to ta, którą liczy komenda.
     """
     idn = _load("identity")
     manifest = json.loads((CONTROL_DIR / "prod_identity.json").read_text())
