@@ -6,6 +6,7 @@ Testy używają malutkich konfiguracji: podzbiór klas preflop, siatka 25
 żetonów, 2 poziomy zegara i syntetyczny tensor — pełny pilot żyje poza bramką.
 """
 
+import copy
 import dataclasses
 import importlib.util
 import io
@@ -1611,6 +1612,29 @@ def control_run(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     return {"out_dir": out_dir, "manifest": manifest, "sg": sg}
 
 
+def _run_manifest_ephemera(manifest: dict[str, Any]) -> list[str]:
+    """Pola ulotne manifestu biegu z listy kontraktu POKER-75 obecne w `manifest`.
+
+    Lista jest wypisana tu niezależnie od `identity.EPHEMERAL`, żeby testy
+    porównywały projekcję z kontraktem, a nie z nią samą.
+    """
+    found: list[str] = [key for key in ("tensor_dir", "seconds_total_this_run", "cost_fuse")
+                        if key in manifest]
+    found += ["provenance.cpu_model"] if "cpu_model" in manifest["provenance"] else []
+    found += [f"config.{key}" for key in ("jobs", "cost_limit_core_hours")
+              if key in manifest["config"]]
+    sections = {"boundary": manifest["boundary"]}
+    sections.update({f"layers.{key}": entry for key, entry in manifest["layers"].items()})
+    for name, section in sections.items():
+        found += [f"{name}.{key}" for key in ("seconds", "seconds_per_state", "core_seconds_wall")
+                  if key in section]
+        found += [f"{name}.modes.{mode}.core_seconds" for mode, stats in section["modes"].items()
+                  if "core_seconds" in stats]
+    if "dir" in manifest["boundary"]["source"]:
+        found.append("boundary.source.dir")
+    return found
+
+
 def test_konwerter_daje_bajt_w_bajt_ten_sam_plik(control_run: dict[str, Any],
                                                  tmp_path: Path) -> None:
     """Ten sam artefakt wejściowy → ten sam plik. Bez znaczników czasu i nazw tymczasowych."""
@@ -1629,12 +1653,15 @@ def test_naglowek_i_metadane_niosa_hash_oraz_przepis_pochodzenia(
 ) -> None:
     """Nagłówek: magia, wersja, kwantyzacja, hash konfiguracji biegu w surowych bajtach.
 
-    Przepis pochodzenia (kopia manifestu biegu z wersjami, modelem CPU i
-    parametrami tensora) jedzie w bloku metadanych, a sha256 pakowanych plików
-    liczy konwerter — manifest, który skłamał o zawartości, zapala błąd.
+    Blok metadanych niesie kanoniczną projekcję manifestu biegu (wersje,
+    parametry tensora, konfigurację — bez pól ulotnych, którymi różnią się dwie
+    regeneracje), a pełny przepis pochodzenia z modelem CPU i czasami zostaje
+    w `solve_manifest.json` obok artefaktu. Sha256 pakowanych plików liczy
+    konwerter — manifest, który skłamał o zawartości, zapala błąd.
     """
     pk = _load("pack_blueprint")
     br = _import_reader()
+    idn = _load("identity")
     packed = tmp_path / "control.bpk"
     pk.pack(control_run["out_dir"], packed)
     head = packed.read_bytes()[: br.HEADER_SIZE]
@@ -1649,11 +1676,23 @@ def test_naglowek_i_metadane_niosa_hash_oraz_przepis_pochodzenia(
         assert reader.file_length == packed.stat().st_size
         meta = json.loads(reader.meta_bytes())
     provenance = meta["run_manifest"]["provenance"]
-    assert provenance["python"] and provenance["numpy"] and provenance["cpu_model"]
+    assert provenance["python"] and provenance["numpy"]
     assert provenance["tensor"]["master_seed"] == manifest["provenance"]["tensor"]["master_seed"]
     assert meta["run_manifest"]["tensor_sha256"] == manifest["tensor_sha256"]
     on_disk = json.loads((control_run["out_dir"] / "solve_manifest.json").read_text())
-    assert meta["run_manifest"] == on_disk
+    assert meta["run_manifest"] == idn.canonical_projection("solve_manifest.json", on_disk)
+    assert _run_manifest_ephemera(meta["run_manifest"]) == []
+    for key in ("grid_step", "classes"):  # konsumenci: agent blueprintu, tools/run_arena.py
+        assert meta["run_manifest"]["config"][key] == on_disk["config"][key], key
+    assert set(_run_manifest_ephemera(on_disk)) >= {
+        "tensor_dir", "provenance.cpu_model", "seconds_total_this_run",
+        "config.jobs", "config.cost_limit_core_hours",
+        "boundary.seconds", "boundary.core_seconds_wall", "layers.0.seconds",
+    }
+    assert on_disk["provenance"]["cpu_model"] and on_disk["tensor_dir"]
+    assert meta["source_sha256"]["solve_manifest.json"] == idn.projection_sha256(
+        "solve_manifest.json", on_disk
+    )
     for key, entry in manifest["layers"].items():
         assert meta["source_sha256"][entry["file"]] == entry["sha256"], key
     assert meta["source_sha256"][manifest["boundary"]["file"]] == manifest["boundary"]["sha256"]
@@ -2051,3 +2090,242 @@ def test_koszt_kwantyzacji_w_epsilon_na_artefakcie_kontrolnym(
     assert cost["quant_epsilon_median"] == pytest.approx(CONTROL_QUANT_EPS_MEDIAN,
                                                          abs=cc.CONTROL_ABS_TOL)
     assert cost["delta_share"] == pytest.approx(CONTROL_QUANT_DELTA_SHARE, abs=0.01)
+
+
+# --- POKER-75: tożsamość artefaktu porównywalna między regeneracjami ---
+
+# Dwie warstwy łańcucha kontrolnego nie uruchamiają bezpiecznika kosztu (od
+# trzech), więc pominięcie `cost_fuse` sprawdza osobno test projekcji.
+CONTROL_POSITIONS = (
+    "tensor/rollout3.npz", "tensor/rollout_hu.npz", "tensor/rollout_manifest.json",
+    "boundary.npz", "layer_00.npz", "layer_01.npz", "solve_manifest.json",
+    "expost.npz", "expost_report.json", "icm_report.json", "eps_decomposition.json",
+    "blueprint.bpk", "blueprint_v2.bpk",
+)
+PROJECTED_MANIFESTS = ("solve_manifest.json", "rollout_manifest.json", "eps_decomposition.json")
+
+
+def test_projekcja_kanoniczna_pomija_dokladnie_pola_ulotne(control_run: dict[str, Any]) -> None:
+    """Projekcja zdejmuje dokładnie pola ulotne z kontraktu i nic więcej.
+
+    Manifest łańcucha kontrolnego ma dwie warstwy, więc pole `cost_fuse` (od
+    trzech warstw) i `boundary.source.dir` (wyłącznie brzeg importowany)
+    dokłada się tu syntetycznie. `del` na oczekiwanym wyniku wywraca test, gdy
+    pola nie ma w wejściu — lista nie może być spełniona pustym manifestem.
+    """
+    idn = _load("identity")
+    sg = control_run["sg"]
+    manifest = json.loads((control_run["out_dir"] / "solve_manifest.json").read_text())
+    manifest["cost_fuse"] = {"verdict": "ok", "spent_core_hours": 0.5, "rates": {}}
+    manifest["boundary"]["source"] = {"kind": "imported", "dir": "/abs/bieg", "sha256": "ab"}
+    before = copy.deepcopy(manifest)
+    expected = copy.deepcopy(manifest)
+    for key in ("tensor_dir", "seconds_total_this_run", "cost_fuse"):
+        del expected[key]
+    del expected["provenance"]["cpu_model"]
+    del expected["config"]["jobs"]
+    del expected["config"]["cost_limit_core_hours"]
+    del expected["boundary"]["source"]["dir"]
+    for section in (expected["boundary"], *expected["layers"].values()):
+        del section["seconds"]
+        del section["core_seconds_wall"]
+        for stats in section["modes"].values():
+            del stats["core_seconds"]
+    for entry in expected["layers"].values():
+        del entry["seconds_per_state"]
+    assert idn.canonical_projection("solve_manifest.json", manifest) == expected
+    assert manifest == before
+
+    # Konfiguracja traci te same dwa pola, których nie bierze hash konfiguracji.
+    stub = {"sha256": manifest["tensor_sha256"]}
+    assert sg.config_hash(sg.config_from_dict(manifest["config"]), stub) == manifest["config_hash"]
+    other = copy.deepcopy(manifest)
+    other["config"]["jobs"] += 3
+    other["config"]["cost_limit_core_hours"] += 1.0
+    assert sg.config_hash(sg.config_from_dict(other["config"]), stub) == manifest["config_hash"]
+    assert idn.projection_sha256("solve_manifest.json", other) == idn.projection_sha256(
+        "solve_manifest.json", manifest
+    )
+    other["config"]["fp_tol"] *= 2
+    assert idn.projection_sha256("solve_manifest.json", other) != idn.projection_sha256(
+        "solve_manifest.json", manifest
+    )
+
+    rollout = json.loads((CONTROL_DIR / "tensor" / "rollout_manifest.json").read_text())
+    kept = {key: value for key, value in rollout.items()
+            if key not in ("seconds", "cpu_model", "jobs")}
+    assert len(kept) == len(rollout) - 3
+    assert idn.canonical_projection("rollout_manifest.json", rollout) == kept
+    decomposition = {"run": "/abs/bieg", "fp_tol": 1e-4, "states": [{"hand": 0}], "modes": []}
+    assert idn.canonical_projection("eps_decomposition.json", decomposition) == {
+        "fp_tol": 1e-4, "states": [{"hand": 0}], "modes": []
+    }
+    with pytest.raises(ValueError, match="brak projekcji"):
+        idn.canonical_projection("expost_report.json", {})
+
+
+def _strings(payload: Any) -> list[str]:
+    if isinstance(payload, str):
+        return [payload]
+    if isinstance(payload, dict):
+        return [text for value in payload.values() for text in _strings(value)]
+    if isinstance(payload, list):
+        return [text for value in payload for text in _strings(value)]
+    return []
+
+
+def _finish_control_chain(root: Path, jobs: int) -> None:
+    """Ogon łańcucha w katalogu biegu: ex-post, ICM, rozkład ε i oba formaty `.bpk`."""
+    ep, ec, pk = _load("expost"), _load("eps_curve"), _load("pack_blueprint")
+    ep.run_expost(root, jobs=jobs)
+    ep.icm_report(root)
+    ec.decompose(root, jobs=jobs)
+    pk.pack(root, root / "blueprint.bpk")
+    pk.pack(root, root / "blueprint_v2.bpk", version=2)
+
+
+def test_dwie_regeneracje_lancucha_kontrolnego_daja_te_sama_tozsamosc(
+    control_run: dict[str, Any], value_table: Any, tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Dwie bezbłędne regeneracje tym samym kodem: ta sama tożsamość każdej z 13 pozycji.
+
+    Regeneracje różnią się wszystkim, czym wolno: katalogiem głównym, ścieżką
+    bezwzględną katalogu tensora i biegu oraz liczbą procesów (1 i 2) — więc
+    surowe manifesty różnią się polami ulotnymi. Pierwszą jest wspólny bieg
+    kontrolny (`control_run`, tensor z repo) przeniesiony do własnego katalogu
+    obok świeżo wygenerowanego tensora, bajt w bajt tego samego co w repo;
+    druga liczy wszystko od nowa. Oba pliki `.bpk` mają być identyczne bajt
+    w bajt, a komenda `identity.py` ma wypisać tę samą tożsamość, zgodną z sha
+    manifestu, który konwerter zapisał w metadanych.
+    """
+    cc, rt, af = _load("control_chain"), _load("rollout_tensor"), _load("artifacts")
+    sg, idn, br = control_run["sg"], _load("identity"), _import_reader()
+    first = tmp_path / "pierwsza" / "artefakt"
+    first.mkdir(parents=True)
+    solved = control_run["manifest"]
+    copied = [entry["file"] for entry in solved["layers"].values()]
+    for name in [*copied, solved["boundary"]["file"], "solve_manifest.json"]:
+        (first / name).write_bytes((control_run["out_dir"] / name).read_bytes())
+    cc.generate_control_tensor(first / "tensor", table=value_table)
+    for name in ("rollout3.npz", "rollout_hu.npz"):
+        committed = (CONTROL_DIR / "tensor" / name).read_bytes()
+        assert (first / "tensor" / name).read_bytes() == committed, name
+    _finish_control_chain(first, jobs=1)
+
+    second = tmp_path / "druga" / "inny_katalog"
+    rt.generate_artifacts(
+        second / "tensor", trials=cc.CONTROL_TRIALS, hu_trials=cc.CONTROL_HU_TRIALS,
+        master_seed=cc.CONTROL_SEED, classes=cc.control_classes(), jobs=2,
+        backend="table", table=value_table,
+    )
+    sg.solve(cc.control_config(jobs=2), second / "tensor", second)
+    _finish_control_chain(second, jobs=2)
+
+    raw = [
+        {
+            "solve_manifest.json": af.read_json(root / "solve_manifest.json"),
+            "rollout_manifest.json": af.read_json(root / "tensor" / "rollout_manifest.json"),
+            "eps_decomposition.json": af.read_json(root / "eps_decomposition.json"),
+        }
+        for root in (first, second)
+    ]
+    solve_raw = [manifests["solve_manifest.json"] for manifests in raw]
+    assert solve_raw[0]["tensor_dir"] != solve_raw[1]["tensor_dir"]
+    assert [manifest["config"]["jobs"] for manifest in solve_raw] == [1, 2]
+    assert [manifests["rollout_manifest.json"]["jobs"] for manifests in raw] == [1, 2]
+    runs = [manifests["eps_decomposition.json"]["run"] for manifests in raw]
+    assert runs[0] != runs[1]
+    for manifests in raw:
+        for name in PROJECTED_MANIFESTS:
+            projected = idn.canonical_projection(name, manifests[name])
+            assert not [text for text in _strings(projected) if Path(text).is_absolute()], name
+    for name in ("blueprint.bpk", "blueprint_v2.bpk"):
+        assert (first / name).read_bytes() == (second / name).read_bytes(), name
+
+    capsys.readouterr()  # postęp solvera — wyjście komendy ma być samym JSON-em
+    identities = []
+    for root in (first, second):
+        assert idn.main(["--run", str(root)]) == 0
+        identities.append(json.loads(capsys.readouterr().out))
+    assert sorted(identities[0]["pliki"]) == sorted(CONTROL_POSITIONS)
+    assert identities[0] == identities[1]
+    methods = {name: entry["metoda"] for name, entry in identities[0]["pliki"].items()}
+    assert {name for name, method in methods.items() if method == idn.METHOD_PROJECTION} == {
+        "tensor/rollout_manifest.json", "solve_manifest.json", "eps_decomposition.json"
+    }
+    assert set(methods.values()) == {idn.METHOD_PROJECTION, idn.METHOD_FILE}
+    for name in ("blueprint.bpk", "blueprint_v2.bpk"):
+        with (second / name).open("rb") as handle:
+            meta = json.loads(br.BlueprintReader(handle).meta_bytes())
+        assert meta["source_sha256"]["solve_manifest.json"] == (
+            identities[1]["pliki"]["solve_manifest.json"]["sha256"]
+        ), name
+        assert meta["run_manifest"] == idn.canonical_projection(
+            "solve_manifest.json", solve_raw[1]
+        ), name
+
+
+def test_manifest_tozsamosci_produkcji_opisuje_tylko_to_co_kod_produkuje() -> None:
+    """`prod_identity.json` po POKER-75: sha zostaje wyłącznie przy tensorze.
+
+    Kod tensora nie zmienił się od POKER-50 (kotwica: podzbiór produkcji
+    w `chain_control.json`), więc sha obu plików `npz` tensora opisuje to, co
+    obecny kod produkuje. Pozostałe 30 pozycji nie ma sha, tylko status do
+    przeliczenia (decyzja 31 pkt 3), z dwóch różnych powodów. 29 z nich to bieg
+    `grid2/` liczony brzegiem horyzontu sprzed POKER-74 i oba pliki `.bpk`
+    spakowane z niego z metadanymi sprzed POKER-75. `tensor/rollout_manifest.json`
+    powstał z tego samego, niezmienionego kodu tensora, ale jego tożsamością
+    jest od POKER-75 sha256 projekcji, a tej dla pliku produkcyjnego (poza
+    repozytorium) nie policzono. Metoda każdej pozycji to ta, którą liczy komenda.
+    """
+    idn = _load("identity")
+    manifest = json.loads((CONTROL_DIR / "prod_identity.json").read_text())
+    files = manifest["pliki"]
+    tensor = {"tensor/rollout3.npz", "tensor/rollout_hu.npz"}
+    positions = tensor | {f"grid2/layer_{hand:02d}.npz" for hand in range(21)} | {
+        "tensor/rollout_manifest.json", "grid2/boundary.npz", "grid2/solve_manifest.json",
+        "grid2/expost.npz", "grid2/expost_report.json", "grid2/icm_report.json",
+        "grid2/eps_decomposition.json", "blueprint.bpk", "blueprint_v2.bpk",
+    }
+    assert set(files) == positions and len(positions) == 32
+    by_status: dict[str, set[str]] = {}
+    for name, entry in files.items():
+        projected = name.rsplit("/", 1)[-1] in idn.EPHEMERAL
+        assert entry["metoda"] == (idn.METHOD_PROJECTION if projected else idn.METHOD_FILE), name
+        by_status.setdefault(entry["status"], set()).add(name)
+    assert by_status == {"aktualna": tensor, "do przeliczenia": positions - tensor}
+    for name in positions - tensor:
+        assert "sha256" not in files[name] and "bytes" not in files[name], name
+        assert "decyzja 31 pkt 3" in files[name]["podstawa"], name
+    for name in tensor:
+        short = name.removeprefix("tensor/")
+        assert files[name]["sha256"] == manifest["tensor_sha256_z_manifestu"][short], name
+        assert files[name]["bytes"] > 0, name
+    assert "python tools/blueprint/identity.py --run" in manifest["jak_uzyc"]
+    commands = manifest["pochodzenie"]
+    assert set(commands) == positions
+    assert set(commands.values()) == {"AC", "AE", "AF", "AG", "AH", "BA", "BN"}
+    assert {commands[name] for name in tensor | {"tensor/rollout_manifest.json"}} == {"AC"}
+    assert (commands["blueprint.bpk"], commands["blueprint_v2.bpk"]) == ("BA", "BN")
+
+
+def test_konfiguracja_manifestu_tozsamosci_odtwarza_jego_hash() -> None:
+    """`konfiguracja` w `prod_identity.json` to pola `GridConfig` biegu produkcyjnego.
+
+    Z wartościami domyślnymi pozostałych pól i sha tensora odtwarza zapisany
+    `config_hash` — więc hash i konfiguracja opisują bieg, który obecny kod
+    powtórzy. Pole spoza `GridConfig` (np. `null` pod nazwą, której solver nie
+    zna) udawałoby ustawienie, którego bieg nie ma.
+    """
+    sg = _load("solve_grid")
+    manifest = json.loads((CONTROL_DIR / "prod_identity.json").read_text())
+    listed = manifest["konfiguracja"]
+    assert set(listed) <= {field.name for field in dataclasses.fields(sg.GridConfig)}
+    config = dataclasses.replace(
+        sg.GridConfig(),
+        **{key: tuple(value) if isinstance(value, list) else value
+           for key, value in listed.items()},
+    )
+    stub = {"sha256": manifest["tensor_sha256_z_manifestu"]}
+    assert sg.config_hash(config, stub) == manifest["config_hash"]
