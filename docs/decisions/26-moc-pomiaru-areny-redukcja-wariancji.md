@@ -15,6 +15,18 @@ turniejowa. Wymagana redukcja SD przy naszym budżecie N = 320:
 **56% dla wykrycia 10 pp ROI, 78% dla 5 pp** (moc 80%, α = 0,05).
 Dla porównania: AIVAT w HUNL daje 68%, w Leduc self-play 99,9%.
 
+**KOREKTA (POKER-71):** +4,1% i 145 pp zmierzył estymator sprzed POKER-48
+(hero stale na miejscu 0, karty sprzężone z decyzjami), a side pot 3-way
+areny był do POKER-71 dzielony po równo między przegranych puli głównej
+(finding B3 audytu 2026-09-26). Te same wielkości na arenie po poprawce:
+SD ROI na turniej (miejsce 0, seedy 21…340,
+`python tools/run_arena.py sd 320 3x`) **148,8 / 139,6 / 124,2 pp** dla
+par field vs always-jam / field vs $1 fish / tight vs always-jam (kod
+sprzed poprawki: 148,8 / 140,4 / 124,2), więc wymagana redukcja SD przy
+N = 320 to 57% / 54% / 49% dla 10 pp i 79% / 77% / 74% dla 5 pp; field
+vs $1 fish na 320 blokach (`python tools/run_arena.py 320 3x`) **−3,4%
+ROI, CI (−9,9; +3,0)** (sprzed poprawki −2,8%, CI (−9,2; +3,6)).
+
 ## Decyzja
 
 1. **Kolejność: najpierw to, co nie wymaga funkcji wartości.**

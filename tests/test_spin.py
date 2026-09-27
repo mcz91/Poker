@@ -123,6 +123,31 @@ def test_utg_shove_bb_wola_rowne_stacki() -> None:
     assert lose == (0, 49, 101)
 
 
+def test_utg_shove_called_spasowany_blind_zostaje_w_puli() -> None:
+    """Finding B3 audytu 09-26: BB pasuje blind 2 na shove UTG i call BTN all-in z SB 1.
+
+    Pulę główną 3 (po żetonie od każdego) bierze BTN; drugi żeton blinda BB
+    trafia do side potu, o który gra tylko UTG — spasowany nie odzyskuje
+    niczego. Ranga przegranego dla BB dzieliła ten side pot: (49, 3, 49).
+    """
+    assert utg_shove_called((50, 1, 50), 1, caller=1, winner=1) == (50, 3, 48)
+
+
+def test_utg_shove_called_all_in_z_samego_blinda_jest_zywy() -> None:
+    """BB all-in z samym blindem 2 jest w rozdaniu, choć nie zagrał.
+
+    Model nie zna jego ręki, więc BB dostaje rangę przegranego i dzieli side
+    pot z UTG — to nie jest fold, wynik bez zmian po poprawce B3.
+    """
+    assert utg_shove_called((50, 1, 2), 1, caller=1, winner=1) == (49, 3, 1)
+
+
+def test_utg_shove_called_odrzuca_spasowanego_zwyciezce() -> None:
+    """Zwycięzca spoza showdownu z żetonami za blindem to spasowany BB — stan niemożliwy."""
+    with pytest.raises(ValueError, match="spasowane"):
+        utg_shove_called((50, 1, 50), 1, caller=1, winner=2)
+
+
 def test_wta_fold_rowna_sie_dokladnie_udzialowi_zetonowemu() -> None:
     """Gałąź fold nie gubi żetonów blindów: pod WTA fold == udział żetonowy."""
     for stacks in ((50, 50, 50), (16, 50, 84)):

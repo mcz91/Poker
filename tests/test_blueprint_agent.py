@@ -586,7 +586,7 @@ def test_slot_wezla_zgadza_sie_z_drzewem_gry_etapowej_treningu() -> None:
     """
     config = _mini_config()
     views = _spy_views(range(40), (dollar_fish(), always_jam()))
-    assert len(views) == 764  # liczba w bloku POKER-54 CURRENT_STATE
+    assert len(views) == 753  # raport POKER-71 (blok POKER-54 CURRENT_STATE: 764)
     seen_nodes: set[tuple[int, int]] = set()
     cache: dict[tuple[Any, int], Any] = {}
     for view in views:
@@ -703,7 +703,7 @@ def test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony() -> None:
     ):
         for seed in range(60):
             run_spin(books, seed, on_action=lambda view, act, asked: log((view, act, asked)))
-    assert len(events) == 3075  # liczba w bloku POKER-54 CURRENT_STATE
+    assert len(events) == 3042  # raport POKER-71 (blok POKER-54 CURRENT_STATE: 3075)
 
     forced_entry = root_fold = free_question = capped_call = 0
     for view, _, asked in events:
@@ -727,7 +727,7 @@ def test_wymuszenie_maski_zgadza_sie_z_arena_w_obie_strony() -> None:
         else:
             capped_call += 1
             assert max(view.contrib) > view.contrib[view.seat], view
-    assert (forced_entry, root_fold, free_question, capped_call) == (21, 8, 3044, 2)
+    assert (forced_entry, root_fold, free_question, capped_call) == (19, 6, 3014, 3)
 
 
 def test_wejscie_za_darmo_areny_to_akcja_wymuszona_maska_treningu() -> None:
@@ -860,7 +860,7 @@ def test_fallback_poza_horyzontem_to_check_call_fold(
     bramka takiego nie buduje, ścieżkę osiąga się tu wyłączeniem reguły cyklu.
     Sam fallback jest prawdziwy: to ta sama `passive_action` i ten sam licznik,
     który bieg kontrolny w `test_horyzont_czyta_warstwe_cyklu_punktu_stalego`
-    zapala 109 razy.
+    zapala 98 razy.
     """
     import random
 
@@ -1054,8 +1054,9 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
 
     Zero jest niepuste NA TEJ SAMEJ PRÓBCE, a nie na innej (F3 audytu
     POKER-54): ten sam bieg powtórzony z kolejnością sprzed POKER-54 zapala
-    oba liczniki kolejności (2 i 136), a agent odwiedza w nim wszystkie 14
-    węzłów modelu 3-max — w tym 8, 9 i 10, na których rozjazd siedział.
+    oba liczniki kolejności (2 i 136), a z naprawioną kolejnością agent
+    odwiedza na tej próbce 13 z 14 węzłów modelu 3-max (bez 7) — w tym 8, 9
+    i 10, na których rozjazd siedział.
 
     `forced_action_misses` ma na artefakcie bramki wąskie gardło: rozkład
     czyta się dopiero po klasie, a mini-artefakt zna cztery klasy ze 169, więc
@@ -1067,7 +1068,7 @@ def test_rozjazd_areny_z_kolejnoscia_i_maska_treningu_jest_zerem(
     agent = _agent(mini_artifact)
     seen = _agent_run(agent)
     counters = agent.counters()
-    assert counters["decisions"] == 5770, counters
+    assert counters["decisions"] == 5704, counters
     assert counters["out_of_order"] == 0, counters
     assert counters["order_collapse"] == 0, counters
     assert counters["forced_action_misses"] == 0, counters
@@ -1089,9 +1090,9 @@ def test_horyzont_czyta_warstwe_cyklu_punktu_stalego(
     """Kryterium POKER-55, blokująco: ręka ≥ 21 czyta artefakt, nie fallback.
 
     Zero jest niepuste NA TEJ SAMEJ PRÓBCE (lekcja F3 audytu POKER-54): ten
-    sam bieg z wyłączoną regułą cyklu zapala `horizon_fallbacks` 109 razy,
+    sam bieg z wyłączoną regułą cyklu zapala `horizon_fallbacks` 98 razy,
     czyli dokładnie na tych decyzjach rąk ≥ 21, które teraz idą do artefaktu.
-    Z artefaktu wychodzi ich sześć, bo mini-artefakt zna cztery klasy ze 169
+    Z artefaktu wychodzi ich pięć, bo mini-artefakt zna cztery klasy ze 169
     i reszta kończy się na `class_misses` — na artefakcie produkcyjnym (169
     klas) cały ten ruch jest odczytem.
 
@@ -1103,9 +1104,9 @@ def test_horyzont_czyta_warstwe_cyklu_punktu_stalego(
     seen = _agent_run(agent)
     counters = agent.counters()
     late = [hand for hand in seen.hands if hand >= CYCLE_BASE + CYCLE_LENGTH]
-    assert len(late) == 106, len(late)
+    assert len(late) == 95, len(late)
     assert counters["horizon_fallbacks"] == 0, counters
-    assert counters["cyclic_reads"] == 6, counters
+    assert counters["cyclic_reads"] == 5, counters
     assert counters["state_misses"] == 0, counters
     assert counters["full_layer_state_misses"] == 0, counters
     assert agent.layer_hand(21) == 18 and agent.layer_hand(20) == 20
@@ -1114,7 +1115,7 @@ def test_horyzont_czyta_warstwe_cyklu_punktu_stalego(
     before = _agent(mini_artifact)
     _agent_run(before)
     stale = before.counters()
-    assert stale["horizon_fallbacks"] == 109, stale
+    assert stale["horizon_fallbacks"] == 98, stale
     assert stale["cyclic_reads"] == 0, stale
 
 
@@ -1653,7 +1654,7 @@ def test_licznik_udzialu_decyzyjnego_trybow_jest_zupelny_i_niepusty(
 
     Otwarte pytanie 2 decyzji 29 zmierzone na artefakcie bramki: udział KOMÓREK
     siatki nie jest udziałem ODWIEDZIN. Ten sam bieg ma 6,4% komórek `deep`
-    (9 stanów-warstw na 141) i 51,4% decyzji `deep` — osiem razy więcej, bo
+    (9 stanów-warstw na 141) i 51,1% decyzji `deep` — osiem razy więcej, bo
     turniej zaczyna się w komórce głębokiej i wraca do niej co rotację, a płaci
     się za komórki. Obie liczby są z TEGO SAMEGO artefaktu.
     """
@@ -1661,14 +1662,14 @@ def test_licznik_udzialu_decyzyjnego_trybow_jest_zupelny_i_niepusty(
     _agent_run(agent)
     counters = agent.counters()
     modes = {mode: counters[f"decisions_{mode}"] for mode in SOLVER_MODES}
-    assert sum(modes.values()) == counters["decisions"] == 5770
+    assert sum(modes.values()) == counters["decisions"] == 5704
     assert all(count > 0 for count in modes.values()), modes
-    assert modes == {"deep": 2966, "jamfold": 192, "hu-deep": 1440, "hu-jamfold": 1172}
+    assert modes == {"deep": 2916, "jamfold": 176, "hu-deep": 1460, "hu-jamfold": 1152}
     cells = _load("mode_census").census(_mini_config(), 1).layer_totals()
     cell_share = cells["deep"] / sum(cells.values())
     visit_share = modes["deep"] / counters["decisions"]
     assert cell_share == pytest.approx(0.0638, abs=0.0005)
-    assert visit_share == pytest.approx(0.5140, abs=0.0005)
+    assert visit_share == pytest.approx(0.5112, abs=0.0005)
 
 
 def test_licznik_trybu_opisuje_komorke_artefaktu_a_nie_arene(mini_artifact: Path) -> None:

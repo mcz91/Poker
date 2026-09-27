@@ -250,6 +250,29 @@ def award_allin(contributions: tuple[int, ...], ranks: tuple[int, ...]) -> tuple
     return tuple(payouts)
 
 
+def model_ranks(
+    stacks: Stacks3,
+    contributions: tuple[int, int, int],
+    showdown: tuple[int, ...],
+    winner: int,
+) -> tuple[int, int, int]:
+    """Rangi `award_allin` dla all-inu modelu, który nie zna kart: wygrywa `winner`.
+
+    Spasowany to miejsce spoza `showdown` z żetonami za wkładem — ranga gorsza
+    od każdego żywego, więc nie wygrywa żadnej puli, a jego wkład zostaje
+    w puli. Miejsce all-in z samego blinda jest żywe: model nie zna jego ręki,
+    więc dostaje rangę przegranego, jak przegrany showdownu.
+    """
+    folded = [
+        seat not in showdown and contributions[seat] < stacks[seat] for seat in range(3)
+    ]
+    if folded[winner]:
+        raise ValueError(f"spasowane miejsce {winner} nie wygrywa puli")
+    ranks = [2 if folded[seat] else 1 for seat in range(3)]
+    ranks[winner] = 0
+    return (ranks[0], ranks[1], ranks[2])
+
+
 def place_payouts(
     stacks: Stacks3,
     busts: Busts3,
@@ -339,9 +362,8 @@ def utg_shove_called(
     target = contrib[utg]
     add = max(0, min(stacks[caller] - already, target - already))
     contrib[caller] = already + add
-    ranks = [1, 1, 1]
-    ranks[winner] = 0
-    awarded = award_allin((contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2]))
+    paid = (contrib[0], contrib[1], contrib[2])
+    awarded = award_allin(paid, model_ranks(stacks, paid, (utg, caller), winner))
     return (
         stacks[0] - contrib[0] + awarded[0],
         stacks[1] - contrib[1] + awarded[1],

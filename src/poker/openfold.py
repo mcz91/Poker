@@ -14,6 +14,7 @@ from poker.spin import (
     BIG_BLIND,
     SMALL_BLIND,
     award_allin,
+    model_ranks,
     open_amount,
     roles,
     terminal_equities,
@@ -110,12 +111,11 @@ def _take(stacks: tuple[int, int, int], contrib: list[int], winner: int) -> tupl
     return (out[0], out[1], out[2])
 
 
-def _sd(stacks: tuple[int, int, int], contrib: list[int], winner: int) -> tuple[int, int, int]:
-    ranks = [1, 1, 1]
-    ranks[winner] = 0
-    awarded = award_allin(
-        (contrib[0], contrib[1], contrib[2]), (ranks[0], ranks[1], ranks[2])
-    )
+def _sd(
+    stacks: tuple[int, int, int], contrib: list[int], showdown: tuple[int, int], winner: int
+) -> tuple[int, int, int]:
+    paid = (contrib[0], contrib[1], contrib[2])
+    awarded = award_allin(paid, model_ranks(stacks, paid, showdown, winner))
     return (
         stacks[0] - contrib[0] + awarded[0],
         stacks[1] - contrib[1] + awarded[1],
@@ -150,7 +150,7 @@ def solve(
 
     def hu(a: int, b: int, base: list[int], w: int) -> tuple[float, ...]:
         c = _put(stacks, _put(stacks, base, a, stacks[a]), b, stacks[b])
-        return money(_sd(stacks, c, w))
+        return money(_sd(stacks, c, (a, b), w))
 
     hu_uj_b = (hu(utg, btn, blinds, utg), hu(utg, btn, blinds, btn))
     hu_uj_c = (hu(utg, bb, blinds, utg), hu(utg, bb, blinds, bb))
@@ -400,7 +400,7 @@ def _threebet_from_open(
 
     def hu(a: int, b: int, w: int) -> tuple[float, ...]:
         c = _put(stacks, _put(stacks, opened, a, stacks[a]), b, stacks[b])
-        return money(_sd(stacks, c, w))
+        return money(_sd(stacks, c, (a, b), w))
 
     hu_btn = (hu(utg, btn, utg), hu(utg, btn, btn))
     hu_bb = (hu(utg, bb, utg), hu(utg, bb, bb))
