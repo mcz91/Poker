@@ -714,8 +714,9 @@ def _horizon_config(sg: Any) -> Any:
     Blindy i stacki są wielokrotnościami kroku, więc przejścia HU kwantyzują się
     równoważnie na zamianę etykiet żywych (test to asertuje), a fold przesuwa stan
     o cały krok. Przy blindach 2/4 kwantyzacja wchłania fold, stan stoi w miejscu
-    i cykl zbiega o rzędy wolniej (delta 2e−4 po 40 cyklach), więc test nie
-    zmieściłby się w czasie bramki.
+    i cykl zbiega o rzędy wolniej (zmierzone na tej siatce, delta `_boundary`:
+    przy 2/4 4,8e−4 po czterech cyklach, 2,0e−4 po 21, 4,0e−5 po 40; przy 25/50
+    1,3e−6 po czterech), więc test kosztowałby dziesiątki sekund zamiast kilku.
     """
     return _toy_config(
         sg, levels=((1, 2), (25, 50)), total_chips=100, start_stacks=(25, 50, 25),
@@ -824,8 +825,8 @@ def test_brzeg_horyzontu_to_punkt_staly_cyklu_szesciu_rak(tmp_path: Path) -> Non
     liczony w teście zbiega (zmierzone: zero maszynowe w siódmym cyklu) i spełnia
     niezmiennik naprzemiennego guzika V_h(s) = P·V_{h+1}(P·s); wynik `_boundary`
     ma się z nim zgadzać dla wszystkich wierszy z tolerancją 2·tail_tol. Brzeg
-    cyklu trzech rąk odchyla się na tej siatce o 1,7e−3 (HU 1,2e−3), czyli ~90×
-    ponad tolerancję; brzeg cyklu sześciu rąk o 9,6e−8.
+    cyklu trzech rąk odchyla się na tej siatce o 1,74e−3 (HU 1,24e−3), czyli 87×
+    ponad tę tolerancję; brzeg cyklu sześciu rąk o 9,6e−8.
     """
     sg = _load("solve_grid")
     np = sg.np
@@ -843,8 +844,9 @@ def test_brzeg_horyzontu_to_punkt_staly_cyklu_szesciu_rak(tmp_path: Path) -> Non
     layers, fixed_deltas = _model_fixed_point(sg, tensors, config, states, max_cycles=16)
     # Gry etapowe liczą wypłaty liści w float32, więc zbieżność i niezmiennik
     # naprzemiennego guzika trzymają się z dokładnością f32, nie f64 (zmierzone:
-    # delta 0,0 w siódmym cyklu, niezmiennik 2,4e−8); progi są o rzędy poniżej
-    # tolerancji porównania 2·tail_tol = 2e−5.
+    # delta 0,0 w siódmym cyklu; reszta niezmiennika na żywych miejscach maks
+    # 1,45e−7, średnio 7,0e−8, więc próg 1e−6 ma ~7× zapasu). Oba progi, 1e−7
+    # i 1e−6, leżą 200× i 20× poniżej tolerancji porównania 2·tail_tol = 2e−5.
     assert fixed_deltas[-1] <= 1e-7, fixed_deltas
     index = {state: row for row, state in enumerate(states)}
     for hand in range(total, total + MODEL_PERIOD_HANDS):

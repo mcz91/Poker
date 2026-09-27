@@ -326,10 +326,13 @@ def test_przenumerowanie_sadza_role_treningu_na_rolach_areny() -> None:
 def test_cykl_horyzontu_stoi_na_zegarze_blindow() -> None:
     """Warunek decyzji 28 pkt 3 jako niezmiennik: od `CYCLE_BASE` blindy stoją.
 
-    Odczyt cykliczny jest ścisły tylko dlatego, że ręce za horyzontem żyją
-    w tym samym stacjonarnym cyklu co warstwy `CYCLE_BASE`…`+CYCLE_LENGTH−1`.
-    Gdyby zegar dostał ósmy poziom albo inną długość poziomu, ta stałość
-    znika — i wtedy ma czerwienieć test, a nie milczeć agent.
+    Odczyt cykliczny zakłada, że ręce za horyzontem grają tę samą grę co warstwy
+    `CYCLE_BASE`…`+CYCLE_LENGTH−1`. Stałe blindy są tego warunkiem koniecznym,
+    nie wystarczającym: w modelu treningu stan ma okres sześciu rąk (guzik HU
+    z ręki mod 2), więc przy trzech żywych odczyt co trzy ręce jest przybliżeniem
+    o zmierzonej wielkości (decyzja 28, KOREKTA POKER-74 pkt c; poprawka agenta —
+    sprint B). Gdyby zegar dostał ósmy poziom albo inną długość poziomu, znika
+    i warunek konieczny — i wtedy ma czerwienieć test, a nie milczeć agent.
     """
     assert (CYCLE_BASE, CYCLE_LENGTH) == (18, 3)
     stale = blinds_for_hand(CYCLE_BASE)

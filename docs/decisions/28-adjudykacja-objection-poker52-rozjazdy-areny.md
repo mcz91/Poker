@@ -145,6 +145,58 @@ c) **Odczyt cykliczny agenta `18 + (ręka − 18) mod 3` jest dla trzech
    (z tym samym zastrzeżeniem szumu co w b).
    Poprawka agenta i jego docstringów oraz reguła guzika HU po wybiciu
    (model ≠ arena) — sprint B (decyzja 31 pkt 2).
+d) **Kryterium ogona: podłoga szumu PI-FP, a `converged=False` na e60
+   jest wynikiem uczciwym** (runda naprawcza POKER-74, 2026-09-27;
+   rozstrzygnięcie OBJECTION z rundy 2 —
+   [decyzja 31](31-audyt-calego-kodu-kwalifikacja-i-sprinty.md) pkt 4,
+   opcja B). Na siatce e60 delta cyklu 6 nie schodzi do
+   `tail_tol` 5e−4. Krzywe wariantów ogona (pętla `_boundary` z wariantem
+   podmienionym w skrypcie pomiarowym, 12 cykli, bez stopu na
+   `tail_tol`) na e60 i na siatce x60 (60 żetonów, krok 6, 10/20, stacki
+   18/18/24, tensor kontrolny, budżety domyślne, 63 stany):
+
+   | ogon (cykle ≥ 2, chyba że zaznaczono) | e60, delta cykli 4–12 | x60, delta cykli 4–12 |
+   |---|---|---|
+   | stop PI-FP na `fp_tol` (bez zmian) | 1,05–1,48e−3 | 2,0–2,4e−4, od 6. cyklu 8,6e−5 |
+   | `fp_tol`/3 | 5,8e−4–1,6e−3 | 1,7e−5–1,1e−3 |
+   | `fp_tol`/10 | 3,9e−4–1,8e−3 (≤ 5e−4 tylko w 11.) | 1,3–4,8e−4 |
+   | budżet PI-FP zamrożony per stan z cyklu 1 | 9,2e−4–1,3e−3 | — |
+   | budżety PI-FP i CFR+ zamrożone per stan z cyklu 1 | 4,6e−4–1,3e−3 (≤ 5e−4 tylko w 5.) | 1,0–5,3e−4 |
+   | stałe 384 aktualizacje PI-FP bez stopu, od cyklu 1 | — | 1,9–7,6e−4, od 9. cyklu 7,5e−4 |
+   | sufit PI-FP = mediana iteracji cyklu 1 (56), bez stopu | 6,7e−5 w 4., zero w 9. | 1,0e−6 w 4., zero w 8. |
+
+   Wiersze HU zbiegają w każdym zmierzonym wariancie do zera maszynowego
+   (najpóźniej w 9. cyklu), więc podłoga siedzi w wierszach 3-way, czyli
+   w PI-FP. Nie robi jej sam stop na tolerancji (przesłanka
+   rozstrzygnięcia BRAK z rundy 1): stałe 384 aktualizacje i budżety
+   zamrożone per stan też oscylują — odwzorowanie cyklu jest nieciągłe
+   także przez argmax najlepszej odpowiedzi PI-FP, a zaostrzenie `fp_tol`
+   przesuwa szum, nie usuwa go. Zbiega wyłącznie krótki stały sufit
+   (mediana cyklu 1), ale
+   do punktu stałego słabszego solvera: ε gier etapowych ogona **do
+   9,0e−4** (e60; ze stopem na `fp_tol` 2,6–3,2e−4), a jego V(total)
+   wychodzi poza rozrzut ostatnich iteratów wariantów dokładniejszych
+   (stop na `fp_tol` i `fp_tol`/3, oba zamrożone) o ponad 5e−4 w 34 z 493
+   stanów e60, **maks 5,5e−3** (stan (6, 26, 28)) — więcej niż naprawiany
+   błąd B7 (pkt a i b); na x60 (te same odniesienia oraz `fp_tol`/10
+   i stałe 384) w 2 z 63, maks 1,1e−3. `converged=True` poświadczałby
+   tam zbieżność odwzorowania, a nie dokładność brzegu.
+
+   **Stan po POKER-74 (opcja B):** ogon ze stopem PI-FP na tolerancji,
+   `tail_tol` 5e−4 i `tail_max_cycles` 12 bez zmian. Na e60 brzeg kończy
+   się na suficie z deltą ~1,1–1,5e−3 i **`converged=False` — to wynik
+   uczciwy**: flaga mówi, że iteracja nie zeszła pod próg, zamiast
+   poświadczać dokładność, której brzeg nie ma; x60 schodzi pod próg
+   w 4. cyklu. Delta cyklu 6 stoi na e60 niżej niż delta starego cyklu 3
+   na tej samej siatce (1,86–2,89e−3 od 5. do 12. cyklu), a błąd
+   strukturalny B7 (wiersze HU, okres modelu) jest usunięty. Czy siatka
+   produkcyjna (169 klas) zbiegnie do `tail_tol`, pokaże regeneracja
+   (wejście operatora); jeśli nie — warunkowy kontrakt sprintu B: solver
+   ogona 3-way ciągły w V (decyzja 31 pkt 2 i 4, obszar decyzji 25).
+   Skrypt pomiaru i warianty: raport commita POKER-74 wnoszącego ten
+   punkt; wykonanie wariantu z ostatniego wiersza tabeli leży
+   nieintegrowane na gałęzi `sprint-a/POKER-74-r2-fpmedian-propozycja`
+   (zapis pomiaru, decyzja 31 pkt 4).
 
 ## 4. Kolejność linii (aktualizacja mapy)
 

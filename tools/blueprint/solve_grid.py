@@ -179,7 +179,10 @@ class GridConfig:
     # POKER-74: podgra HU produkcji schodzi pod 5e-4 w drugim cyklu, a siatka e60
     # (60 żetonów, krok 2, 10/20, 4 klasy, budżety domyślne) od czwartego do
     # czternastego cyklu stoi na 1,05–1,48e-3 (cykl trzech rąk od piątego do
-    # dwunastego: 1,86–2,89e-3) — tam wiąże sufit, nie tolerancja.
+    # dwunastego: 1,86–2,89e-3) — tam wiąże sufit, nie tolerancja, i brzeg kończy
+    # się z `converged=False`. Tę podłogę robi szum PI-FP, a jedyny tani ogon, który
+    # ją przebija, zbiega do punktu stałego słabszego solvera, więc ogona nie
+    # zmieniono (decyzja 28, KOREKTA POKER-74 pkt d; decyzja 31 pkt 4).
     # Wartości zostają z POKER-49 do pomiaru krzywej produkcyjnej nowego cyklu.
     tail_max_cycles: int = 12
     tail_tol: float = 5e-4
