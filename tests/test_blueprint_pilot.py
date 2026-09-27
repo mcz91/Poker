@@ -2,8 +2,8 @@
 
 Narzędzia żyją w tools/blueprint/ (zależności extras train) i są ładowane
 przez importlib jak w testach reprodukcji treningu (test_mccfr, test_mlp).
-Testy używają malutkich konfiguracji: podzbiór klas preflop, siatka 25
-żetonów, 2 poziomy zegara i syntetyczny tensor — pełny pilot żyje poza bramką.
+Pełny pilot żyje poza bramką: testy biegną na malutkich konfiguracjach solvera
+i tensorów, a raport V vs ICM także na ręcznie zapisanym katalogu biegu.
 """
 
 import copy
@@ -1544,17 +1544,110 @@ def test_raport_expost_ma_kryteria_progow_i_rozklad_per_warstwa(
     assert written["criteria"] == criteria
 
 
-def test_raport_icm_struktura(toy_run: dict[str, Any]) -> None:
+def test_raport_icm_czyta_warstwy_zapisane_przez_solver(toy_run: dict[str, Any]) -> None:
+    """Format warstw prawdziwego biegu — ręczny katalog biegu go nie widzi.
+
+    V nie jest przybite, bo zależy od solvera (delta warstwy 0 zmieniła się
+    w POKER-74); ICM równych stacków to 1/3 bez rachunku.
+    """
     ep = _load("expost")
+    layers = toy_run["sg"].load_layers(toy_run["out_dir"])
     report = ep.icm_report(toy_run["out_dir"])
-    assert report["layers"]
-    for entry in report["layers"]:
-        assert entry["max_abs_delta"] >= 0.0
-        assert entry["mean_abs_delta"] >= 0.0
-    assert "short_bb" in report
-    state0 = tuple(toy_run["config"].start_stacks)
-    icm0 = icm_equities(state0, PRIZES)
-    assert abs(sum(icm0) - sum(PRIZES)) < 1e-9
+    assert [(row["hand"], row["n_states"]) for row in report["layers"]] == [
+        (hand, len(layers[hand]["states"])) for hand in sorted(layers)
+    ]
+    assert layers[0]["states"].tolist() == [[50, 50, 50]]
+    expected = max(abs(value - 1 / 3) for value in layers[0]["v"][0].tolist())
+    assert report["layers"][0]["max_abs_delta"] == pytest.approx(expected, abs=1e-15)
+
+
+# Ręczny bieg raportu V vs ICM: (ręka, stan, ICM, V − ICM). ICM to
+# Malmuth–Harville przy wypłatach (0,8; 0,2; 0) policzony na ułamkach, a nie
+# `poker.icm` — inaczej raport liczący chipEV albo zepsute ICM zgadzałby się
+# sam ze sobą. Przesunięcia sumują się do zera jak odchyłka V od ICM przy
+# zachowanej sumie wypłat, a największe |przesunięcie| każdego stanu jest inne,
+# więc ranking `worst` nie ma remisów. Stany rozdzielają reguły miejsca BB
+# i progu 5 bb.
+ICM_REPORT_STATES: tuple[
+    tuple[int, tuple[int, int, int], tuple[float, float, float], tuple[float, float, float]],
+    ...,
+] = (
+    # Ręka 0, blindy 1/2, próg 10 żetonów; BB to miejsce 1 (roles(0)) — krótki.
+    (0, (75, 5, 70), (1139 / 2320, 47 / 1200, 1022 / 2175), (0.01, -0.04, 0.03)),
+    # Krótki jest BTN, nie BB.
+    (0, (5, 75, 70), (47 / 1200, 1139 / 2320, 1022 / 2175), (-0.02, 0.01, 0.01)),
+    # BB równy progowi — nie krótki.
+    (0, (70, 10, 70), (277 / 600, 23 / 300, 277 / 600), (0.015, -0.03, 0.015)),
+    # HU: BB to miejsce 2 — krótki.
+    (0, (0, 145, 5), (0.0, 39 / 50, 11 / 50), (0.0, 0.06, -0.06)),
+    # Ręka 1, blindy 2/4, próg 20 żetonów; BB to miejsce 2 (roles(1)) — krótki.
+    (1, (100, 35, 15), (1828 / 3105, 77 / 270, 29 / 230), (-0.08, 0.03, 0.05)),
+    # HU: BB to miejsce 1 — krótki.
+    (1, (0, 5, 145), (0.0, 11 / 50, 39 / 50), (0.0, -0.07, 0.07)),
+    # HU: BB to miejsce 1 z 4,5 bb — krótki przy progu 5 bb, a nie przy 4 ani 4,5.
+    (1, (0, 18, 132), (0.0, 34 / 125, 91 / 125), (0.0, -0.005, 0.005)),
+    # Nie krótki; ostatni stan warstwy nie jest jej maksimum.
+    (1, (50, 50, 50), (1 / 3, 1 / 3, 1 / 3), (0.001, -0.001, 0.0)),
+    # Ręka 2, blindy 2/4, próg 20 żetonów; BB to miejsce 0 (roles(2)) — krótki.
+    (2, (15, 100, 35), (29 / 230, 1828 / 3105, 77 / 270), (0.012, -0.024, 0.012)),
+)
+
+
+def test_raport_icm_zgadza_sie_z_recznym_rachunkiem_biegu(tmp_path: Path) -> None:
+    """Każda liczba raportu V vs ICM wobec ręcznego rachunku (finding I-14).
+
+    Na tych liczbach stoi kierunek decyzji 25. Katalog biegu powstaje tym samym
+    zapisem co w solverze, ale bez niego: V solvera zmienia się z modelem, a
+    oczekiwania mają być ręczne.
+    """
+    sg, af, ep = _load("solve_grid"), _load("artifacts"), _load("expost")
+    np = sg.np
+    config = sg.GridConfig(
+        prizes=(0.8, 0.2, 0.0), levels=((1, 2), (2, 4), (2, 4)), hands_per_level=1,
+        total_chips=150, start_stacks=(50, 50, 50), grid_step=1,
+    )
+    af.write_json(tmp_path / "solve_manifest.json", {"config": dataclasses.asdict(config)})
+    for hand in range(3):
+        rows = [(state, icm, shift) for h, state, icm, shift in ICM_REPORT_STATES if h == hand]
+        values = [[e + d for e, d in zip(icm, shift, strict=True)] for _, icm, shift in rows]
+        af.write_npz(
+            tmp_path / f"layer_{hand:02d}.npz",
+            {
+                "states": np.asarray([state for state, _, _ in rows], dtype=np.int16),
+                "v": np.asarray(values, dtype=np.float64),
+            },
+        )
+    report = ep.icm_report(tmp_path)
+    assert set(report) == {"pool", "layers", "short_bb", "worst"}
+    assert report["pool"] == pytest.approx(1.0, abs=1e-12)
+    layers = report["layers"]
+    assert [set(row) for row in layers] == [
+        {"hand", "n_states", "max_abs_delta", "mean_abs_delta"}
+    ] * 3
+    assert [(row["hand"], row["n_states"]) for row in layers] == [(0, 4), (1, 4), (2, 1)]
+    assert [row["max_abs_delta"] for row in layers] == pytest.approx(
+        [0.06, 0.08, 0.024], abs=1e-12
+    )
+    assert [row["mean_abs_delta"] for row in layers] == pytest.approx(
+        [0.0375, 0.039, 0.024], abs=1e-12
+    )
+    short_bb = report["short_bb"]
+    assert set(short_bb) == {"threshold_bb", "n_states", "max_abs_delta", "mean_abs_delta"}
+    assert short_bb["n_states"] == 6
+    assert [
+        short_bb["threshold_bb"], short_bb["max_abs_delta"], short_bb["mean_abs_delta"]
+    ] == pytest.approx([5.0, 0.08, 0.279 / 6], abs=1e-12)
+    worst = report["worst"]
+    assert [set(row) for row in worst] == [{"hand", "state", "delta"}] * 9
+    assert [(row["hand"], row["state"]) for row in worst] == [
+        (1, [100, 35, 15]), (1, [0, 5, 145]), (0, [0, 145, 5]),
+        (0, [75, 5, 70]), (0, [70, 10, 70]), (2, [15, 100, 35]),
+        (0, [5, 75, 70]), (1, [0, 18, 132]), (1, [50, 50, 50]),
+    ]
+    assert [row["delta"] for row in worst] == pytest.approx(
+        [0.08, 0.07, 0.06, 0.04, 0.03, 0.024, 0.02, 0.005, 0.001], abs=1e-12
+    )
+    assert json.loads((tmp_path / "icm_report.json").read_text()) == report
 
 
 # --- POKER-51: format binarny artefaktu i czytnik stdlib ---
