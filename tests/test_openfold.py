@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+from typing import Any
+
 import pytest
 
+from poker import jamfold
 from poker.cards import Rank
 from poker.openfold import (
     BB_VS_JAM,
@@ -21,13 +26,18 @@ from poker.openfold import (
     _sd,
     _top_slice,
     action_values,
+    best_response,
+    br_gain,
     solve,
+    solve_curve,
     terminals,
     threebet,
     threebet_vs_range,
 )
 from poker.preflop import ALL_CLASSES, CLASS_INDEX, PreflopClass
 from poker.spin import PAYOUTS, terminal_equities
+
+REPO = Path(__file__).resolve().parent.parent
 
 JUNK_72O = next(
     i
@@ -69,6 +79,9 @@ def _strictly_increasing(values: list[float], equity: list[float]) -> list[tuple
 
 
 def test_utg_otwiera_nie_shoveuje_na_25bb() -> None:
+    """Test dymny przy jawnym N = 12: wynik uciętego FP zależy od N, więc test
+    pilnuje kształtu (open w korytarzu, jam rzadki, AA gra, 72o pasuje), który
+    krzywa POKER-73 potwierdza na każdym punkcie kontrolnym 8–1024."""
     hit = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
     assert 12.0 <= hit.utg_open_pct <= 45.0
     assert hit.utg_jam_pct < hit.utg_open_pct * 0.25
@@ -78,12 +91,20 @@ def test_utg_otwiera_nie_shoveuje_na_25bb() -> None:
 
 
 def test_10x_nie_wybucha_open() -> None:
-    wta = solve((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=10)
+    """Test dymny przy jawnym N = 10: open 10x zostaje w korytarzu openu 3x.
+
+    Relacja „open 10x ≤ open 3x" nie trzyma się na krzywej POKER-73: przy
+    N = 128 (N eksportu) 10x 30,4% > 3x 28,9%. Na punktach kontrolnych
+    8–1024 open 10x leży w 11,9–33,2% (przy N = 10: 8,7%), a mutant ze
+    starym terminalem callu BB_VS_OJ daje przy N = 10 open 10x 98,2%.
+    """
     icm = solve((50, 50, 50), PAYOUTS["10x"].prizes, button=1, iterations=10)
-    assert icm.utg_open_pct <= wta.utg_open_pct
+    assert icm.utg_open_pct <= 45.0
 
 
 def test_threebet_ciasny_nie_artefakt() -> None:
+    """Test dymny przy jawnych N = 12 (3x) i N = 10 (10x); korytarz i relacja
+    10x ≤ 3x trzymają się też na krzywej POKER-73 w punktach 64–1024."""
     hit = threebet((50, 50, 50), PAYOUTS["3x"].prizes, button=1, iterations=12)
     assert 6.0 <= hit.btn_vs_open_pct <= 18.0
     assert hit.btn_vs_open[0] > 0.85
@@ -208,3 +229,78 @@ def test_bb_overcalluje_jam_btn_reka_nie_szumem(pay: str) -> None:
     hit = solve((50, 50, 50), PAYOUTS[pay].prizes, button=1, iterations=16)
     assert hit.bb_vs_oj[AA] >= 0.85
     assert hit.bb_vs_oj[JUNK_72O] <= 0.15
+
+
+def test_miara_zbieznosci_nieujemna_z_konstrukcji() -> None:
+    """Zysk z best response ≥ 0 w każdym punkcie decyzji — dla profili FP
+    i dla profilu mieszanego spoza FP; miara to maksimum tych zysków."""
+    terms = terminals((30, 50, 70), PAYOUTS["10x"].prizes, button=1, sb=1, bb_amt=2)
+    mixed = [[0.3] * N_HANDS for _ in range(N_NODES)]
+    for sigma in (mixed, _profile({})):
+        assert min(br_gain(terms, sigma)) >= 0.0
+    for hit in solve_curve((50, 50, 50), PAYOUTS["3x"].prizes, (1, 2, 5), sb=2, bb_amt=4):
+        assert len(hit.br_gain) == len(DECISIONS)
+        assert min(hit.br_gain) >= 0.0
+        assert hit.convergence == max(hit.br_gain)
+
+
+def test_miara_zero_dla_profilu_bedacego_wlasnym_best_response() -> None:
+    """(50, 50, 50), 3x, 10/20: trzy kroki czystej dynamiki best response od
+    profilu zerowego dają profil, który jest własnym best response (UTG otwiera
+    64%, BTN po foldzie UTG jamuje 81%) — jego miara to dokładnie 0; miara
+    profilu zerowego w tym samym spocie jest dodatnia w każdym punkcie."""
+    terms = terminals((50, 50, 50), PAYOUTS["3x"].prizes, button=1, sb=10, bb_amt=20)
+    sigma = _profile({})
+    for _ in range(3):
+        sigma = best_response(action_values(terms, sigma))
+    assert best_response(action_values(terms, sigma)) == sigma
+    assert br_gain(terms, sigma) == (0.0,) * len(DECISIONS)
+    assert min(br_gain(terms, _profile({}))) > 0.0
+
+
+def test_miara_maleje_z_iteracjami_fp() -> None:
+    """3x, 3/6: miara po 64 iteracjach FP poniżej miary po 8 (3,4e−4 wobec 3,6e−3)."""
+    early, late = solve_curve((50, 50, 50), PAYOUTS["3x"].prizes, (8, 64), sb=3, bb_amt=6)
+    assert late.convergence < early.convergence
+
+
+def test_krzywa_zwraca_to_co_solve_w_punktach_kontrolnych() -> None:
+    """Punkt kontrolny krzywej nie zaburza biegu FP: wpis dla N = wynik solve(N)."""
+    prizes = PAYOUTS["10x"].prizes
+    curve = solve_curve((30, 50, 70), prizes, (7, 3))
+    assert curve == (
+        solve((30, 50, 70), prizes, iterations=7),
+        solve((30, 50, 70), prizes, iterations=3),
+    )
+
+
+def _run_arena() -> Any:
+    spec = importlib.util.spec_from_file_location("run_arena", REPO / "tools" / "run_arena.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_ksiazki_areny_biora_openfold_i_jamfold_z_osobnych_parametrow() -> None:
+    """Open, overjam i 3bet książek areny z openfold przy własnej liczbie
+    iteracji, call jamu z jamfold przy swojej (POKER-73; jamfold — sprint B)."""
+    arena = _run_arena()
+    prizes = PAYOUTS["3x"].prizes
+    hero = arena.hero_book("3x", jamfold_iterations=2, openfold_iterations=4)
+    deep = solve((50, 50, 50), prizes, iterations=4)
+    assert hero.open == list(deep.utg_open)
+    assert hero.overjam == list(deep.utg_jam)
+    assert hero.vs_jam == list(jamfold.solve((50, 50, 50), prizes, 1, 2).btn_call)
+    expl = arena.exploit_book("3x", jamfold_iterations=2, openfold_iterations=4)
+    assert expl.open == hero.open
+
+
+def test_opcja_openfold_iters_areny() -> None:
+    arena = _run_arena()
+    assert arena.openfold_option("compare", ["320", "3x"]) == (["320", "3x"], 128)
+    assert arena.openfold_option("sd", ["--openfold-iters", "64", "320"]) == (["320"], 64)
+    with pytest.raises(SystemExit, match="compare i sd"):
+        arena.openfold_option("seats", ["--openfold-iters", "64"])
+    with pytest.raises(SystemExit, match="wymaga liczby"):
+        arena.openfold_option("compare", ["320", "--openfold-iters"])

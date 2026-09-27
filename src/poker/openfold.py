@@ -1,6 +1,9 @@
 """3-max fold / open 2.2x / jam. No flats. Fictitious play, real preflop matrix.
 
 Used above JAM_FOLD_BB. Jam/fold remains the endgame (decyzja 19).
+Wynik to średnia FP po N iteracjach — przybliżenie punktu stałego modelu, nie
+Nash pełnej gry; jak bliskie, mówi miara zbieżności: zysk z best response
+(`br_gain`) liczony tą samą wyceną co best response.
 """
 
 from __future__ import annotations
@@ -40,6 +43,28 @@ DECISIONS: tuple[tuple[int, ...], ...] = (
     (BB_VS_BTN_JAM,),
     (BTN_DEF,),
 )
+# Rola decydująca i sytuacja każdego punktu DECISIONS — klucze miary zbieżności.
+DECISION_LABELS: tuple[str, ...] = (
+    "UTG first-in",
+    "BTN vs open",
+    "BTN vs jam UTG",
+    "BB vs open",
+    "BB vs jam UTG",
+    "UTG vs jam BTN po openie",
+    "BB vs open i jam BTN",
+    "BTN first-in",
+    "BB vs open BTN",
+    "BB vs jam BTN",
+    "BTN vs jam BB po openie",
+)
+# Tolerancja miary zbieżności w ułamku sumy nagród (decyzja architekta, POKER-73).
+CONVERGENCE_TOL = 1e-3
+CURVE_CHECKPOINTS: tuple[int, ...] = (8, 16, 32, 64, 128, 256, 512, 1024)
+# Najmniejszy punkt kontrolny, na którym miara ≤ CONVERGENCE_TOL na wszystkich
+# poziomach eksportu (`python tools/export_open_nash.py --curve`): liczba
+# iteracji eksportu i książek openfold areny. Ucięte FP zależy od N, więc
+# liczba bez krzywej nie mówi nic o zbieżności.
+CURVE_ITERATIONS = 128
 
 WEIGHTS: tuple[int, ...] = tuple(
     6 if cls.high == cls.low else (4 if cls.suited else 12) for cls in ALL_CLASSES
@@ -72,6 +97,10 @@ class OpenFoldSolution:
     utg_def_pct: float
     aa_plays: bool
     junk_folds: bool
+    # Zysk z best response per punkt DECISIONS (etykiety DECISION_LABELS)
+    # w ułamku sumy nagród; `convergence` to jego maksimum — miara zbieżności.
+    br_gain: tuple[float, ...]
+    convergence: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +142,7 @@ class Terminals:
     hu_uo_c: HuPair
     hu_bo: HuPair
     hu_uo_bc: HuPair
+    prize_sum: float
 
 
 def _hu(i: int, j: int) -> float:
@@ -253,6 +283,7 @@ def terminals(
         hu_uo_c=(hu(utg, bb, opened_utg, utg), hu(utg, bb, opened_utg, bb)),
         hu_bo=(hu(btn, bb, opened_btn, btn), hu(btn, bb, opened_btn, bb)),
         hu_uo_bc=(hu(btn, bb, opened_utg, btn), hu(btn, bb, opened_utg, bb)),
+        prize_sum=sum(prizes),
     )
 
 
@@ -419,6 +450,30 @@ def best_response(values: ActionValues) -> list[list[float]]:
     return out
 
 
+def br_gain(t: Terminals, sigma: Sequence[Sequence[float]]) -> tuple[float, ...]:
+    """Zysk z best response w każdym punkcie `DECISIONS`, w ułamku sumy nagród.
+
+    Ta sama wycena co best response FP (`action_values`): w punkcie decyzji
+    ręka h zyskuje max_a Q(h, a) − Σ_a σ(h, a)·Q(h, a), średnio po klasach
+    ważonych kombinacjami (bez warunku na dojście do węzła). Każdy składnik to
+    częstość razy nieujemna strata akcji, więc zysk ≥ 0 z konstrukcji i równy
+    zeru dokładnie wtedy, gdy profil jest własnym best response.
+    """
+    total = float(sum(WEIGHTS))
+    out = []
+    for nodes, row in zip(DECISIONS, action_values(t, sigma), strict=True):
+        gain = 0.0
+        for h, q in enumerate(row):
+            best = max(q)
+            played = [sigma[node][h] for node in nodes]
+            loss = max(0.0, 1.0 - sum(played)) * (best - q[0])
+            for freq, value in zip(played, q[1:], strict=True):
+                loss += freq * (best - value)
+            gain += WEIGHTS[h] * loss
+        out.append(gain / total / t.prize_sum)
+    return tuple(out)
+
+
 def solve(
     stacks: tuple[int, int, int],
     prizes: tuple[float, float, float],
@@ -427,7 +482,23 @@ def solve(
     sb: int = SMALL_BLIND,
     bb_amt: int = BIG_BLIND,
 ) -> OpenFoldSolution:
-    if iterations < 1:
+    return solve_curve(stacks, prizes, (iterations,), button, sb, bb_amt)[0]
+
+
+def solve_curve(
+    stacks: tuple[int, int, int],
+    prizes: tuple[float, float, float],
+    checkpoints: Sequence[int],
+    button: int = 1,
+    sb: int = SMALL_BLIND,
+    bb_amt: int = BIG_BLIND,
+) -> tuple[OpenFoldSolution, ...]:
+    """Jeden bieg FP do max(checkpoints); wynik po każdym punkcie kontrolnym.
+
+    Średnia FP po N iteracjach nie zależy od tego, ile iteracji przyjdzie po
+    niej, więc wpis dla N jest tym, co zwraca `solve(..., iterations=N)`.
+    """
+    if not checkpoints or min(checkpoints) < 1:
         raise ValueError("iteracje muszą być dodatnie")
     t = terminals(stacks, prizes, button, sb, bb_amt)
 
@@ -443,16 +514,20 @@ def solve(
             return out
         return [[cum[n][i] / weight_sum for i in range(N_HANDS)] for n in range(N_NODES)]
 
-    for done in range(iterations):
+    marks: dict[int, OpenFoldSolution] = {}
+    for done in range(max(checkpoints)):
         reply = best_response(action_values(t, avg()))
         weight = float(done + 1)
         for node in range(N_NODES):
             for i in range(N_HANDS):
                 cum[node][i] += weight * reply[node][i]
         weight_sum += weight
+        if done + 1 in checkpoints:
+            marks[done + 1] = _solution(t, avg(), done + 1)
+    return tuple(marks[n] for n in checkpoints)
 
-    final = avg()
 
+def _solution(t: Terminals, final: list[list[float]], iterations: int) -> OpenFoldSolution:
     def pct(node: int) -> float:
         return 100.0 * _mass(final[node])
 
@@ -462,6 +537,7 @@ def solve(
         for i, cls in enumerate(ALL_CLASSES)
         if cls.high.name == "SEVEN" and cls.low.name == "TWO" and not cls.suited
     )
+    gain = br_gain(t, final)
     return OpenFoldSolution(
         iterations=iterations,
         utg_open=tuple(final[UTG_OPEN]),
@@ -482,6 +558,8 @@ def solve(
         utg_def_pct=pct(UTG_DEF),
         aa_plays=final[UTG_OPEN][aa] + final[UTG_JAM][aa] > 0.85,
         junk_folds=final[UTG_OPEN][junk] + final[UTG_JAM][junk] < 0.25,
+        br_gain=gain,
+        convergence=max(gain),
     )
 
 
