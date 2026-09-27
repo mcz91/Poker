@@ -1,11 +1,14 @@
 """Solver siatki DAG-u zegara — pilot blueprintu (POKER-46, decyzja 25).
 
-Przestrzeń stanów: warstwa n = numer ręki (0..3L−1, poziomy z `poker.spin`,
-button = n mod 3) × wektor stacków na siatce (suma stała, rozdzielczość
-`grid_step`). Backward induction: warstwa n czyta V warstwy n+1; horyzont to
-punkt stały ostatniego poziomu zegara (cykl trzech rąk iterowany od ICM —
-mała V-iteration z decyzji 25), bo po końcu drabinki blindy stoją, a gra
-trwa do wybicia.
+Przestrzeń stanów: warstwa n = numer ręki (0..3L−1, poziomy z `poker.spin`;
+przy trzech żywych button = n mod 3, w HU button = sorted(żywi)[n mod 2]) ×
+wektor stacków na siatce (suma stała, rozdzielczość `grid_step`). Backward
+induction: warstwa n czyta V warstwy n+1; horyzont to punkt stały ostatniego
+poziomu zegara (mała V-iteration z decyzji 25 od ICM), bo po końcu drabinki
+blindy stoją, a gra trwa do wybicia. Stan modelu wraca tam po lcm(3, 2) = 6
+rękach, więc cykl brzegu ma sześć rąk (`BOUNDARY_CYCLE_HANDS`, POKER-74) —
+cykl trzech rąk sadzał na zawinięciu tego samego gracza HU na guziku dwa razy
+z rzędu.
 
 Gra etapowa jednej ręki: preflop-only drzewo decyzji 25 — 14 węzłów
 publicznych przy trzech żywych (fold / open 2.2x / jam; vs open fold /
@@ -29,8 +32,10 @@ prizes[0], wybici w tej ręce w kolejności stacków wejściowych, remis dzieli
 nagrody po równo, wcześniej wybity jest trzeci.
 
 Zapis atomowy per warstwa (tmp → os.replace) z manifestem (konfiguracja,
-hash, sha artefaktów tensora); wznowienie po przerwaniu liczy tylko
-brakujące warstwy i daje pliki bajt w bajt identyczne z biegiem ciągłym.
+hash, sha artefaktów tensora, schemat domknięcia brzegu); wznowienie po
+przerwaniu liczy tylko brakujące warstwy i daje pliki bajt w bajt identyczne
+z biegiem ciągłym. Wznowienie i import brzegu (`--boundary-from`) wymagają
+brzegu liczonego tym samym schematem (`BOUNDARY_SCHEME`).
 
 Uruchomienie pilota (venv z extras train). Przy --jobs > 1 ogranicz wątki
 BLAS do jednego na proces — inaczej wątki mnożeń tensorowych mnożą się
@@ -47,6 +52,7 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import math
 import os
 import pickle
 import platform
@@ -124,6 +130,14 @@ SLOT_FOLD, SLOT_MID, SLOT_JAM = 0, 1, 2
 
 MODE_NAMES = ("deep", "jamfold", "hu-deep", "hu-jamfold")
 
+# Cykl brzegu horyzontu: role trzech żywych powtarzają się co 3 ręce, guzik HU co 2,
+# więc dopiero po lcm(3, 2) rękach stan modelu jest tą samą sytuacją fizyczną.
+# Jedno źródło dla `_boundary` i wyceny horyzontu w `mode_census`.
+BOUNDARY_CYCLE_HANDS = math.lcm(3, 2)
+# Identyfikator schematu domknięcia w manifeście biegu: brzeg innego schematu
+# opisuje inną grę, więc nie wolno go wznowić ani zaimportować.
+BOUNDARY_SCHEME = f"cycle{BOUNDARY_CYCLE_HANDS}"
+
 # Hak pomiarowy PI-FP: (styl restartu, numer iteracji, profil średni, best response).
 FpObserver = Callable[[str, int, dict[int, np.ndarray], dict[int, np.ndarray]], None]
 
@@ -157,11 +171,19 @@ class GridConfig:
     cfr_iters: int = 512
     cfr_check_every: int = 32
     cfr_tol: float = 5e-5
-    # Horyzont: tolerancja z krzywej delta-vs-cykle (POKER-49, siatka 10, 16 cykli).
-    # Iteracja ma podłogę ~2e-4 — od ósmego cyklu delta przestaje spadać, więc
-    # tolerancja poniżej podłogi zamieniłaby kryterium z powrotem na sufit.
-    # 5e-4 jest osiągane w piątym cyklu z zapasem 2,3x nad podłogą; sufit 12 to
-    # 2,4x tego, więc zabezpiecza, a nie wiąże.
+    # Horyzont: tolerancja i sufit z krzywej delta-vs-cykle POKER-49 (siatka 10,
+    # 16 cykli) liczonej jeszcze cyklem TRZECH rąk: podłoga ~2e-4 od ósmego cyklu,
+    # 5e-4 w piątym, sufit 12 to 2,4x tego. Od POKER-74 delta porównuje V(total) co
+    # pełny cykl `BOUNDARY_CYCLE_HANDS` rąk, a krzywej produkcyjnej tego cyklu nie
+    # zmierzono (regeneracja to wejście operatora, decyzja 31 pkt 3). Zmierzone przy
+    # POKER-74: podgra HU produkcji schodzi pod 5e-4 w drugim cyklu, a siatka e60
+    # (60 żetonów, krok 2, 10/20, 4 klasy, budżety domyślne) od czwartego do
+    # czternastego cyklu stoi na 1,05–1,48e-3 (cykl trzech rąk od piątego do
+    # dwunastego: 1,86–2,89e-3) — tam wiąże sufit, nie tolerancja, i brzeg kończy
+    # się z `converged=False`. Tę podłogę robi szum PI-FP, a jedyny tani ogon, który
+    # ją przebija, zbiega do punktu stałego słabszego solvera, więc ogona nie
+    # zmieniono (decyzja 28, KOREKTA POKER-74 pkt d; decyzja 31 pkt 4).
+    # Wartości zostają z POKER-49 do pomiaru krzywej produkcyjnej nowego cyklu.
     tail_max_cycles: int = 12
     tail_tol: float = 5e-4
     # Jawne zaburzenie warunku brzegowego — wyłącznie do pomiaru ślepoty metryki
@@ -1477,11 +1499,15 @@ def _merge_mode_stats(
 def _boundary(
     tensors: Tensors, config: GridConfig, states: tuple[tuple[int, int, int], ...]
 ) -> tuple[np.ndarray, list[float], dict[str, dict[str, float]]]:
-    """Punkt stały ostatniego poziomu: cykl trzech rąk iterowany od ICM.
+    """Punkt stały ostatniego poziomu: cykl `BOUNDARY_CYCLE_HANDS` rąk iterowany od ICM.
 
-    Zwraca deltę każdego cyklu, nie samą ostatnią — z tego ciągu bierze się
-    krzywa delta-vs-liczba cykli, z której dobrany jest domyślny `tail_tol` —
-    oraz tempo per tryb dla bezpiecznika kosztu.
+    Cykl liczy wstecz warstwy total+5 … total pełnej siatki, a warstwa total+5
+    czyta jako kontynuację V(total) poprzedniego cyklu — ręka total+6 ma te same
+    role trzech żywych i tego samego guzika HU co ręka total, więc to ta sama
+    sytuacja fizyczna bez przenumerowania miejsc. Delta cyklu to max |V(total)
+    − V(total) cyklu poprzedniego|, więc `tail_tol` odnosi się do pełnego cyklu
+    sześciu rąk. Zwraca V(total), deltę każdego cyklu (krzywa delta-vs-liczba
+    cykli) oraz tempo per tryb dla bezpiecznika kosztu.
     """
     total = n_hands(config)
     sb, bb_amt = level_blinds(config, total)
@@ -1493,7 +1519,7 @@ def _boundary(
     for _ in range(config.tail_max_cycles):
         cycle_started = time.perf_counter()
         next_v = current
-        for offset in (2, 1, 0):
+        for offset in range(BOUNDARY_CYCLE_HANDS - 1, -1, -1):
             layer, layer_stats = _solve_layer(
                 tensors, config, states, total + offset, (sb, bb_amt), states, next_v
             )
@@ -1670,6 +1696,24 @@ def _cost_fuse_report(
     return report
 
 
+def _require_boundary_scheme(boundary: dict[str, Any], action: str) -> None:
+    """Odmowa użycia brzegu liczonego innym schematem domknięcia niż ten kod.
+
+    Hash konfiguracji tego nie złapie: schemat nie jest polem `GridConfig`, a bieg
+    sprzed POKER-74 ma ten sam hash i brzeg cyklu trzech rąk — punkt stały innej gry.
+    """
+    scheme = boundary.get("scheme")
+    if scheme == BOUNDARY_SCHEME:
+        return
+    found = "bez identyfikatora schematu" if scheme is None else f"schematem {scheme!r}"
+    raise ValueError(
+        f"{action}: brzeg horyzontu policzony {found}, a solver domyka horyzont schematem "
+        f"{BOUNDARY_SCHEME!r} (cykl {BOUNDARY_CYCLE_HANDS} rąk) — brzeg innego schematu to "
+        "punkt stały innej gry, więc bieg trzeba policzyć od nowa; artefakt produkcyjny "
+        "liczony starym brzegiem regeneruje operator (decyzja 31 pkt 3)"
+    )
+
+
 def solve(
     config: GridConfig,
     tensor_dir: Path,
@@ -1686,6 +1730,8 @@ def solve(
         manifest = artifacts.read_json(manifest_path)
         if manifest["config_hash"] != digest:
             raise ValueError("konfiguracja wznowienia różni się od manifestu biegu")
+        if manifest["boundary"] is not None:
+            _require_boundary_scheme(manifest["boundary"], f"wznowienie biegu {out_dir}")
         # Bieg sprzed POKER-56 nie ma odcisku; hash konfiguracji już potwierdził,
         # że to ta sama konfiguracja, więc odcisk wolno dopisać, a nie zgadywać.
         manifest.setdefault("fingerprint", config_fingerprint(config))
@@ -1727,11 +1773,12 @@ def solve(
             # Pomiar wrażliwości na brzeg ma zmieniać wyłącznie brzeg: punkt stały
             # przejmujemy z biegu odniesienia, żeby porównanie nie mieszało do
             # różnicy własnego przebiegu iteracji horyzontu.
+            inherited = artifacts.read_json(boundary_from / "solve_manifest.json")["boundary"]
+            _require_boundary_scheme(inherited, f"import brzegu z {boundary_from}")
             imported = artifacts.read_npz(boundary_from / "boundary.npz")
             if imported["states"].tolist() != np.array(full_states, dtype=np.int16).tolist():
                 raise ValueError("brzeg z innego biegu ma inną siatkę stanów")
             fixed_point = imported["v"]
-            inherited = artifacts.read_json(boundary_from / "solve_manifest.json")["boundary"]
             deltas = list(inherited["deltas"])
             source = {
                 "kind": "imported",
@@ -1749,6 +1796,7 @@ def solve(
         manifest["boundary"] = {
             "file": "boundary.npz",
             "sha256": artifacts.sha256_file(boundary_path),
+            "scheme": BOUNDARY_SCHEME,
             "source": source,
             "cycles": len(deltas),
             "delta": deltas[-1],
