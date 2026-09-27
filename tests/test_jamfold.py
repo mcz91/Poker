@@ -12,6 +12,7 @@ import pytest
 
 from poker.icm import icm_equities
 from poker.jamfold import (
+    BB_VS_BOTH,
     N_HANDS,
     N_NODES,
     ROLE_NODES,
@@ -431,6 +432,29 @@ def test_funkcja_per_reka_liniowa_we_wlasnej_strategii_a_br_jej_argmaxem() -> No
             mixed = _hand_utility(_replace_nodes(sigma, nodes, half), pay)[seat]
             assert abs(mixed - 0.5 * value[seat] - 0.5 * deviated) <= 1e-12, (stacks, seat)
             assert deviated - value[seat] >= 0.0, (stacks, seat)
+
+
+def test_funkcja_per_reka_bez_masy_3way_rowna_lacznej_wycenie() -> None:
+    """Bez masy 3-way (σ[BB_VS_BOTH] ≡ 0) u^ręka == łączna wycena zakres–zakres.
+
+    Nieliniowy w zakresie jest wyłącznie model 3-way (iloczyn equity par,
+    znormalizowany); bez masy 3-way średnia equity ręka–zakres po zakresie decydenta
+    to equity zakres–zakres, więc obie wyceny są tożsame. Testy liniowości, argmaxu
+    i ε = u^ręka(BR) − u^ręka(σ) przechodzą przy dowolnych wagach węzłów zależnych
+    tylko od rywali, więc nie widzą błędnego zasięgu węzła (`_reach`) ani źle
+    ważonej gałęzi bez decyzji BB; widzi je ta wycena, niezależna od `_hand_accounts`.
+    """
+    rng = random.Random(0)
+    sigma = [[rng.random() for _ in range(N_HANDS)] for _ in range(N_NODES)]
+    sigma[BB_VS_BOTH] = [0.0] * N_HANDS
+    for stacks, pay_id, button, sb, bb in (
+        ((50, 50, 50), "3x", 1, 1, 2),
+        ((20, 50, 80), "3x", 0, 8, 16),
+        ((16, 50, 84), "10x", 1, 1, 2),
+    ):
+        pay = _payoffs(stacks, PAYOUTS[pay_id].prizes, button, sb, bb)
+        expected = _eval_values(sigma, pay)
+        assert _hand_utility(sigma, pay) == pytest.approx(expected, abs=1e-12), stacks
 
 
 def test_epsilon_i_values_solve_z_funkcji_modulu() -> None:
