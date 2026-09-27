@@ -43,6 +43,16 @@ człowiek portem `Agent`, silnik zostaje nietknięty.
    i uwierzytelniania; bez timerów decyzji (silnik bez zegara,
    INV-P1 — limity czasu to przyszła funkcja adaptera). Internet
    i twardsze zaufanie — osobna kwalifikacja.
+
+   **KOREKTA (POKER-76):** „bez timerów decyzji” obowiązuje nadal, ale
+   „limity czasu to przyszła funkcja adaptera” nie jest już w całości
+   prawdą: od POKER-76 serwer LAN ma jeden limit czasu —
+   `GREETING_TIMEOUT` = 10 s bezczynności przed pierwszą wiadomością
+   połączenia (potem `error` i zamknięcie; połączenie bez powitania nie
+   trzyma wątku i deskryptora). Po pierwszej wiadomości — oczekiwanie
+   twórcy stołu na dołączającego i decyzje przy stole — limitów czasu
+   nie ma, a limitu liczby połączeń i stołów też nie (non_goals
+   POKER-76).
 6. **Priorytet:** zamówienie operatora ma pierwszeństwo przed
    autonomicznym planem — kolejność integracji: POKER-20 →
    POKER-21 (pokerroom krok 1) → c2a (decyzja 07).

@@ -24,9 +24,22 @@ ulotnych: komenda `tools/blueprint/identity.py --run`, metadane `.bpk`
 niosą projekcję, dwie regeneracje tym samym kodem na jednej maszynie
 dają identyczne `.bpk` — test w bramce; `prod_identity.json` ma sha
 tylko dla dwóch plików tensora, 30 pozycji do przeliczenia);
-652 testy.
-**Stan dokumentów po korektach zbiorczych POKER-69…73, POKER-74
-i POKER-75 (2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
+652 testy przy zamknięciu sprintu A · **sprint B decyzji 31 w toku —
+fala B1 scalona 2026-09-27** (cztery kontrakty, integracja sekwencyjna
+z pełną bramką po każdym scaleniu): POKER-76 (serwer LAN: naruszenie
+protokołu albo wyjątek kończy — jak rozłączenie — wyłącznie dotknięty
+stół komunikatem `opponent_left` albo `error` i zamknięciem jego połączeń;
+granice `MAX_CHIPS`, `MAX_LINE_BYTES` i timeout powitania; pętla accept
+przeżywa błędy; eksport bez nadpisywania), POKER-78 (granica silnika:
+`HandConfig` odrzuca small blind większy od big blinda i pola inne niż
+`int`, trzyma stacki krotką; `act` odrzuca miejsce i kwotę inne niż
+`int` i akcję spoza `ActionType`), POKER-80 (test architektury
+rozwiązuje każdą formę instrukcji importu i parsuje każdy plik raz na
+bieg) i POKER-84 (jamfold: drugie miejsce i side pot 3-way pełnym
+porządkiem rąk, ε funkcją per ręka tą samą co best response; KOREKTY
+decyzji 12, 16 i 17); **852 testy**; fala B2 w toku.
+**Stan dokumentów po korektach zbiorczych POKER-69…73, POKER-74,
+POKER-75 i fali B1 (2026-09-27, zasada 1):** liczby areny Spin, liczniki bramki
 agenta blueprintu i liczby zależne od książek openfold, które przesunęły
 POKER-70, 71 i 73, liczby artefaktu kontrolnego łańcucha,
 wyceny `mode_census` i zdania o cyklu brzegu, które przesunął POKER-74
@@ -34,10 +47,14 @@ wyceny `mode_census` i zdania o cyklu brzegu, które przesunął POKER-74
 podsumowanie w bloku POKER-48), a także zdania o metadanych `.bpk`,
 tożsamości artefaktu i `prod_identity.json`, które przesunął POKER-75
 („Co istnieje", „Następny krok", bloki POKER-51 i 57, podsumowanie
+w bloku POKER-48), oraz zdania o serwerze LAN, granicy silnika, teście
+architektury i jamfold, które przesunęła fala B1 (nagłówek, „Co
+istnieje", „Czego nie ma", „Następny krok", bloki POKER-24, 32, 36 i 54, podsumowanie
 w bloku POKER-48), mają w blokach niżej i w
 [`PRZEKAZANIE.md`](PRZEKAZANIE.md) wartość bieżącą albo adnotację
 KOREKTA z wartością bieżącą obok pomiaru historycznego (źródła: opisy
-commitów `5b5ec9a`, `a81ae8f`, `73e3f9d`, `7b5c85d`, `f32e989` i pomiary
+commitów `5b5ec9a`, `a81ae8f`, `73e3f9d`, `7b5c85d`, `f32e989`,
+`520c06d`, `f8cc7b9`, `d6d12d7`, `90357ff`, `f6fe970` i pomiary
 na headach korekt). Nieaktualne zostają wyłącznie pomiary wymagające artefaktu
 spoza repozytorium: produkcyjnego — BF/BG/BH, liczniki fallbacku, udział
 trybów (bloki POKER-52, 54, 55, 56), które opisują artefakt liczony
@@ -56,7 +73,12 @@ pkt 4a); komentarz w `tests/test_blueprint_pilot.py` podający rozmiar
 pliku kontrolnego 8 408 B — pomiar jednego biegu sprzed POKER-75; od
 POKER-75 rozmiar jest stały między regeneracjami na jednej maszynie
 (metadane niosą projekcję manifestu bez czasów i ścieżek) i wynosi
-8 160 B (test; blok POKER-51 pkt 5); szkice TaskSpeców `POKER-59`
+8 160 B (test; blok POKER-51 pkt 5); komentarz przy `JAMFOLD_ITERATIONS`
+w `tools/run_arena.py` („krzywa zbieżności jamfold to sprint B
+(I-26/I-27)") i docstring testu książek areny w `tests/test_openfold.py`
+(„jamfold — sprint B") — I-26 i I-27 zamknął POKER-84, a krzywa
+zbieżności jamfold jest poza nim (non_goal POKER-84; kod i test);
+szkice TaskSpeców `POKER-59`
 (horyzont „cykle 3 rąk", pełny horyzont „~25 rdzenio-h" — dziś cykl
 6 rąk i wycena 49,5; bez wymogu zgodności schematu brzegu przy
 wznowieniu z checkpointu, choć `config_hash` schematu nie obejmuje),
@@ -105,7 +127,7 @@ blueprintu po DAG-u zegara w `tools/blueprint/` — koszt, ex-post ε
 i różnica względem ICM zmierzone);
 POKER-45 (rozliczenia żetonów Spin/jamfold wierne co do sumy i wkładów
 — suma stała, wkłady legalne; side poty i spasowany blind wiernie dopiero
-od POKER-71, poza `jamfold._three_way` — sprint B — i liczby linii Spin
+od POKER-71, a w `jamfold._three_way` od POKER-84 — i liczby linii Spin
 wymienione na zmierzone); POKER-29
 (MCCFR z liniowo ważoną średnią strategii) zamknięty; POKER-24 (skala) częściowo — patrz
 „Następny krok".
@@ -124,7 +146,13 @@ wymienione na zmierzone); POKER-29
   flop/turn/river, akcja, showdown, zwrot nadpłaty, przyznanie puli,
   koniec); każde zdarzenie deklaruje widoczność (`Public` /
   `PrivateToSeat` / `EngineOnly`); seed żyje wyłącznie w `DeckSeeded`
-  (EngineOnly) — poza zasięgiem widoku każdego miejsca;
+  (EngineOnly) — poza zasięgiem widoku każdego miejsca; od POKER-78
+  konfiguracja rozdania (`HandConfig`) wymaga pól typu dokładnie `int`
+  (bool, float i `np.int64` odrzucone), odrzuca small blind większy od
+  big blinda (równe dozwolone) i trzyma stacki krotką — mutacja listy
+  wywołującego nie zmienia zapisanej historii; tę granicę przechodzi
+  każda ścieżka wejścia (mecz, seria i korpus CLI, zbiór z korpusu,
+  `create` LAN, odczyt eksportu) — pod testami;
 - `poker.history` — append-only historia rozdania, zamykana zdarzeniem
   końca; API bez mutacji i usuwania;
 - `poker.projection` — stan stołu (stacki, pula, board, karty per
@@ -135,7 +163,9 @@ wymienione na zmierzone); POKER-29
   i N=3);
 - `poker.betting` — maszyna licytacji heads-up (`HeadsUpHand`):
   wskazuje miejsce na ruchu i granice legalnych akcji na każdej ulicy,
-  odrzuca akcje nielegalne bez śladu w historii, egzekwuje min-raise
+  odrzuca akcje nielegalne bez śladu w historii (od POKER-78 także
+  miejsce i kwotę typu innego niż `int` przy każdym typie akcji oraz
+  akcję spoza `ActionType`), egzekwuje min-raise
   (krótki all-in nie otwiera licytacji ponownie), zwraca nadpłatę
   all-ina (`UncalledBetReturned`), rozstrzyga fold bez showdownu
   i showdown ewaluatorem z kolejnością pokazywania kart; split
@@ -312,7 +342,13 @@ wymienione na zmierzone); POKER-29
   z jawną wersją zbioru; round-trip, determinizm bajt w bajt,
   odmowa nadpisania istniejącego pliku i czytelne błędy manifestu —
   pod testami; kierunek importów od
-  adapterów do silnika strzeże `tests/test_architecture.py`;
+  adapterów do silnika strzeże `tests/test_architecture.py` — od
+  POKER-80 jeden strażnik na AST rozwiązuje każdą formę instrukcji
+  importu (względną, nazwę z pakietu, podmoduł po kropce, import
+  wewnątrz funkcji), import względny nierozwiązywalny jest naruszeniem,
+  a w silniku zakazane są `importlib` i `__import__`; każdy plik zbioru
+  parsowany raz na bieg; zakres i to, co zostaje poza strażnikiem —
+  decyzja 03, KOREKTA;
 - `poker.abstraction` — wersjonowana abstrakcja gry pod trenera
   równowagi (c2a, decyzja 07; czysty stdlib, bez I/O, INV-P1; jawne
   `ABSTRACTION_VERSION` — zmiana definicji wymaga podbicia): kubełki
@@ -403,12 +439,22 @@ wymienione na zmierzone); POKER-29
 - `poker.jamfold` — Nash jam/fold 3-max na jednym stanie stacków
   (POKER-31, decyzja 11): fictitious play z wagą liniową t (gra
   wewnętrzna Ganzfried & Sandholm, AAMAS 2008). Equity HU z macierzy
-  preflop; 3-way z pary znormalizowanej; bez blockerów. Na 25 bb WTA
+  preflop; 3-way: zwycięzca z iloczynu equity par, znormalizowanego,
+  drugie miejsce z equity pary pozostałych dwóch, a stan żetonowy
+  każdego porządku rąk rozlicza `award_allin`, więc side pot wygrywa
+  lepsza ręka spośród uprawnionych (od POKER-84; przy równych stackach
+  strategie i values bitowo bez zmian); bez blockerów. Na 25 bb WTA
   UTG jams 16.4% combo, BTN/BB call 7.3/8.3% (solve 20 iteracji,
   POKER-45); 10× 80/20 zaciska call.
   `strategy_table.py` nietknięty. Od POKER-32 `solve` zwraca też
-  `values` (E[ICM po ręce] pod Nash) i `icm` (cash-out): na WTA
-  przybliżona tożsamość, na 10× przy nierównych stackach V ≠ ICM.
+  `values` (E[ICM po ręce] pod Nash, łączna wycena zakres–zakres)
+  i `icm` (cash-out): na WTA V¹ − V⁰ to chip-EV pozycji w jednej ręce
+  (wypłata liniowa w żetonach), nie błąd fictitious play — (70, 50, 30),
+  3×, guzik 1, 16 iteracji: UTG +5,609e−3 BI (decyzja 12, KOREKTA
+  (POKER-84)); na 10× przy nierównych stackach V ≠ ICM. ε wobec best
+  response (`exploitability`, POKER-36) liczy od POKER-84 funkcja
+  wartości per ręka decydenta, ta sama, której argmaxem jest best
+  response (ε ≥ 0 z konstrukcji; decyzja 16, KOREKTA (POKER-84)).
   Od POKER-33 `DEPTHS` 25/15/10/6 bb i `jam_vs_depth`: na WTA
   UTG 14.1% → 37.9% (krótszy stack, szerszy jam; 12 iteracji,
   zmierzone po naprawie rozliczeń POKER-45 —
@@ -591,11 +637,34 @@ wymienione na zmierzone); POKER-29
   talii; pod testem pełnego strumienia bajtów OBU klientów stołu ludzi
   aż do zamknięcia połączenia: seed meczu i seedy rozdań nieobecne,
   karty przeciwnika nieobecne przed showdownem; serwer zamyka
-  połączenia stołu po `match_end` albo `opponent_left`); rozłączenie gracza kończy
-  wyłącznie jego stół komunikatem dla przeciwnika — pod testem;
+  połączenia stołu po `match_end`, `opponent_left` albo `error`); rozłączenie gracza kończy
+  wyłącznie jego stół komunikatem dla przeciwnika — pod testem; od
+  POKER-76 tak samo naruszenie protokołu (sprawca dostaje `error`
+  z treścią naruszenia, drugi człowiek — `opponent_left`) i wyjątek
+  agenta, raportu rozdania albo serwera (`error` o stałej treści do
+  każdego człowieka przy stole, traceback wyłącznie na stderr serwera;
+  awaria eksportu po `match_end` — bez `error`); granice od POKER-76:
+  stack, small blind i big blind żądania `create` do `MAX_CHIPS` = 2**52
+  (powyżej — `error` z nazwą pola, stół nie powstaje), każda linia
+  czytana przez serwer do `MAX_LINE_BYTES` = 65 536 B łącznie z '\n'
+  (dłuższa — `error` z limitem i zamknięcie bez czekania na '\n',
+  niezależnie od podziału danych na gnieździe), `GREETING_TIMEOUT` =
+  10 s bezczynności przed pierwszą wiadomością połączenia (`error`
+  i zamknięcie); po pierwszej wiadomości — oczekiwanie twórcy na
+  dołączającego i decyzje przy stole — limitów czasu nie ma (decyzja 08
+  pkt 5, KOREKTA), a limitu liczby połączeń i stołów też nie; twórca
+  stołu ludzi, który przed dołączeniem przeciwnika zamknie zapis albo
+  wyśle dane, traci stół; przy dołączeniu `started` idzie najpierw do
+  dołączającego; po `error` serwer robi shutdown(SHUT_WR) i doczytuje
+  wejście (do 0,5 s i 256 KiB), zanim zamknie połączenie; błąd accept
+  (np. EMFILE) — wiersz na stderr i ponowienie po 0,1 s, a `close()`
+  zamyka port i wraca po końcu pętli accept — wszystko pod testami;
   opcjonalny eksport historii zakończonych stołów istniejącym
-  formatem (round-trip pod testem); kod stołu od POKER-25 jest losowy
-  (8 znaków z 31-znakowego alfabetu bez znaków mylących, ~39,6 bita)
+  formatem (round-trip pod testem) — od POKER-76 do `KOD.json`, a przy
+  kolizji do `KOD-2.json`, `KOD-3.json`… (tryb 'x'; restart z tym samym
+  `--serve-seed` nie nadpisuje historii); kod stołu od POKER-25 jest losowy
+  (8 znaków z 31-znakowego alfabetu bez znaków mylących, ~39,6 bita —
+  alfabet, długość i entropia przybite testem od POKER-76)
   z seedowanego RNG adaptera — `--serve-seed` daje odtwarzalną
   sekwencję kodów (i wyłącznie kodów — talii nie przybija, decyzja 31),
   pominięty nieodtwarzalną; kolizja kodu nie nadpisuje
@@ -605,7 +674,9 @@ wymienione na zmierzone); POKER-29
   (CLI `--connect`, `--join`, `--opponent`) — klient terminalowy;
   `--connect` z jawnym `--seed` kończy się rc=2 (seed losuje serwer);
   testy sterują serwerem i klientami w procesie (gniazda lokalne,
-  porty efemeryczne, bez podprocesów i zegara ściennego); kierunek
+  porty efemeryczne, bez podprocesów; zegar ścienny wyłącznie w testach
+  timeoutu powitania, braku limitu czasu po powitaniu, pauzy pętli
+  accept i zamknięcia bez RST w `tests/test_lan_resilience.py`); kierunek
   importów pod rozszerzonym testem architektury; silnik, licytacja,
   widoki i agenci nietknięci;
 - bramka repozytorium: ruff, mypy strict, pytest — komendy wylicza
@@ -618,7 +689,8 @@ wymienione na zmierzone); POKER-29
 Persystencji poza plikiem eksportu, side potów w maszynie licytacji
 (INV-P5, N=2 — poza silnikiem liczy je `award_allin` w `poker.spin`:
 każdy showdown areny Spin, od POKER-71 z pełnym porządkiem rąk, oraz
-all-iny modeli jamfold i openfold i solvera blueprintu), zegara
+all-iny modeli jamfold — 3-way od POKER-84 też pełnym porządkiem rąk —
+i openfold i solvera blueprintu), zegara
 blindów, pełnego 3-max NL, value iteration po stanach turnieju
 (zewnętrzna pętla Ganzfrieda), UI poza LAN.
 ICM/WTA od POKER-30, jam/fold Nash na jednym stanie od POKER-31,
@@ -656,7 +728,7 @@ regeneracji prod-10x: solver 64,3 → 89,0 rdzenio-h), **POKER-71** (r1
 OBJECTION kodera — sprzeczne kryteria testu N — uznany; N = 512 regułą
 „od którego krzywa stoi”, decyzja 31 pkt 4; +16) i **POKER-75** (r1
 1 × BLOKUJĄCY — brak wykazu dryfu dokumentów — i 1 × ISTOTNY; +4;
-integracja `d3db4e1`). Bramka: 652 testy. Dokumenty stanu skorygowane
+integracja `d3db4e1`). Bramka przy zamknięciu sprintu A: 652 testy. Dokumenty stanu skorygowane
 po POKER-69…73, po POKER-74 i po POKER-75 (nagłówek wyżej). **Na
 operatora czeka regeneracja artefaktu produkcyjnego** (decyzja 31 pkt 3;
 obecnym kodem wycena `mode_census` 100,2 rdzenio-h z tensorem): do niej
@@ -669,7 +741,8 @@ tools/blueprint/identity.py --run PROD`).
 zatwierdzone 2026-09-27 (szkic z pomiarem bazy, recenzja świeżym
 kontekstem, finalizacja, przegląd krzyżowy); fale: B1 — POKER-76, 78,
 80, 84 — scalona 2026-09-27 (852 testy; integracje `92e44be`, `a4a8543`,
-`5e9aeca`, `e3d292c`; korekta dokumentów stanu dla fali w toku); B2 — 85,
+`5e9aeca`, `e3d292c`; dokumenty stanu skorygowane po fali — nagłówek
+wyżej); B2 — 85,
 77, 79, 83 (w toku); B3 — 81, 86, 87, 89; B4 — 82, 88;
 B5 — 90 (decyzja 31 pkt 4a). Druga część (POKER-86…90) zatwierdzona
 2026-09-27; POKER-90 (guzik HU po wybiciu, opcja C) zmienia model
@@ -727,6 +800,14 @@ architektury), nie `mypy`; sama memoizacja tego parsowania zbija
 dzisiejszą bramkę do 16,1 s, ale przy artefakcie na skali nie
 wystarcza. Artefakt w repozytorium pozostaje na 1000 iteracjach,
 przetrenowany nowym trenerem (regeneracja bajt w bajt zweryfikowana).
+**KOREKTA (POKER-80):** liczby parsowania i bramki wyżej zmierzono przy
+zamknięciu POKER-24 (decyzja 09); tuż przed POKER-80 test parsował
+`strategy_table.py` sześciokrotnie na bieg. Od POKER-80 (acceptance 3 POKER-28,
+decyzja 31 pkt 4a) test architektury parsuje każdy z 45 plików zbioru
+dokładnie raz na bieg (pamięć wyniku po treści źródła), a suma
+`--durations` `tests/test_architecture.py` spadła z 8,24 s (17 testów)
+do 1,78 s (121 testów) — pomiar 2026-09-27 na bazie `124d903` i na
+headzie fali B1.
 
 **POKER-29 (liniowo ważona średnia strategii w MCCFR) zamknięty.**
 Domyślne uśrednianie strategii to waga t (żale nieważone — to nie jest
@@ -743,6 +824,11 @@ stanie; AA jams / 72o folds; 10× zaciska call. INV-P5 nietknięte.
 
 **POKER-32 (one-step continuation) zamknięty.** V¹ = E[ICM(s′)] pod
 Nash. WTA ≈ ICM; 10× Short 8 bb rozjeżdża się.
+**KOREKTA (POKER-84):** pod WTA V¹ − V⁰ to chip-EV pozycji w jednej ręce
+(wypłata liniowa w żetonach), nie błąd fictitious play, i nie maleje ze
+zbieżnością: (70, 50, 30), 3×, guzik 1 — UTG +5,609e−3 BI przy 16
+iteracjach, +5,373e−3 przy 64 (decyzja 12, KOREKTA (POKER-84); test
+`test_wta_v1_minus_v0_to_chip_ev_pozycji`).
 
 **POKER-33 (zegar głębokości) zamknięty.** DEPTHS 25/15/10/6 bb.
 
@@ -757,6 +843,12 @@ i nie jest cash-MCCFR. `strategy_table` nietknięty.
 16 iteracji na 3× 25 bb: ≈ 0.0006 w modelu. Always-jam ≈ 0.18.
 Live vs-field UTG ~27% ≠ offline macierz ~17%. Self-ε ≠ jakość
 w pokerze (decyzja 17).
+**KOREKTA (POKER-84):** od POKER-84 ε liczy funkcja wartości per ręka
+decydenta, ta sama co best response (wcześniej różnica łącznych wycen
+w innej aproksymacji 3-way — ε bywało ujemne, I-27). 16 iteracji:
+max ε 6,199e−4 („≈ 0.0006" zostaje; przed POKER-84 6,378e−4);
+always-jam 0,147 (0,14671; przed POKER-84 0,16818), czyli 237× więcej
+niż 16 iteracji (decyzje 16 i 17, KOREKTA (POKER-84)).
 
 **Próg 7 bb (decyzja 19).** Push/fold tylko ≤ 7 bb eff. Wyżej open
 2.2x, bez flata. `JAM_FOLD_BB` w `poker.spin`.
@@ -2385,8 +2477,10 @@ i wejście wymuszone) oraz w liczniku `poker.blueprint_agent`.
    z miarą zbieżności ≤ 1e−3 sumy nagród w wyniku `solve`; jamfold
    (w książkach 12 iteracji) raportuje w wyniku `solve` ε wobec best
    response (`JamFoldSolution.exploitability`, blok POKER-36) bez progu
-   tolerancji, a poprawka aproksymacji tej miary (I-27) należy do
-   sprintu B) ani `wide_call`: w parach z nimi
+   tolerancji, a poprawka aproksymacji tej miary (I-27) należała do
+   sprintu B — wykonał ją POKER-84: ε liczy funkcja wartości per ręka,
+   ta sama co best response; strategie książek bez zmian) ani
+   `wide_call`: w parach z nimi
    różnica z pkt 6 sumuje wpływ wymuszonego wejścia i dystrybucyjnie
    neutralną permutację poborów (pkt 4). Czysto zero-jedynkowe są dwie
    pary — `field` vs `always_jam` i `field` vs `dollar_fish` — i tylko
@@ -3842,5 +3936,10 @@ Następne kroki:
    zatwierdzenie; POKER-28 (memoizacja parsowania w testach
    architektury, wiązanie checkpointu) nadal zasadny; POKER-27
    warunkowy — tylko przy powrocie do cash HU (decyzja 18).
+   **KOREKTA (POKER-80):** acceptance 3 POKER-28 (analiza raz na plik
+   w testach architektury) zrealizował POKER-80, acceptance 1–2
+   (checkpoint MCCFR) są uśpione decyzją 18, a acceptance 4 stracił
+   przedmiot (decyzja 31 pkt 4a) — w niemutowalnym POKER-28 nie zostaje
+   nic do wykonania poza uśpionym checkpointem.
 
 Nie trenować cash-MCCFR. Nie twierdzić, że bijemy field $1.

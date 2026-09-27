@@ -25,6 +25,17 @@ worktree) potwierdza niespełnialność łączną i koryguje liczby kodera:
   (32 s ciepła, 93 s zimna), bo jednego parsowania i importu usunąć
   się nie da.
 
+**KOREKTA (POKER-80):** „parsują wygenerowany moduł pięciokrotnie
+(`ast.parse` bez pamięci wyniku)” opisuje testy architektury
+z 2026-08-10; tuż przed POKER-80 parsowały `strategy_table.py`
+sześciokrotnie na bieg. Od POKER-80 (acceptance 3 POKER-28 — decyzja 31
+pkt 4a) test architektury parsuje każdy z 45 plików zbioru dokładnie raz
+na bieg (pamięć wyniku po treści źródła), a suma `--durations`
+`tests/test_architecture.py` spadła z 8,24 s do 1,78 s (pomiar
+2026-09-27 na bazie `124d903` i na headzie fali B1). Czasy bramki
+w punktach wyżej (22,7 / 16,1 / 56,7 s; 32 i 93 s) to pomiary
+z 2026-08-10.
+
 Wina leży po stronie kontraktu, nie wykonania: kryterium ilościowe
 zostało wpisane bez oszacowania budżetu bramki. To druga instancja tej
 klasy (pierwsza: F1 audytu POKER-19); mechanizacja — wpis w PUŁAPKACH
