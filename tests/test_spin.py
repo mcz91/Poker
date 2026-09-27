@@ -167,11 +167,20 @@ def test_wta_shove_fold_jest_dodatnie() -> None:
     assert shove_fold > fold
 
 
-def test_icm_10x_zmienia_ev_wzgledem_wta() -> None:
+def test_icm_10x_placi_liderowi_utg_mniej_niz_wta_tej_samej_sumy() -> None:
+    """Lider żetonów na UTG płaci premię ICM w każdej gałęzi: fold, jam obu fold, call.
+
+    Wektory wypłat mają tę samą sumę: przy różnych sumach EV różni się samą
+    skalą, więc wycena chipEV zamiast ICM przeszłaby porównanie (finding I-14).
+    """
     stacks = (70, 20, 10)
-    wta = utg_shove_ev(stacks, 1, PAYOUTS["3x"].prizes, caller=2, equity=0.5)
-    icm = utg_shove_ev(stacks, 1, PAYOUTS["10x"].prizes, caller=2, equity=0.5)
-    assert wta != icm
+    icm_prizes = PAYOUTS["10x"].prizes
+    wta_prizes = (sum(icm_prizes), 0.0, 0.0)
+    wta = utg_shove_ev(stacks, 1, wta_prizes, caller=2, equity=0.5)
+    icm = utg_shove_ev(stacks, 1, icm_prizes, caller=2, equity=0.5)
+    # Udział żetonowy UTG × 10: 70, 73 i ½·81 + ½·60 żetonów na 100.
+    assert wta == pytest.approx((7.0, 7.3, 7.05), abs=1e-12)
+    assert all(value < chip_ev for value, chip_ev in zip(icm, wta, strict=True)), (icm, wta)
 
 
 def test_utg_shove_ev_przegrana_z_dwoma_wybitymi_placi_drugie_miejsce_wiekszemu_stackowi() -> None:
