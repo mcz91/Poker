@@ -326,7 +326,9 @@ fale 1–3, integracja sekwencyjna):
   `fdd1ef7`; audyt r2: CZYSTY; runda 1 — sprzeciw kodera uznany,
   decyzja 31 pkt 4);
 - [`POKER-74.json`](taskspecs/POKER-74.json) — brzeg horyzontu solvera
-  cyklem 6 rąk (fala 1);
+  cyklem 6 rąk (zamknięty, commit integracji `94b1c0a`; runda 1 — BRAK
+  kodera rozstrzygnięty, runda 2 — sprzeciw kodera uznany, opcja B,
+  decyzja 31 pkt 4; audyt r2: CZYSTY);
 - [`POKER-75.json`](taskspecs/POKER-75.json) — tożsamość regeneracji
   z kanonicznej projekcji manifestów (fala 2, po POKER-74).
 

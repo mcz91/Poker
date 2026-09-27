@@ -140,10 +140,12 @@ OBJECTION (POKER-74) uznany. Rozstrzygnięcia architekta z przeglądu:
   opcja B.** Pomiary obaliły przesłankę rozstrzygnięcia BRAK: podłogę
   delty robi szum PI-FP (także argmax najlepszej odpowiedzi), nie sam stop
   na tolerancji. Na e60 (12 cykli) stop na fp_tol stoi na ~1,1–1,5e−3,
-  fp_tol/3 i fp_tol/10 nie schodzą trwale pod 5e−4, budżet zamrożony
-  i stały sufit 384 oscylują; zbiega wyłącznie krótki stały budżet
-  (mediana cyklu 1), ale do punktu stałego słabszego solvera (ε gier
-  etapowych ogona do 9,0e−4 wobec 2,8e−4; odchylenie od dokładniejszych
+  fp_tol/3 i fp_tol/10 nie schodzą trwale pod 5e−4, oba warianty
+  zamrożonego budżetu oscylują (stały sufit 384 zmierzony do końca
+  tylko na x60 — bieg e60 przerwano po cyklu 1); zbiega wyłącznie krótki
+  stały budżet (mediana cyklu 1), ale do punktu stałego słabszego solvera
+  (ε gier etapowych ogona do 9,0e−4 wobec 2,6–3,2e−4 ze stopem na
+  tolerancji w cyklach 1–12; odchylenie od dokładniejszych
   iteratów do 5,5e−3 — więcej niż naprawiany B7). `converged=True`
   poświadczyłby dokładność, której brzeg nie ma. **Decyzja:** integrowany
   jest cykl 6 z dotychczasowym stopem PI-FP na tolerancji; tail_tol bez
