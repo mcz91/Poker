@@ -2304,3 +2304,24 @@ def test_manifest_tozsamosci_produkcji_opisuje_tylko_to_co_kod_produkuje() -> No
     assert set(commands.values()) == {"AC", "AE", "AF", "AG", "AH", "BA", "BN"}
     assert {commands[name] for name in tensor | {"tensor/rollout_manifest.json"}} == {"AC"}
     assert (commands["blueprint.bpk"], commands["blueprint_v2.bpk"]) == ("BA", "BN")
+
+
+def test_konfiguracja_manifestu_tozsamosci_odtwarza_jego_hash() -> None:
+    """`konfiguracja` w `prod_identity.json` to pola `GridConfig` biegu produkcyjnego.
+
+    Z wartościami domyślnymi pozostałych pól i sha tensora odtwarza zapisany
+    `config_hash` — więc hash i konfiguracja opisują bieg, który obecny kod
+    powtórzy. Pole spoza `GridConfig` (np. `null` pod nazwą, której solver nie
+    zna) udawałoby ustawienie, którego bieg nie ma.
+    """
+    sg = _load("solve_grid")
+    manifest = json.loads((CONTROL_DIR / "prod_identity.json").read_text())
+    listed = manifest["konfiguracja"]
+    assert set(listed) <= {field.name for field in dataclasses.fields(sg.GridConfig)}
+    config = dataclasses.replace(
+        sg.GridConfig(),
+        **{key: tuple(value) if isinstance(value, list) else value
+           for key, value in listed.items()},
+    )
+    stub = {"sha256": manifest["tensor_sha256_z_manifestu"]}
+    assert sg.config_hash(config, stub) == manifest["config_hash"]

@@ -2,7 +2,7 @@
   "config_hash": "4aecf64eccccd6de39ecd017ebf80f89a834f01fddcf888b10f22220e0fe41d8",
   "jak_uzyc": "Po regeneracji komendami z 'pochodzenie' (CURRENT_STATE: AC-AH w bloku POKER-50, BA w bloku POKER-51, BN w bloku POKER-57) uruchom: python tools/blueprint/identity.py --run PROD (PROD = katalog z tensor/, grid2/ i plikami .bpk) i porownaj sha256 kazdej pozycji z 'pliki' - komenda liczy ta sama metoda. Pozycja 'aktualna': zgodnosc = pomiary przy niej obowiazuja, rozjazd = trzeba je powtorzyc. Pozycja 'do przeliczenia' nie ma sha - wpisuje go pierwsza regeneracja obecnym kodem. Wersje python i numpy naleza do tozsamosci, model CPU nie. Pliki spoza 'pliki' pomin.",
   "konfiguracja": {
-    "cfr_max_iters": null,
+    "cfr_iters": 512,
     "cfr_tol": 5e-05,
     "fp_max_iters": 384,
     "fp_tol": 5e-05,
@@ -13,8 +13,7 @@
       0.2,
       0.0
     ],
-    "seed": null,
-    "tail_cycles": null,
+    "tail_max_cycles": 12,
     "tail_tol": 0.0005,
     "total_chips": 150
   },
