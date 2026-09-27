@@ -11,6 +11,7 @@ kończy wyłącznie jego stół.
 import random
 import socket
 import threading
+import time
 from dataclasses import dataclass, field
 from io import BufferedRWPair
 from pathlib import Path
@@ -18,6 +19,7 @@ from pathlib import Path
 from poker.adapters.export import serialize_match_history
 from poker.adapters.human import HumanAgent, InputEnded, render_hand_summary
 from poker.adapters.protocol import (
+    MAX_LINE_BYTES,
     int_field,
     read_message,
     send_message,
@@ -36,6 +38,12 @@ HUMAN_OPPONENT = "human"
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 8
 CODE_ATTEMPTS = 16
+
+# Zamknięcie gniazda z nieprzeczytanymi danymi wysyła RST, który może skasować u klienta
+# nieodebrany jeszcze error; po error serwer doczytuje wejście — z limitem czasu i bajtów,
+# żeby klient nie trzymał nim wątku.
+DRAIN_SECONDS = 0.5
+DRAIN_BYTES = 4 * MAX_LINE_BYTES
 
 
 def generate_code(rng: random.Random) -> str:
@@ -68,6 +76,23 @@ class _Client:
                 pass
             self.connection.close()
 
+    def reject(self, reason: str) -> None:
+        """error z powodem, potem zamknięcie połączenia bez RST (patrz DRAIN_SECONDS)."""
+        self.send_quietly({"type": "error", "message": reason})
+        try:
+            self.connection.shutdown(socket.SHUT_WR)
+            deadline = time.monotonic() + DRAIN_SECONDS
+            drained = 0
+            while drained < DRAIN_BYTES and (remaining := deadline - time.monotonic()) > 0:
+                self.connection.settimeout(remaining)
+                chunk = self.connection.recv(MAX_LINE_BYTES)
+                if not chunk:
+                    break
+                drained += len(chunk)
+        except OSError:
+            pass
+        self.close()
+
 
 class _ProtocolIO:
     """Most strumieni HumanAgent <-> protokół: tekst wychodzi wiadomościami,
@@ -96,7 +121,7 @@ class _ProtocolIO:
             return ""
         try:
             self._client.send({"type": "prompt"})
-            message = read_message(self._client.stream)
+            message = read_message(self._client.stream, MAX_LINE_BYTES)
         except (OSError, ValueError):
             self._disconnected = True
             return ""
@@ -168,10 +193,9 @@ class TableServer:
         stream = connection.makefile("rwb")
         client = _Client(connection=connection, stream=stream)
         try:
-            message = read_message(stream)
+            message = read_message(stream, MAX_LINE_BYTES)
         except ValueError as error:
-            client.send_quietly({"type": "error", "message": str(error)})
-            connection.close()
+            client.reject(str(error))
             return
         if message is None:
             connection.close()
@@ -185,8 +209,7 @@ class TableServer:
                 case unknown:
                     raise ValueError(f"nieznany typ wiadomości: {unknown!r}")
         except ValueError as error:
-            client.send_quietly({"type": "error", "message": str(error)})
-            connection.close()
+            client.reject(str(error))
 
     def _handle_create(self, client: _Client, message: dict[str, object]) -> None:
         if "seed" in message:
