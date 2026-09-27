@@ -109,8 +109,11 @@
     artefakt 80/20@25bb obsługuje ~1% turniejów, modalna gra to WTA
     15–20bb → rodzina blueprintów per tier (T-MODAL pierwszy); linia
     tolerancyjna NASYCONA (prawo ε→ROI: pełna wyzyskiwalność = 0,14 pp
-    przy CI areny 1,46 pp); warstwa eksploatacyjna = seat-restricted
-    DBR offline, HU-first, bramkowana ex-post ε; prawo kosztu Θ(L·C³·it)
+    przy CI areny 1,46 pp — pomiar BF POKER-52 na arenie sprzed POKER-71
+    i artefakcie sprzed POKER-74, KOREKTA (POKER-71) w decyzji;
+    przeliczenie wymaga regeneracji, decyzja 31 pkt 3); warstwa
+    eksploatacyjna = seat-restricted DBR offline, HU-first, bramkowana
+    ex-post ε; prawo kosztu Θ(L·C³·it)
     i szew `_settle()`; katalog obaleń (PED, maximin, regret transfer,
     RNR, search w runtime, GPU-artefakt…); mapa POKER-56..68 z bramką
     STOP i wejściami operatorskimi (tabela tierów, korpus HH);
@@ -120,7 +123,9 @@
     publikacja strategii, a profile eksploatacyjne są wrażliwsze niż
     blueprint); w zamian manifest tożsamości `prod_identity.json`
     (sha256 32 plików), który pozwala regenerującej drużynie zachować
-    pomiary zamiast je powtarzać; P-7 (WTA@25bb) odblokowane bez
+    pomiary zamiast je powtarzać (KOREKTA (POKER-71): nie ROI areny
+    i liczniki fallbacku — zależą też od kodu areny, który zmieniły
+    POKER-70 i 71); P-7 (WTA@25bb) odblokowane bez
     potwierdzenia tabeli tierów — nie bierze z niej nic — P-8 nadal
     zablokowane.
 31. [`31-audyt-calego-kodu-kwalifikacja-i-sprinty.md`](decisions/31-audyt-calego-kodu-kwalifikacja-i-sprinty.md)
@@ -156,7 +161,8 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   (zamknięty, commit `b6f7035`; audyt: CZYSTY);
 - [`POKER-10.json`](taskspecs/POKER-10.json) — interfejs człowiek vs
   bot w terminalu (zamknięty, commit `b1da201`; audyt: 1 finding
-  informacyjny → POKER-11);
+  informacyjny → POKER-11; seed meczu od gracza zastąpiony przez
+  POKER-69 — decyzja 31 pkt 1);
 - [`POKER-11.json`](taskspecs/POKER-11.json) — showdown na żywo
   w trybie człowieka (zamknięty, commit `80899ce`; audyt: CZYSTY);
 - [`POKER-12.json`](taskspecs/POKER-12.json) — equity preflop 169
@@ -196,7 +202,9 @@ Kontrakty zadań żyją w [`taskspecs/`](taskspecs/) według
   serwer stołów heads-up w LAN, klient terminalowy, przeciek
   protokołu pod testem (zamknięty, commit `c9231e3`; audyt:
   1 finding informacyjny — przewidywalny kod stołu → wątek na
-  najbliższy kontrakt sieciowy);
+  najbliższy kontrakt sieciowy; pole `seed` żądania `create` zastąpione
+  przez POKER-69 — seed meczu losuje serwer, protokół v2, decyzja 31
+  pkt 1);
 - [`POKER-22.json`](taskspecs/POKER-22.json) — abstrakcja kart
   i akcji pod MCCFR, plaster c2a decyzji 07 (zamknięty, commit
   `fb61bf2`; audyt: 1 finding informacyjny — duplikacja formuły
