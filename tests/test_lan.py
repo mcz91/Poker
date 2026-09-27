@@ -1,5 +1,5 @@
-"""Testy LAN (POKER-21, POKER-69): stoły heads-up przez sieć, przeciek bajtów, izolacja stołów,
-seed meczu losowany przez serwer."""
+"""Testy LAN (POKER-21, POKER-69, POKER-76): stoły heads-up przez sieć, przeciek bajtów,
+izolacja stołów, seed meczu losowany przez serwer, eksport bez nadpisywania historii."""
 
 import io
 import json
@@ -324,6 +324,43 @@ def test_serve_seed_w_cli_przybija_kody_nie_talie(
     (kod_a, eksport_a), (kod_b, eksport_b) = przebiegi
     assert kod_a == kod_b == "BJC3QJD5"
     assert karty_z_eksportu(eksport_a) != karty_z_eksportu(eksport_b)
+
+
+def test_restart_z_tym_samym_serve_seed_nie_nadpisuje_eksportu(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class SesjaOperatora:
+        """W miejscu czekania serwera CLI na Ctrl+C: jeden stół na nasłuchu, potem koniec."""
+
+        def wait(self) -> None:
+            adres = re.search(r":(\d+) ", capsys.readouterr().out)
+            assert adres is not None
+            stub = Stub(int(adres.group(1)))
+            stub.send(create_message(hand_limit=3))
+            assert stub.recv()["code"] == "BJC3QJD5"
+            play_until_end(stub, ["fold"] * 3)
+            do_zamkniecia(stub)
+            stub.close()
+
+    monkeypatch.setattr(cli, "threading", SimpleNamespace(Event=SesjaOperatora))
+    katalog = tmp_path / "eksport"
+    migawki: list[dict[str, bytes]] = []
+    for _ in range(3):
+        assert main([
+            "--serve", "0", "--serve-host", "127.0.0.1", "--serve-seed", "123",
+            "--export-dir", str(katalog),
+        ]) == 0
+        migawki.append({plik.name: plik.read_bytes() for plik in katalog.iterdir()})
+    pierwszy, drugi, trzeci = (
+        "BJC3QJD5.json", "BJC3QJD5-2.json", "BJC3QJD5-3.json",
+    )
+    assert [sorted(migawka) for migawka in migawki] == [
+        [pierwszy], [drugi, pierwszy], [drugi, trzeci, pierwszy],
+    ]
+    assert migawki[2][pierwszy] == migawki[0][pierwszy]
+    assert migawki[2][drugi] == migawki[1][drugi]
+    karty = [karty_z_eksportu(katalog / nazwa) for nazwa in (pierwszy, drugi, trzeci)]
+    assert karty[0] != karty[1] and karty[0] != karty[2] and karty[1] != karty[2]
 
 
 def test_dwa_stoly_rownolegle_bez_pomieszania() -> None:

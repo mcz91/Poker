@@ -9,6 +9,7 @@ naruszenie protokołu i wyjątek agenta albo serwera kończą wyłącznie dotkni
 stół: jego gracze dostają opponent_left albo error, a serwer zamyka ich połączenia.
 """
 
+import itertools
 import random
 import socket
 import sys
@@ -73,6 +74,21 @@ def generate_code(rng: random.Random) -> str:
 
 def _log_exception(context: str) -> None:
     print(f"serwer stołów LAN: {context}\n{traceback.format_exc()}", end="", file=sys.stderr)
+
+
+def _export_history(directory: Path, code: str, result: MatchResult) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    history = serialize_match_history(result.histories)
+    # Restart z tym samym --serve-seed powtarza kody stołów: pierwszy wolny sufiks zamiast
+    # nadpisania, a tryb 'x' czyni wybór nazwy atomowym także dla dwóch procesów.
+    for number in itertools.count(1):
+        name = f"{code}.json" if number == 1 else f"{code}-{number}.json"
+        try:
+            with (directory / name).open("x", encoding="utf-8") as target:
+                target.write(history)
+        except FileExistsError:
+            continue
+        return
 
 
 @dataclass
@@ -479,9 +495,7 @@ class TableServer:
             })
         if self._export_directory is not None:
             try:
-                self._export_directory.mkdir(parents=True, exist_ok=True)
-                target = self._export_directory / f"{table.code}.json"
-                target.write_text(serialize_match_history(result.histories), encoding="utf-8")
+                _export_history(self._export_directory, table.code, result)
             except Exception:
                 # Bez error do graczy: mają już prawdziwy wynik w match_end.
                 _log_exception(f"eksport historii stołu {table.code} nie powiódł się")
