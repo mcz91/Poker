@@ -41,7 +41,11 @@ def read_message(
         line = stream.readline()
     else:
         line = stream.readline(max_line_bytes)
-        if len(line) == max_line_bytes and not line.endswith(b"\n"):
+        # Plik gniazda (BufferedRWPair) dziedziczy IOBase.readline, które przy size potrafi
+        # oddać ponad size (mniej niż bufor więcej), więc linię dłuższą też odrzuca długość.
+        if len(line) > max_line_bytes or (
+            len(line) == max_line_bytes and not line.endswith(b"\n")
+        ):
             raise ValueError(
                 f"linia wiadomości przekracza {max_line_bytes} bajtów łącznie z końcem linii"
             )

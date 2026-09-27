@@ -10,7 +10,7 @@ import random
 import socket
 import threading
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Buffer, Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
@@ -158,6 +158,66 @@ def test_error_dociera_przed_czystym_koncem_strumienia_mimo_nadmiaru_danych() ->
         assert klient.odbierz()["type"] == "error"
         assert klient.file.readline() == b""
         klient.close()
+
+
+class GniazdoPorcjami(io.RawIOBase):
+    """Surowy strumień jak gniazdo (mock sieci): pierwszy odczyt oddaje krótszą porcję, każdy
+    następny — pełny bufor, jak recv, gdy reszta linii dociera po pierwszym odczycie."""
+
+    def __init__(self, dane: bytes, pierwsza_porcja: int) -> None:
+        self._dane = dane
+        self._pozycja = 0
+        self._porcja = pierwsza_porcja
+
+    def readable(self) -> bool:
+        return True
+
+    def writable(self) -> bool:
+        return True
+
+    def readinto(self, bufor: Buffer, /) -> int:
+        widok = memoryview(bufor).cast("B")
+        porcja = min(self._porcja, len(widok), len(self._dane) - self._pozycja)
+        widok[:porcja] = self._dane[self._pozycja : self._pozycja + porcja]
+        self._pozycja += porcja
+        self._porcja = len(widok)
+        return porcja
+
+    def write(self, dane: Buffer, /) -> int:
+        return memoryview(dane).nbytes
+
+
+def strumien_obcinajacy(dane: bytes) -> MessageStream:
+    """Strumień, którego readline(size) oddaje najwyżej size bajtów."""
+    return io.BytesIO(dane)
+
+
+def strumien_gniazda(dane: bytes) -> MessageStream:
+    """Plik jak socket.makefile('rwb'): BufferedRWPair, którego readline(size)
+    (IOBase.readline) przycina każdą porcję do size, a nie do reszty size — przy porcjach
+    1000 B, potem 8192 B oddaje więcej niż size."""
+    gniazdo = GniazdoPorcjami(dane, pierwsza_porcja=1000)
+    return io.BufferedRWPair(gniazdo, gniazdo)
+
+
+@pytest.mark.parametrize("koniec", [b"\n", b""], ids=["z-koncem-linii", "bez-konca-linii"])
+@pytest.mark.parametrize(
+    ("strumien", "readline_oddaje_wiecej_niz_limit"),
+    [(strumien_obcinajacy, False), (strumien_gniazda, True)],
+    ids=["readline-obcina", "readline-oddaje-wiecej"],
+)
+def test_linia_ponad_limit_jest_bledem_niezaleznie_od_tego_ile_oddal_readline(
+    koniec: bytes,
+    strumien: Callable[[bytes], MessageStream],
+    readline_oddaje_wiecej_niz_limit: bool,
+) -> None:
+    dane = dopelniona(create(), LIMIT_LINII + 1, koniec=koniec) + b" " * 100_000
+    # Warunek wstępny: inaczej przypadek nie sprawdza ścieżki, którą deklaruje.
+    oddane = len(strumien(dane).readline(LIMIT_LINII))
+    assert (oddane > LIMIT_LINII) is readline_oddaje_wiecej_niz_limit
+    assert oddane >= LIMIT_LINII
+    with pytest.raises(ValueError, match=str(LIMIT_LINII)):
+        read_message(strumien(dane), LIMIT_LINII)
 
 
 def test_read_message_bez_limitu_czyta_linie_dluzsza_niz_limit_serwera() -> None:
