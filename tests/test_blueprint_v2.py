@@ -190,8 +190,8 @@ def test_v1_nie_zauwazyl_ze_powstalo_v2(v2_run: dict[str, Any], tmp_path: Path) 
     """Plik v1 z biegu z sekcjami jest bajt w bajt plikiem v1 z biegu bez nich.
 
     v1 nie ma miejsca na ε ani marginesy i nie udaje, że ma: nie wchodzą do
-    pliku ani do bloku metadanych, więc artefakt produkcyjny spakowany po
-    POKER-57 ma ten sam sha co przed. Pola opisu formatu v1 zostają dokładnie
+    pliku ani do bloku metadanych, więc sha pliku v1 nie zależy od tego, czy
+    obok biegu policzono sekcje v2. Pola opisu formatu v1 zostają dokładnie
     tymi sześcioma, które opisał POKER-51.
     """
     pk = _load("pack_blueprint")

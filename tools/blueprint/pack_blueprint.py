@@ -7,8 +7,14 @@ używać numpy, bo narzędzia żyją poza pakietem produktu.
 Zapis jest deterministyczny: ten sam katalog biegu daje bajt w bajt ten sam
 plik. Nie ma w nim znaczników czasu ani nazw tymczasowych; metadane to
 kanoniczny JSON (`sort_keys`, bez spacji), a bloki stanów pakuje zlib o stałym
-poziomie. Plik powstaje jako `.tmp` obok celu i wchodzi na miejsce przez
-`os.replace` — jak reszta artefaktów pilota.
+poziomie. Metadane niosą kanoniczną projekcję manifestu biegu
+(`identity.canonical_projection`: bez ścieżek bezwzględnych, modelu CPU,
+czasów ściennych i liczby procesów), więc plik nie zależy też od tego, gdzie
+i iloma procesami bieg policzono — dwie regeneracje tym samym kodem dają ten
+sam plik (na jednej maszynie dowodzi tego test łańcucha kontrolnego w bramce).
+Pełny przepis pochodzenia, z modelem CPU i czasami, zostaje w
+`solve_manifest.json` obok artefaktu. Plik powstaje jako `.tmp` obok celu
+i wchodzi na miejsce przez `os.replace` — jak reszta artefaktów pilota.
 
 Kwantyzacja rozkładu akcji: metoda największych reszt na slotach drzewa
 (dziś trzech) do sumy `2**bits - 1`. Suma jest zachowana dokładnie, więc
@@ -102,6 +108,7 @@ def _sibling(name: str) -> ModuleType:
 
 
 artifacts = _sibling("artifacts")
+identity = _sibling("identity")
 solve_grid = _sibling("solve_grid")
 
 DEFAULT_QUANT_BITS = 8
@@ -203,9 +210,14 @@ def _layer_sources(run_dir: Path, manifest: dict[str, Any]) -> list[tuple[int, P
     return sources
 
 
-def _check_source_hashes(manifest: dict[str, Any], sources: list[tuple[int, Path, bool]],
-                         run_dir: Path) -> dict[str, str]:
-    """Sha256 pakowanych plików skonfrontowane z manifestem biegu — pochodzenie nie kłamie."""
+def _check_source_hashes(manifest: dict[str, Any],
+                         sources: list[tuple[int, Path, bool]]) -> dict[str, str]:
+    """Sha256 pakowanych plików skonfrontowane z manifestem biegu — pochodzenie nie kłamie.
+
+    Sam manifest wchodzi sha256 swojej kanonicznej projekcji — tą samą wartością,
+    którą jego tożsamość wypisuje `identity.py`; sha surowego pliku zmieniałby
+    się z każdą regeneracją razem z polami ulotnymi.
+    """
     declared: dict[str, str] = {
         manifest["layers"][key]["file"]: manifest["layers"][key]["sha256"]
         for key in manifest["layers"]
@@ -219,7 +231,7 @@ def _check_source_hashes(manifest: dict[str, Any], sources: list[tuple[int, Path
                 f"{path.name}: sha256 pliku różni się od manifestu biegu — artefakt niespójny"
             )
         digests[path.name] = digest
-    digests["solve_manifest.json"] = artifacts.sha256_file(run_dir / "solve_manifest.json")
+    digests["solve_manifest.json"] = identity.projection_sha256("solve_manifest.json", manifest)
     return digests
 
 
@@ -312,7 +324,7 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
     if manifest["status"] != "done":
         raise ValueError("format pakuje wyłącznie zakończony bieg solvera")
     sources = _layer_sources(run_dir, manifest)
-    digests = _check_source_hashes(manifest, sources, run_dir)
+    digests = _check_source_hashes(manifest, sources)
     levels = (1 << quant_bits) - 1
     dtype = np.uint8 if quant_bits == 8 else np.dtype("<u2")
     n_classes = len(manifest["config"]["classes"])
@@ -328,7 +340,7 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
     eps_source = optional.get("epsilon")
     margin_source = optional.get("margins")
 
-    # Odcisk przebiegu jedzie w metadanych osobnym blokiem, a nie tylko w kopii
+    # Odcisk przebiegu jedzie w metadanych osobnym blokiem, a nie tylko w projekcji
     # manifestu: konsument ma pytać o „jaką grę opisuje ten plik" jednym polem.
     # Manifest, który skłamał o odcisku, zapala błąd tu, a nie u konsumenta.
     fingerprint = solve_grid.config_fingerprint(solve_grid.config_from_dict(manifest["config"]))
@@ -343,16 +355,16 @@ def pack(run_dir: Path, out_path: Path, quant_bits: int | None = None,
         "method": "largest-remainder",
     }
     if version == FORMAT_VERSION_V2:
-        # Pola sekcji opcjonalnych są v2-owe i tylko w v2 się pojawiają: blok
-        # metadanych v1 ma zostać bajt w bajt tym samym blokiem co przed
-        # POKER-57 (repack artefaktu produkcyjnego = ten sam sha).
+        # Pola sekcji opcjonalnych są v2-owe i tylko w v2 się pojawiają: plik v1
+        # nie ma miejsca na sekcje, więc jego blok metadanych nie zależy od tego,
+        # czy obok biegu leżą `expost.npz` i `margins.npz`.
         fmt["sections"] = sorted(optional)
         fmt["margin_levels"] = MARGIN_LEVELS if "margins" in optional else 0
     meta = {
         "artifact": "blueprint-binary",
         "fingerprint": fingerprint,
         "format": fmt,
-        "run_manifest": manifest,
+        "run_manifest": identity.canonical_projection("solve_manifest.json", manifest),
         "source_sha256": digests,
         "boundary_hand": sources[-1][0],
     }

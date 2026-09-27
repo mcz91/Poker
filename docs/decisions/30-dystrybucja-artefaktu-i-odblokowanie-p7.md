@@ -53,6 +53,39 @@ Przekazanie samego pliku artefaktu kanałem prywatnym (dysk operatora,
 przekaz bezpośredni) pozostaje możliwe i **nie wymaga zmiany tej
 decyzji** — zakazana jest publikacja, nie przekazanie.
 
+**KOREKTA (POKER-75):** zgodności sha256 po regeneracji nie dało się
+udowodnić z konstrukcji (finding B5 audytu 2026-09-26). Manifesty biegu
+niosą pola ulotne — ścieżki bezwzględne, model CPU, czasy ścienne, liczbę
+procesów — a konwerter wkładał do metadanych `.bpk` cały manifest biegu
+i sha256 surowego `solve_manifest.json`, więc dwie bezbłędne regeneracje
+różniły się zawsze w 4–5 z 32 pozycji, w tym w obu plikach `.bpk`.
+Determinizm pakowania z POKER-51/57 dotyczył tego samego katalogu biegu,
+nie regeneracji. Obecny mechanizm (`python tools/blueprint/identity.py
+--run KATALOG`): tożsamością `solve_manifest.json`, `rollout_manifest.json`
+i `eps_decomposition.json` jest sha256 ich kanonicznej projekcji bez pól
+ulotnych, każdego innego pliku — sha256 pliku. Metadane `.bpk` niosą tę samą
+projekcję manifestu biegu, a pełny przepis pochodzenia (z modelem CPU
+i czasami) zostaje w `solve_manifest.json` obok artefaktu — świadome
+zawężenie kryterium 1 POKER-51.
+
+- **Potwierdza:** dwie regeneracje tym samym kodem na jednej maszynie,
+  w różnych katalogach i przy różnej liczbie procesów, dają tę samą
+  tożsamość każdej pozycji i bajt w bajt te same pliki `.bpk` (test w bramce
+  na łańcuchu kontrolnym: 13 pozycji, od tensora do `.bpk` v1 i v2). Wersje
+  python i numpy należą do tożsamości (numpy przypięty w `pyproject.toml`).
+- **Nie potwierdza:** (1) zgodności między maszynami — model CPU jest poza
+  tożsamością, ale bramka sprawdza jedną maszynę, a łańcuch kontrolny
+  porównuje liczby solvera z tolerancją na arytmetykę f32; rozjazd po
+  regeneracji na innym CPU wymusza powtórzenie pomiarów, nie dowodzi błędu
+  kodu; (2) artefaktu opisanego wyżej — 30 z 32 pozycji opisywało artefakt,
+  którego obecny kod nie produkuje (brzeg horyzontu sprzed POKER-74, metadane
+  `.bpk` sprzed POKER-75; wpis `blueprint.bpk` 19 016 752 B pochodził wręcz
+  sprzed POKER-56), więc w `prod_identity.json` mają status „do
+  przeliczenia” bez sha, a pomiary przy artefakcie są unieważnione do
+  regeneracji operatora (decyzja 31 pkt 3). Sha zostaje wyłącznie przy
+  dwóch plikach `npz` tensora; „119 566 611 B” opisuje artefakt sprzed
+  korekty.
+
 ## 3. Odblokowanie P-7 (WTA@25bb) bez potwierdzenia tabeli tierów
 
 Decyzja 29 pkt 6 wiązała potwierdzenie tabeli tierów z P-7 **i** P-8.
