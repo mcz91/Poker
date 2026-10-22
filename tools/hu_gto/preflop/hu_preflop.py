@@ -7,13 +7,13 @@ Wszystkie wartości w bb, z perspektywy SB, jako zmiana stacku w rozdaniu.
 
 Drzewo (domyślne, `TreeConfig`):
   SB first-in : fold / limp / raise 2x / raise 2,5x (gdy S > 12) / jam
-  BB vs limp  : check [liść limp_check] / iso do `iso_size` / jam
+  BB vs limp  : check [liść limp_check] / iso do `iso_size` (albo kilka rozmiarów `iso_sizes`) / jam
   SB vs iso   : fold / call [liść iso_call] / jam;   BB vs jam SB: fold / call
   SB vs jam BB: fold / call
   BB vs raise : fold / call [liść raise_call] / 3bet-jam (+ mały 3bet przy S >= small_3bet_min)
   SB vs 3bet-jam: fold / call;  SB vs mały 3bet: fold / call [liść 3bet_call] / 4bet-jam
   BB vs jam   : fold / call
-Rozmiar >= stacku jest usuwany (byłby jamem).
+Rozmiar >= stacku jest usuwany (byłby jamem). `gw_tree(S)`: rozmiary jak w drzewach GTO Wizard.
 
 Liście nie-all-in (`Line`) wycenia `LeafModel.share(line, E) -> R[h, v]`:
 udział SB w puli, a EV_SB = pot * R - pot / 2. BB dostaje 1 - R, więc suma
@@ -290,6 +290,8 @@ class TreeConfig:
     big_min: float = 12.0
     limp: bool = True
     iso_size: float = 3.5  # iso do X bb (bezwzględnie)
+    # niepuste: kilka rozmiarów iso (akcje 'iso<X>', węzły 'limp-iso<X>') zamiast jednego iso_size
+    iso_sizes: tuple[float, ...] = ()
     bb_flat: bool = True
     small_3bet_min: float | None = None  # np. 20.0 -> mały 3bet przy S >= 20
     small_3bet_mult: float = 2.5  # 3bet do mult * rozmiar raise'a
@@ -352,13 +354,16 @@ def build_tree(S: float, cfg: TreeConfig, E: np.ndarray, leaf: LeafModel) -> Nod
     if cfg.mode == "full" and cfg.limp:
         L = Node("limp", 1)
         add(L, "check", flop("limp-check", "limp_check", 1.0, "none"))
-        X = cfg.iso_size
-        if X < S:
-            iso = Node("limp-iso", 0)
-            add(iso, "fold", fold("limp-iso-fold", 0, 1.0, X))
-            add(iso, "call", flop("limp-iso-call", "iso_call", X, "BB"))
-            add(iso, "jam", facing_jam("limp-iso-jam", 1, S, X))
-            add(L, "iso", iso)
+        for X in cfg.iso_sizes or (cfg.iso_size,):
+            if X >= S:
+                continue
+            a = f"iso{X:g}" if cfg.iso_sizes else "iso"
+            nid = _cid("limp", a)
+            iso = Node(nid, 0)
+            add(iso, "fold", fold(_cid(nid, "fold"), 0, 1.0, X))
+            add(iso, "call", flop(_cid(nid, "call"), "iso_call", X, "BB"))
+            add(iso, "jam", facing_jam(_cid(nid, "jam"), 1, S, X))
+            add(L, a, iso)
         add(L, "jam", facing_jam("limp-jam", 0, 1.0, S))
         add(root, "limp", L)
     if cfg.mode in ("full", "open_jam"):
@@ -381,6 +386,34 @@ def build_tree(S: float, cfg: TreeConfig, E: np.ndarray, leaf: LeafModel) -> Nod
             add(root, rid, B)
     add(root, "jam", facing_jam("jam", 1, S, 1.0))
     return root
+
+
+def gw_tree(depth: float) -> TreeConfig:
+    """Drzewo z rozmiarami jak w rozwiązaniach GTO Wizard HU bez ante (web_refs): iso 2,5/4 bb przy
+    10 bb, 3/5 przy 16, 3/6 przy 20 (głębokość pośrednia: najbliższa z tych trzech), open 2x i 2,5x
+    na każdej głębokości, mały 3bet do 2,5x openu przy S >= 13 (GW przy 20 bb: 3bet do 5 vs 2x)."""
+    iso = (2.5, 4.0) if depth < 13 else (3.0, 5.0) if depth < 18 else (3.0, 6.0)
+    return TreeConfig(iso_sizes=iso, big_min=0.0, small_3bet_min=13.0)
+
+
+def average_profiles(results: list[SolveResult], weights: list[float]) -> SolveResult:
+    """Profil mieszany sum_k w_k R_k w sensie realizacji (forma sekwencyjna): strategia węzła =
+    sum_k w_k reach_k sigma_k / sum_k w_k reach_k, gdzie reach_k to zasięg własny aktora w R_k.
+    Klasa nieosiągająca węzła w żadnym R_k dostaje średnią ważoną strategii behawioralnych.
+    Pola ev/luka wyniku są NaN — zależą od modelu liścia (`evaluate_profile`)."""
+    r0 = results[0]
+    root = build_tree(r0.depth, TreeConfig(**r0.tree), np.full((N, N), 0.5), CheckdownLeaf())
+    sv = _Solver(root)
+    w = np.asarray(weights, float) / float(np.sum(weights))
+    for n in sv.dec:
+        rs = [(r.nodes[n.id], wk) for r, wk in zip(results, w, strict=True)]
+        real = sum(wk * nr.reach[:, None] * nr.strategy for nr, wk in rs)
+        behav = sum(wk * nr.strategy for nr, wk in rs)
+        mass = real.sum(1, keepdims=True)
+        n.S = np.where(mass > 1e-15, real, behav)
+    nodes, leaves = _collect(sv)
+    nan = float("nan")
+    return SolveResult(r0.depth, "average", r0.tree, nodes, leaves, nan, nan, nan, nan, 0, 0.0)
 
 
 def iter_nodes(node: Node):
@@ -687,12 +720,22 @@ def _code(a: str) -> str:
     return ACTION_CODE.get(a, a[:1].upper())
 
 
+def _codes(actions: list[str]) -> list[str]:
+    """Kody jednoliterowe unikalne w węźle (dwa rozmiary iso: 'I' i 'i')."""
+    out: list[str] = []
+    for a in actions:
+        c = _code(a)
+        out.append(c.lower() if c in out else c)
+    return out
+
+
 def chart_text(nr: NodeResult, action: str | None = None, title: str = "") -> str:
     """action=None: w komórce kod akcji dominującej + jej % (np. 'J100', 'L64');
     action='jam': procent tej akcji w każdej komórce."""
     lines = [title] if title else []
+    codes = _codes(nr.actions)
     if action is None:
-        legend = ", ".join(f"{_code(a)}={a}" for a in nr.actions)
+        legend = ", ".join(f"{c}={a}" for c, a in zip(codes, nr.actions, strict=True))
         lines.append(f"[{nr.actor}] dominująca akcja i jej % ({legend})")
     else:
         lines.append(f"[{nr.actor}] % akcji '{action}'")
@@ -707,9 +750,9 @@ def chart_text(nr: NodeResult, action: str | None = None, title: str = "") -> st
             else:
                 a = int(np.argmax(s))
                 row.append(
-                    f"{_code(nr.actions[a])}{min(99, round(100 * s[a])):>3d}"
+                    f"{codes[a]}{min(99, round(100 * s[a])):>3d}"
                     if s[a] < 0.995
-                    else f"{_code(nr.actions[a])}  *"
+                    else f"{codes[a]}  *"
                 )
         lines.append(f"{RANKS[i]:>4} " + " ".join(row))
     lines.append(

@@ -208,3 +208,78 @@ def test_generator_equity_eval7_zgadza_sie_z_zapisana_macierza() -> None:
     assert np.isnan(row[: i + 1]).all() and np.isfinite(row[i + 1 :]).all()
     # 4000 prób: SE ~0,8 pp, więc 3 pp to ok. 4 SE od macierzy 1e6.
     assert abs(row[H.INDEX["72o"]] - H.load_equity()[i, H.INDEX["72o"]]) < 0.03
+
+
+def _walk(n: Any) -> list[Any]:
+    out = [n]
+    for c in n.children:
+        out += _walk(c)
+    return out
+
+
+@pytest.mark.parametrize(
+    "S,iso,small_3bet", [(10, ("2.5", "4"), False), (15, ("3", "5"), True), (20, ("3", "6"), True)]
+)
+def test_drzewo_gw_ma_rozmiary_zalezne_od_glebokosci_i_kompletne_liscie(
+    S: int, iso: tuple[str, str], small_3bet: bool
+) -> None:
+    E = H.load_equity()
+    nodes = {n.id: n for n in _walk(H.build_tree(S, H.gw_tree(S), E, H.CheckdownLeaf()))}
+    assert nodes["root"].actions == ["fold", "limp", "r2", "r2.5", "jam"]
+    assert nodes["limp"].actions == ["check", f"iso{iso[0]}", f"iso{iso[1]}", "jam"]
+    for r in ("r2", "r2.5"):
+        assert nodes[r].actions == ["fold", "call"] + (["3b"] if small_3bet else []) + ["jam"]
+    for n in nodes.values():
+        assert len(n.children) == len(n.actions) and (n.actor is None) == (not n.actions)
+        if n.actor is not None:
+            assert len(set(n.actions)) == len(n.actions) >= 2
+        else:
+            assert n.U is not None and np.isfinite(n.U).all()
+    pots = {n.id: n.line.pot for n in nodes.values() if n.kind == "postflop"}
+    expected = {"limp-check": 2.0, f"limp-iso{iso[0]}-call": 2 * float(iso[0])}
+    expected |= {f"limp-iso{iso[1]}-call": 2 * float(iso[1]), "r2-call": 4.0, "r2.5-call": 5.0}
+    if small_3bet:
+        expected |= {"r2-3b-call": 10.0, "r2.5-3b-call": 12.5}
+    assert pots == expected and all(p < 2 * S for p in pots.values())
+    # pasy: kto pasuje, traci wszystko, co już włożył (BB po 3becie: SB traci open)
+    assert np.all(nodes[f"limp-iso{iso[1]}-fold"].U == -1.0)
+    assert np.all(nodes[f"limp-iso{iso[1]}-jam-fold"].U == float(iso[1]))
+    if small_3bet:
+        assert np.all(nodes["r2-3b-fold"].U == -2.0) and np.all(nodes["r2-3b-jam-fold"].U == 5.0)
+    allin = S * (2 * E - 1)
+    assert all(np.array_equal(n.U, allin) for n in nodes.values() if n.kind == "allin")
+    r = H.solve(S, H.ConstEQRLeaf(), tree=H.gw_tree(S), iters=400, target_expl=None)
+    assert {lf["node"] for lf in r.leaves} == set(expected)
+
+
+def test_srednia_profili_jest_mieszanka_realizacji() -> None:
+    base = H.solve(15, H.ConstEQRLeaf(), iters=300, target_expl=None)
+
+    def pure(action: str) -> Any:
+        nr = base.nodes["root"]
+        s = np.zeros_like(nr.strategy)
+        s[:, nr.actions.index(action)] = 1.0
+        nodes = dict(base.nodes)
+        nodes["root"] = H.NodeResult("SB", nr.actions, s, nr.reach, nr.freq)
+        bb = nodes["limp"]
+        shift = np.roll(bb.strategy, 1 if action == "limp" else 2, axis=1)
+        nodes["limp"] = H.NodeResult("BB", bb.actions, shift, bb.reach, bb.freq)
+        raw = H.SolveResult(15, "x", base.tree, nodes, [], 0, 0, 0, 0, 0, 0)
+        return H.average_profiles([raw], [1.0])
+
+    A, B = pure("limp"), pure("r2")
+    avg = H.average_profiles([A, B], [1.0, 3.0])
+    assert abs(avg.nodes["root"].freq["limp"] - 0.25) < 1e-12
+    assert abs(avg.nodes["root"].freq["r2"] - 0.75) < 1e-12
+    # węzeł SB osiągany tylko w A ma strategię A; węzeł BB (zasięg własny 1 w obu) - średnią 1:3
+    assert np.allclose(avg.nodes["limp-iso"].strategy, A.nodes["limp-iso"].strategy)
+    assert np.allclose(avg.nodes["r2-jam"].strategy, B.nodes["r2-jam"].strategy)
+    mix = (A.nodes["limp"].strategy + 3 * B.nodes["limp"].strategy) / 4
+    assert np.allclose(avg.nodes["limp"].strategy, mix)
+    assert {lf["node"] for lf in avg.leaves} == {lf["node"] for lf in base.leaves}
+
+
+def test_chart_dwoch_rozmiarow_iso_ma_rozne_kody() -> None:
+    r = H.solve(15, H.ConstEQRLeaf(), tree=H.gw_tree(15), iters=200, target_expl=None)
+    txt = H.chart_text(r.nodes["limp"])
+    assert "X=check, I=iso3, i=iso5, J=jam" in txt

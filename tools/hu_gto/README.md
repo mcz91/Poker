@@ -1,4 +1,4 @@
-# hu_gto — solver fazy heads-up Spin & Go (spike, pętla niezbieżna)
+# hu_gto — solver fazy heads-up Spin & Go
 
 Narzędzie do **nauki i analizy offline** fazy HU Spina: SB = button vs BB, chipEV bez ante
 (dla Spinów winner-takes-all chipEV = $EV), stack efektywny w bb. Składa się z solvera
@@ -9,6 +9,11 @@ sterownik `hupf`), pętli punktu stałego preflop ↔ postflop i narzędzia zapy
 solvera w czasie rozdania łamie regulaminy RTA sal. Tylko analiza po sesji i nauka.
 
 ## Stan jakości (uczciwie)
+
+Są dwie pętle preflop ↔ postflop. `integ/run_fp.py` to pętla spike'u (iteracja punktu stałego
+na uboższym drzewie); z jej rundy R4 pochodzą dane narzędzia `spin_gto.py` i liczby tej sekcji.
+`integ/run_fpa.py` to jej następca (fictitious play na drzewie `gw_tree`, sekcja „Fictitious
+play”); liczby jakości dla niego podaje sekcja „Pilot FP 15 bb”, gdy pilot jest policzony.
 
 Liczby niżej to pomiary z etapu spike (2026-10-19…20, 4 rdzenie), chyba że oznaczono
 „wniosek”. Dane, na których je zmierzono (rundy pętli, cache solve'ów), nie są w repo —
@@ -45,8 +50,10 @@ Czasy (zmierzone):
 - turn z flopem w cache: 0,3–1,6 s; turn na nowym flopie = flop + turn (165–252 s);
 - river: < 0,1 s.
 
-Ograniczenia narzędzia: rozmiary spoza drzewa preflop (np. open 3x, iso ≠ 3,5 bb) kończą się
-błędem; postflop rozmiar człowieka jest **po cichu** mapowany na najbliższy rozmiar drzewa
+Ograniczenia narzędzia: działa na drzewie i danych pętli spike'u (R4 z `run_fp.py`), wyników
+fictitious play jeszcze nie eksportuje; rozmiary spoza drzewa preflop (np. open 3x,
+iso ≠ 3,5 bb) kończą się błędem; postflop rozmiar człowieka jest **po cichu** mapowany na
+najbliższy rozmiar drzewa
 (overbet 150–400% liczony jak bet 50–66%); EV wypisywane z dokładnością 0,001 bb bez SE.
 
 ## Układ
@@ -56,8 +63,9 @@ preflop/   hu_preflop.py (solver + CLI), run_table.py (tabela 1–25 bb), gen_eq
            equity_eval7_1M.npy (macierz equity all-in 169×169, pochodzenie niżej)
 postflop/  hupf_py/ (klient Pythona: karty, próbki flopów, agregacja per klasa, pipeline, live)
            hupf/ (sterownik Rust, AGPL-3.0: main.rs, Cargo.*, min_bet.patch, build.sh) + NOTICE
-integ/     fp.py (klocki pętli), run_fp.py (pętla), report.py, export_tool_data.py,
-           flopsample.py, analysis_extra.py, deviations.py, crit_oos.py, dom.py (pomiary)
+integ/     fp.py (klocki pętli), run_fp.py (pętla spike'u), report.py, export_tool_data.py,
+           flopsample.py, analysis_extra.py, deviations.py, crit_oos.py, dom.py (pomiary);
+           fpa.py + run_fpa.py + report_fpa.py (fictitious play, następca run_fp.py)
 tool/      spin_gto.py (zapytania), bench_latency.py
 ```
 
@@ -122,6 +130,55 @@ Pomiary jakości (po pętli): `analysis_extra.py` (luka przeliczona R0–R3, jac
 `deviations.py out/round3.pkl 15 20` (odchylenia), `crit_oos.py 15 20` (luka R4 na flopach
 spoza próbki; liczy nowe solve'y), `dom.py` (naruszenia dominacji).
 
+## Fictitious play (`integ/fpa.py`, `integ/run_fpa.py`)
+
+Następca pętli `run_fp.py`, która kręci się w 2-cyklu. Runda r przy profilu uśrednionym R̄_r:
+
+1. postflop liczy wszystkie liście nie-all-in R̄_r (bez pożyczania między głębokościami) tanim
+   drzewem `flopsmall` na **świeżym** bloku flopów (`flopsample.herd_blocks`: każdy blok to
+   herding do cech całej populacji, bloki rozłączne);
+2. **luka held-out** = luka best response R̄_r w modelu dopasowanym tylko do tego bloku (żaden
+   model, z którego powstał R̄_r, nie widział tych flopów); wartości klas są wobec ustalonej
+   strategii postflop rywala, więc to luka w sensie BR (rywal stały preflop i postflop);
+   eksploatacja samego postflopu (solve'y do 1% puli) nie jest w niej liczona;
+3. model puli M̄_r = średnia modeli addytywnych z rund z wagami k + 1 (FP na modelach liścia;
+   szum próbki maleje, bo pula widzi wszystkie bloki), R_{r+1} = równowaga preflop w M̄_r,
+   R̄_{r+1} = średnia R_0..R_{r+1} z wagami k + 1 w sensie realizacji (FP na profilach).
+
+Estymator wielowierności: w rundzie `--hifi-round` blok ma `--hifi-flops` (domyślnie 30)
+flopów i dla liści o SPR > 1,5 liczy też drzewo produkcyjne (`low1rf` / `l1rf` wg SPR);
+poprawka D = EV_prod − EV_tanie (wygładzona po cechach klas) wchodzi do modelu wszystkich rund.
+Liście o SPR ≤ 1,5 (pule po iso 5–6 bb i po małym 3becie) zostają na tanim drzewie: oba drzewa
+mają tam na turnie i riverze praktycznie tylko check / all-in; D dla nich jest mierzona na
+`--spr-check-flops` flopach i raportowana, ale nie stosowana. Po ostatniej rundzie:
+luka R̄_final na osobnym bloku held-out (`--holdout`, cały i połówki — szum pomiaru),
+zgodność akcji najlepszej per klasa model puli vs model held-out, bias modelu per liść
+(SE jackknife po flopach), naruszenia dominacji, porównanie z referencjami o porównywalnym
+drzewie (GW-AI 10/16/20 bb, biblioteka GW 20 bb, Gecko 10 bb).
+
+Drzewo `hu_preflop.gw_tree(S)`: open 2x i 2,5x na każdej głębokości, BB vs limp
+check / iso 2,5 i 4 bb (S < 13), 3 i 5 (13 ≤ S < 18), 3 i 6 (S ≥ 18) / jam, mały 3bet do 2,5×
+openu vs open przy S ≥ 13 (SB: fold / call / 4bet-jam).
+
+Wygładzanie empirycznym Bayesem (`fpa.shrink`, opcja `--smooth`) jest domyślnie wyłączone —
+uzasadnienie liczbami w sekcji pilota.
+
+Test na grze zabawkowej (`tests/test_hu_gto_fpa.py`, postflop zależny od zakresu SB): iteracja
+bez uśredniania wpada w 2-cykl (open SB 0 ↔ 74%, luka 0,31–0,35 bb/rękę), FP zbiega
+(po 8 rundach luka < 0,002 bb/rękę, zmiana R̄ między rundami 6–8 < 2 pp).
+
+```bash
+cd tools/hu_gto/integ
+setsid nohup python run_fpa.py --depths 15 --rounds 9 --out OUT > OUT.stdout 2>&1 &
+python report_fpa.py OUT          # tabela rund i wynik held-out końcowego
+python compare_smooth.py OUT      # model puli surowy vs EB na bloku held-out (z cache)
+```
+
+Checkpointy: każdy solve postflop w `OUT/cache` (klucz sha1 zadania), stan po rundzie w
+`OUT/state.json` i `OUT/fpa_round<r>.pkl`; postęp w `OUT/run.log`. Wznowienie = ta sama komenda
+(także z większym `--rounds`): preflop jest deterministyczny, policzone solve'y są czytane
+z cache.
+
 Zapytania (po eksporcie danych; flop na żywo liczy minuty):
 
 ```bash
@@ -163,6 +220,6 @@ b-inary postflop-solver — szczegóły w `postflop/NOTICE`. Reszta `tools/hu_gt
 ## Testy
 
 `tests/test_hu_gto_preflop.py`, `test_hu_gto_postflop.py`, `test_hu_gto_integ.py`,
-`test_hu_gto_tool.py` (ok. 15 s). Bez binarki `hupf` pomijane są 4 testy uruchamiające
+`test_hu_gto_fpa.py`, `test_hu_gto_tool.py` (ok. 40 s). Bez binarki `hupf` pomijane są 4 testy uruchamiające
 sterownik, bez eval7 — 1 test generatora macierzy. Kod `tools/hu_gto` jest poza
 `mypy` strict (jak reszta `tools/` poza `tools/blueprint`); typowane są testy.

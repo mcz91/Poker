@@ -22,7 +22,7 @@ def feats(f):
     return np.concatenate([pres, high, [nsuit == 1, nsuit == 2, nsuit == 3], [len(ranks) < 3], co])
 
 
-def herd(k, bw=(1.0, 1.0, 1.0, 3.0, 1.0)):
+def _scaled(bw):
     fl, mult = flops.canonical_flops()
     names = [flops.flop_str(f) for f in fl]
     X = np.array([feats(n) for n in names])
@@ -32,7 +32,31 @@ def herd(k, bw=(1.0, 1.0, 1.0, 3.0, 1.0)):
         / np.sqrt(np.maximum(mu * (1 - mu), 1e-4))
         * np.repeat(np.asarray(bw), (13, 13, 3, 1, 78))
     )
-    Xs, mus = X * scale, mu * scale
+    return names, X * scale, mu * scale
+
+
+def herd_blocks(sizes, bw=(1.0, 1.0, 1.0, 3.0, 1.0)):
+    """Rozłączne bloki flopów: każdy blok to osobny herding do średniej cech CAŁEJ populacji, bez
+    flopów z bloków wcześniejszych (wagi 1/rozmiar). Dlaczego bez powtórzeń: zwykły herding
+    powtarza flopy tęczowe (400 wyborów = 326 różnych flopów), a blok ma być held-out wobec
+    poprzednich. Bloki są deterministyczne i nie zależą od liczby bloków dalszych."""
+    names, Xs, mus = _scaled(bw)
+    used = np.zeros(len(names), bool)
+    out = []
+    for k in sizes:
+        w = mus.copy()
+        block = []
+        for _ in range(k):
+            j = int(np.argmax(np.where(used, -np.inf, Xs @ w)))
+            used[j] = True
+            w += mus - Xs[j]
+            block.append((names[j], 1.0 / k))
+        out.append(block)
+    return out
+
+
+def herd(k, bw=(1.0, 1.0, 1.0, 3.0, 1.0)):
+    names, Xs, mus = _scaled(bw)
     w = mus.copy()
     picks = {}
     for _ in range(k):
