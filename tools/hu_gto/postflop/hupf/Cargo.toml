@@ -1,0 +1,14 @@
+[package]
+name = "hupf"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+# vendor/ is filled by build.sh (upstream at the pinned commit + min_bet.patch); not in git.
+postflop-solver = { path = "vendor/postflop-solver", default-features = false, features = ["rayon"] }
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = "thin"

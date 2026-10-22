@@ -1,0 +1,38 @@
+diff --git a/src/action_tree.rs b/src/action_tree.rs
+index 8366c12..64d2c54 100644
+--- a/src/action_tree.rs
++++ b/src/action_tree.rs
+@@ -5,6 +5,11 @@ use crate::mutex_like::*;
+ #[cfg(feature = "bincode")]
+ use bincode::{Decode, Encode};
+ 
++/// Minimum bet/raise-to amount in chips. b-inary has no notion of a big blind, while in
++/// No-Limit Hold'em the smallest legal bet equals one big blind; set this to the BB in chips
++/// before building an `ActionTree` (default `1` reproduces upstream behaviour).
++pub static MIN_BET: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(1);
++
+ pub(crate) const PLAYER_OOP: u8 = 0;
+ pub(crate) const PLAYER_IP: u8 = 1;
+ pub(crate) const PLAYER_CHANCE: u8 = 2; // only used with `PLAYER_CHANCE_FLAG`
+@@ -534,7 +539,9 @@ impl ActionTree {
+ 
+         let pot = self.config.starting_pot + 2 * (node.amount + to_call);
+         let max_amount = opponent_stack + prev_amount;
+-        let min_amount = (prev_amount + to_call).clamp(1, max_amount);
++        let min_amount = (prev_amount + to_call)
++            .max(MIN_BET.load(std::sync::atomic::Ordering::Relaxed))
++            .clamp(1, max_amount);
+ 
+         let spr_after_call = opponent_stack as f64 / pot as f64;
+         let compute_geometric = |num_streets: i32, max_ratio: f64| {
+@@ -819,7 +826,9 @@ impl ActionTree {
+         let to_call = player_stack - opponent_stack;
+ 
+         let max_amount = opponent_stack + prev_amount;
+-        let min_amount = (prev_amount + to_call).clamp(1, max_amount);
++        let min_amount = (prev_amount + to_call)
++            .max(MIN_BET.load(std::sync::atomic::Ordering::Relaxed))
++            .clamp(1, max_amount);
+ 
+         let mut is_replaced = false;
+         let action = match action {

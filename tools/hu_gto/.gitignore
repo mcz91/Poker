@@ -1,0 +1,10 @@
+# Build products of the AGPL driver (upstream checkout, cargo target).
+postflop/hupf/vendor/
+postflop/hupf/target/
+# Strategy artefacts and solve caches are regenerated, never committed (decision 30).
+postflop/out/
+integ/out/
+tool/data/
+tool/cache/
+preflop/out/
+tool/latency.json

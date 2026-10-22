@@ -1,0 +1,23 @@
+tools/hu_gto/postflop/hupf/ is licensed AGPL-3.0-or-later; the rest of tools/hu_gto is not.
+
+What is under AGPL-3.0-or-later (directory hupf/):
+  src/main.rs, Cargo.toml, Cargo.lock   the `hupf` driver; links postflop-solver as a library
+  min_bet.patch                         modification of postflop-solver (src/action_tree.rs)
+  build.sh                              fetches postflop-solver, applies the patch, builds hupf
+  LICENSE                               full text of the GNU Affero General Public License v3
+
+Upstream: postflop-solver by Wataru Inariba (b-inary), https://github.com/b-inary/postflop-solver,
+AGPL-3.0-or-later, used at commit 9d1509fe5077d019825f833eed04b16d342dfda1. Its source is not
+copied into this repository: build.sh downloads that commit into hupf/vendor/ (git-ignored).
+The corresponding source of a built hupf binary is that upstream commit plus the files above.
+
+Modification made by min_bet.patch (stated per AGPL-3.0 section 5a): a public static `MIN_BET`
+(minimum bet / raise-to in chips, default 1 = upstream behaviour) is added and used as a floor
+for bet and raise sizes when the action tree is built and when a line is added. The driver sets
+it from the job's `min_bet` key (the Python client sends 1 bb = 100 chips), because No-Limit
+Hold'em has no bet smaller than the big blind while upstream allows any size of at least 1 chip.
+
+Everything else under tools/hu_gto, including the Python client postflop/hupf_py/, is a separate
+program: it starts `hupf` as a child process and exchanges plain-text jobs (file or stdin) and
+JSON results (file or stdout). It does not link against, import or include AGPL code, and it
+keeps the license of this repository.
