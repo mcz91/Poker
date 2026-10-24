@@ -194,15 +194,21 @@ def test_harmonogram_jobow_trzyma_budzet_pamieci_i_liczy_wszystko(monkeypatch: A
 
     monkeypatch.setattr(fp, "run_one", fake_run_one)
     monkeypatch.setattr(fp, "log", lambda *a: None)
+    boards = ["Kd4h3s", "Jh8h7s", "Qs6s5s", "Td9h2s", "9h5h3s", "As8s6s"]
     jobs = [
-        (("limp-check@20", f"F{i}", kind), dict(board=f"F{i}", tree=tree, stack_bb=19, pot_bb=2))
-        for i in range(6)
+        ((f"limp-check@{d}", b, kind), dict(board=b, tree=tree, stack_bb=d - 1, pot_bb=2))
+        for b in boards
+        for d in (15, 20)
         for kind, tree in (("hi", "l1rf"), ("lo", "flopsmall"))
     ]
     out = run_fpa.run_all(jobs, 4, "t")
     assert set(out) == {lab for lab, _ in jobs}
     assert all(out[lab]["tree"] == kw["tree"] for lab, kw in jobs)
     assert 0 < active["max"] <= run_fpa.MEM_BUDGET_GB
+    # tęczowy l1rf przy 20 bb liczony ostrożniej niż monokolorowy przy 15 bb (pomiar spike'u)
+    rainbow20 = run_fpa.mem_gb(dict(board="Kd4h3s", tree="l1rf", stack_bb=19, pot_bb=2))
+    mono15 = run_fpa.mem_gb(dict(board="Qs6s5s", tree="l1rf", stack_bb=14, pot_bb=2))
+    assert rainbow20 > 5.8 and 1.4 < mono15 < 2.0
 
 
 def test_kategorie_referencji_sumuja_rozmiary() -> None:

@@ -128,17 +128,22 @@ def cost(item):
     return base * (2.0 if key.startswith("limp-check") else 1.0)
 
 
-# Szczyt pamięci solve'u (GB) przy 15 bb, zmierzony w spike'u (l1rf limp-check do 4,8 GB na
-# flopie tęczowym, low1rf do 2,8, flopsmall do 0,56), skalowany głębokością (przy 20 bb: l1rf
-# do 5,8, low1rf do 4,8). Budżet: 15 GB RAM minus proces Pythona i system; przy 15 bb mieszczą
-# się dwa l1rf i dwa joby tanie naraz.
-MEM_GB = {"l1rf": 5.5, "low1rf": 3.5}
+# Szczyt pamięci solve'u (GB) przy 15 bb na flopie tęczowym, zmierzony w spike'u (l1rf
+# limp-check 4,8 GB, low1rf r2-call 2,8; flopsmall do 0,56). Pamięć rośnie z liczbą
+# nieizomorficznych turnów i riverów: flop dwukolorowy ~0,6, monokolorowy ~0,3 tęczowego
+# (l1rf 2,9 / 1,4 GB), i z głębokością (20 bb: l1rf do 5,8, low1rf do 4,8). Budżet: 15 GB RAM
+# minus proces Pythona i system.
+MEM_GB = {"l1rf": 5.5, "low1rf": 3.8}
+SUIT_FACTOR = {3: 1.0, 2: 0.62, 1: 0.3}
 MEM_BUDGET_GB = 13.5
 
 
 def mem_gb(kw: dict) -> float:
+    if kw["tree"] not in MEM_GB:
+        return 0.6
     depth = kw["stack_bb"] + kw["pot_bb"] / 2
-    return MEM_GB.get(kw["tree"], 0.6) * max(1.0, depth / 15.0)
+    suits = len({kw["board"][1], kw["board"][3], kw["board"][5]})
+    return MEM_GB[kw["tree"]] * SUIT_FACTOR[suits] * max(1.0, depth / 15.0)
 
 
 def run_all(jobs, workers, tag):
